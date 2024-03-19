@@ -35,6 +35,7 @@ class PettingZooMPEEnv:
         self.agents = self.env.agents
         self.share_observation_space = self.repeat(self.env.state_space)
         self.observation_space = self.unwrap(self.env.observation_spaces)
+        print("self.env.observation_spaces",self.env.observation_spaces)
         self.action_space = self.unwrap(self.env.action_spaces)
         self._seed = 0
 
@@ -70,6 +71,8 @@ class PettingZooMPEEnv:
         self.cur_step = 0
         obs = self.unwrap(self.env.reset(seed=self._seed))
         s_obs = self.repeat(self.env.state())
+        print("reset_self.get_avail_actions()================================",self.get_avail_actions())
+        print("reset_self.obstype================================",type(s_obs))
         return obs, s_obs, self.get_avail_actions()
 
     def get_avail_actions(self):
@@ -84,6 +87,7 @@ class PettingZooMPEEnv:
 
     def get_avail_agent_actions(self, agent_id):
         """Returns the available actions for agent_id"""
+        print("self.action_space[agent_id]=",self.action_space[agent_id])
         return [1] * self.action_space[agent_id].n
 
     def render(self):

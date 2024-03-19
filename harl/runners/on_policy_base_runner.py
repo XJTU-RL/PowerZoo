@@ -1,6 +1,7 @@
 """Base runner for on-policy algorithms."""
 
 import time
+import os
 import numpy as np
 import torch
 import setproctitle
@@ -17,6 +18,9 @@ from harl.utils.envs_tools import (
     make_render_env,
     set_seed,
     get_num_agents,
+    #get_agents_orders,
+    get_ordered_agents_pairs,
+    get_agents_bus,
 )
 from harl.utils.models_tools import init_device
 from harl.utils.configs_tools import init_dir, save_config
@@ -44,9 +48,11 @@ class OnPolicyBaseRunner:
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
         self.fixed_order = algo_args["algo"]["fixed_order"]
+        self.useS=env_args["useS"]
+        self.big2small= env_args["big2small"]
         set_seed(algo_args["seed"])
         self.device = init_device(algo_args["device"])
-        if not self.algo_args["render"]["use_render"]:  # train, not render
+        if not self.algo_args["render"]["use_render"]:  # train, not render 如果不进行渲染,则进行训练
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
@@ -56,13 +62,13 @@ class OnPolicyBaseRunner:
                 logger_path=algo_args["logger"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
-        # set the title of the process
+        # set the title of the process 制定进程名称,方便监视训练过程
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
         )
 
         # set the config of env
-        if self.algo_args["render"]["use_render"]:  # make envs for rendering
+        if self.algo_args["render"]["use_render"]:  # make envs for rendering 使用环境进行渲染而非训练
             (
                 self.envs,
                 self.manual_render,
@@ -71,6 +77,7 @@ class OnPolicyBaseRunner:
                 self.env_num,
             ) = make_render_env(args["env"], algo_args["seed"]["seed"], env_args)
         else:  # make envs for training and evaluation
+            print(algo_args["train"]["n_rollout_threads"],env_args)
             self.envs = make_train_env(
                 args["env"],
                 algo_args["seed"]["seed"],
@@ -83,26 +90,35 @@ class OnPolicyBaseRunner:
                     algo_args["seed"]["seed"],
                     algo_args["eval"]["n_eval_rollout_threads"],
                     env_args,
+                    algo_args["train"]["n_rollout_threads"],
                 )
                 if algo_args["eval"]["use_eval"]
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-
+        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powergym更新顺序
+        if args["env"] == "powergym":
+           #if args["useS"]==True:
+            self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
+            self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
+        
         print("share_observation_space: ", self.envs.share_observation_space)
         print("observation_space: ", self.envs.observation_space)
         print("action_space: ", self.envs.action_space)
 
-        # actor
+        # actor 
+        # 如果 share_param 为 true,代表处理同质 agent
         if self.share_param:
             self.actor = []
+            # 使用第一个agent的观测空间作为全部的观测空间,并且只需要一个 agent 作为 actor
             agent = ALGO_REGISTRY[args["algo"]](
                 {**algo_args["model"], **algo_args["algo"]},
-                self.envs.observation_space[0],
-                self.envs.action_space[0],
+                self.envs.observation_space[0], 
+                self.envs.action_space[0], 
                 device=self.device,
             )
             self.actor.append(agent)
+            # 判断是否是异质 agent
             for agent_id in range(1, self.num_agents):
                 assert (
                     self.envs.observation_space[agent_id]
@@ -114,10 +130,11 @@ class OnPolicyBaseRunner:
                 self.actor.append(self.actor[0])
         else:
             self.actor = []
+            # 异质 agent 使用每一个 agent 代入算法,创建每个 agent 的算法实例 
             for agent_id in range(self.num_agents):
                 agent = ALGO_REGISTRY[args["algo"]](
                     {**algo_args["model"], **algo_args["algo"]},
-                    self.envs.observation_space[agent_id],
+                    self.envs.observation_space[agent_id], 
                     self.envs.action_space[agent_id],
                     device=self.device,
                 )
@@ -125,20 +142,24 @@ class OnPolicyBaseRunner:
 
         if self.algo_args["render"]["use_render"] is False:  # train, not render
             self.actor_buffer = []
+            # 给每一个 agent 都初始化两个 buffer,一个放观测,一个放动作,都放在 envs 里
             for agent_id in range(self.num_agents):
                 ac_bu = OnPolicyActorBuffer(
                     {**algo_args["train"], **algo_args["model"]},
                     self.envs.observation_space[agent_id],
                     self.envs.action_space[agent_id],
                 )
+                
                 self.actor_buffer.append(ac_bu)
-
             share_observation_space = self.envs.share_observation_space[0]
+
+            # 评论家使用的目标状态值函数
             self.critic = VCritic(
                 {**algo_args["model"], **algo_args["algo"]},
                 share_observation_space,
                 device=self.device,
             )
+            print("self.state_type=",self.state_type)
             if self.state_type == "EP":
                 # EP stands for Environment Provided, as phrased by MAPPO paper.
                 # In EP, the global states for all agents are the same.
@@ -146,9 +167,12 @@ class OnPolicyBaseRunner:
                     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
                     share_observation_space,
                 )
+                #使用 feature pruned特征剪裁的方法对全局状态值进行观测,特征剪裁的特定于智能体的全局状态
             elif self.state_type == "FP":
                 # FP stands for Feature Pruned, as phrased by MAPPO paper.
-                # In FP, the global states for all agents are different, and thus needs the dimension of the number of agents.
+                # In FP, the global states for all agents are different, 
+                # and thus needs the dimension of the number of agents.
+                # 对于异质智能体,因为每个智能体的全局状态是不同的,所以需要智能体数量这个维度
                 self.critic_buffer = OnPolicyCriticBufferFP(
                     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
                     share_observation_space,
@@ -157,6 +181,7 @@ class OnPolicyBaseRunner:
             else:
                 raise NotImplementedError
 
+            # 使用归一化
             if self.algo_args["train"]["use_valuenorm"] is True:
                 self.value_normalizer = ValueNorm(1, device=self.device)
             else:
@@ -200,6 +225,7 @@ class OnPolicyBaseRunner:
             )  # logger callback at the beginning of each episode
 
             self.prep_rollout()  # change to eval mode
+            # 先采样collect，然后步进 step 和环境交互，然后插入数据到 buffer 里
             for step in range(self.algo_args["train"]["episode_length"]):
                 # Sample actions from actors and values from critics
                 (
@@ -237,10 +263,9 @@ class OnPolicyBaseRunner:
                     rnn_states,
                     rnn_states_critic,
                 )
-
+                #print("obs+++++++++++++shape",obs.shape)
                 self.logger.per_step(data)  # logger callback at each step
-
-                self.insert(data)  # insert data into buffer
+                self.insert(data)  # insert data into buffer,此处的insert是actorbuffer的insert
 
             # compute return and update network
             self.compute()
@@ -270,13 +295,25 @@ class OnPolicyBaseRunner:
         """Warm up the replay buffer."""
         # reset env
         obs, share_obs, available_actions = self.envs.reset()
+        # print("warmup_available_actions_type",type(available_actions))
+        # print("warmup_available_actions[:,1]_type",type(available_actions[:,1]))
+        # print("warmup_available_actions",np.array(available_actions[:,1]).tolist())
+        # print("self.actor_buffer[agent_id=1].available_actions[0]=",self.actor_buffer[1].available_actions[0])
         # replay buffer
         for agent_id in range(self.num_agents):
             self.actor_buffer[agent_id].obs[0] = obs[:, agent_id].copy()
+            # if self.actor_buffer[agent_id].available_actions is not None:
+            #     self.actor_buffer[agent_id].available_actions[0] = available_actions[
+            #         :, agent_id
+            #     ].copy()
+            #TODO:解决了动作空间存储的问题
             if self.actor_buffer[agent_id].available_actions is not None:
-                self.actor_buffer[agent_id].available_actions[0] = available_actions[
+                self.actor_buffer[agent_id].available_actions[0] = np.array(available_actions[
                     :, agent_id
-                ].copy()
+                ]).tolist().copy()
+
+
+
         if self.state_type == "EP":
             self.critic_buffer.share_obs[0] = share_obs[:, 0].copy()
         elif self.state_type == "FP":
@@ -400,6 +437,7 @@ class OnPolicyBaseRunner:
             (self.algo_args["train"]["n_rollout_threads"], self.num_agents, 1),
             dtype=np.float32,
         )
+        #print("dones=================",dones) #TODO:检查一天是否完成。
         active_masks[dones == True] = np.zeros(
             ((dones == True).sum(), 1), dtype=np.float32
         )
@@ -431,7 +469,7 @@ class OnPolicyBaseRunner:
                     for info in infos
                 ]
             )
-
+        #print("self.actor_buffer[agent_id].insert(obs)************",obs)
         for agent_id in range(self.num_agents):
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
@@ -444,7 +482,16 @@ class OnPolicyBaseRunner:
                 if available_actions[0] is not None
                 else None,
             )
+        # 创建一个空列表用于存储所有 'S' 对应的值
+        #TODO:设置S矩阵的筛选条件
+        S_values = []
 
+        # 遍历列表中的每个元素
+        for item in infos:
+        # 检查当前元素是否包含键 'S'
+            if 'S' in item[0]:
+            # 如果包含，将 'S' 对应的值添加到 S_values 列表中
+                S_values.append(item[0]['S'])
         if self.state_type == "EP":
             self.critic_buffer.insert(
                 share_obs[:, 0],
@@ -453,7 +500,9 @@ class OnPolicyBaseRunner:
                 rewards[:, 0],
                 masks[:, 0],
                 bad_masks,
+                S_values,
             )
+        #TODO：设置S矩阵的筛选条件
         elif self.state_type == "FP":
             self.critic_buffer.insert(
                 share_obs, rnn_states_critic, values, rewards, masks, bad_masks
@@ -519,14 +568,21 @@ class OnPolicyBaseRunner:
         )
 
         while True:
+            #print("eval_available_actions===============",eval_available_actions) #TODO:检查评价动作输出
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
+                #TODO:availible_actioncheck报错解决
+                test=eval_available_actions[:, agent_id].copy()
+                test1 = np.vstack([np.array(item, dtype=np.float32) for item in test])
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
                     eval_masks[:, agent_id],
-                    eval_available_actions[:, agent_id]
-                    if eval_available_actions[0] is not None
+                    # eval_available_actions[:, agent_id]
+                    # if eval_available_actions[0] is not None
+                    # else None,
+                    test1 ###TODO:加了一层转换
+                    if test1[0] is not None
                     else None,
                     deterministic=True,
                 )

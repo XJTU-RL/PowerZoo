@@ -1,6 +1,9 @@
 """Train an algorithm."""
 import argparse
 import json
+import sys 
+import os
+import harl
 from harl.utils.configs_tools import get_defaults_yaml_args, update_args
 
 
@@ -10,7 +13,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--algo",
+        "--algo", 
         type=str,
         default="happo",
         choices=[
@@ -30,7 +33,8 @@ def main():
     parser.add_argument(
         "--env",
         type=str,
-        default="pettingzoo_mpe",
+        #default="pettingzoo_mpe",
+        default="powergym",
         choices=[
             "smac",
             "mamujoco",
@@ -40,8 +44,9 @@ def main():
             "dexhands",
             "smacv2",
             "lag",
+            "powergym",
         ],
-        help="Environment name. Choose from: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powergym.",
     )
     parser.add_argument(
         "--exp_name", type=str, default="installtest", help="Experiment name."
@@ -52,10 +57,13 @@ def main():
         default="",
         help="If set, load existing experiment config file instead of reading from yaml config file.",
     )
+    
+    
+    
     args, unparsed_args = parser.parse_known_args()
 
     def process(arg):
-        try:
+        try: 
             return eval(arg)
         except:
             return arg
@@ -63,7 +71,7 @@ def main():
     keys = [k[2:] for k in unparsed_args[0::2]]  # remove -- from argument
     values = [process(v) for v in unparsed_args[1::2]]
     unparsed_dict = {k: v for k, v in zip(keys, values)}
-    args = vars(args)  # convert to dict
+    args = vars(args)  # 将args 转换为字典
     if args["load_config"] != "":  # load config from existing config file
         with open(args["load_config"], encoding="utf-8") as file:
             all_config = json.load(file)
@@ -82,7 +90,7 @@ def main():
     if args["env"] == "dexhands":
         algo_args["eval"]["use_eval"] = False
         algo_args["train"]["episode_length"] = env_args["hands_episode_length"]
-
+  
     # start training
     from harl.runners import RUNNER_REGISTRY
 

@@ -6,7 +6,7 @@ from harl.models.base.mlp import MLPBase
 from harl.models.base.rnn import RNNLayer
 from harl.models.base.act import ACTLayer
 from harl.utils.envs_tools import get_shape_from_obs_space
-
+import numpy as np
 
 class StochasticPolicy(nn.Module):
     """Stochastic policy model. Outputs actions given observations."""
@@ -68,11 +68,18 @@ class StochasticPolicy(nn.Module):
             action_log_probs: (torch.Tensor) log probabilities of taken actions.
             rnn_states: (torch.Tensor) updated RNN hidden states.
         """
+        #available_actions=None#TODO:问题2异秩问题的暂时解法
+        
         obs = check(obs).to(**self.tpdv)
         rnn_states = check(rnn_states).to(**self.tpdv)
         masks = check(masks).to(**self.tpdv)
         if available_actions is not None:
+            #print("check_available_actions======",available_actions)
             available_actions = check(available_actions).to(**self.tpdv)
+            #converted_list = [[float(x) for x in tpl] for tpl in available_actions]
+            #print("check_available_actions======",converted_list)
+            #available_actions = check(converted_list).to(**self.tpdv)
+            
 
         actor_features = self.base(obs)
 

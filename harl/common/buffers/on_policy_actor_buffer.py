@@ -44,21 +44,30 @@ class OnPolicyActorBuffer:
             dtype=np.float32,
         )
 
+        #TODO 考虑混合动作空间的情况，如果有连续量应该如何进行直接调节
         # Buffer for available actions of this actor.
         if act_space.__class__.__name__ == "Discrete":
             self.available_actions = np.ones(
                 (self.episode_length + 1, self.n_rollout_threads, act_space.n),
                 dtype=np.float32,
             )
-        else:
+        else: 
+            #TODO:为了避免available_actions为none的情况，原来的代码只有下面的一行else注释
             self.available_actions = None
-
+            # nvec = act_space.nvec
+            # int_nvec = [int(x) for x in nvec]
+            # self.available_actions = np.ones(
+            #     (self.episode_length + 1, self.n_rollout_threads, *int_nvec),
+            #     dtype=np.float32,
+            # )我加的代码
         act_shape = get_shape_from_act_space(act_space)
 
         # Buffer for actions of this actor.
+        # 24*6*1
         self.actions = np.zeros(
             (self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32
-        )
+        ) 
+        
 
         # Buffer for action log probs of this actor.
         self.action_log_probs = np.zeros(
@@ -90,6 +99,7 @@ class OnPolicyActorBuffer:
         available_actions=None,
     ):
         """Insert data into actor buffer."""
+        #print("obs-------------shape",obs.shape)#TODO:打印obs.shape
         self.obs[self.step + 1] = obs.copy()
         self.rnn_states[self.step + 1] = rnn_states.copy()
         self.actions[self.step] = actions.copy()
@@ -98,8 +108,9 @@ class OnPolicyActorBuffer:
         if active_masks is not None:
             self.active_masks[self.step + 1] = active_masks.copy()
         if available_actions is not None:
-            self.available_actions[self.step + 1] = available_actions.copy()
-
+            #self.available_actions[self.step + 1] = available_actions.copy()
+            self.available_actions[self.step + 1] = np.array(available_actions).tolist().copy()
+            #TODO，验证数据结构
         self.step = (self.step + 1) % self.episode_length
 
     def after_update(self):
@@ -118,7 +129,7 @@ class OnPolicyActorBuffer:
 
         # get episode_length, n_rollout_threads, mini_batch_size
         episode_length, n_rollout_threads = self.actions.shape[0:2]
-        batch_size = n_rollout_threads * episode_length
+        batch_size = n_rollout_threads * episode_length#指的是在每一次模型参数更新时一次性输入到模型的样本数量,一次输入的样本数是线程数乘以episode的长度
         if mini_batch_size is None:
             assert batch_size >= actor_num_mini_batch, (
                 f"The number of processes ({n_rollout_threads}) "

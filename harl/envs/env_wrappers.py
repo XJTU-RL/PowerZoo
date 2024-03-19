@@ -213,6 +213,13 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             remote.send((fr))
         elif cmd == "get_num_agents":
             remote.send((env.n_agents))
+        # elif cmd == "get_agents_orders":
+        #     remote.send((env.update_orders))
+        elif cmd == "get_ordered_agents_pairs":
+            remote.send((env.ordered_agents_pairs))
+        elif cmd == "get_agents_bus":
+            remote.send((env.agents_bus))
+            
         else:
             raise NotImplementedError
 
@@ -225,7 +232,12 @@ class ShareSubprocVecEnv(ShareVecEnv):
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+        
+        # 创建nenvs个数量的管道
+        # work_remote和remote是一对由Pipe()创建的通信管道的两端。work_remote用于在子进程中，而remote用于在主进程中
+        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)]) 
+        
+        # 创建 process list
         self.ps = [
             Process(
                 target=shareworker,
@@ -234,27 +246,60 @@ class ShareSubprocVecEnv(ShareVecEnv):
             for (work_remote, remote, env_fn) in zip(
                 self.work_remotes, self.remotes, env_fns
             )
-        ]
+        ] 
         for p in self.ps:
             p.daemon = (
                 True  # if the main process crashes, we should not cause things to hang
             )
-            p.start()
+            p.start() #启动所有进程
+
+        #关闭每个进程的 work_remote端
         for remote in self.work_remotes:
-            remote.close()
-        self.remotes[0].send(("get_num_agents", None))
-        self.n_agents = self.remotes[0].recv()
-        self.remotes[0].send(("get_spaces", None))
+            remote.close() 
+
+        # 关闭work_remote端点是一种标准做法，旨在提高效率、安全性和代码的清晰度。
+        # 这种做法在使用Python的multiprocessing模块进行多进程通信时尤其常见
+            
+
+        #命令是一个元组，其中第一个元素是字符串"get_num_agents"，指示子进程返回环境中的代理数量。
+        self.remotes[0].send(("get_num_agents", None)) 
+        #接收来自子进程的响应。这里，响应应该是环境中的代理数量，该值被存储在self.n_agents中
+        self.n_agents = self.remotes[0].recv() 
+        #向第一个子进程发送另一个命令，请求环境的空间信息。这通常包括观测空间和动作空间的定义。
+        self.remotes[0].send(("get_spaces", None)) 
+        #接收并解包从子进程返回的空间信息。这些信息通常包括观测空间（环境提供的每个观测的格式或结构）、
+        # 共享观测空间（如果环境中有多个代理需要共享信息），以及动作空间（代理可以执行的动作的格式或结构）。
         observation_space, share_observation_space, action_space = self.remotes[
             0
         ].recv()
+        
+        
+        #自定义更新顺序
+        # self.remotes[0].send(("get_agents_orders", None)) 
+        # #接收来自子进程的响应。这里，响应应该是环境中的代理数量，该值被存储在self.update_orders中
+        # self.update_orders = self.remotes[0].recv() 
+        
+        #传递更新顺序
+        self.remotes[0].send(("get_ordered_agents_pairs", None)) 
+        #接收来自子进程的响应。这里，响应应该是环境中的代理数量，该值被存储在self.original_orders中
+        self.ordered_agents_pairs = self.remotes[0].recv()
+        
+        #传递智能体和网络关系
+        self.remotes[0].send(("get_agents_bus", None)) 
+        #接收来自子进程的响应。这里，响应应该是环境中的代理数量，该值被存储在self.original_orders中
+        self.agents_bus = self.remotes[0].recv() 
+        
+        
+               
         ShareVecEnv.__init__(
             self, len(env_fns), observation_space, share_observation_space, action_space
         )
 
     def step_async(self, actions):
+        # 先发送给所有子进程执行命令,而不是一个一个地发送完等待回复再进行下一步
         for remote, action in zip(self.remotes, actions):
             remote.send(("step", action))
+        # 显式地等待
         self.waiting = True
 
     def step_wait(self):
@@ -310,6 +355,8 @@ class ShareDummyVecEnv(ShareVecEnv):
         self.actions = None
         try:
             self.n_agents = env.n_agents
+            self.ordered_agents_pairs=env.ordered_agents_pairs
+            self.agents_bus=env.agents_bus
         except:
             pass
 
@@ -349,8 +396,12 @@ class ShareDummyVecEnv(ShareVecEnv):
 
     def reset(self):
         results = [env.reset() for env in self.envs]
-        obs, share_obs, available_actions = map(np.array, zip(*results))
+        #print("reset_result=================================",results)#打印reset的结果
+               
+        obs, share_obs, available_actions = map(np.array, zip(*results))#TODO:问题2：动作空间序列长度相同
+
         return obs, share_obs, available_actions
+        
 
     def close(self):
         for env in self.envs:

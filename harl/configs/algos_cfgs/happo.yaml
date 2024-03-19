@@ -12,16 +12,16 @@ device:
   # arg to torch.set_num_threads
   torch_threads: 4
 train:
-  # number of parallel environments for training data collection
-  n_rollout_threads: 20
-  # number of total training steps
-  num_env_steps: 10000000
-  # number of steps per environment per training data collection
-  episode_length: 200
-  # logging interval
-  log_interval: 5
-  # evaluation interval
-  eval_interval: 25
+  # number of parallel environments for training data collection，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
+  n_rollout_threads: 3
+  # number of total training steps,default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
+  num_env_steps: 24000
+  # number of steps per environment per training data collection，电力系统按天算，一天24小时，正好episode长度是24
+  episode_length: 24
+  # logging interval,default is 5
+  log_interval: 1
+  # evaluation interval,default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
+  eval_interval: 1
   # whether to use ValueNorm
   use_valuenorm: True
   # whether to use linear learning rate decay
@@ -33,10 +33,10 @@ train:
 eval:
   # whether to use evaluation
   use_eval: True
-  # number of parallel environments for evaluation
-  n_eval_rollout_threads: 10
-  # number of episodes per evaluation
-  eval_episodes: 20
+  # number of parallel environments for evaluation,default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
+  n_eval_rollout_threads: 3
+  # number of episodes per evaluation,default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
+  eval_episodes: 4
 render:
   # whether to use render
   use_render: False
@@ -87,9 +87,9 @@ algo:
   # clip parameter
   clip_param: 0.2
   # number of mini-batches per epoch for actor update
-  actor_num_mini_batch: 1
+  actor_num_mini_batch: 4
   # number of mini-batches per epoch for critic update
-  critic_num_mini_batch: 1
+  critic_num_mini_batch: 4
   # coefficient for entropy term in actor loss
   entropy_coef: 0.01
   # coefficient for value loss
@@ -100,7 +100,7 @@ algo:
   max_grad_norm: 10.0
   # whether to use Generalized Advantage Estimation (GAE)
   use_gae: True
-  # discount factor
+  # discount factor在gae的文章中，gamma=0.99，gae_lamda=0.95的效果比较好
   gamma: 0.99
   # GAE lambda
   gae_lambda: 0.95
@@ -115,7 +115,9 @@ algo:
   # whether to share parameter among actors
   share_param: False
   # whether to use a fixed optimisation order
-  fixed_order: False
+  fixed_order: True
 logger:
   # logging directory
-  log_dir: "./results"
+  #log_dir: "E:\\powergymHARL\\PowerZOO\\PowerZOO\\results"
+  log_dir: '/home//yushixuan/HARL/results'
+  

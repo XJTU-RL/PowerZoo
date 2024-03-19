@@ -13,19 +13,19 @@ device:
   torch_threads: 4
 train:
   # number of parallel environments for training data collection
-  n_rollout_threads: 20
+  n_rollout_threads: 2
   # number of total steps
-  num_env_steps: 20000000
+  num_env_steps: 216000
   # number of warmup steps
-  warmup_steps: 10000
+  warmup_steps: 1200
   # number of steps per train
-  train_interval: 50
+  train_interval: 24
   # ratio of training iterations to train_interval
   update_per_train: 1
   # logging interval (currently unused)
   log_interval: ~
   # evaluation interval
-  eval_interval: 10000
+  eval_interval: 2
   # whether to use ValueNorm
   use_valuenorm: True
   # whether to use linear learning rate decay
@@ -38,9 +38,9 @@ eval:
   # whether to use evaluation
   use_eval: True
   # number of parallel environments for evaluation
-  n_eval_rollout_threads: 20
+  n_eval_rollout_threads: 1
   # number of episodes per evaluation
-  eval_episodes: 40
+  eval_episodes: 5
 render:
   # whether to use render
   use_render: False
@@ -75,9 +75,9 @@ algo:
   # discount factor
   gamma: 0.99
   # off-policy buffer size
-  buffer_size: 1000000
+  buffer_size: 10800
   # training batch size
-  batch_size: 1000
+  batch_size: 24
   # coefficient for target model soft update
   polyak: 0.005
   # the number of steps to look ahead
@@ -94,4 +94,5 @@ algo:
   fixed_order: False
 logger:
   # logging directory
-  log_dir: "./results"
+  #log_dir: "./results"
+  log_dir: '/home//yushixuan/HARL/results'

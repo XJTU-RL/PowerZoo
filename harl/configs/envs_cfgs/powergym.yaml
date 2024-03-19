@@ -1,0 +1,30 @@
+env_name: 34Bus # choose from 13Bus 34Bus 123Bus 8500Node
+#random seed
+seed: 123456
+#maximum number of steps
+num_steps: 1000
+#number of parallel processes
+num_workers: None
+use_plot: False
+do_testing: False
+#running mode, random, parallele, episodic or dss
+mode: single
+#whether to use S
+useS: True
+# whether to order S from big to small
+big2small: False
+# def parse_arguments():
+#     parser = argparse.ArgumentParser(description='Argument Parser')
+#     parser.add_argument('--env_name', default='13Bus')
+#     parser.add_argument('--seed', type=int, default=123456, metavar='N',
+#                          help='random seed')
+#     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
+#                          help='maximum number of steps')
+#     parser.add_argument('--num_workers', type=int, default=3, metavar='N', 
+#                          help='number of parallel processes')
+#     parser.add_argument('--use_plot', type=lambda x: str(x).lower()=='true', default=False)
+#     parser.add_argument('--do_testing', type=lambda x: str(x).lower()=='true', default=False)
+#     parser.add_argument('--mode', type=str, default='single',
+#                         help="running mode, random, parallele, episodic or dss")
+#     args = parser.parse_args()
+#     return args

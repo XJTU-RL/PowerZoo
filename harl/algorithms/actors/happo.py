@@ -45,7 +45,7 @@ class HAPPO(OnPolicyBase):
             adv_targ,
             available_actions_batch,
             factor_batch,
-        ) = sample
+        ) = sample #从样本中解压出来各个参数
 
         old_action_log_probs_batch = check(old_action_log_probs_batch).to(**self.tpdv)
         adv_targ = check(adv_targ).to(**self.tpdv)
@@ -53,7 +53,7 @@ class HAPPO(OnPolicyBase):
         factor_batch = check(factor_batch).to(**self.tpdv)
 
         # Reshape to do evaluations for all steps in a single forward pass
-        action_log_probs, dist_entropy, _ = self.evaluate_actions(
+        action_log_probs, dist_entropy, _ = self.evaluate_actions(#dist_entropy表示动作的熵，训练完成后，这个值也趋近于0，表示智能体的动作逐渐趋于稳定
             obs_batch,
             rnn_states_batch,
             actions_batch,
@@ -68,10 +68,11 @@ class HAPPO(OnPolicyBase):
             dim=-1,
             keepdim=True,
         )
-        surr1 = imp_weights * adv_targ
+        # HATRPO 文章中公式 4 的实现
+        surr1 = imp_weights * adv_targ 
         surr2 = (
-            torch.clamp(imp_weights, 1.0 - self.clip_param, 1.0 + self.clip_param)
-            * adv_targ
+            torch.clamp(imp_weights, 1.0 - self.clip_param, 1.0 + self.clip_param)   # 截断 weight,将其限制在 [1-e,1+e]
+            * adv_targ  
         )
 
         if self.use_policy_active_masks:
@@ -84,9 +85,9 @@ class HAPPO(OnPolicyBase):
                 factor_batch * torch.min(surr1, surr2), dim=-1, keepdim=True
             ).mean()
 
-        policy_loss = policy_action_loss
+        policy_loss = policy_action_loss#每个actor都有一个L函数
 
-        self.actor_optimizer.zero_grad()
+        self.actor_optimizer.zero_grad() # 清空优化器梯度
 
         (policy_loss - dist_entropy * self.entropy_coef).backward()  # add entropy term
 
@@ -95,14 +96,14 @@ class HAPPO(OnPolicyBase):
                 self.actor.parameters(), self.max_grad_norm
             )
         else:
-            actor_grad_norm = get_grad_norm(self.actor.parameters())
+            actor_grad_norm = get_grad_norm(self.actor.parameters())#训练完成以后，梯度接近0，认为已经是最优参数了，这是nash均衡指标的一个体现
 
         self.actor_optimizer.step()
 
         return policy_loss, dist_entropy, actor_grad_norm, imp_weights
 
     def train(self, actor_buffer, advantages, state_type):
-        """Perform a training update using minibatch GD.
+        """Perform a training update using minibatch GD. # 使用梯度下降法训练 minibatch
         Args:
             actor_buffer: (OnPolicyActorBuffer) buffer containing training data related to actor.
             advantages: (np.ndarray) advantages.
@@ -114,16 +115,16 @@ class HAPPO(OnPolicyBase):
         train_info["policy_loss"] = 0
         train_info["dist_entropy"] = 0
         train_info["actor_grad_norm"] = 0
-        train_info["ratio"] = 0
-
-        if np.all(actor_buffer.active_masks[:-1] == 0.0):
+        train_info["ratio"] = 0#新老策略的比
+# 检查 actor_buffer.active_masks 数组中的所有元素是否都为零。如果是这样，函数将提前返回，并且返回 train_info
+        if np.all(actor_buffer.active_masks[:-1] == 0.0):                                        
             return train_info
 
         if state_type == "EP":
             advantages_copy = advantages.copy()
-            advantages_copy[actor_buffer.active_masks[:-1] == 0.0] = np.nan
+            advantages_copy[actor_buffer.active_masks[:-1] == 0.0] = np.nan #将所有等于 0 的值设置成 nan
             mean_advantages = np.nanmean(advantages_copy)
-            std_advantages = np.nanstd(advantages_copy)
+            std_advantages = np.nanstd(advantages_copy) # 计算 std 除去 nan 值
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
 
         for _ in range(self.ppo_epoch):

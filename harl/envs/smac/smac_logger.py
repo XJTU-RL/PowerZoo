@@ -42,6 +42,7 @@ class SMACLogger(BaseLogger):
             rnn_states,
             rnn_states_critic,
         ) = data
+        
         self.infos = infos
         self.one_episode_len += 1
         done_env = np.all(dones, axis=1)

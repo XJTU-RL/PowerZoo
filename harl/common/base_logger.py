@@ -7,7 +7,7 @@ import numpy as np
 
 class BaseLogger:
     """Base logger class.
-    Used for logging information in the on-policy training pipeline.
+    Used for logging information in the on-policy training pipeline.用于记录在基于策略的训练流程中的信息
     """
 
     def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
@@ -19,9 +19,30 @@ class BaseLogger:
         self.num_agents = num_agents
         self.writter = writter
         self.run_dir = run_dir
+  
         self.log_file = open(
-            os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8"
+            os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         )
+        # dir=r"E:\powergymHARL\HARL\examples\results"
+        # self.log_file = open(
+        #     os.path.join(dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
+        # )
+        text = ""
+        for section, params in algo_args.items():
+            text += f"{section}:\n"
+            for key, value in params.items():
+                if isinstance(value, list):
+                    value = "..."
+                text += f"\t{key}: {value}\n"+ '\n'
+
+        # 将文本添加到 self.writter 中
+        self.writter.add_text("algo_hyperparameters", text)
+        text = ""
+        for key, value in env_args.items():
+            text += f"{key}: {value}\n" + '\n'
+
+        # 将文本添加到 self.writter 中
+        self.writter.add_text("env_parameters", text)
 
     def get_task_name(self):
         """Get the task name."""
@@ -33,7 +54,7 @@ class BaseLogger:
         self.episodes = episodes
         self.train_episode_rewards = np.zeros(
             self.algo_args["train"]["n_rollout_threads"]
-        )
+        )#意思是algo_args["train"]类下n_rollout_threads的值，此处创建了一个大小为参数cogfig中设置的训练线程数量的rewards的值，用于存放每个线程的episode_rewards.
         self.done_episodes_rewards = []
 
     def episode_init(self, episode):
@@ -55,12 +76,13 @@ class BaseLogger:
             rnn_states,
             rnn_states_critic,
         ) = data
+        #print("log_dones:",dones)#TODO:打印dones
         dones_env = np.all(dones, axis=1)
-        reward_env = np.mean(rewards, axis=1).flatten()
-        self.train_episode_rewards += reward_env
-        for t in range(self.algo_args["train"]["n_rollout_threads"]):
-            if dones_env[t]:
-                self.done_episodes_rewards.append(self.train_episode_rewards[t])
+        reward_env = np.mean(rewards, axis=1).flatten()#rewards 是一个包含多个环境的奖励值的数组（单步），其中每行代表一个环境的奖励序列,对每行求平均（此处每行只有一个元素）
+        self.train_episode_rewards += reward_env#将单步奖励求和，变成episode奖励
+        for t in range(self.algo_args["train"]["n_rollout_threads"]):#这个循环变的是episode的数量
+            if dones_env[t]:#如果某个线程中一个episode结束了
+                self.done_episodes_rewards.append(self.train_episode_rewards[t])#用于存放每一个环境完成episode的奖励值以列表的形式（没有对多线程中的episode奖励求平均），其中self.train_episode_rewards[t]用于存放第t个线程的一个episode的累计奖励
                 self.train_episode_rewards[t] = 0
 
     def episode_log(

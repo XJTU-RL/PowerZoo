@@ -89,6 +89,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from harl.envs.football.football_env import FootballEnv
 
                 env = FootballEnv(env_args)
+            elif env_name == "powergym":
+                from harl.envs.powergym.powergym_env import powerGYMEnv
+                
+                env = powerGYMEnv(env_args,rank) 
             elif env_name == "lag":
                 from harl.envs.lag.lag_env import LAGEnv
 
@@ -100,14 +104,14 @@ def make_train_env(env_name, seed, n_threads, env_args):
             return env
 
         return init_env
-
+    print("make_train_env=",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
-        return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
+        return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])#get_env_fn(i)返回值是单个的环境
 
 
-def make_eval_env(env_name, seed, n_threads, env_args):
+def make_eval_env(env_name, seed, n_threads, env_args,train_threads):
     """Make env for evaluation."""
     if env_name == "dexhands":  # dexhands does not support running multiple instances
         raise NotImplementedError
@@ -142,6 +146,10 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from harl.envs.football.football_env import FootballEnv
 
                 env = FootballEnv(env_args)
+            elif env_name == "powergym":
+                from harl.envs.powergym.powergym_env import powerGYMEnv
+
+                env = powerGYMEnv(env_args,rank+train_threads)
             elif env_name == "lag":
                 from harl.envs.lag.lag_env import LAGEnv
 
@@ -153,7 +161,7 @@ def make_eval_env(env_name, seed, n_threads, env_args):
             return env
 
         return init_env
-
+    print("make_eval_env=",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
@@ -203,6 +211,12 @@ def make_render_env(env_name, seed, env_args):
 
         env = FootballEnv(env_args)
         manual_render = False  # football renders automatically
+        env.seed(seed * 60000)
+    elif env_name == "powergym": #没有环境渲染,这里仅做参数匹配
+        from harl.envs.powergym.powergym_env import powerGYMEnv
+
+        env = powerGYMEnv(env_args)
+        manual_render = False  
         env.seed(seed * 60000)
     elif env_name == "dexhands":
         from harl.envs.dexhands.dexhands_env import DexHandsEnv
@@ -257,3 +271,25 @@ def get_num_agents(env, env_args, envs):
         return envs.n_agents
     elif env == "lag":
         return envs.n_agents
+    elif env == "powergym":
+        return envs.n_agents
+
+# def get_agents_orders(env, env_args, envs):
+#     """Get the update_orders of agents in the environment."""
+#     if env == "powergym":
+#         return envs.update_orders
+def get_ordered_agents_pairs(env, env_args, envs):
+    """Get the update_orders of agents in the environment."""
+    if env == "powergym":
+       if env_args["useS"] ==True:
+           return envs.ordered_agents_pairs
+       else:
+           return None
+
+def get_agents_bus(env, env_args, envs):
+    """Get the update_orders of agents in the environment."""
+    if env == "powergym":
+       if env_args["useS"] ==True:
+           return envs.agents_bus
+       else:
+           return None

@@ -7,7 +7,8 @@ from harl.utils.trans_tools import _flatten, _ma_cast
 
 class OnPolicyCriticBufferFP:
     """On-policy buffer for critic that uses Feature-Pruned (FP) state.
-    When FP state is used, the critic takes different global state as input for different actors. Thus, OnPolicyCriticBufferFP has an extra dimension for number of agents compared to OnPolicyCriticBufferEP.
+    When FP state is used, the critic takes different global state as input for different actors. 
+    Thus, OnPolicyCriticBufferFP has an extra dimension for number of agents compared to OnPolicyCriticBufferEP.
     """
 
     def __init__(self, args, share_obs_space, num_agents):
@@ -28,11 +29,14 @@ class OnPolicyCriticBufferFP:
         self.use_proper_time_limits = args["use_proper_time_limits"]
 
         share_obs_shape = get_shape_from_obs_space(share_obs_space)
-
+        print(f'share_obs_shape is:{share_obs_shape}' )
+        
         if isinstance(share_obs_shape[-1], list):
             share_obs_shape = share_obs_shape[:1]
 
         # Buffer for share observations
+        # 最后一维存放每个 agent 的 share_obs 的观察值,因为每个 agent 的观察值维度不同
+        # 因此使用 share_obs_shape 对每个 agent 的 buffer 分别进行设置
         self.share_obs = np.zeros(
             (
                 self.episode_length + 1,
@@ -41,7 +45,7 @@ class OnPolicyCriticBufferFP:
                 *share_obs_shape,
             ),
             dtype=np.float32,
-        )
+        ) 
 
         # Buffer for rnn states of critic
         self.rnn_states_critic = np.zeros(
@@ -76,10 +80,11 @@ class OnPolicyCriticBufferFP:
             dtype=np.float32,
         )
 
-        # Buffer for bad masks indicating truncation and termination. If 0, trunction; if 1 and masks is 0, termination; else, not done yet.
+        # Buffer for bad masks indicating truncation and termination. 
+        # If 0, trunction; if 1 and masks is 0, termination; else, not done yet.
         self.bad_masks = np.ones_like(self.masks)
 
-        self.step = 0
+        self.step = 0 # 将步数置零
 
     def insert(
         self, share_obs, rnn_states_critic, value_preds, rewards, masks, bad_masks

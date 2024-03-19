@@ -449,6 +449,10 @@ class OffPolicyBaseRunner:
         Returns:
             actions: (np.ndarray) sampled actions, shape is (n_threads, n_agents, dim)
         """
+        # a_size=available_actions.shape[0]
+        # result_array = np.full((a_size,), None)
+        # available_actions=result_array
+        
         actions = []
         for agent_id in range(self.num_agents):
             action = []

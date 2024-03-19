@@ -414,3 +414,7 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+#experiment_result
+results/
+examples/loggertxt/
+examples/results/

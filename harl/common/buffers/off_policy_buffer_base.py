@@ -75,7 +75,7 @@ class OffPolicyBufferBase:
                 )
 
     def insert(self, data):
-        """Insert data into buffer.
+        """Insert data into buffer.将数据插入到经验缓存区之中  
         Args:
             data: a tuple of (share_obs, obs, actions, available_actions, reward, done, valid_transitions, term, next_share_obs, next_obs, next_available_actions)
             share_obs: EP: (n_rollout_threads, *share_obs_shape), FP: (n_rollout_threads, num_agents, *share_obs_shape)
@@ -118,6 +118,7 @@ class OffPolicyBufferBase:
                 self.valid_transitions[agent_id][s:e] = valid_transitions[
                     agent_id
                 ].copy()
+                
                 if self.act_spaces[agent_id].__class__.__name__ == "Discrete":
                     self.available_actions[agent_id][s:e] = available_actions[
                         agent_id
@@ -125,6 +126,10 @@ class OffPolicyBufferBase:
                     self.next_available_actions[agent_id][s:e] = next_available_actions[
                         agent_id
                     ].copy()
+                    # #TODO:powergym更改
+                    # self.available_actions[agent_id] = available_actions
+                    # self.next_available_actions[agent_id] = next_available_actions
+                    
                 self.next_obs[agent_id][s:e] = next_obs[agent_id].copy()
         else:  # overflow
             len1 = self.buffer_size - self.idx  # length of first segment
@@ -151,6 +156,10 @@ class OffPolicyBufferBase:
                     self.next_available_actions[agent_id][s:e] = next_available_actions[
                         agent_id
                     ][0:len1].copy()
+                    #  #TODO:powergym更改
+                    # self.available_actions[agent_id] = available_actions
+                    # self.next_available_actions[agent_id] = next_available_actions
+                    
                 self.next_obs[agent_id][s:e] = next_obs[agent_id][0:len1].copy()
 
             # insert second segment

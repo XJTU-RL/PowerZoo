@@ -29,6 +29,7 @@ class OnPolicyCriticBufferEP:
             share_obs_shape = share_obs_shape[:1]
 
         # Buffer for share observations
+        # 相比较于 FP 方法,这里的 share_obs 缺少了一维,代表异质的 agent
         self.share_obs = np.zeros(
             (self.episode_length + 1, self.n_rollout_threads, *share_obs_shape),
             dtype=np.float32,
@@ -59,6 +60,10 @@ class OnPolicyCriticBufferEP:
         self.rewards = np.zeros(
             (self.episode_length, self.n_rollout_threads, 1), dtype=np.float32
         )
+        # Buffer for infos received by agents at each timestep
+        self.infos={}
+        
+        
 
         # Buffer for masks indicating whether an episode is done at each timestep
         self.masks = np.ones(
@@ -71,7 +76,7 @@ class OnPolicyCriticBufferEP:
         self.step = 0
 
     def insert(
-        self, share_obs, rnn_states_critic, value_preds, rewards, masks, bad_masks
+        self, share_obs, rnn_states_critic, value_preds, rewards, masks, bad_masks,infos
     ):
         """Insert data into buffer."""
         self.share_obs[self.step + 1] = share_obs.copy()
@@ -80,7 +85,7 @@ class OnPolicyCriticBufferEP:
         self.rewards[self.step] = rewards.copy()
         self.masks[self.step + 1] = masks.copy()
         self.bad_masks[self.step + 1] = bad_masks.copy()
-
+        self.infos[f'step_{self.step}']=infos#后续添加的，目的是把敏感度矩阵拿出来
         self.step = (self.step + 1) % self.episode_length
 
     def after_update(self):
