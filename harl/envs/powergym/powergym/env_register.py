@@ -100,7 +100,7 @@ _ENV_INFO = {
         'max_episode_steps': 24,
         'reg_act_num': 33,
         'bat_act_num': 33,
-        'power_w': 1.0,
+        'power_w': 10,
         'cap_w': 1.0/33,
         'reg_w': 1.0/33,
         'soc_w': 0.0/33,
