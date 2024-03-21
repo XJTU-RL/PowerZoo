@@ -6,7 +6,6 @@ import os
 import harl
 from harl.utils.configs_tools import get_defaults_yaml_args, update_args
 
-
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(

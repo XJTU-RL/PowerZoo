@@ -7,7 +7,6 @@ from multiprocessing import Process, Pipe
 from abc import ABC, abstractmethod
 import copy
 
-
 def tile_images(img_nhwc):
     """
     Tile N images into one big PxQ image

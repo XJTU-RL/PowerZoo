@@ -25,7 +25,8 @@ from harl.utils.envs_tools import (
 from harl.utils.models_tools import init_device
 from harl.utils.configs_tools import init_dir, save_config
 from harl.envs import LOGGER_REGISTRY
-
+import multiprocessing as mp
+mp.set_start_method('spawn')
 
 class OnPolicyBaseRunner:
     """Base runner for on-policy algorithms."""

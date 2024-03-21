@@ -10,8 +10,7 @@ from pathlib import Path
 import sys
 import re
 from math import sin, cos, fabs, pi
-# import cupy as cp
-import cupyx as cp
+import cupy as cp
 
 sys.path.append("/home/yushixuan/HARL/dss_capi") #TODO:主要用于linux服务器设置
 sys.path.append("/home/yushixuan/HARL/dss_python")
@@ -651,42 +650,6 @@ class Circuits():
         
         Y1=Ymatrix#获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
         
-        H=np.zeros((bus1_length, bus1_length))
-        M=np.zeros((bus1_length, bus1_length))
-        L=np.zeros((bus1_length, bus1_length))
-        N=np.zeros((bus1_length, bus1_length))
-        S=np.zeros((bus1_length, bus1_length))
-        n2 = 2*bus1_length
-        nu = n2 + 1
-        for i in range(0,bus1_length):
-            vi = new_voltage_list[i]
-            di = new_angle_list[i]
-            dp = 0.0
-            dq = 0.0
-            for j in range(0,bus1_length):
-                if j != i:                  # when i <> j, off-diagonal elements
-                   g = Y1[i][j].real        # G        
-                   b = Y1[i][j].imag        # B
-                   vj = new_voltage_list[j]
-                   dj = new_angle_list[j]
-                   dij = di - dj           # diff of Phase Angle
-                   H[i][j] = -new_voltage_list[i] * new_voltage_list[j] * (g*sin(dij) - b*cos(dij))
-                   L[i][j] = H[i][j]
-                   N[i][j] = -new_voltage_list[i]*new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
-                   M[i][j] = -N[i][j]
-                   p = new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
-                   q = new_voltage_list[j]*(g*sin(dij)-b*cos(dij))
-                   dp += p
-                   dq += q
-            g = Y1[i][i].real
-            b = Y1[i][i].imag
-            H[i][i] = vi*dq
-            N[i][i] = -vi*dp - 2*vi*vi*g
-            M[i][i] = -vi*dp
-            L[i][i] = -vi*dq + 2*vi*vi*b
-            #print(H[40][40])
-        S=np.linalg.inv(L-M@np.linalg.pinv(H)@N)
-
         # H=np.zeros((bus1_length, bus1_length))
         # M=np.zeros((bus1_length, bus1_length))
         # L=np.zeros((bus1_length, bus1_length))
@@ -721,14 +684,52 @@ class Circuits():
         #     M[i][i] = -vi*dp
         #     L[i][i] = -vi*dq + 2*vi*vi*b
         #     #print(H[40][40])
-        #     H1=cp.asarray(H)
-            
-        #     N1=cp.asarray(N)
-        #     M1=cp.asarray(M)
-        #     L1=cp.asarray(L)
-        #     S1=cp.asarray(S)
-        # S1=cp.linalg.inv(L1-M1@cp.linalg.pinv(H1)@N1)
-        # S=S1.get()
+        # S=np.linalg.inv(L-M@np.linalg.pinv(H)@N)
+
+        H=np.zeros((bus1_length, bus1_length))
+        M=np.zeros((bus1_length, bus1_length))
+        L=np.zeros((bus1_length, bus1_length))
+        N=np.zeros((bus1_length, bus1_length))
+        S=np.zeros((bus1_length, bus1_length))
+        n2 = 2*bus1_length
+        nu = n2 + 1
+        for i in range(0,bus1_length):
+            vi = new_voltage_list[i]
+            di = new_angle_list[i]
+            dp = 0.0
+            dq = 0.0
+            for j in range(0,bus1_length):
+                if j != i:                  # when i <> j, off-diagonal elements
+                   g = Y1[i][j].real        # G        
+                   b = Y1[i][j].imag        # B
+                   vj = new_voltage_list[j]
+                   dj = new_angle_list[j]
+                   dij = di - dj           # diff of Phase Angle
+                   H[i][j] = -new_voltage_list[i] * new_voltage_list[j] * (g*sin(dij) - b*cos(dij))
+                   L[i][j] = H[i][j]
+                   N[i][j] = -new_voltage_list[i]*new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
+                   M[i][j] = -N[i][j]
+                   p = new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
+                   q = new_voltage_list[j]*(g*sin(dij)-b*cos(dij))
+                   dp += p
+                   dq += q
+            g = Y1[i][i].real
+            b = Y1[i][i].imag
+            H[i][i] = vi*dq
+            N[i][i] = -vi*dp - 2*vi*vi*g
+            M[i][i] = -vi*dp
+            L[i][i] = -vi*dq + 2*vi*vi*b
+            H2 = np.zeros((6,6))
+            cupy_H=cp.zeros((6,6))
+            cupy_H=cp.array(H2)
+            #print(H[40][40])
+            H1=cp.array(H)
+            N1=cp.array(N)
+            M1=cp.array(M)
+            L1=cp.array(L)
+            S1=cp.array(S)
+        S1=cp.linalg.inv(L1-M1@cp.linalg.pinv(H1)@N1)
+        S=S1.get()
         mingandu_vector = np.sum(S, axis=1)
         node_sensity = dict(zip(temp_order, mingandu_vector))
         #有个问题，是在这里直接把有智能体的节点拿出来，存数据的时候只保留有智能体节点的无功电压敏感度，还是都保留，或者说都合并
