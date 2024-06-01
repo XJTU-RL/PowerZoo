@@ -94,5 +94,5 @@ algo:
   fixed_order: False
 logger:
   # logging directory
-  #log_dir: "./results"
-  log_dir: '/home//yushixuan/HARL/results'
+
+  log_dir: "./results"

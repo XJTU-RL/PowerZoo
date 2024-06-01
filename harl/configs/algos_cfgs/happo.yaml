@@ -1,123 +1,121 @@
-# This is the configuration file for the HAPPO algorithm.
 seed:
-  # whether to use the specified seed
+  # 是否使用指定的种子
   seed_specify: True
-  # seed
+  # 种子
   seed: 1
 device:
-  # whether to use CUDA
+  # 是否使用CUDA
   cuda: True
-  # whether to set CUDA deterministic
+  # 是否设置CUDA确定性
   cuda_deterministic: True
   # arg to torch.set_num_threads
   torch_threads: 4
 train:
-  # number of parallel environments for training data collection，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
+  # 训练数据的并行环境数量，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
   n_rollout_threads: 3
-  # number of total training steps,default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
+  # 总训练步数，default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
   num_env_steps: 48000
-  # number of steps per environment per training data collection，电力系统按天算，一天24小时，正好episode长度是24
+  # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
   episode_length: 24
-  # logging interval,default is 5
+  # 日志间隔，default is 5
   log_interval: 1
-  # evaluation interval,default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
+  # 评估间隔，default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
   eval_interval: 1
-  # whether to use ValueNorm
+  # 是否使用ValueNorm
   use_valuenorm: True
-  # whether to use linear learning rate decay
+  # 是否使用线性学习率衰减
   use_linear_lr_decay: False
-  # whether to consider the case of truncation when an episode is done
+  # 是否考虑在episode结束时截断
   use_proper_time_limits: True
-  # if set, load models from this directory; otherwise, randomly initialise the models,default ~
-  model_dir: /home//yushixuan/HARL/results/powergym/123Bus/happo/test/seed-00001-2024-03-24-08-15-04-48k-3-3-s2b/models
+  # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
+  model_dir: ~
 eval:
-  # whether to use evaluation
+  # 是否使用评估
   use_eval: True
-  # number of parallel environments for evaluation,default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
+  # 评估并行环境数量，default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
   n_eval_rollout_threads: 3
-  # number of episodes per evaluation,default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
+  # 每次评估使用的episode数量，default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
   eval_episodes: 4
 render:
-  # whether to use render
-  use_render: True
-  # number of episodes to render
+  # 是否使用渲染
+  use_render: False
+  # 要渲染的episode数量
   render_episodes: 1
 model:
-  # network parameters
-  # hidden sizes for mlp module in the network
+  # 网络参数
+  # mlp模块在网络中的隐藏层大小
   hidden_sizes: [128, 128]
-  # activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  # 激活函数，选择sigmoid、tanh、relu、leaky_relu、selu
   activation_func: relu
-  # whether to use feature normalization
+  # 是否使用特征归一化
   use_feature_normalization: True
-  # initialization method for network parameters, choose from xavier_uniform_, orthogonal_, ...
+  # 网络参数初始化方法，选择xavier_uniform_、orthogonal_等
   initialization_method: orthogonal_
-  # gain of the output layer of the network.
+  # 输出层增益
   gain: 0.01
-  # recurrent parameters
-  # whether to use rnn policy (data is not chunked for training)
+  # 循环参数
+  # 是否使用简单的循环网络策略（训练数据不分块）
   use_naive_recurrent_policy: False
-  # whether to use rnn policy (data is chunked for training)
+  # 是否使用循环网络策略（训练数据分块）
   use_recurrent_policy: False
-  # number of recurrent layers
+  # 循环层数量
   recurrent_n: 1
-  # length of data chunk; only useful when use_recurrent_policy is True; episode_length has to be a multiple of data_chunk_length
+  # 数据分块长度；仅当use_recurrent_policy为True时有用；episode_length必须是data_chunk_length的倍数
   data_chunk_length: 10
-  # optimizer parameters
-  # actor learning rate
+  # 优化器参数
+  # 演员学习率
   lr: 0.0005
-  # critic learning rate
+  # 评论家学习率
   critic_lr: 0.0005
-  # eps in Adam
+  # Adam中的eps
   opti_eps: 0.00001
-  # weight_decay in Adam
+  # Adam中的权重衰减
   weight_decay: 0
-  # parameters of diagonal Gaussian distribution
+  # 标准差系数
   std_x_coef: 1
-  # parameters of diagonal Gaussian distribution
+  # 标准差系数
   std_y_coef: 0.5
 algo:
-  # ppo parameters
-  # number of epochs for actor update
+  # ppo参数
+  # 演员更新轮数
   ppo_epoch: 5
-  # number of epochs for critic update
+  # 评论家更新轮
   critic_epoch: 5
-  # whether to use clipped value loss
+  # 是否使用裁剪值损失
   use_clipped_value_loss: True
-  # clip parameter
+  # 裁剪参数
   clip_param: 0.2
-  # number of mini-batches per epoch for actor update
+  # 每个epoch的演员更新批次
   actor_num_mini_batch: 4
-  # number of mini-batches per epoch for critic update
+  # 每个epoch的评论家更新批次
   critic_num_mini_batch: 4
-  # coefficient for entropy term in actor loss
+  # 熵系数
   entropy_coef: 0.01
-  # coefficient for value loss
+  # 值损失系数
   value_loss_coef: 1
-  # whether to clip gradient norm
+  # 是否裁剪梯度
   use_max_grad_norm: True
-  # max gradient norm
+  # 最大梯度范数
   max_grad_norm: 10.0
-  # whether to use Generalized Advantage Estimation (GAE)
+  # 是否使用Generalized Advantage Estimation (GAE)
   use_gae: True
-  # discount factor在gae的文章中，gamma=0.99，gae_lamda=0.95的效果比较好
+  # GAE的gamma
   gamma: 0.99
-  # GAE lambda
+  # GAE的lambda
   gae_lambda: 0.95
-  # whether to use huber loss
+  # 是否使用Huber损失
   use_huber_loss: True
-  # whether to use policy active masks
+  # 是否使用策略激活掩码
   use_policy_active_masks: True
-  # huber delta
+  # Huber损失的delta
   huber_delta: 10.0
-  # method of aggregating the probability of multi-dimensional actions, choose from prod, mean
+  # 概率聚合方法，选择prod、mean
   action_aggregation: prod
-  # whether to share parameter among actors
+  # 是否共享参数
   share_param: False
-  # whether to use a fixed optimisation order
+  # 是否使用固定优化顺序
   fixed_order: False
 logger:
-  # logging directory
+  # 日志目录
   #log_dir: "E:\\powergymHARL\\PowerZOO\\PowerZOO\\results"
-  log_dir: '/home//yushixuan/HARL/results'
-  
+  log_dir: "./results"
