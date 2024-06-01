@@ -3,6 +3,8 @@ import argparse
 import json
 import sys 
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import harl
 from harl.utils.configs_tools import get_defaults_yaml_args, update_args
 

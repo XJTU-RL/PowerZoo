@@ -215,8 +215,12 @@ def make_render_env(env_name, seed, env_args):
     elif env_name == "powergym": #没有环境渲染,这里仅做参数匹配
         from harl.envs.powergym.powergym_env import powerGYMEnv
 
-        env = powerGYMEnv(env_args)
+        env = powerGYMEnv(env_args,rank=1)
         manual_render = False  
+        manual_expand_dims = (
+            False  # dexhands uses parallel envs, thus dimension is already expanded
+        )
+        manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "dexhands":
         from harl.envs.dexhands.dexhands_env import DexHandsEnv

@@ -137,3 +137,9 @@ def save_config(args, algo_args, env_args, run_dir):
         out.write(output)
     with open(os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8") as file:
         file.write("hello")
+        
+def save_render(args,run_dir):
+    renderdata=convert_json(args)
+    output = json.dumps(renderdata, separators=(",", ":\t"), indent=4, sort_keys=True)
+    with open(os.path.join(run_dir, "renderdata.json"), "w", encoding="utf-8") as out:
+        out.write(output)

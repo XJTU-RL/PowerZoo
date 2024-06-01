@@ -282,7 +282,8 @@ class Env(gym.Env):
         self.action_space = self.ActionSpace.space
         self.reset_obs_space()
         #TODO:S修改，在此添加条件判断
-        self.useS=True
+        self.useS=False
+        self.use_render=False
         self.Y=self.circuit.get_Y_matrix()
         self.agents_bus=self.circuit.get_agent_bus_dict()
         #TODO:S修改，在此添加条件判断
@@ -466,7 +467,11 @@ class Env(gym.Env):
             # 保留 S 中在 agent_bus_dict 的值中出现的键
             filtered_S = {key: value for key, value in S.items() if any(key in values for values in self.agents_bus.values())}#或者就不按字典写了，直接变成一个数组算辽，数组的每个位置对应一个智能体节点的位置
             info['S']=filtered_S#一个episode算一次更新顺序，然后insert一下
-        
+        if self.use_render==True:
+            info['bus_voltages']=bus_voltages
+            self.agents_bus=self.circuit.get_agent_bus_dict()
+            info['agents_bus']=self.agents_bus
+            info['powerloss']=self.circuit.total_loss()[0]
         if self.wrap_observation:
             return self.wrap_obs(self.obs), reward, done, info
         else:

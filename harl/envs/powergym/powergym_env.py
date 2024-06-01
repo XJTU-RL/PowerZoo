@@ -65,6 +65,7 @@ class powerGYMEnv:
         # self.agents_names, self.update_orders = zip(*sorted_pairs)
         # print("agents_names==============",self.agents_names)
         # print("update_orders==============",self.update_orders)
+        self.env.use_render=args['use_render']
         self.env.useS=args['useS']
         if args['useS']==True:
             update_orders=list(range(0,self.n_agents))

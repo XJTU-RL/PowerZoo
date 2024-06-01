@@ -1,4 +1,4 @@
-env_name: 34Bus # choose from 13Bus 34Bus 123Bus 8500Node
+env_name: 123Bus # choose from 13Bus 34Bus 123Bus 8500Node
 #random seed
 seed: 123456
 #maximum number of steps
@@ -10,9 +10,11 @@ do_testing: False
 #running mode, random, parallele, episodic or dss
 mode: single
 #whether to use S
-useS: True
+useS: False
 # whether to order S from big to small
-big2small: False
+big2small: True
+# whether to convey the information of the voltage node
+use_render: True
 # def parse_arguments():
 #     parser = argparse.ArgumentParser(description='Argument Parser')
 #     parser.add_argument('--env_name', default='13Bus')

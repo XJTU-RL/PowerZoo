@@ -1,5 +1,5 @@
 """Base runner for on-policy algorithms."""
-
+import json
 import time
 import os
 import numpy as np
@@ -23,7 +23,7 @@ from harl.utils.envs_tools import (
     get_agents_bus,
 )
 from harl.utils.models_tools import init_device
-from harl.utils.configs_tools import init_dir, save_config
+from harl.utils.configs_tools import init_dir, save_config,save_render
 from harl.envs import LOGGER_REGISTRY
 import multiprocessing as mp
 mp.set_start_method('spawn')
@@ -729,37 +729,59 @@ class OnPolicyBaseRunner:
                     (self.env_num, self.num_agents, 1), dtype=np.float32
                 )
                 rewards = 0
+                k=0
+                item_arrays=[]
                 while True:
                     eval_actions_collector = []
+                    saved_data={}             
                     for agent_id in range(self.num_agents):
+                        
+                        test2=eval_available_actions[agent_id].copy()
+                        test3 = np.array(test2, dtype=np.float32)
+   
                         eval_actions, temp_rnn_state = self.actor[agent_id].act(
-                            eval_obs[:, agent_id],
-                            eval_rnn_states[:, agent_id],
-                            eval_masks[:, agent_id],
-                            eval_available_actions[:, agent_id]
-                            if eval_available_actions[0] is not None
+                            eval_obs[agent_id],
+                            eval_rnn_states[:,agent_id],
+                            eval_masks[:,agent_id],
+                            
+                            # eval_available_actions[agent_id]  #TODO:render_eval_available_actions[:, agent_id]多环境并行
+                            # if eval_available_actions[0] is not None
+                            # else None,
+                            test3
+                            if test3 is not None
                             else None,
                             deterministic=True,
                         )
-                        eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
+                        eval_rnn_states[:,agent_id] = _t2n(temp_rnn_state)
                         eval_actions_collector.append(_t2n(eval_actions))
-                    eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
+                    # eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
+                    eval_actions = np.array(eval_actions_collector).transpose(1, 0)
                     (
                         eval_obs,
                         _,
                         eval_rewards,
                         eval_dones,
-                        _,
+                        eval_info,
                         eval_available_actions,
                     ) = self.envs.step(eval_actions)
-                    rewards += eval_rewards[0][0][0]
+                    saved_data={
+                        "bus_voltages": eval_info[0]["bus_voltages"],
+                        "agent_bus": eval_info[0]["agents_bus"],
+                        "powerloss": eval_info[0]["powerloss"],
+                        "time":k
+                    }
+                    item_array=list(saved_data.items())
+                    item_arrays.append(item_array)
+                    rewards += eval_rewards[0][0]
+                    k=k+1
                     if self.manual_render:
                         self.envs.render()
                     if self.manual_delay:
                         time.sleep(0.1)
-                    if eval_dones[0][0]:
+                    if eval_dones[0]:
                         print(f"total reward of this episode: {rewards}")
                         break
+                save_render(item_arrays,self.algo_args["train"]["model_dir"])
         if "smac" in self.args["env"]:  # replay for smac, no rendering
             if "v2" in self.args["env"]:
                 self.envs.env.save_replay()
@@ -798,7 +820,9 @@ class OnPolicyBaseRunner:
 
     def restore(self):
         """Restore model parameters."""
+        # 遍历每个agent
         for agent_id in range(self.num_agents):
+            # 加载每个agent的actor参数
             policy_actor_state_dict = torch.load(
                 str(self.algo_args["train"]["model_dir"])
                 + "/actor_agent"
@@ -806,11 +830,13 @@ class OnPolicyBaseRunner:
                 + ".pt"
             )
             self.actor[agent_id].actor.load_state_dict(policy_actor_state_dict)
+        # 如果不是使用render，则加载critic参数
         if not self.algo_args["render"]["use_render"]:
             policy_critic_state_dict = torch.load(
                 str(self.algo_args["train"]["model_dir"]) + "/critic_agent" + ".pt"
             )
             self.critic.critic.load_state_dict(policy_critic_state_dict)
+            # 如果使用了value_normalizer，则加载value_normalizer参数
             if self.value_normalizer is not None:
                 value_normalizer_state_dict = torch.load(
                     str(self.algo_args["train"]["model_dir"])
