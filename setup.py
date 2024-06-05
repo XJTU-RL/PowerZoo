@@ -1,11 +1,11 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="harl",
+    name="PowerZoo",
     version="1.0.0",
     author="PKU-MARL",
-    description="PyTorch implementation of HARL Algorithms",
-    url="https://github.com/PKU-MARL/HARL",
+    description="PyTorch implementation of PowerZoo Algorithms",
+    url="https://github.com/PKU-MARL/PowerZoo",
     packages=find_packages(),
     license="MIT",
     python_requires=">=3.8",

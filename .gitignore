@@ -418,5 +418,5 @@ tags
 results/
 examples/loggertxt/
 examples/results/
-results
-newplots
+newplot/
+newplot/logs/

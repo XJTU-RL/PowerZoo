@@ -5,8 +5,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import harl
-from harl.utils.configs_tools import get_defaults_yaml_args, update_args
+from utils.configs_tools import get_defaults_yaml_args, update_args
 
 def main():
     """Main function."""
@@ -93,7 +92,7 @@ def main():
         algo_args["train"]["episode_length"] = env_args["hands_episode_length"]
   
     # start training
-    from harl.runners import RUNNER_REGISTRY
+    from runners import RUNNER_REGISTRY
 
     runner = RUNNER_REGISTRY[args["algo"]](args, algo_args, env_args)
     runner.run()

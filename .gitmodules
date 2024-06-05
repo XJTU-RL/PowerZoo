@@ -1,3 +1,12 @@
-[submodule "harl/envs/lag/JSBSim/data"]
-	path = harl/envs/lag/JSBSim/data
+[submodule "envs/lag/JSBSim/data"]
+	path = envs/lag/JSBSim/data
 	url = https://github.com/JSBSim-Team/jsbsim.git
+[submodule "dss_python"]
+	path = dss_python
+	url = https://github.com/dss-extensions/DSS-Python.git
+[submodule "dss_python_backend"]
+	path = dss_python_backend
+	url = https://github.com/dss-extensions/dss_python_backend.git
+[submodule "dss_capi"]
+	path = dss_capi
+	url = https://github.com/dss-extensions/dss_capi.git
