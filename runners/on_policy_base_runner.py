@@ -103,9 +103,9 @@ class OnPolicyBaseRunner:
             self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
             self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
         
-        print("share_observation_space: ", self.envs.share_observation_space)
-        print("observation_space: ", self.envs.observation_space)
-        print("action_space: ", self.envs.action_space)
+        print("share_observation_space.shape: ", len(self.envs.share_observation_space))
+        print("observation_space.shape: ", len(self.envs.observation_space))
+        print("action_space.shape ", len(self.envs.action_space))
 
         # actor 
         # 如果 share_param 为 true,代表处理同质 agent
@@ -438,7 +438,7 @@ class OnPolicyBaseRunner:
             (self.algo_args["train"]["n_rollout_threads"], self.num_agents, 1),
             dtype=np.float32,
         )
-        #print("dones=================",dones) #TODO:检查一天是否完成。
+        #print("check the dones signal of the day: ",dones) #TODO:检查一天是否完成。
         active_masks[dones == True] = np.zeros(
             ((dones == True).sum(), 1), dtype=np.float32
         )
@@ -470,7 +470,7 @@ class OnPolicyBaseRunner:
                     for info in infos
                 ]
             )
-        #print("self.actor_buffer[agent_id].insert(obs)************",obs)
+        #print("self.actor_buffer[agent_id].insert(obs)",obs)
         for agent_id in range(self.num_agents):
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
@@ -569,7 +569,7 @@ class OnPolicyBaseRunner:
         )
 
         while True:
-            #print("eval_available_actions===============",eval_available_actions) #TODO:检查评价动作输出
+            #print("eval_available_actions: eval_available_actions) #TODO:检查评价动作输出
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
                 #TODO:availible_actioncheck报错解决

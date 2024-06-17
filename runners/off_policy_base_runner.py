@@ -43,7 +43,7 @@ class OffPolicyBaseRunner:
 
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
-        self.fixed_order = algo_args["algo"]["fixed_order"]
+        self.fixed_order = algo_args["algo"]["fixed_order"] # 固定顺序
 
         set_seed(algo_args["seed"])
         self.device = init_device(algo_args["device"])
@@ -100,9 +100,9 @@ class OffPolicyBaseRunner:
         for agent_id in range(self.num_agents):
             self.action_spaces[agent_id].seed(algo_args["seed"]["seed"] + agent_id + 1)
 
-        print("share_observation_space: ", self.envs.share_observation_space)
-        print("observation_space: ", self.envs.observation_space)
-        print("action_space: ", self.envs.action_space)
+        print("share_observation_space shape: ", self.envs.share_observation_space.shape)
+        print("observation_space shape: ", self.envs.observation_space.shape)
+        print("action_space shape: ", self.envs.action_space.shape)
 
         if self.share_param:
             self.actor = []
@@ -113,14 +113,16 @@ class OffPolicyBaseRunner:
                 device=self.device,
             )
             self.actor.append(agent)
+            # 共享参数需要同质智能体，因此检查智能体和环境的观察空间及动作空间是否一样，如果不一样则抛出
             for agent_id in range(1, self.num_agents):
                 assert (
                     self.envs.observation_space[agent_id]
                     == self.envs.observation_space[0]
-                ), "Agents have heterogeneous observation spaces, parameter sharing is not valid."
+                ), "智能体的观察空间是异质的，参数共享是不合法的。"
                 assert (
-                    self.envs.action_space[agent_id] == self.envs.action_space[0]
-                ), "Agents have heterogeneous action spaces, parameter sharing is not valid."
+                    self.envs.action_space[agent_id] 
+                    == self.envs.action_space[0]
+                ), "智能体的动作空间是异质的，参数共享是不合法的。"
                 self.actor.append(self.actor[0])
         else:
             self.actor = []

@@ -90,9 +90,9 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
                 env = FootballEnv(env_args)
             elif env_name == "powergym":
-                from envs.powergym.powergym_env import powerGYMEnv
+                from envs.powergym.powergym_env import PowerGymEnv
                 
-                env = powerGYMEnv(env_args,rank) 
+                env = PowerGymEnv(env_args,rank) 
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -147,9 +147,9 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads):
 
                 env = FootballEnv(env_args)
             elif env_name == "powergym":
-                from envs.powergym.powergym_env import powerGYMEnv
+                from envs.powergym.powergym_env import PowerGymEnv
 
-                env = powerGYMEnv(env_args,rank+train_threads)
+                env = PowerGymEnv(env_args,rank+train_threads)
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -213,15 +213,16 @@ def make_render_env(env_name, seed, env_args):
         manual_render = False  # football renders automatically
         env.seed(seed * 60000)
     elif env_name == "powergym": #没有环境渲染,这里仅做参数匹配
-        from envs.powergym.powergym_env import powerGYMEnv
+        from envs.powergym.powergym_env import PowerGymEnv
 
-        env = powerGYMEnv(env_args,rank=1)
+        env = PowerGymEnv(env_args,rank=1)
         manual_render = False  
         manual_expand_dims = (
             False  # dexhands uses parallel envs, thus dimension is already expanded
         )
         manual_delay = False
         env.seed(seed * 60000)
+        
     elif env_name == "dexhands":
         from envs.dexhands.dexhands_env import DexHandsEnv
 

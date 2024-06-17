@@ -85,16 +85,16 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             if self.useS==True:
                if self.big2small:
                   agent_order=sorted_values
-                  print("fixed_agent_order_sorted==========================",agent_order)
+                  print("fixed_agent_order_sorted: ",agent_order)
                else:
                   agent_order=reversed_array
-                  print("fixed_agent_order_reversed==========================",agent_order)
+                  print("fixed_agent_order_reversed: ",agent_order)
             else:
                 agent_order = list(range(self.num_agents))
-                print("fixed_agent_order================================",agent_order)
+                print("fixed_agent_order: ",agent_order)
         else:
             agent_order = list(torch.randperm(self.num_agents).numpy()) #TODO:随机顺序
-            print("random_agent_order================================",agent_order)
+            print("random_agent_order: ",agent_order)
         for agent_id in agent_order:
             self.actor_buffer[agent_id].update_factor(
                 factor

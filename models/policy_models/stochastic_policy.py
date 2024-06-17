@@ -74,10 +74,10 @@ class StochasticPolicy(nn.Module):
         rnn_states = check(rnn_states).to(**self.tpdv)
         masks = check(masks).to(**self.tpdv)
         if available_actions is not None:
-            #print("check_available_actions======",available_actions)
+            #print("check_available_actions: ",available_actions)
             available_actions = check(available_actions).to(**self.tpdv)
             #converted_list = [[float(x) for x in tpl] for tpl in available_actions]
-            #print("check_available_actions======",converted_list)
+            #print("check_available_actions: ",converted_list)
             #available_actions = check(converted_list).to(**self.tpdv)
             
 

@@ -288,7 +288,7 @@ def make_env(env_name, dss_act=False, worker_idx=None):
         return Env(folder_path, base_info, dss_act)
     else:
         base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
-        assert os.path.exists(base_file), base_file + ' does not exist'
+        assert os.path.exists(base_file), base_file + ' 不存在'
         fin = open(base_file, 'r')
         
         with open(base_file[:-4] + '_' + str(worker_idx) + '.dss', 'w') as fout:

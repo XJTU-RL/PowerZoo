@@ -35,8 +35,8 @@ def seeding(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
-class powerGYMEnv:
-    def __init__(self, args,rank=None):#TODO:ranks是线程数):
+class PowerGymEnv:
+    def __init__(self, args,rank=None):#TODO: ranks是线程数 
         
         self.args = copy.deepcopy(args)
         self.env = make_env(args['env_name'], worker_idx=rank)#args
@@ -63,8 +63,8 @@ class powerGYMEnv:
 
         # # 分离排序后的元组对以获取排序后的列表,得到想要的更新顺序
         # self.agents_names, self.update_orders = zip(*sorted_pairs)
-        # print("agents_names==============",self.agents_names)
-        # print("update_orders==============",self.update_orders)
+        # print("agents_names: ",self.agents_names)
+        # print("update_orders:",self.update_orders)
         self.env.use_render=args['use_render']
         self.env.useS=args['useS']
         if args['useS']==True:
@@ -77,7 +77,7 @@ class powerGYMEnv:
         self.share_observation_space = self.repeat(self.env.observation_space)
         self.observation_space = self.unwrap(self.env.observation_space)
         
-        self.action_space = self.getenvactionspace(self.env.action_space)#把每个智能体的动作空间拆解出来了
+        self.action_space = self.get_env_action_space(self.env.action_space)#把每个智能体的动作空间拆解出来了
         self.avail_actions = self.get_avail_actions()
         if self.env.action_space.__class__.__name__ == "Box":
             self.discrete = False
@@ -140,7 +140,7 @@ class powerGYMEnv:
             l.append(d)
         return l#pettingzoo是从这里面挑自己的观察空间
     
-    def getenvactionspace(self,env):#把混合动作空间分给每个单独的智能体
+    def get_env_action_space(self,env):#把混合动作空间分给每个单独的智能体
         #print("env =",env)
         discrete_list = [Discrete(n) for n in env.nvec]
         #print("discrete_list =",discrete_list)
