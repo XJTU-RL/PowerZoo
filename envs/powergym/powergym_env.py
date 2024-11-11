@@ -157,17 +157,17 @@ class PowerGymEnv:
     #        return (1, item)
     #     else:#bat
     #        return (0, item)
-# # 自定义排序函数
-# def custom_sort(item):
-#     # 将'Capacitor.cap1'放在第一个位置
-#     if item == 'Capacitor.cap1':
-#         return (-1, item)
-#     else:
-#         # 其他元素按默认规则排序
-#         if 'reg' in item:
-#             return (0, item)
-#         elif 'cap' in item:
-#             return (2, item)
-#         else:#bat
-#             return (1, item)
-# 自定义排序函数
+    # # 自定义排序函数
+    # def custom_sort(item):
+    #     # 将'Capacitor.cap1'放在第一个位置
+    #     if item == 'Capacitor.cap1':
+    #         return (-1, item)
+    #     else:
+    #         # 其他元素按默认规则排序
+    #         if 'reg' in item:
+    #             return (0, item)
+    #         elif 'cap' in item:
+    #             return (2, item)
+    #         else:#bat
+    #             return (1, item)
+    # 自定义排序函数

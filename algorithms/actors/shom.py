@@ -1,4 +1,4 @@
-"""HAPPO algorithm."""
+"""SHOM algorithm."""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,16 +7,16 @@ from utils.models_tools import get_grad_norm
 from algorithms.actors.on_policy_base import OnPolicyBase
 
 
-class HAPPO(OnPolicyBase):
+class SHOM(OnPolicyBase):
     def __init__(self, args, obs_space, act_space, device=torch.device("cpu")):
-        """Initialize HAPPO algorithm.
+        """Initialize SHOM algorithm.
         Args:
             args: (dict) arguments.
             obs_space: (gym.spaces or list) observation space.
             act_space: (gym.spaces) action space.
             device: (torch.device) device to use for tensor operations.
         """
-        super(HAPPO, self).__init__(args, obs_space, act_space, device)
+        super(SHOM, self).__init__(args, obs_space, act_space, device)
 
         self.clip_param = args["clip_param"]
         self.ppo_epoch = args["ppo_epoch"]

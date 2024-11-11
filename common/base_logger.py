@@ -28,6 +28,7 @@ class BaseLogger:
         #     os.path.join(dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         # )
         text = ""
+        print(algo_args)
         for section, params in algo_args.items():
             text += f"{section}:\n"
             for key, value in params.items():

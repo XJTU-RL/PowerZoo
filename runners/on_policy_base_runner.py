@@ -26,7 +26,9 @@ from utils.models_tools import init_device
 from utils.configs_tools import init_dir, save_config,save_render
 from envs import LOGGER_REGISTRY
 import multiprocessing as mp
-mp.set_start_method('spawn')
+# 避免多进程报错，因为自动调参也会使用多线程
+if mp.get_start_method(allow_none=True) is None:
+    mp.set_start_method('spawn')
 
 class OnPolicyBaseRunner:
     """Base runner for on-policy algorithms."""

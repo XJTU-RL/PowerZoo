@@ -10,3 +10,8 @@
 [submodule "dss_capi"]
 	path = dss_capi
 	url = https://github.com/dss-extensions/dss_capi.git
+
+[submodule "MTS"]
+    path = MTS
+    url = https://github.com/thuml/Time-Series-Library
+

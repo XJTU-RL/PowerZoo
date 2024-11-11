@@ -7,7 +7,7 @@ from uu import Error
 
 
 def get_defaults_yaml_args(algo, env):
-    """Load config file for user-specified algo and env.
+    """加载用户指定的算法和环境的配置文件.
     Args:
         algo: (str) Algorithm name.
         env: (str) Environment name.
@@ -27,7 +27,7 @@ def get_defaults_yaml_args(algo, env):
 
 
 def update_args(unparsed_dict, *args):
-    """Update loaded config with unparsed command-line arguments.
+    """使用未解析的命令行参数更新加载的配置。
     Args:
         unparsed_dict: (dict) Unparsed command-line arguments.
         *args: (list[dict]) argument dicts to be updated.
