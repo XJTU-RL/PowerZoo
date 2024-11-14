@@ -40,20 +40,27 @@ class OnPolicyBaseRunner:
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
             env_args: arguments related to env, loaded from config file and updated with unparsed command-line arguments.
         """
+        # 初始化参数
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
 
+        # 获取模型参数
         self.hidden_sizes = algo_args["model"]["hidden_sizes"]
         self.rnn_hidden_size = self.hidden_sizes[-1]
         self.recurrent_n = algo_args["model"]["recurrent_n"]
+        # 获取算法参数
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
         self.fixed_order = algo_args["algo"]["fixed_order"]
+        # 是否使用无功电压矩阵
         self.useS=env_args["useS"]
+        # 是否使用无功电压值从大到小的顺序更新智能体
         self.big2small= env_args["big2small"]
+        # 设置随机种子
         set_seed(algo_args["seed"])
+        # 初始化设备
         self.device = init_device(algo_args["device"])
         if not self.algo_args["render"]["use_render"]:  # train, not render 如果不进行渲染,则进行训练
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
@@ -295,8 +302,10 @@ class OnPolicyBaseRunner:
             self.after_update()
 
     def warmup(self):
-        """Warm up the replay buffer."""
+        """预热重播缓冲区. warmup 函数的主要作用是通过与环境的初步交互来填充重放缓冲区，
+        使得在训练开始之前，缓冲区中已经有了一定数量的环境状态、观测和可用动作的数据。"""
         # reset env
+        # 重置环境，获取当前观测值、共享观测值和可用动作
         obs, share_obs, available_actions = self.envs.reset()
         # print("warmup_available_actions_type",type(available_actions))
         # print("warmup_available_actions[:,1]_type",type(available_actions[:,1]))
@@ -304,6 +313,7 @@ class OnPolicyBaseRunner:
         # print("self.actor_buffer[agent_id=1].available_actions[0]=",self.actor_buffer[1].available_actions[0])
         # replay buffer
         for agent_id in range(self.num_agents):
+            # 将每个智能体的观测和可用动作填充到各自的重放缓冲区中。
             self.actor_buffer[agent_id].obs[0] = obs[:, agent_id].copy()
             # if self.actor_buffer[agent_id].available_actions is not None:
             #     self.actor_buffer[agent_id].available_actions[0] = available_actions[
@@ -317,8 +327,10 @@ class OnPolicyBaseRunner:
 
 
 
+        # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
         if self.state_type == "EP":
             self.critic_buffer.share_obs[0] = share_obs[:, 0].copy()
+        # 如果状态类型为FP，则将share_obs复制到critic_buffer的share_obs中
         elif self.state_type == "FP":
             self.critic_buffer.share_obs[0] = share_obs.copy()
 

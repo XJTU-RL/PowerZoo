@@ -143,7 +143,7 @@ def main():
         trial.params.get("hidden_size_2", config["model"]["hidden_sizes"][1])
     ]
     
-    # 保存所有从 happo.yaml 中读取的超参数
+    # 保存所有从配置文件中读取的超参数
     save_yaml_config(config, args.config)
 
 if __name__ == "__main__":
