@@ -126,7 +126,7 @@ class OffPolicyBufferBase:
                     self.next_available_actions[agent_id][s:e] = next_available_actions[
                         agent_id
                     ].copy()
-                    # #TODO:powergym更改
+                    # #TODO:powerzoo更改
                     # self.available_actions[agent_id] = available_actions
                     # self.next_available_actions[agent_id] = next_available_actions
                     
@@ -156,7 +156,7 @@ class OffPolicyBufferBase:
                     self.next_available_actions[agent_id][s:e] = next_available_actions[
                         agent_id
                     ][0:len1].copy()
-                    #  #TODO:powergym更改
+                    #  #TODO:powerzoo更改
                     # self.available_actions[agent_id] = available_actions
                     # self.next_available_actions[agent_id] = next_available_actions
                     

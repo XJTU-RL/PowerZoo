@@ -10,7 +10,7 @@ do_testing: False
 #running mode, random, parallele, episodic or dss
 mode: single
 #whether to use S
-useS: False
+useS: True
 # whether to order S from big to small
 big2small: True
 # whether to convey the information of the voltage node

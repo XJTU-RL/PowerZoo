@@ -48,12 +48,12 @@ def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # 添加环境名称参数，默认为"powergym"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powergym"
+    # 添加环境名称参数，默认为"powerzoo"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powerzoo"
     parser.add_argument(
         "--env",
         type=str,
         #default="pettingzoo_mpe",
-        default="powergym",
+        default="powerzoo",
         choices=[
             "smac",
             "mamujoco",
@@ -63,9 +63,9 @@ def main():
             "dexhands",
             "smacv2",
             "lag",
-            "powergym",
+            "powerzoo",
         ],
-        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powergym.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powerzoo.",
     )
     parser.add_argument(
         "--n_trials", 

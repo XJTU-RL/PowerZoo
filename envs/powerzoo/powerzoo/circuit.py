@@ -11,11 +11,6 @@ import sys
 import re
 from math import sin, cos, fabs, pi
 import cupy as cp
-
-sys.path.append("/home/yushixuan/PowerZoo/dss_capi") #TODO:主要用于linux服务器设置
-sys.path.append("/home/yushixuan/PowerZoo/dss_python")
-sys.path.append("/home/yushixuan/PowerZoo/dss_python_backend")
-
 import dss as opendss
 
 class Circuits():
@@ -648,7 +643,7 @@ class Circuits():
         #print(new_angle_list)
         bus1_length = len(temp_order)
         
-        Y1=Ymatrix#获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
+        Y1=Ymatrix #获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
         
         # H=np.zeros((bus1_length, bus1_length))
         # M=np.zeros((bus1_length, bus1_length))
@@ -732,7 +727,8 @@ class Circuits():
         S=S1.get()
         mingandu_vector = np.sum(S, axis=1)
         node_sensity = dict(zip(temp_order, mingandu_vector))
-        #有个问题，是在这里直接把有智能体的节点拿出来，存数据的时候只保留有智能体节点的无功电压敏感度，还是都保留，或者说都合并
+        # REMAKS:
+        # 有个问题，是在这里直接把有智能体的节点拿出来，存数据的时候只保留有智能体节点的无功电压敏感度，还是都保留，或者说都合并
         # 我认为应该减少step中insert进actorbuffer中的数据量，因此应该在这里就把和智能体相关的节点都拿出来
         # 如果出现三相的智能体应该如何处理？还是说我不应该关注有载调压器，只应该关注电源和电容这种能提供无功补偿的节点，
         # 这样处理吧，多相的把他们的敏感度矩阵相加进行处理
@@ -741,6 +737,9 @@ class Circuits():
         #有两个问题：
         # 1是并行环境的问题，这个倒是问题不大，每个环境都会有一个敏感度矩阵，
         # 2是收集完step后才会更新
+
+        # 20240310
+        # 已经解决所有问题 -ysx
         return node_sensity
     
     def get_agent_bus_dict(self):

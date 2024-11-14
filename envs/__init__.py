@@ -7,7 +7,7 @@ from envs.gym.gym_logger import GYMLogger
 from envs.football.football_logger import FootballLogger
 from envs.dexhands.dexhands_logger import DexHandsLogger
 from envs.lag.lag_logger import LAGLogger
-from envs.powergym.powergym_logger import powergymLogger
+from envs.powerzoo.powerzoo_logger import PowerZooLogger
 
 FLAGS = flags.FLAGS
 FLAGS(["train_sc.py"])
@@ -21,5 +21,5 @@ LOGGER_REGISTRY = {
     "dexhands": DexHandsLogger,
     "smacv2": SMACv2Logger,
     "lag": LAGLogger,
-    "powergym":powergymLogger,
+    "powerzoo":PowerZooLogger,
 }

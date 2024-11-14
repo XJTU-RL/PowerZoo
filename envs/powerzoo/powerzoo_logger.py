@@ -2,9 +2,9 @@ from common.base_logger import BaseLogger
 import time
 import numpy as np
 
-class powergymLogger(BaseLogger):
+class PowerZooLogger(BaseLogger):
     def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
-        super(powergymLogger, self).__init__(
+        super(PowerZooLogger, self).__init__(
             args, algo_args, env_args, num_agents, writter, run_dir
         )
         

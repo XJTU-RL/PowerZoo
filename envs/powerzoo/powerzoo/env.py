@@ -4,8 +4,8 @@
 import os
 import gym
 import numpy as np
-from envs.powergym.powergym.circuit import Circuits
-from envs.powergym.powergym.loadprofile import LoadProfile
+from envs.powerzoo.powerzoo.circuit import Circuits
+from envs.powerzoo.powerzoo.loadprofile import LoadProfile
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd

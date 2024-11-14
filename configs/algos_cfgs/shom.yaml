@@ -32,7 +32,7 @@ train:
 eval:
   # 是否使用评估
   use_eval: True
-  # 评估并行环境数量，default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
+  # 评估并行环境数量，default 10，这里使用4个，因为powerzoo提供的数据只有16个，12个用于训练，4个用于评估。
   n_eval_rollout_threads: 3
   # 每次评估使用的episode数量，default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
   eval_episodes: 4
@@ -113,9 +113,8 @@ algo:
   action_aggregation: prod
   # 是否共享参数
   share_param: False
-  # 是否使用固定优化顺序
-  fixed_order: False
+  # 是否使用sentivity 规定的优化顺序
+  sentivity_order: True
 logger:
   # 日志目录
-  #log_dir: "E:\\powergymHARL\\PowerZOO\\PowerZOO\\results"
   log_dir: "./results"

@@ -31,10 +31,10 @@ if mp.get_start_method(allow_none=True) is None:
     mp.set_start_method('spawn')
 
 class OnPolicyBaseRunner:
-    """Base runner for on-policy algorithms."""
+    """同策略算法的基础运行器。"""
 
     def __init__(self, args, algo_args, env_args):
-        """Initialize the OnPolicyBaseRunner class.
+        """初始化 OnPolicyBaseRunner 类。
         Args:
             args: command-line arguments parsed by argparse. Three keys: algo, env, exp_name.
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
@@ -53,7 +53,7 @@ class OnPolicyBaseRunner:
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
-        self.fixed_order = algo_args["algo"]["fixed_order"]
+        self.sentivity_order = algo_args["algo"]["sentivity_order"]
         # 是否使用无功电压矩阵
         self.useS=env_args["useS"]
         # 是否使用无功电压值从大到小的顺序更新智能体
@@ -106,11 +106,11 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powergym更新顺序
-        if args["env"] == "powergym":
-           #if args["useS"]==True:
-            self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
-            self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
+        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powerzoo更新顺序
+        if args["env"] == "powerzoo":
+            if env_args["useS"]==True:
+                self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
+                self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
         
         print("share_observation_space.shape: ", len(self.envs.share_observation_space))
         print("observation_space.shape: ", len(self.envs.observation_space))
@@ -870,3 +870,7 @@ class OnPolicyBaseRunner:
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()
             self.logger.close()
+
+    def get_result(self):
+        """Get result of the training."""
+        return self.logger.get_result()

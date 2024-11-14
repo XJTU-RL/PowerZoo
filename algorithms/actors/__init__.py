@@ -9,6 +9,7 @@ from algorithms.actors.had3qn import HAD3QN
 from algorithms.actors.maddpg import MADDPG
 from algorithms.actors.matd3 import MATD3
 from algorithms.actors.mappo import MAPPO
+from algorithms.actors.shom import SHOM
 
 ALGO_REGISTRY = {
     "happo": HAPPO,
@@ -21,4 +22,5 @@ ALGO_REGISTRY = {
     "maddpg": MADDPG,
     "matd3": MATD3,
     "mappo": MAPPO,
+    "shom": SHOM,
 }

@@ -33,12 +33,12 @@ def main():
         ],
         help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo, shom.",
     )
-    # 添加环境名称参数，默认为"powergym"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powergym"
+    # 添加环境名称参数，默认为"powerzoo"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powerzoo"
     parser.add_argument(
         "--env",
         type=str,
         #default="pettingzoo_mpe",
-        default="powergym",
+        default="powerzoo",
         choices=[
             "smac",
             "mamujoco",
@@ -48,9 +48,9 @@ def main():
             "dexhands",
             "smacv2",
             "lag",
-            "powergym",
+            "powerzoo",
         ],
-        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powergym.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powerzoo.",
     )
     # 添加实验名称参数，默认为"installtest"
     parser.add_argument(
