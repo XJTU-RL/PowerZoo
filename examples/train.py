@@ -17,7 +17,7 @@ def main():
     parser.add_argument(
         "--algo", 
         type=str,
-        default="happo",
+        default="shom",
         choices=[
             "happo",
             "hatrpo",
@@ -29,8 +29,9 @@ def main():
             "maddpg",
             "matd3",
             "mappo",
+            "shom",
         ],
-        help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo.",
+        help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo, shom.",
     )
     # 添加环境名称参数，默认为"powergym"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powergym"
     parser.add_argument(
