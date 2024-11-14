@@ -79,7 +79,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
            reversed_array=sorted_values[::-1]
         #print(reversed_array)
         
-        if self.sentivity_order:
+        if self.ordered:
             # 说明：
             # 分四种顺序：
             # 1. 敏感度顺序排序，有big2small和small2big两种

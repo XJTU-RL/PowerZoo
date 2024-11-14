@@ -114,7 +114,7 @@ algo:
   # 是否共享参数
   share_param: False
   # 是否使用sentivity 规定的优化顺序
-  sentivity_order: True
+  ordered: True
 logger:
   # 日志目录
   log_dir: "./results"

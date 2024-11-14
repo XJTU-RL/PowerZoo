@@ -53,7 +53,7 @@ class OnPolicyBaseRunner:
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
-        self.sentivity_order = algo_args["algo"]["sentivity_order"]
+        self.ordered = algo_args["algo"]["ordered"]
         # 是否使用无功电压矩阵
         self.useS=env_args["useS"]
         # 是否使用无功电压值从大到小的顺序更新智能体
@@ -277,13 +277,13 @@ class OnPolicyBaseRunner:
                 self.logger.per_step(data)  # logger callback at each step
                 self.insert(data)  # insert data into buffer,此处的insert是actorbuffer的insert
 
-            # compute return and update network
+            # 计算返回和更新网络
             self.compute()
             self.prep_training()  # change to train mode
 
             actor_train_infos, critic_train_info = self.train()
 
-            # log information
+            # 日志信息
             if episode % self.algo_args["train"]["log_interval"] == 0:
                 self.logger.episode_log(
                     actor_train_infos,
@@ -563,7 +563,7 @@ class OnPolicyBaseRunner:
     @torch.no_grad()
     def eval(self):
         """Evaluate the model."""
-        self.logger.eval_init()  # logger callback at the beginning of evaluation
+        self.logger.eval_init()  # 评估开始时的记录器回调
         eval_episode = 0
 
         eval_obs, eval_share_obs, eval_available_actions = self.eval_envs.reset()
@@ -586,7 +586,7 @@ class OnPolicyBaseRunner:
             #print("eval_available_actions: eval_available_actions) #TODO:检查评价动作输出
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
-                #TODO:availible_actioncheck报错解决
+                #TODO:availible_action check报错解决
                 test=eval_available_actions[:, agent_id].copy()
                 test1 = np.vstack([np.array(item, dtype=np.float32) for item in test])
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
@@ -833,7 +833,7 @@ class OnPolicyBaseRunner:
             )
 
     def restore(self):
-        """Restore model parameters."""
+        """恢复模型参数。"""
         # 遍历每个agent
         for agent_id in range(self.num_agents):
             # 加载每个agent的actor参数
@@ -860,7 +860,7 @@ class OnPolicyBaseRunner:
                 self.value_normalizer.load_state_dict(value_normalizer_state_dict)
 
     def close(self):
-        """Close environment, writter, and logger."""
+        """关闭环境、writer 和 logger。"""
         if self.algo_args["render"]["use_render"]:
             self.envs.close()
         else:
@@ -872,5 +872,5 @@ class OnPolicyBaseRunner:
             self.logger.close()
 
     def get_result(self):
-        """Get result of the training."""
+        """获得训练结果。"""
         return self.logger.get_result()
