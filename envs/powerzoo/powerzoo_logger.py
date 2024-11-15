@@ -1,5 +1,6 @@
 from common.base_logger import BaseLogger
 import time
+from textwrap import dedent
 import numpy as np
 
 class PowerZooLogger(BaseLogger):
@@ -9,11 +10,16 @@ class PowerZooLogger(BaseLogger):
         )
         
         
+        
     def get_task_name(self):
         return self.env_args["env_name"]
     
     def init(self, episodes):
-        """Initialize the logger."""
+        """初始化记录器。
+
+        Args:
+            episodes (int): 剧集数量。
+        """
         self.start = time.time()
         self.episodes = episodes
         self.train_episode_rewards = np.zeros(
@@ -40,11 +46,27 @@ class PowerZooLogger(BaseLogger):
         self.done_episodes_voltage_reward = []
 
     def episode_init(self, episode):
-        """Initialize the logger for each episode."""
+        """初始化每个episode的记录器。"""
         self.episode = episode
 
     def per_step(self, data):
-        """Process data per step."""
+        """处理每步的数据。
+
+        Args:
+            data (tuple): 每步的数据。包含以下元素：
+
+                - obs (np.ndarray): 观测值。
+                - share_obs (np.ndarray): 共享观测值。
+                - rewards (np.ndarray): 奖励。
+                - dones (np.ndarray): 是否完成。
+                - infos (list): 其他信息。
+                - available_actions (np.ndarray): 可用动作。
+                - values (np.ndarray): 价值。
+                - actions (np.ndarray): 动作。
+                - action_log_probs (np.ndarray): 动作对数概率。
+                - rnn_states (np.ndarray): RNN状态。
+                - rnn_states_critic (np.ndarray): RNN状态（critic）。
+        """
         (
             obs,
             share_obs,
@@ -58,7 +80,7 @@ class PowerZooLogger(BaseLogger):
             rnn_states,
             rnn_states_critic,
         ) = data
-        #print("log_dones*********",dones)
+        # 计算每个环境的平均奖励
         dones_env = np.all(dones, axis=1)
         reward_env = np.mean(rewards, axis=1).flatten()
         
@@ -103,36 +125,38 @@ class PowerZooLogger(BaseLogger):
     def episode_log(
         self, actor_train_infos, critic_train_info, actor_buffer, critic_buffer
     ):
-        """Log information for each episode."""
+        """记录episode的日志信息。
+
+        Args:
+            actor_train_infos (_type_): actor 训练信息
+            critic_train_info (_type_): critic 训练信息
+            actor_buffer (_type_): actor 缓冲区
+            critic_buffer (_type_): critic 缓冲区
+        """
+        # 计算总步数
         self.total_num_steps = (
             self.episode
             * self.algo_args["train"]["episode_length"]
             * self.algo_args["train"]["n_rollout_threads"]
         )
+        # 记录结束时间
         self.end = time.time()
-        print(
-            "Env {} Task {} Algo {} Exp {} updates {}/{} episodes, total num timesteps {}/{}, FPS {}.".format(
-                self.args["env"],
-                self.task_name,
-                self.args["algo"],
-                self.args["exp_name"],
-                self.episode,
-                self.episodes,
-                self.total_num_steps,
-                self.algo_args["train"]["num_env_steps"],
-                int(self.total_num_steps / (self.end - self.start)),
-            )
-        )
-
+        
+        # 计算平均步数奖励
         critic_train_info["average_step_rewards"] = critic_buffer.get_mean_rewards()
         self.log_train(actor_train_infos, critic_train_info)
 
-        print(
-            "Average step reward is {}.".format(
-                critic_train_info["average_step_rewards"]
-            )
-        )
+        training_info = dedent(f"""
+            环境：{self.args["env"]} 网络: {self.task_name} 算法: {self.args["algo"]} 实验名称: {self.args["exp_name"]} 
+            更新次数 {self.episode}/{self.episodes} episodes,总时间步数 {self.total_num_steps}/{self.algo_args["train"]["num_env_steps"]}, FPS {int(self.total_num_steps / (self.end - self.start))}. 
+            平均步数奖励为 {critic_train_info["average_step_rewards"]}.\n""")
+        
+        # 打印日志信息
+        print(training_info)
+        self.log_training_info.write(training_info)
+        self.log_training_info.flush()
 
+        # 记录平均奖励值
         if len(self.done_episodes_rewards) > 0:
             aver_episode_rewards = np.mean(self.done_episodes_rewards)
             #TODO:power_loss,voltage_loss,ctrl_loss
@@ -140,11 +164,12 @@ class PowerZooLogger(BaseLogger):
             aver_episode_voltage_rewards = np.mean(self.done_episodes_voltage_reward)
             aver_episode_ctrl_rewards = np.mean(self.done_episodes_ctrl_reward)
             
-            print(
-                "Some episodes done, average episode reward is {}.\n".format(
-                    aver_episode_rewards
-                )
-            )
+            log_info = f"平均奖励值为： {aver_episode_rewards}.\n"
+            print(log_info)
+            self.log_training_info.write(log_info)
+            self.log_training_info.flush()
+
+            # 记录到tensorboard
             self.writter.add_scalars(
                 "train_episode_rewards",#TODO:
                 {"aver_rewards": aver_episode_rewards},
@@ -175,15 +200,19 @@ class PowerZooLogger(BaseLogger):
             self.done_episodes_voltage_reward=[]
             self.done_episodes_ctrl_reward = []
             
+            
     def eval_init(self):
-        """Initialize the logger for evaluation."""
+        """初始化评估过程."""
+
         self.total_num_steps = (
             self.episode
             * self.algo_args["train"]["episode_length"]
             * self.algo_args["train"]["n_rollout_threads"]
         )
+        self.eval_env_reward_infos = {} #记录评估环境的奖励信息
         self.eval_episode_rewards = []
         self.one_episode_rewards = []
+        
         #TODO:分离eval的三个奖励，powerloss
         self.eval_powerloss_episode_rewards = []
         self.one_powerloss_episode_rewards = []
@@ -193,8 +222,6 @@ class PowerZooLogger(BaseLogger):
         #TODO:分离eval的三个奖励，ctrlloss
         self.eval_ctrl_episode_rewards = []
         self.one_ctrl_episode_rewards = []
-        
-        
         
         for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
             self.one_episode_rewards.append([])
@@ -212,7 +239,11 @@ class PowerZooLogger(BaseLogger):
             
             
     def eval_per_step(self, eval_data):
-        """Log evaluation information per step."""
+        """记录评估过程中的奖励.
+
+        Args:
+            eval_data (tuple): (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
+        """
         (
             eval_obs,
             eval_share_obs,
@@ -227,26 +258,38 @@ class PowerZooLogger(BaseLogger):
         eval_voltage_reward=[[[d[0]['vol_reward'] for d in eval_infos]]]
         eval_ctrl_reward=[[[d[0]['ctrl_reward'] for d in eval_infos]]]
         
-        #print(eval_powerloss_reward)
+        
+        # 计算评估环境中的功率损耗奖励的平均值，并将其展平为一维数组
         eval_powerloss_reward_env= np.mean(eval_powerloss_reward, axis=1).flatten()
+        # 将展平的一维数组重新调整为 (self.algo_args["eval"]["n_eval_rollout_threads"],1,1) 的形状
         eval_powerloss_reward_env=eval_powerloss_reward_env.reshape((self.algo_args["eval"]["n_eval_rollout_threads"],1,1))
         
+        # 计算评估环境中的电压奖励的平均值，并将其展平为一维数组
         eval_voltage_reward_env= np.mean(eval_voltage_reward, axis=1).flatten()
+        # 将展平的一维数组重新调整为 (self.algo_args["eval"]["n_eval_rollout_threads"],1,1) 的形状
         eval_voltage_reward_env=eval_voltage_reward_env.reshape((self.algo_args["eval"]["n_eval_rollout_threads"],1,1))
         
+        # 计算评估环境中的控制奖励的平均值，并将其展平为一维数组
         eval_ctrl_reward_env= np.mean(eval_ctrl_reward, axis=1).flatten()
+        # 将展平的一维数组重新调整为 (self.algo_args["eval"]["n_eval_rollout_threads"],1,1) 的形状
         eval_ctrl_reward_env=eval_ctrl_reward_env.reshape((self.algo_args["eval"]["n_eval_rollout_threads"],1,1))
         
+        #将每个线程的reward、powerloss、voltage、ctrl reward分别存储到对应的列表中
         for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
             self.one_episode_rewards[eval_i].append(eval_rewards[eval_i])
             self.one_powerloss_episode_rewards[eval_i].append(eval_powerloss_reward_env[eval_i])#TODO:POWERLOSS_EVAL
-            self.one_voltage_episode_rewards[eval_i].append(eval_voltage_reward_env[eval_i])#TODO:POWERLOSS_EVAL
-            self.one_ctrl_episode_rewards[eval_i].append(eval_ctrl_reward_env[eval_i])#TODO:POWERLOSS_EVAL
+            self.one_voltage_episode_rewards[eval_i].append(eval_voltage_reward_env[eval_i])
+            self.one_ctrl_episode_rewards[eval_i].append(eval_ctrl_reward_env[eval_i])
+            
+        # 将eval_infos赋值给self.eval_infos
         self.eval_infos = eval_infos
 
         
     def eval_thread_done(self, tid):
-        """Log evaluation information."""
+        """记录每个评估线程的结束信息.
+        Args:
+            tid (int): 线程ID
+        """
         self.eval_episode_rewards[tid].append(
             np.sum(self.one_episode_rewards[tid], axis=0)
         )
@@ -285,24 +328,28 @@ class PowerZooLogger(BaseLogger):
         )
         
         
-        eval_env_infos = {
+        eval_env_reward_infos = {
             "eval_average_episode_rewards": self.eval_episode_rewards,
             "eval_max_episode_rewards": [np.max(self.eval_episode_rewards)],
             "eval_powerloss_average_episode_rewards": self.eval_powerloss_episode_rewards,
             "eval_voltage_average_episode_rewards": self.eval_voltage_episode_rewards,
             "eval_ctrl_average_episode_rewards": self.eval_ctrl_episode_rewards,
         }
-        
-        self.log_env(eval_env_infos)
+        self.eval_env_reward_infos.update(eval_env_reward_infos)
+        self.log_env(eval_env_reward_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
-        print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
-        self.log_file.write(
-            ",".join(map(str, [self.total_num_steps, eval_avg_rew])) + "\n"#这个是在progress文件里写的
-        )
+        
+        # 构建步数和奖励值的日志信息
+        log_info = f"{self.total_num_steps},{eval_avg_rew}\n"
+        # 打印日志信息到控制台
+        print(f"当前步数: {self.total_num_steps}, Evaluation 平均 episode 奖励: {eval_avg_rew}")
+        # 写入到日志文件 Progress.txt
+        self.log_file.write(log_info)
         self.log_file.flush()
+        
 
     def log_train(self, actor_train_infos, critic_train_info):
-        """Log training information."""
+        """记录训练信息。"""
         # log actor
         for agent_id in range(self.num_agents):
             for k, v in actor_train_infos[agent_id].items():
@@ -314,11 +361,26 @@ class PowerZooLogger(BaseLogger):
             self.writter.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
 
     def log_env(self, env_infos):
-        """Log environment information."""
+        """记录环境信息."""
+        # 遍历env_infos中的键值对
         for k, v in env_infos.items():
+            # 如果v的长度大于0
             if len(v) > 0:
+                # 使用writter添加标量，键为k，值为v的平均值，步数为self.total_num_steps
                 self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
 
     def close(self):
         """Close the logger."""
         self.log_file.close()
+
+    def get_result(self):
+        """获取训练和评估的结果"""
+        result = {
+            "train_avg_reward": np.mean(self.done_episodes_rewards) if self.done_episodes_rewards else 0,
+            "eval_avg_reward": np.mean(self.eval_env_reward_infos["eval_average_episode_rewards"]) if "eval_average_episode_rewards" in self.eval_env_reward_infos else 0,
+            "eval_powerloss_avg_reward": np.mean(self.eval_env_reward_infos["eval_powerloss_average_episode_rewards"]) if "eval_powerloss_average_episode_rewards" in self.eval_env_reward_infos else 0,
+            "eval_voltage_avg_reward": np.mean(self.eval_env_reward_infos["eval_voltage_average_episode_rewards"]) if "eval_voltage_average_episode_rewards" in self.eval_env_reward_infos else 0,
+            "eval_ctrl_avg_reward": np.mean(self.eval_env_reward_infos["eval_ctrl_average_episode_rewards"]) if "eval_ctrl_average_episode_rewards" in self.eval_env_reward_infos else 0,
+        }
+        return result
+        
