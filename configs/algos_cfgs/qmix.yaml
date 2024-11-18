@@ -1,0 +1,190 @@
+algorithm_name: "mqmix"  # 算法名称
+experiment_name: "check"  # 实验名称
+seed: 1  # 随机种子
+cuda: true  # 是否使用 CUDA
+cuda_deterministic: true  # 是否使用 CUDA 的确定性模式
+n_training_threads: 4  # 训练线程数
+n_rollout_threads: 3  # 训练回合的并行环境数
+n_eval_rollout_threads: 3  # 评估回合的并行环境数
+num_env_steps: 48000  # 总环境步数
+use_wandb: false  # 是否使用 Weights & Biases
+user_name: "Shixuan Yu"  # 用户名
+
+experiment_name: "123BUS"
+env_name: "powerzoo"  # 环境名称
+use_obs_instead_of_state: true  # 是否使用全局状态或拼接观察
+use_same_share_obs: true  # 是否共享观察
+
+episode_length: 24  # 每回合的最大长度
+buffer_size: 2400  # 回放缓冲区的最大容量
+use_reward_normalization: false  # 是否对奖励进行归一化
+use_popart: false  # 是否使用 PopArt 对目标损失进行归一化
+popart_update_interval_step: 2  # 更新 PopArt 的步数间隔
+
+use_per: false  # 是否使用优先经验回放
+per_nu: 0.9  # 优先经验回放的最大 TD 误差权重
+per_alpha: 0.6  # 优先经验回放的 alpha 值
+per_eps: 1e-6  # 优先经验回放的 epsilon 值
+per_beta_start: 0.4  # 优先经验回放的初始 beta 值
+
+use_centralized_Q: true  # 是否使用集中式 Q 函数
+share_policy: false  # 是否共享策略
+hidden_size: 128  # Actor/Critic 网络的隐藏层大小
+layer_N: 1  # Actor/Critic 网络的层数
+use_ReLU: true  # 是否使用 ReLU 激活函数
+use_feature_normalization: true  # 是否对输入应用层归一化
+use_orthogonal: true  # 是否使用正交初始化
+gain: 0.01  # 最后一层的增益
+use_conv1d: false  # 是否使用一维卷积
+stacked_frames: 1  # 拼接帧数
+
+prev_act_inp: false  # Actor 输入是否包含上一步的动作
+use_rnn_layer: false   # 是否使用循环网络层
+use_naive_recurrent_policy: false  # 是否使用朴素循环策略
+recurrent_N: 1  # RNN 的层数
+data_chunk_length: 10  # BPTT 训练时的时间序列长度
+burn_in_time: 0  # RNN 训练的预热时间
+
+attn: false  # 是否使用注意力机制
+attn_N: 1  # 注意力层数
+attn_size: 64  # 注意力尺寸
+attn_heads: 4  # 注意力头数
+dropout: 0.0  # Dropout 概率
+use_average_pool: true  # 是否使用平均池化
+use_cat_self: true  # 是否拼接自身特征
+
+lr: 0.0005  # Adam 优化器的学习率
+opti_eps: 1e-5  # RMSprop 优化器的 epsilon 值
+weight_decay: 0.0  # 权重衰减系数
+
+batch_size: 72  # 训练时的批处理大小
+gamma: 0.99  # 折扣因子
+use_max_grad_norm: true  # 是否限制梯度范数
+max_grad_norm: 10.0  # 梯度范数最大值
+use_huber_loss: false  # 是否使用 Huber 损失
+huber_delta: 10.0  # Huber 损失的 delta 值
+
+use_soft_update: true  # 是否使用软更新
+tau: 0.005  # Polyak 更新率
+hard_update_interval_episode: 200  # 硬更新的回合间隔
+hard_update_interval: 200  # 硬更新的步数间隔
+
+target_action_noise_std: 0.2  # rmatd3 的目标动作噪声标准差
+alpha: 1.0  # rmasac 的初始温度
+target_entropy_coef: 0.5  # rmasac 的目标熵系数
+automatic_entropy_tune: true  # 是否自动调整熵
+
+use_double_q: true  # 是否使用 double Q 学习
+hypernet_layers: 2  # 超网络的层数
+mixer_hidden_dim: 32  # 混合网络的隐藏层大小
+hypernet_hidden_dim: 64  # 超网络的隐藏层大小
+
+num_random_episodes: 5  # 随机动作的回合数
+epsilon_start: 1.0  # epsilon 贪心策略的起始值
+epsilon_finish: 0.05  # epsilon 贪心策略的终止值
+epsilon_anneal_time: 12000  # epsilon 下降到终止值的步数
+act_noise_std: 0.1  # 动作噪声标准差
+
+actor_train_interval_step: 2  # Critic 更新后 Actor 更新的步数间隔
+train_interval_episode: 1  # 更新 Actor/Critic 的回合数间隔
+train_interval: 72  # 更新 Actor/Critic 的步数间隔
+use_value_active_masks: false  # 是否使用激活遮罩
+
+use_eval: true  # 是否进行评估
+eval_interval: 240  # 评估间隔
+num_eval_episodes: 2  # 每次评估的回合数
+
+save_interval: 1000  # 保存模型的回合间隔
+
+log_interval: 24  # 日志记录的间隔
+
+model_dir: null  # 预训练模型路径
+
+# render:
+#   use_render: false  # 是否使用渲染
+
+device:
+  # 是否使用CUDA
+  cuda: True
+  # 是否设置CUDA确定性
+  cuda_deterministic: True
+  # arg to torch.set_num_threads
+  torch_threads: 4
+
+seed:
+  # 是否使用指定的种子
+  seed_specify: True
+  # 种子
+  seed: 1
+
+logger:
+  # 日志目录
+  #log_dir: "E:\\powergymHARL\\PowerZOO\\PowerZOO\\results"
+  log_dir: "./results"
+
+train:
+  # 训练数据的并行环境数量，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
+  n_rollout_threads: 3
+  # 总训练步数，default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
+  num_env_steps: 48000
+  # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
+  episode_length: 24
+  # 日志间隔，default is 5
+  log_interval: 1
+  # 评估间隔，default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
+  eval_interval: 1
+  # 是否使用ValueNorm
+  use_valuenorm: True
+  # 是否使用线性学习率衰减
+  use_linear_lr_decay: False
+  # 是否考虑在episode结束时截断
+  use_proper_time_limits: True
+  # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
+  model_dir: ~
+eval:
+  # 是否使用评估
+  use_eval: True
+  # 评估并行环境数量，default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
+  n_eval_rollout_threads: 3
+  # 每次评估使用的episode数量，default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
+  eval_episodes: 4
+
+model:
+  # 网络参数
+  # mlp模块在网络中的隐藏层大小
+  hidden_sizes: [128, 128]
+  # 激活函数，选择sigmoid、tanh、relu、leaky_relu、selu
+  activation_func: relu
+  # 是否使用特征归一化
+  use_feature_normalization: True
+  # 网络参数初始化方法，选择xavier_uniform_、orthogonal_等
+  initialization_method: orthogonal_
+  # 输出层增益
+  gain: 0.01
+  # 循环参数
+  # 是否使用简单的循环网络策略（训练数据不分块）
+  use_naive_recurrent_policy: False
+  # 是否使用循环网络策略（训练数据分块）
+  use_recurrent_policy: False
+  # 循环层数量
+  recurrent_n: 1
+  # 数据分块长度；仅当use_recurrent_policy为True时有用；episode_length必须是data_chunk_length的倍数
+  data_chunk_length: 10
+  # 优化器参数
+  # 演员学习率
+  lr: 0.0005
+  # 评论家学习率
+  critic_lr: 0.0005
+  # Adam中的eps
+  opti_eps: 0.00001
+  # Adam中的权重衰减
+  weight_decay: 0
+  # 标准差系数
+  std_x_coef: 1
+  # 标准差系数
+  std_y_coef: 0.5
+render:
+  # 是否使用渲染
+  use_render: False
+  # 要渲染的episode数量
+  render_episodes: 1

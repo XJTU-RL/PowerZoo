@@ -179,8 +179,8 @@ class ActionSpace:
 
 #### environment class ####
 class Env(gym.Env):
-    """训练 RL 代理的环境
-    
+
+    """训练 RL 代理的环境   
     Attributes:
         obs (dict): 系统的观测/状态
         dss_folder_path (str): 包含DSS文件的文件夹路径
@@ -243,6 +243,7 @@ class Env(gym.Env):
         self.agents_bus=dict()
         
         # 生成负载配置文件
+
         self.load_profile = LoadProfile(\
                  info['max_episode_steps'],
                  self.dss_folder_path,
@@ -253,6 +254,7 @@ class Env(gym.Env):
         # choose a dummy load profile for the initialization of the circuit
         self.load_profile.choose_loadprofile(0)
         
+
         # 问题范围是负载曲线的长度
         self.horizon = info['max_episode_steps']
         self.reg_act_num = info['reg_act_num']
@@ -295,6 +297,7 @@ class Env(gym.Env):
         instead of setting directly from the attribute (e.g., Env.wrap_observation)
         it is suggested to set wrap_observation and observe_load through this function
         
+
         根据打包选项和负荷选项重置观测空间。
         建议通过此函数设置wrap_observation和observe_load，而不是直接从属性（例如，Env.wrap_observation）设置。
         '''
@@ -341,7 +344,9 @@ class Env(gym.Env):
             self.dis_w = info['dis_w']
 
         def powerloss_reward(self):
+
             # 整个系统在某一时间步powerloss的惩罚
+
             #loss = self.env.circuit.total_loss()[0] # a postivie float
             #gen = self.env.circuit.total_power()[0] # a negative float
             ratio = max(0.0, min(1.0, self.env.obs['power_loss']) )
@@ -361,6 +366,7 @@ class Env(gym.Env):
             return -cost
 
         def voltage_reward(self, record_node = False):
+
             # 节点电压超出 [0.95, 1.05] 范围的惩罚
             violated_nodes = []
             total_violation = 0
@@ -372,6 +378,7 @@ class Env(gym.Env):
                     violated_nodes.append(name)
             return total_violation, violated_nodes
         
+
         def composite_reward(self, cd, rd, soc, dis, full=True, record_node=True):
             # 主要奖励函数
             p = self.powerloss_reward()
@@ -386,6 +393,7 @@ class Env(gym.Env):
             return summ, info
 
     def step(self, action):
+
         """执行环境的一步操作，并调用 OpenDSS 求解器更新状态。
 
         Args:

@@ -90,9 +90,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerGymEnv
+                from envs.powerzoo.powerzoo_env import PowerZooEnv   
                 
-                env = PowerGymEnv(env_args,rank) 
+                env = PowerZooEnv(env_args,rank) 
+                
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -111,7 +112,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
         return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])#get_env_fn(i)返回值是单个的环境
 
 
-def make_eval_env(env_name, seed, n_threads, env_args,train_threads):
+def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
     """Make env for evaluation."""
     if env_name == "dexhands":  # dexhands does not support running multiple instances
         raise NotImplementedError
@@ -147,9 +148,8 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads):
 
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerGymEnv
-
-                env = PowerGymEnv(env_args,rank+train_threads)
+                from envs.powerzoo.powerzoo_env import PowerZooEnv
+                env = PowerZooEnv(env_args,rank+train_threads)
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -213,9 +213,9 @@ def make_render_env(env_name, seed, env_args):
         manual_render = False  # football renders automatically
         env.seed(seed * 60000)
     elif env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
-        from envs.powerzoo.powerzoo_env import PowerGymEnv
+        from envs.powerzoo.powerzoo_env import PowerZooEnv
 
-        env = PowerGymEnv(env_args,rank=1)
+        env = PowerZooEnv(env_args,rank=1)
         manual_render = False  
         manual_expand_dims = (
             False  # dexhands uses parallel envs, thus dimension is already expanded

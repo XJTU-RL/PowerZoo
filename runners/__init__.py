@@ -3,6 +3,7 @@ from runners.on_policy_ha_runner import OnPolicyHARunner
 from runners.on_policy_ma_runner import OnPolicyMARunner
 from runners.off_policy_ha_runner import OffPolicyHARunner
 from runners.off_policy_ma_runner import OffPolicyMARunner
+from runners.Qmix_runner import QMIXRunner
 
 RUNNER_REGISTRY = {
     "happo": OnPolicyHARunner,
@@ -15,5 +16,6 @@ RUNNER_REGISTRY = {
     "maddpg": OffPolicyMARunner,
     "matd3": OffPolicyMARunner,
     "mappo": OnPolicyMARunner,
+    "qmix": QMIXRunner,
     "shom": OnPolicyHARunner,
 }

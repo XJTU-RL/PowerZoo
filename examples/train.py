@@ -17,6 +17,9 @@ def main():
     parser.add_argument(
         "--algo", 
         type=str,
+
+#         default="qmix",
+
         default="shom",
         choices=[
             "happo",
@@ -29,6 +32,7 @@ def main():
             "maddpg",
             "matd3",
             "mappo",
+            "qmix",
             "shom",
         ],
         help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo, shom.",
