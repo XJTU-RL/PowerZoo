@@ -123,7 +123,7 @@ def main():
     parser.add_argument('--exp_name', 
                         type=str, 
                         default='optuna_study', help='实验名称'
-    )
+    ~)
     
     # 添加加载配置文件参数，默认为空字符串
     parser.add_argument(

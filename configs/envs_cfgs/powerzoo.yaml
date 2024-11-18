@@ -16,4 +16,5 @@ useS: True
 # whether to order S from big to small
 big2small: True
 # whether to convey the information of the voltage node
-use_render: True
+use_render: False
+record_node: False # 添加一个记录节点信息的开关

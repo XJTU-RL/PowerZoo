@@ -625,7 +625,6 @@ class Circuits():
         Y = Y[Yorder1,:][:,Yorder1]
         return Y
 
-
     def get_Y_matrix_acc(self, use_sparse=False, use_gpu=True):
         """
         提取并返回排序后的导纳矩阵 Y，支持稀疏矩阵和 GPU 加速选项。
@@ -666,7 +665,6 @@ class Circuits():
 
         # 默认返回稠密矩阵
         return Y_complex
-
     
     def get_node_sensity(self,Ymatrix):#需要给一个导纳矩阵的传参
         temp_order = np.array(self.dss.Circuits.YNodeOrder)

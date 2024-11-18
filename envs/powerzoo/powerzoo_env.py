@@ -68,6 +68,7 @@ class PowerZooEnv:
         # print("update_orders:",self.update_orders)
         self.env.use_render=args['use_render']
         self.env.useS=args['useS']
+        self.env.record_node = args['record_node']
         if args['useS']==True:
             update_orders=list(range(0,self.n_agents))
             self.ordered_agents_pairs = dict(zip(agents_names, update_orders))
