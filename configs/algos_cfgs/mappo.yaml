@@ -13,7 +13,7 @@ device:
   torch_threads: 4
 train:
   # number of parallel environments for training data collection
-  n_rollout_threads: 2
+  n_rollout_threads: 3
   # number of total training steps
   num_env_steps: 24000
   # number of steps per environment per training data collection
@@ -34,7 +34,7 @@ eval:
   # whether to use evaluation
   use_eval: True
   # number of parallel environments for evaluation
-  n_eval_rollout_threads: 1
+  n_eval_rollout_threads: 3
   # number of episodes per evaluation
   eval_episodes: 4
 render:
@@ -113,9 +113,9 @@ algo:
   # method of aggregating the probability of multi-dimensional actions, choose from prod, mean
   action_aggregation: prod
   # whether to share parameter among actors
-  share_param: True
+  share_param: False
   # whether to use a fixed optimisation order
-  fixed_order: True
+  fixed_order: False
 logger:
   # logging directory
   log_dir: "./results"

@@ -35,7 +35,8 @@ def seeding(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
-class PowerGymEnv:
+
+class PowerZooEnv:
     def __init__(self, args,rank=None):#TODO: ranks是线程数 
         
         self.args = copy.deepcopy(args)

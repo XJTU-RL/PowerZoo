@@ -24,6 +24,7 @@ class BaseLogger:
         self.log_file = open(
             os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         )
+        
         # 打开一个文件，用于记录训练信息
         self.log_training_info = open(
             os.path.join(run_dir, "train_info.txt"), "w", encoding="utf-8"

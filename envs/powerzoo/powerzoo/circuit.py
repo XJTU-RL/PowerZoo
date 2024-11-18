@@ -773,8 +773,7 @@ class Circuits():
         S=S1.get()
         mingandu_vector = np.sum(S, axis=1)
         node_sensity = dict(zip(temp_order, mingandu_vector))
-        # REMAKS:
-        # 有个问题，是在这里直接把有智能体的节点拿出来，存数据的时候只保留有智能体节点的无功电压敏感度，还是都保留，或者说都合并
+
         # 我认为应该减少step中insert进actorbuffer中的数据量，因此应该在这里就把和智能体相关的节点都拿出来
         # 如果出现三相的智能体应该如何处理？还是说我不应该关注有载调压器，只应该关注电源和电容这种能提供无功补偿的节点，
         # 这样处理吧，多相的把他们的敏感度矩阵相加进行处理

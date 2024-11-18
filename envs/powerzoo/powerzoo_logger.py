@@ -9,8 +9,7 @@ class PowerZooLogger(BaseLogger):
             args, algo_args, env_args, num_agents, writter, run_dir
         )
         
-        
-        
+
     def get_task_name(self):
         return self.env_args["env_name"]
     
@@ -79,8 +78,6 @@ class PowerZooLogger(BaseLogger):
             rnn_states,
             rnn_states_critic,
         ) = data
-
-        # 计算每个环境的平均奖励
         dones_env = np.all(dones, axis=1)
         reward_env = np.mean(rewards, axis=1).flatten()
 
@@ -206,10 +203,9 @@ class PowerZooLogger(BaseLogger):
             self.done_episodes_voltage_reward=[]
             self.done_episodes_ctrl_reward = []
             
-            
+  
     def eval_init(self):
         """初始化评估过程."""
-
         self.total_num_steps = (
             self.episode
             * self.algo_args["train"]["episode_length"]
@@ -229,6 +225,8 @@ class PowerZooLogger(BaseLogger):
         self.eval_ctrl_episode_rewards = []
         self.one_ctrl_episode_rewards = []
         
+
+
         for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
             self.one_episode_rewards.append([])
             self.eval_episode_rewards.append([])
