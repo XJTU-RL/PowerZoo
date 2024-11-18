@@ -239,6 +239,8 @@ class Env(gym.Env):
         self.observe_load = False
         
         
+        
+        
         #添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
         
@@ -282,12 +284,13 @@ class Env(gym.Env):
                                         (self.reg_act_num, self.bat_act_num) )
         self.action_space = self.ActionSpace.space
         self.reset_obs_space()
+
+        self.record_node = True
         #TODO:S修改，在此添加条件判断
         self.useS=False
         self.use_render=False
-        self.Y=self.circuit.get_Y_matrix()
         self.agents_bus=self.circuit.get_agent_bus_dict()
-        #TODO:S修改，在此添加条件判断
+        
     def reset_obs_space(self, wrap_observation=True, observe_load=False):
         '''
         reset the observation space based on the option of wrapping and load.
@@ -360,29 +363,72 @@ class Env(gym.Env):
                     self.dis_w * sum(discharge_err)
             return -cost
 
-        def voltage_reward(self, record_node = False):
+        def voltage_reward(self, record_node = True):
             # 节点电压超出 [0.95, 1.05] 范围的惩罚
             violated_nodes = []
-            total_violation = 0
+            total_violation_num = 0
             for name, voltages in self.env.obs['bus_voltages'].items():
                 max_penalty = min(0, 1.05 - max(voltages)) #penalty is negative if above max
                 min_penalty = min(0, min(voltages) - 0.95) #penalty is negative if below min
-                total_violation += (max_penalty + min_penalty)
+                total_violation_num += (max_penalty + min_penalty)
                 if record_node and (max_penalty != 0 or min_penalty != 0):
                     violated_nodes.append(name)
-            return total_violation, violated_nodes
+            return total_violation_num, violated_nodes
         
-        def composite_reward(self, cd, rd, soc, dis, full=True, record_node=True):
-            # 主要奖励函数
-            p = self.powerloss_reward()
-            v, vio_nodes = self.voltage_reward(record_node)
-            t = self.ctrl_reward(cd, rd, soc, dis)
-            summ = p + v + t
+        def get_powerloss_info(self):
+            """
+            返回功率损耗相关的物理值。
+
+            Returns:
+                dict: 包含功率损耗比和总损耗值的字典。
+            """
+            # 获取功率损耗比（0 到 1 之间）
+            power_loss_ratio = max(0.0, min(1.0, self.env.obs['power_loss']))
+            # 获取总功率损耗值（假设可以从环境获取 total_loss）
+            total_loss = self.env.circuit.total_loss()[0]  # 正值，单位可以是 kW
+            # 获取总发电功率值（假设可以从环境获取 total_power）
+            total_power = -self.env.circuit.total_power()[0]  # 负值，单位可以是 kW
+            return {
+                "power_loss_ratio": power_loss_ratio,
+                "total_power_loss": total_loss,
+                "total_generation_power": total_power
+            }
             
-            info = dict() if not record_node else {'violated_nodes': vio_nodes}
-            if full: info.update( {'power_loss_ratio':-p/self.power_w, 
-                                   'vol_reward':v, 'ctrl_reward':t} )
+        def composite_reward(self, cd, rd, soc, dis, record_node=True):
+            """
+            计算当前状态的综合奖励。
+
+            参数:
+                cd: 控制差异指标
+                rd: 调节差异指标
+                soc: 电池荷电状态指标
+                dis: 放电指标
+                full_info (bool): 如果为 True，返回的信息中包含详细的奖励组成部分。
+                record_node (bool): 如果为 True，返回的信息中包含违规节点的相关信息。
+
+            返回:
+                summ (float): 总奖励值。
+                info (dict): 奖励的组成部分以及可选的节点违规详情。
+            """
+            # 计算各部分奖励
+            p = self.powerloss_reward()  # 功率损耗奖励
+            v, vio_nodes = self.voltage_reward(record_node)  # 电压相关的奖励与违规节点
+            t = self.ctrl_reward(cd, rd, soc, dis)  # 控制相关奖励
+            summ = p + v + t  # 综合奖励为各部分奖励的总和
+
+            # 初始化信息字典
+            info = {'violated_nodes': vio_nodes} if record_node else {}
             
+            try:
+                # 添加详细的奖励组成部分
+                info.update({
+                    'power_loss_ratio': -p / (self.power_w or 1e-6),  # 防止除以零
+                    'vol_reward': v,
+                    'ctrl_reward': t
+                })
+            except ZeroDivisionError:
+                raise ValueError("self.power_w 不能为零，无法计算 power_loss_ratio")
+
             return summ, info
 
     def step(self, action):
@@ -463,7 +509,14 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses  # 电容器状态
         self.obs['reg_statuses'] = reg_statuses  # 调压器状态
         self.obs['bat_statuses'] = bat_statuses  # 电池状态
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
+        self.obs['power_loss_ratio'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
+        # 电路的总损耗，并将结果存储在self.obs字典中
+        self.obs['power_loss_kw']= self.circuit.total_loss()[0]
+        self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
+        # 电路的总功率，并将结果存储在self.obs字典中
+        self.obs['total_power_kw']= self.circuit.total_power()[0]
+        self.obs['total_power_kvar']= self.circuit.total_power()[1]
+        
         self.obs['time'] = self.t  # 当前时间步
         if self.observe_load:  # 如果观察负载
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t % self.horizon].to_dict()  # 当前时间步的负载信息
@@ -472,7 +525,8 @@ class Env(gym.Env):
         done = (self.t == self.horizon)  # 当前时间步是否达到最大时间步
 
         ### 奖励和信息计算 ###
-        reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs, dis_errs)  # 计算奖励和附加信息
+        reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs, dis_errs, 
+                                                         record_node=self.record_node)  # 计算奖励和附加信息
 
         # 更新附加信息字典
         info.update({
@@ -485,9 +539,9 @@ class Env(gym.Env):
 
         ### 可选：计算无功电压敏感度矩阵 ###
         if self.useS:
-            self.Y = self.circuit.get_Y_matrix_acc()  # 获取 Y 矩阵
+            Y = self.circuit.get_Y_matrix_acc()  # 获取 Y 矩阵
             self.agents_bus = self.circuit.get_agent_bus_dict()  # 获取智能体对应总线
-            S = self.circuit.get_node_sensity_acc(self.Y)  # 计算无功电压敏感度
+            S = self.circuit.get_node_sensity_acc(Y)  # 计算无功电压敏感度
             # 过滤敏感度矩阵，仅保留与智能体相关的节点
             filtered_S = {key: value for key, value in S.items() if any(key in values for values in self.agents_bus.values())}
             info['S'] = filtered_S  # 将过滤后的敏感度矩阵加入信息字典
@@ -544,7 +598,7 @@ class Env(gym.Env):
         self.obs['bat_statuses'] = bat_statuses
 
         ### total power loss
-        self.obs['power_loss'] = -self.circuit.total_loss()[0]/self.circuit.total_power()[0]
+        self.obs['power_loss_ratio'] = -self.circuit.total_loss()[0]/self.circuit.total_power()[0]
         
         ### time step tracker
         self.obs['time'] = self.t
@@ -614,7 +668,14 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses  # 电容器状态
         self.obs['reg_statuses'] = reg_statuses  # 调压器状态
         self.obs['bat_statuses'] = bat_statuses  # 电池状态
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
+        self.obs['power_loss_ratio'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
+        # 电路的总损耗，并将结果存储在self.obs字典中
+        self.obs['power_loss_kw']= self.circuit.total_loss()[0]
+        self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
+        # 电路的总功率，并将结果存储在self.obs字典中
+        self.obs['total_power_kw']= self.circuit.total_power()[0]
+        self.obs['total_power_kvar']= self.circuit.total_power()[1]
+        
         self.obs['time'] = self.t  # 当前时间步
         if self.observe_load:  # 如果需要观察负载
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t % self.horizon].to_dict()  # 当前时间步负载数据

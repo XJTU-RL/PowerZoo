@@ -54,7 +54,6 @@ class PowerZooLogger(BaseLogger):
 
         Args:
             data (tuple): 每步的数据。包含以下元素：
-
                 - obs (np.ndarray): 观测值。
                 - share_obs (np.ndarray): 共享观测值。
                 - rewards (np.ndarray): 奖励。
@@ -80,45 +79,52 @@ class PowerZooLogger(BaseLogger):
             rnn_states,
             rnn_states_critic,
         ) = data
+
         # 计算每个环境的平均奖励
         dones_env = np.all(dones, axis=1)
         reward_env = np.mean(rewards, axis=1).flatten()
-        
-        #print(infos)
-        #TODO:分离reward,powerloss
-        powerloss_reward=[[[d[0]['power_loss_ratio'] for d in infos]]] 
-        #print(powerloss_reward)
-        powerloss_reward_env= np.mean(powerloss_reward, axis=1).flatten()
-        #TODO:分离reward,voltage
-        voltage_reward=[[[d[0]['vol_reward'] for d in infos]]] 
-        #print(voltage_reward)
-        voltage_reward_env= np.mean(voltage_reward, axis=1).flatten()
-        
-        #TODO:分离reward,ctrl_reward
-        ctrl_reward=[[[d[0]['ctrl_reward'] for d in infos]]] 
-        #print(ctrl_reward)
-        ctrl_reward_env= np.mean(ctrl_reward, axis=1).flatten()
-        
-           
+
+        # 解析 powerloss_reward
+        powerloss_reward = [
+            [d[0].get('power_loss_ratio', 0) if isinstance(d, list) and len(d) > 0 and d[0] else 0 for d in infos]
+        ]
+        powerloss_reward_cleaned = powerloss_reward if powerloss_reward else [[0]]
+        powerloss_reward_env = np.mean(powerloss_reward_cleaned, axis=1).flatten()
+
+        # 处理其他奖励（类似处理方式）
+        voltage_reward = [
+            [d[0].get('vol_reward', 0) if isinstance(d, list) and len(d) > 0 and d[0] else 0 for d in infos]
+        ]
+        voltage_reward_cleaned = voltage_reward if voltage_reward else [[0]]
+        voltage_reward_env = np.mean(voltage_reward_cleaned, axis=1).flatten()
+
+        ctrl_reward = [
+            [d[0].get('ctrl_reward', 0) if isinstance(d, list) and len(d) > 0 and d[0] else 0 for d in infos]
+        ]
+        ctrl_reward_cleaned = ctrl_reward if ctrl_reward else [[0]]
+        ctrl_reward_env = np.mean(ctrl_reward_cleaned, axis=1).flatten()
+
+        # 更新训练奖励
         self.train_episode_rewards += reward_env
         self.train_episode_powerloss_reward += powerloss_reward_env
         self.train_episode_voltage_reward += voltage_reward_env
         self.train_episode_ctrl_reward += ctrl_reward_env
-        
+
+        # 更新完成的 episode 奖励
         for t in range(self.algo_args["train"]["n_rollout_threads"]):
             if dones_env[t]:
                 self.done_episodes_rewards.append(self.train_episode_rewards[t])
                 self.train_episode_rewards[t] = 0
-                
-                #TODO:power_loss
-                self.done_episodes_powerloss_reward.append(self.train_episode_powerloss_reward[t]/24)
+
+                # 更新 power_loss 奖励
+                self.done_episodes_powerloss_reward.append(self.train_episode_powerloss_reward[t] / 24)
                 self.train_episode_powerloss_reward[t] = 0
-                
-                #TODO:Voltage_reward
+
+                # 更新 voltage 奖励
                 self.done_episodes_voltage_reward.append(self.train_episode_voltage_reward[t])
                 self.train_episode_voltage_reward[t] = 0
-                
-                #TODO:Voltage_reward
+
+                # 更新 ctrl 奖励
                 self.done_episodes_ctrl_reward.append(self.train_episode_ctrl_reward[t])
                 self.train_episode_ctrl_reward[t] = 0
 
