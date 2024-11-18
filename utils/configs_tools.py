@@ -66,7 +66,7 @@ def get_task_name(env, env_args):
         task = env_args["task"]
     elif env == "lag":
         task = f"{env_args['scenario']}-{env_args['task']}"
-    elif env == "powergym": 
+    elif env == "powerzoo": 
         task = env_args["env_name"]
     return task
 

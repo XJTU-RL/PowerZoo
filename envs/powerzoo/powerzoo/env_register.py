@@ -4,7 +4,7 @@
 import os
 import inspect
 import re
-from envs.powergym.powergym.env import Env
+from envs.powerzoo.powerzoo.env import Env
 
 # map from system_name to fixed information of the system
 

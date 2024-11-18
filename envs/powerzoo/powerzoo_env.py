@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import imageio
 import glob
-from envs.powergym.powergym.env_register import make_env, remove_parallel_dss
+from envs.powerzoo.powerzoo.env_register import make_env, remove_parallel_dss
 
 import argparse
 import random
@@ -35,7 +35,7 @@ def seeding(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
-class PowerGymEnv:
+class PowerZooEnv:
     def __init__(self, args,rank=None):#TODO: ranks是线程数 
         
         self.args = copy.deepcopy(args)

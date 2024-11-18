@@ -115,8 +115,6 @@ algo:
   share_param: False
   # 是否使用固定优化顺序
   fixed_order: False
-    # 是否使用sentivity 规定的优化顺序
-  sentivity_order: True
 logger:
   # 日志目录
   #log_dir: "E:\\powerzooHARL\\PowerZOO\\PowerZOO\\results"

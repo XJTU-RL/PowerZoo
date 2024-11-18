@@ -23,7 +23,7 @@ class BaseLogger:
         self.log_file = open(
             os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         )
-        # dir=r"E:\powergymHARL\PowerZoo\examples\results"
+        # dir=r"E:\powerzooHARL\PowerZoo\examples\results"
         # self.log_file = open(
         #     os.path.join(dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         # )
