@@ -9,7 +9,7 @@ from algorithms.actors.on_policy_base import OnPolicyBase
 
 class HAPPO(OnPolicyBase):
     def __init__(self, args, obs_space, act_space, device=torch.device("cpu")):
-        """Initialize HAPPO algorithm.
+        """初始化 HAPPO 算法。
         Args:
             args: (dict) arguments.
             obs_space: (gym.spaces or list) observation space.
@@ -103,7 +103,7 @@ class HAPPO(OnPolicyBase):
         return policy_loss, dist_entropy, actor_grad_norm, imp_weights
 
     def train(self, actor_buffer, advantages, state_type):
-        """Perform a training update using minibatch GD. # 使用梯度下降法训练 minibatch
+        """使用小批量 GD 执行训练更新。 使用梯度下降法训练 minibatch
         Args:
             actor_buffer: (OnPolicyActorBuffer) buffer containing training data related to actor.
             advantages: (np.ndarray) advantages.
@@ -115,8 +115,8 @@ class HAPPO(OnPolicyBase):
         train_info["policy_loss"] = 0
         train_info["dist_entropy"] = 0
         train_info["actor_grad_norm"] = 0
-        train_info["ratio"] = 0#新老策略的比
-# 检查 actor_buffer.active_masks 数组中的所有元素是否都为零。如果是这样，函数将提前返回，并且返回 train_info
+        train_info["ratio"] = 0 #新老策略的比
+        # 检查 actor_buffer.active_masks 数组中的所有元素是否都为零。如果是这样，函数将提前返回，并且返回 train_info
         if np.all(actor_buffer.active_masks[:-1] == 0.0):                                        
             return train_info
 

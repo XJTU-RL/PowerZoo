@@ -119,5 +119,4 @@ algo:
   sentivity_order: True
 logger:
   # 日志目录
-  #log_dir: "E:\\powerzooHARL\\PowerZOO\\PowerZOO\\results"
   log_dir: "./results"

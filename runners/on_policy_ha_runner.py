@@ -79,22 +79,26 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
            reversed_array=sorted_values[::-1]
         #print(reversed_array)
         
-        if self.fixed_order:
+        if self.ordered:
+            # 说明：
+            # 分四种顺序：
+            # 1. 敏感度顺序排序，有big2small和small2big两种
+            # 2. 固定顺序,第一种是所有更新使用一个固定顺序，第二种是每一轮更新都产生一个随机顺序
             # agent_order = list(range(self.num_agents)) #TODO:固定顺序,原始代码
-            #agent_order=self.orders_agents#TODO:自定义fixedorder
+            
             if self.useS==True:
-               if self.big2small:
+               if self.big2small:# 从大到小按照S排序
                   agent_order=sorted_values
-                  print("fixed_agent_order_sorted: ",agent_order)
-               else:
+                  print("big2small_S_sorted_order: ",agent_order)
+               else: # 小到大按照S排序
                   agent_order=reversed_array
-                  print("fixed_agent_order_reversed: ",agent_order)
-            else:
+                  print("small2big_S_sorted_order: ",agent_order)
+            else: # 所有的顺序是一样的，随机固定顺序
                 agent_order = list(range(self.num_agents))
-                print("fixed_agent_order: ",agent_order)
-        else:
+                print("fixed_sorted_agent_order: ",agent_order)
+        else: # 每轮更新都纯随机顺序，没有任何规则引导
             agent_order = list(torch.randperm(self.num_agents).numpy()) #TODO:随机顺序
-            print("random_agent_order: ",agent_order)
+            print("random_sorted_agent_order: ",agent_order)
         for agent_id in agent_order:
             self.actor_buffer[agent_id].update_factor(
                 factor
@@ -175,3 +179,5 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         critic_train_info = self.critic.train(self.critic_buffer, self.value_normalizer)
 
         return actor_train_infos, critic_train_info
+
+

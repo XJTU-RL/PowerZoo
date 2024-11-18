@@ -17,4 +17,5 @@ RUNNER_REGISTRY = {
     "matd3": OffPolicyMARunner,
     "mappo": OnPolicyMARunner,
     "qmix": QMIXRunner,
+    "shom": OnPolicyHARunner,
 }

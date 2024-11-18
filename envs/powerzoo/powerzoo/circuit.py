@@ -11,12 +11,12 @@ import sys
 import re
 from math import sin, cos, fabs, pi
 import cupy as cp
-
-sys.path.append("/home/yushixuan/PowerZoo/dss_capi") #TODO:主要用于linux服务器设置
-sys.path.append("/home/yushixuan/PowerZoo/dss_python")
-sys.path.append("/home/yushixuan/PowerZoo/dss_python_backend")
-
 import dss as opendss
+from scipy.sparse import csr_matrix #大型网络使用稀疏矩阵
+from scipy.linalg import pinv  # 从 scipy.linalg 导入 pinv
+from scipy.sparse.linalg import inv  # 稀疏矩阵的 inv
+from scipy.linalg import pinv  # 稠密矩阵伪逆
+from scipy.sparse.linalg import inv as sparse_inv
 
 class Circuits():
     def __init__(self, dss_file, 
@@ -624,6 +624,49 @@ class Circuits():
         Y = Y[:, ::2] + 1j*Y[:, 1::2]
         Y = Y[Yorder1,:][:,Yorder1]
         return Y
+
+
+    def get_Y_matrix_acc(self, use_sparse=False, use_gpu=True):
+        """
+        提取并返回排序后的导纳矩阵 Y，支持稀疏矩阵和 GPU 加速选项。
+
+        Args:
+            use_sparse (bool): 是否使用稀疏矩阵。
+            use_gpu (bool): 是否使用 GPU 加速。
+
+        Returns:
+            np.ndarray 或 cupy.ndarray 或 scipy.sparse.csr_matrix: 排序后的导纳矩阵。
+        """
+        # 获取节点顺序和导纳矩阵
+        Y_order = np.array(self.dss.Circuits.YNodeOrder)
+        Y = self.dss.Circuits.SystemY  # 从 OpenDSS 提取导纳矩阵
+
+        # 校验导纳矩阵的大小是否与节点顺序匹配
+        bus_length = len(Y_order)
+        if len(Y) != bus_length * bus_length * 2:
+            raise ValueError(f"导纳矩阵大小与节点数不匹配，节点数: {bus_length}, 矩阵大小: {len(Y)}.")
+
+        # 调整 Y 的形状并转化为复数矩阵
+        Y = Y.reshape((bus_length, 2 * bus_length))
+        Y_complex = Y[:, ::2] + 1j * Y[:, 1::2]  # 提取实部和虚部构造复数
+
+        # 对导纳矩阵和节点顺序排序
+        sorted_indices = np.argsort(Y_order)  # 获取排序索引
+        Y_complex = Y_complex[sorted_indices, :][:, sorted_indices]
+
+        if use_gpu:
+            # 转换为 CuPy 格式以在 GPU 上运行
+            Y_gpu = cp.array(Y_complex)
+            return Y_gpu
+
+        if use_sparse:
+            # 转换为稀疏矩阵格式
+            Y_sparse = csr_matrix(Y_complex)
+            return Y_sparse
+
+        # 默认返回稠密矩阵
+        return Y_complex
+
     
     def get_node_sensity(self,Ymatrix):#需要给一个导纳矩阵的传参
         temp_order = np.array(self.dss.Circuits.YNodeOrder)
@@ -648,7 +691,7 @@ class Circuits():
         #print(new_angle_list)
         bus1_length = len(temp_order)
         
-        Y1=Ymatrix#获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
+        Y1=Ymatrix #获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
         
         # H=np.zeros((bus1_length, bus1_length))
         # M=np.zeros((bus1_length, bus1_length))
@@ -732,7 +775,7 @@ class Circuits():
         S=S1.get()
         mingandu_vector = np.sum(S, axis=1)
         node_sensity = dict(zip(temp_order, mingandu_vector))
-        #有个问题，是在这里直接把有智能体的节点拿出来，存数据的时候只保留有智能体节点的无功电压敏感度，还是都保留，或者说都合并
+
         # 我认为应该减少step中insert进actorbuffer中的数据量，因此应该在这里就把和智能体相关的节点都拿出来
         # 如果出现三相的智能体应该如何处理？还是说我不应该关注有载调压器，只应该关注电源和电容这种能提供无功补偿的节点，
         # 这样处理吧，多相的把他们的敏感度矩阵相加进行处理
@@ -741,86 +784,226 @@ class Circuits():
         #有两个问题：
         # 1是并行环境的问题，这个倒是问题不大，每个环境都会有一个敏感度矩阵，
         # 2是收集完step后才会更新
+
+        # 20240310
+        # 已经解决所有问题 -ysx
         return node_sensity
+
+
+    def get_node_sensity_acc(self, Ymatrix, use_sparse=False):
+        """
+        计算节点的无功电压灵敏度矩阵，支持稠密和稀疏两种模式。
+
+        Args:
+            Ymatrix (np.ndarray): 网络导纳矩阵（Y 矩阵）。
+            use_sparse (bool): 是否使用稀疏矩阵运算，默认 False。
+
+        Returns:
+            dict: 节点灵敏度字典，键为节点名称，值为灵敏度值。
+        """
+        # 初始化节点和电压字典
+        temp_order = np.array(self.dss.Circuits.YNodeOrder)
+        all_bus_names = self.dss.ActiveCircuit.AllBusNames
+
+        # 提取电压和相位角
+        bus_voltages = {name: self.bus_voltage(name)[::2] for name in all_bus_names}
+        bus_angles = {name: self.bus_voltage(name)[1::2] for name in all_bus_names}
+
+        # 展平电压和角度，并建立节点字典
+        flattened_bus_voltage = [v for sublist in bus_voltages.values() for v in sublist]
+        flattened_bus_angle = [a for sublist in bus_angles.values() for a in sublist]
+        voltage_dict = dict(zip(temp_order, flattened_bus_voltage))
+        angle_dict = dict(zip(temp_order, flattened_bus_angle))
+
+        # 排序节点，确保与导纳矩阵一致
+        order1 = np.argsort(temp_order)
+        temp_order = temp_order[order1]
+        new_voltage_list = cp.array([voltage_dict[key] for key in temp_order])  # 转为 CuPy 数组
+        new_angle_list = cp.array([angle_dict[key] for key in temp_order])  # 转为 CuPy 数组
+
+        # 转换 Y 矩阵为 CuPy 格式
+        Y_gpu = cp.array(Ymatrix)
+
+        # 提取导纳矩阵的实部和虚部
+        G = Y_gpu.real
+        B = Y_gpu.imag
+
+        # 计算节点之间的相位角差矩阵
+        Dij = cp.subtract.outer(new_angle_list, new_angle_list)
+        sin_Dij = cp.sin(Dij)
+        cos_Dij = cp.cos(Dij)
+
+        # 初始化 H, L, M, N 矩阵
+        H = -cp.outer(new_voltage_list, new_voltage_list) * (G * sin_Dij - B * cos_Dij)
+        L = H.copy()
+        N = -cp.outer(new_voltage_list, new_voltage_list) * (G * cos_Dij + B * sin_Dij)
+        M = -N
+
+        # 添加对角线元素的处理
+        for i in range(len(new_voltage_list)):
+            vi = new_voltage_list[i]
+            dp = cp.sum(G[i, :] * new_voltage_list * cp.cos(Dij[i, :]) +
+                        B[i, :] * new_voltage_list * cp.sin(Dij[i, :]))
+            dq = cp.sum(G[i, :] * new_voltage_list * cp.sin(Dij[i, :]) -
+                        B[i, :] * new_voltage_list * cp.cos(Dij[i, :]))
+            H[i, i] = vi * dq
+            N[i, i] = -vi * dp - 2 * vi**2 * G[i, i]
+            M[i, i] = -vi * dp
+            L[i, i] = -vi * dq + 2 * vi**2 * B[i, i]
+
+        if use_sparse:
+            # 使用稀疏矩阵运算
+            L_sparse = csr_matrix(L.get())  # 转为稀疏矩阵
+            M_sparse = csr_matrix(M.get())
+            H_sparse = csr_matrix(H.get())
+            N_sparse = csr_matrix(N.get())
+
+            # 稀疏矩阵伪逆和计算
+            try:
+                H_pinv_sparse = sparse_inv(H_sparse)  # 稀疏矩阵伪逆
+                S_sparse = sparse_inv(L_sparse - M_sparse @ H_pinv_sparse @ N_sparse)
+            except Exception as e:
+                raise ValueError(f"稀疏矩阵运算出错：{e}")
+
+            # 稀疏矩阵求和并返回结果
+            mingandu_vector = S_sparse.sum(axis=1).A1  # 转为一维数组
+        else:
+            # 稠密矩阵运算
+            try:
+                H_cpu = H.get()  # 转为 NumPy 格式
+                H_pinv_cpu = pinv(H_cpu)  # 使用 SciPy 计算伪逆
+                H_pinv_gpu = cp.array(H_pinv_cpu)  # 转回 CuPy 格式
+
+                # 使用 CuPy 进行矩阵计算
+                S_gpu = cp.linalg.inv(L - M @ H_pinv_gpu @ N)
+
+                # 稠密矩阵求和并返回结果
+                mingandu_vector = S_gpu.sum(axis=1).get()  # 转回 CPU 格式
+            except Exception as e:
+                raise ValueError(f"稠密矩阵运算出错：{e}")
+
+        # 创建节点灵敏度字典
+        node_sensity = dict(zip(temp_order, mingandu_vector))
+        
+        # 验证输出是否合理
+        if not np.all(np.isfinite(list(node_sensity.values()))):
+            raise ValueError("灵敏度计算结果包含非有限值，请检查输入数据或公式实现。")
+
+        return node_sensity
+
+
     
     def get_agent_bus_dict(self):
+        """
+        提取电力系统中调压器 (Regulators)、电容器 (Capacitors) 和电池 (Batteries) 的
+        总线 (Bus) 和相位 (Phase) 信息，生成设备到总线-相位映射的字典。
+
+        Returns:
+            dict: 包含所有设备到总线和相位映射的字典，格式如下：
+                {
+                    "Regulator.reg1": ["650.1", "650.2", "rg60.1", "rg60.2"],
+                    "Capacitor.cap1": ["675.1", "675.2", "675.3"],
+                    "Battery.bat1": ["611.3"]
+                }
+
+        示例输入:
+            - self.regulators: 
+                {
+                    "Regulator.reg1": "Edge Regulator.reg1 at (650, rg60),phases:(['1','2'],['1','2'])"
+                }
+            - self.capacitors: 
+                {
+                    "Capacitor.cap1": "Capacitor.cap1 Bus: '675', phases:['1','2','3']"
+                }
+            - self.batteries: 
+                {
+                    "Battery.bat1": "Battery.bat1 Bus: '611', phases:['3']"
+                }
+        示例输出:
+            {
+                "Regulator.reg1": ["650.1", "650.2", "rg60.1", "rg60.2"],
+                "Capacitor.cap1": ["675.1", "675.2", "675.3"],
+                "Battery.bat1": ["611.3"]
+            }
+        """
         reg_BUS_dict = {}
         cap_BUS_dict = {}
         bat_BUS_dict = {}
 
+        ### 处理调压器 ###
+        # 遍历所有调压器，解析总线和相位信息
         for key, value in self.regulators.items():
             value_str = str(value)
-            #s = "Edge Regulator.reg1 at (650, rg60),phases:(['1','2'],['1','2'])"
-            match = re.search(r"at \((\w+), (\w+)\),phases:\(\[([^\[\]]*)\],\[([^\[\]]*)\]\)",value_str)#搞定！
-            #phase的处理可以以逗号分隔
-            result=[]
-            result1 = []  # 初始化空列表
-            bus = [''] * 2  # 初始化包含两个空字符串的列表
+            # 使用正则表达式提取总线名（如 650 和 rg60）以及对应的相位（如 1 和 2）
+            match = re.search(r"at \((\w+), (\w+)\),phases:\(\[([^\[\]]*)\],\[([^\[\]]*)\]\)", value_str)
+            result = []  # 用于存储当前调压器的总线-相位组合
+            result1 = []  # 扁平化存储最终结果
+            bus = [''] * 2  # 初始化包含两个总线名的列表
             if match:
-               bus[0] = match.group(1).upper()
-               bus[1] = match.group(2).upper()
-               for i in range(3, len(match.groups())+1):
-                   phases=match.group(i)
-                   if ',' in phases:
-                      result_list = phases.split(',')
-                   else:
-                      result_list = [phases]
-                   #result[i-3] = [bus[i-3] + '.' + item.strip("'") for item in result_list]
-                   result.append([bus[i-3] + '.' + item.strip("'") for item in result_list])
-               for sublist in result:
-                   result1.extend(sublist)
-               reg_BUS_dict[key]=result1
-               #print(reg_BUS_dict)
-            #至此，提取出了调压器电压和相数的字符串数字
-            
+                # 提取总线名
+                bus[0] = match.group(1).upper()
+                bus[1] = match.group(2).upper()
+                # 提取相位并生成总线-相位组合
+                for i in range(3, len(match.groups()) + 1):
+                    phases = match.group(i)
+                    if ',' in phases:
+                        result_list = phases.split(',')
+                    else:
+                        result_list = [phases]
+                    result.append([bus[i - 3] + '.' + item.strip("'") for item in result_list])
+                # 将结果扁平化存储
+                for sublist in result:
+                    result1.extend(sublist)
+                reg_BUS_dict[key] = result1
+
+        ### 处理电容器 ###
+        # 遍历所有电容器，解析总线和相位信息
         for key, value in self.capacitors.items():
-            # 提取出电压部分
             value_str = str(value)
-            match1 = re.search(r"Bus: '(\w+)'",value_str)
-            match2 = re.search(r"phases:\[(.*?)\]",value_str)
-            #phase的处理可以以逗号分隔
-            result=[]
-            bus = [''] * 1  # 初始化包含一个空字符串的列表
+            # 提取总线名和相位信息
+            match1 = re.search(r"Bus: '(\w+)'", value_str)
+            match2 = re.search(r"phases:\[(.*?)\]", value_str)
+            result = []  # 用于存储当前电容器的总线-相位组合
+            bus = [''] * 1  # 初始化总线名列表
             if match1:
-               bus[0] = match1.group(1).upper()
-               phases=match2.group(1)
-               if ',' in phases:
+                # 提取总线名
+                bus[0] = match1.group(1).upper()
+                # 提取相位并生成总线-相位组合
+                phases = match2.group(1)
+                if ',' in phases:
                     result_list = phases.replace(" ", "").split(',')
-               else:
+                else:
                     result_list = [phases]
-                   #result[i-3] = [bus[i-3] + '.' + item.strip("'") for item in result_list]
-               result.append([bus[0] + '.' + item.strip("'") for item in result_list])
-            #    for sublist in result:
-            #        result1.extend(sublist)
-               cap_BUS_dict[key]=result[0]
-               #print(cap_BUS_dict)
-            #至此，提取出了调压器电压和相数的字符串数字
-          
-            '''
-            {
-               'Capacitor.cap1': '675.1','675.2','675.3',
-               'Capacitor.cap2': '611.3'
-            }
-            '''
+                result.append([bus[0] + '.' + item.strip("'") for item in result_list])
+                cap_BUS_dict[key] = result[0]  # 存储结果到字典
+
+        ### 处理电池 ###
+        # 遍历所有电池，解析总线和相位信息
         for key, value in self.batteries.items():
             value_str = str(value)
-            match1 = re.search(r"Bus: '(\w+)'",value_str)
-            match2 = re.search(r"phases:\[(.*?)\]",value_str)
-            #phase的处理可以以逗号分隔
-            result=[]
-            bus = [''] * 1  # 初始化包含一个空字符串的列表
+            # 提取总线名和相位信息
+            match1 = re.search(r"Bus: '(\w+)'", value_str)
+            match2 = re.search(r"phases:\[(.*?)\]", value_str)
+            result = []  # 用于存储当前电池的总线-相位组合
+            bus = [''] * 1  # 初始化总线名列表
             if match1:
-               bus[0] = match1.group(1).upper()
-               phases=match2.group(1)
-               if ',' in phases:
+                # 提取总线名
+                bus[0] = match1.group(1).upper()
+                # 提取相位并生成总线-相位组合
+                phases = match2.group(1)
+                if ',' in phases:
                     result_list = phases.replace(" ", "").split(',')
-               else:
+                else:
                     result_list = [phases]
-               result.append([bus[0] + '.' + item.strip("'") for item in result_list])
-               bat_BUS_dict[key]=result[0]
+                result.append([bus[0] + '.' + item.strip("'") for item in result_list])
+                bat_BUS_dict[key] = result[0]  # 存储结果到字典
+
+        ### 合并所有字典 ###
+        # 将调压器、电容器和电池的字典合并为一个
         agent_bus_dict = reg_BUS_dict.copy()
         agent_bus_dict.update(cap_BUS_dict)
         agent_bus_dict.update(bat_BUS_dict)
+        
         return agent_bus_dict
     
 

@@ -90,9 +90,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerZooEnv
+                from envs.powerzoo.powerzoo_env import PowerZooEnv   
                 
                 env = PowerZooEnv(env_args,rank) 
+                
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -148,7 +149,6 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
                 from envs.powerzoo.powerzoo_env import PowerZooEnv
-
                 env = PowerZooEnv(env_args,rank+train_threads)
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv

@@ -31,29 +31,36 @@ if mp.get_start_method(allow_none=True) is None:
     mp.set_start_method('spawn')
 
 class OnPolicyBaseRunner:
-    """Base runner for on-policy algorithms."""
+    """同策略算法的基础运行器。"""
 
     def __init__(self, args, algo_args, env_args):
-        """Initialize the OnPolicyBaseRunner class.
+        """初始化 OnPolicyBaseRunner 类。
         Args:
             args: command-line arguments parsed by argparse. Three keys: algo, env, exp_name.
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
             env_args: arguments related to env, loaded from config file and updated with unparsed command-line arguments.
         """
+        # 初始化参数
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
 
+        # 获取模型参数
         self.hidden_sizes = algo_args["model"]["hidden_sizes"]
         self.rnn_hidden_size = self.hidden_sizes[-1]
         self.recurrent_n = algo_args["model"]["recurrent_n"]
+        # 获取算法参数
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
-        self.fixed_order = algo_args["algo"]["fixed_order"]
+        self.ordered = algo_args["algo"]["ordered"]
+        # 是否使用无功电压矩阵
         self.useS=env_args["useS"]
+        # 是否使用无功电压值从大到小的顺序更新智能体
         self.big2small= env_args["big2small"]
+        # 设置随机种子
         set_seed(algo_args["seed"])
+        # 初始化设备
         self.device = init_device(algo_args["device"])
         if not self.algo_args["render"]["use_render"]:  # train, not render 如果不进行渲染,则进行训练
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
@@ -99,11 +106,11 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powergym更新顺序
-        if args["env"] == "powergym":
-           #if args["useS"]==True:
-            self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
-            self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
+        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powerzoo更新顺序
+        if args["env"] == "powerzoo":
+            if env_args["useS"]==True:
+                self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
+                self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
         
         print("share_observation_space.shape: ", len(self.envs.share_observation_space))
         print("observation_space.shape: ", len(self.envs.observation_space))
@@ -270,13 +277,13 @@ class OnPolicyBaseRunner:
                 self.logger.per_step(data)  # logger callback at each step
                 self.insert(data)  # insert data into buffer,此处的insert是actorbuffer的insert
 
-            # compute return and update network
+            # 计算返回和更新网络
             self.compute()
             self.prep_training()  # change to train mode
 
             actor_train_infos, critic_train_info = self.train()
 
-            # log information
+            # 日志信息
             if episode % self.algo_args["train"]["log_interval"] == 0:
                 self.logger.episode_log(
                     actor_train_infos,
@@ -295,8 +302,10 @@ class OnPolicyBaseRunner:
             self.after_update()
 
     def warmup(self):
-        """Warm up the replay buffer."""
+        """预热重播缓冲区. warmup 函数的主要作用是通过与环境的初步交互来填充重放缓冲区，
+        使得在训练开始之前，缓冲区中已经有了一定数量的环境状态、观测和可用动作的数据。"""
         # reset env
+        # 重置环境，获取当前观测值、共享观测值和可用动作
         obs, share_obs, available_actions = self.envs.reset()
         # print("warmup_available_actions_type",type(available_actions))
         # print("warmup_available_actions[:,1]_type",type(available_actions[:,1]))
@@ -304,6 +313,7 @@ class OnPolicyBaseRunner:
         # print("self.actor_buffer[agent_id=1].available_actions[0]=",self.actor_buffer[1].available_actions[0])
         # replay buffer
         for agent_id in range(self.num_agents):
+            # 将每个智能体的观测和可用动作填充到各自的重放缓冲区中。
             self.actor_buffer[agent_id].obs[0] = obs[:, agent_id].copy()
             # if self.actor_buffer[agent_id].available_actions is not None:
             #     self.actor_buffer[agent_id].available_actions[0] = available_actions[
@@ -317,8 +327,10 @@ class OnPolicyBaseRunner:
 
 
 
+        # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
         if self.state_type == "EP":
             self.critic_buffer.share_obs[0] = share_obs[:, 0].copy()
+        # 如果状态类型为FP，则将share_obs复制到critic_buffer的share_obs中
         elif self.state_type == "FP":
             self.critic_buffer.share_obs[0] = share_obs.copy()
 
@@ -551,7 +563,7 @@ class OnPolicyBaseRunner:
     @torch.no_grad()
     def eval(self):
         """Evaluate the model."""
-        self.logger.eval_init()  # logger callback at the beginning of evaluation
+        self.logger.eval_init()  # 评估开始时的记录器回调
         eval_episode = 0
 
         eval_obs, eval_share_obs, eval_available_actions = self.eval_envs.reset()
@@ -574,7 +586,7 @@ class OnPolicyBaseRunner:
             #print("eval_available_actions: eval_available_actions) #TODO:检查评价动作输出
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
-                #TODO:availible_actioncheck报错解决
+                #TODO:availible_action check报错解决
                 test=eval_available_actions[:, agent_id].copy()
                 test1 = np.vstack([np.array(item, dtype=np.float32) for item in test])
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
@@ -821,7 +833,7 @@ class OnPolicyBaseRunner:
             )
 
     def restore(self):
-        """Restore model parameters."""
+        """恢复模型参数。"""
         # 遍历每个agent
         for agent_id in range(self.num_agents):
             # 加载每个agent的actor参数
@@ -848,7 +860,7 @@ class OnPolicyBaseRunner:
                 self.value_normalizer.load_state_dict(value_normalizer_state_dict)
 
     def close(self):
-        """Close environment, writter, and logger."""
+        """关闭环境、writer 和 logger。"""
         if self.algo_args["render"]["use_render"]:
             self.envs.close()
         else:
@@ -858,3 +870,7 @@ class OnPolicyBaseRunner:
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()
             self.logger.close()
+
+    def get_result(self):
+        """获得训练结果。"""
+        return self.logger.get_result()

@@ -1,8 +1,10 @@
+
 env_name: 123Bus # choose from 13Bus 34Bus 123Bus 8500Node
 #random seed
 seed: 123456
 #maximum number of steps
 num_steps: 24
+
 #number of parallel processes
 num_workers: None
 use_plot: False
@@ -10,7 +12,7 @@ do_testing: False
 #running mode, random, parallele, episodic or dss
 mode: single
 #whether to use S
-useS: False
+useS: True
 # whether to order S from big to small
 big2small: True
 # whether to convey the information of the voltage node

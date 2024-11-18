@@ -93,7 +93,7 @@ class MAPPO(OnPolicyBase):
         return policy_loss, dist_entropy, actor_grad_norm, imp_weights
 
     def train(self, actor_buffer, advantages, state_type):
-        """Perform a training update for non-parameter-sharing MAPPO using minibatch GD.
+        """使用小批量 GD 对非参数共享 MAPPO 执行训练更新。
         Args:
             actor_buffer: (OnPolicyActorBuffer) buffer containing training data related to actor.
             advantages: (np.ndarray) advantages.
@@ -147,7 +147,7 @@ class MAPPO(OnPolicyBase):
         return train_info
 
     def share_param_train(self, actor_buffer, advantages, num_agents, state_type):
-        """Perform a training update for parameter-sharing MAPPO using minibatch GD.
+        """使用小批量 GD 执行参数共享 MAPPO 的训练更新.
         Args:
             actor_buffer: (list[OnPolicyActorBuffer]) buffer containing training data related to actor.
             advantages: (np.ndarray) advantages.

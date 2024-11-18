@@ -113,9 +113,8 @@ algo:
   action_aggregation: prod
   # 是否共享参数
   share_param: False
-  # 是否使用固定优化顺序
-  fixed_order: False
+  # 是否使用sentivity 规定的优化顺序
+  ordered: True
 logger:
   # 日志目录
-  #log_dir: "E:\\powerzooHARL\\PowerZOO\\PowerZOO\\results"
   log_dir: "./results"

@@ -20,20 +20,34 @@ class BaseLogger:
         self.writter = writter
         self.run_dir = run_dir
   
+        # 打开一个文件，用于记录训练进度
         self.log_file = open(
             os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
         )
-        # dir=r"E:\powerzooHARL\PowerZoo\examples\results"
-        # self.log_file = open(
-        #     os.path.join(dir, "progress.txt"), "w", encoding="utf-8"#join的作用是创建文件路径
-        # )
+
+        # 打开一个文件，用于记录训练信息
+        self.log_training_info = open(
+            os.path.join(run_dir, "train_info.txt"), "w", encoding="utf-8"
+        )
+        # 打开一个文件，用于记录评估信息
+        self.log_eval_info = open(
+            os.path.join(run_dir, "eval_info.txt"), "w", encoding="utf-8"
+        )
+
+        # 初始化一个空字符串
         text = ""
+        # 打印算法参数
         print(algo_args)
+        # 遍历算法参数
         for section, params in algo_args.items():
+            # 将section添加到text中
             text += f"{section}:\n"
+            # 遍历params中的key和value
             for key, value in params.items():
+                # 如果value是列表，则将其替换为...
                 if isinstance(value, list):
                     value = "..."
+                # 将key和value添加到text中
                 text += f"\t{key}: {value}\n"+ '\n'
 
         # 将文本添加到 self.writter 中
@@ -97,7 +111,7 @@ class BaseLogger:
         )
         self.end = time.time()
         print(
-            "Env {} Task {} Algo {} Exp {} updates {}/{} episodes, total num timesteps {}/{}, FPS {}.".format(
+            "环境： {} 任务 {} 算法 {} 实验名称 {} updates {}/{} episodes, 总时间步数 {}/{}, FPS {}.".format(
                 self.args["env"],
                 self.task_name,
                 self.args["algo"],

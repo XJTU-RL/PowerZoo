@@ -39,21 +39,62 @@ def objective(trial, args, algo_args, env_args):
     runner = RUNNER_REGISTRY[args["algo"]](args, algo_args_updated, env_args)
     runner.run()
 
-    # 假设 runner 有一个方法可以返回某种性能指标
-    # result = runner.get_result()  # 这里应该返回一个数值，表示性能，例如奖励
+
+    result = runner.get_result()  # 返回包含训练奖励和评估奖励的字典，格式如下：
+    # {
+    #     "train_avg_reward": 平均训练奖励（所有完成的 episode 的奖励平均值，float 类型）,
+    #     "eval_avg_reward": 平均评估奖励（所有评估 episode 的奖励平均值，float 类型）,
+    #     "eval_powerloss_avg_reward": 平均评估的功率损耗奖励（float 类型）,
+    #     "eval_voltage_avg_reward": 平均评估的电压奖励（float 类型）,
+    #     "eval_ctrl_avg_reward": 平均评估的控制奖励（float 类型）
+    # }
+    
     runner.close()
+    # 自定义优化目标例如，单独使用评估奖励
+    # return result["eval_avg_reward"]
+
+    # 或者结合训练奖励和评估奖励
+    # train_weight = trial.suggest_float("train_weight", 0.0, 1.0)
+    # eval_weight = 1 - train_weight
+    # return train_weight * result["train_avg_reward"] + eval_weight * result["eval_avg_reward"]
+
+    # 获取三种奖励值
+    powerloss_avg = result["eval_powerloss_avg_reward"]
+    voltage_avg = result["eval_voltage_avg_reward"]
+    ctrl_avg = result["eval_ctrl_avg_reward"]
+    
+    # 加权求和
+    powerloss_weight = trial.suggest_float("powerloss_weight", 0.0, 1.0)
+    voltage_weight = trial.suggest_float("voltage_weight", 0.0, 1.0)
+    ctrl_weight = trial.suggest_float("ctrl_weight", 0.0, 1.0)
+
+    # 归一化权重（确保权重之和为1）
+    total_weight = powerloss_weight + voltage_weight + ctrl_weight
+    powerloss_weight /= total_weight
+    voltage_weight /= total_weight
+    ctrl_weight /= total_weight
+
+    # 计算加权和
+    balanced_reward = (
+        powerloss_weight * powerloss_avg +
+        voltage_weight * voltage_avg +
+        ctrl_weight * ctrl_avg
+    )
+    
+    return balanced_reward
+
 
 def main():
     """执行 Optuna 超参数优化的主函数。"""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    # 添加环境名称参数，默认为"powergym"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powergym"
+    # 添加环境名称参数，默认为"powerzoo"，可选值为"smac", "mamujoco", "pettingzoo_mpe", "gym", "football", "dexhands", "smacv2", "lag", "powerzoo"
     parser.add_argument(
         "--env",
         type=str,
         #default="pettingzoo_mpe",
-        default="powergym",
+        default="powerzoo",
         choices=[
             "smac",
             "mamujoco",
@@ -63,9 +104,9 @@ def main():
             "dexhands",
             "smacv2",
             "lag",
-            "powergym",
+            "powerzoo",
         ],
-        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powergym.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powerzoo.",
     )
     parser.add_argument(
         "--n_trials", 
@@ -143,7 +184,7 @@ def main():
         trial.params.get("hidden_size_2", config["model"]["hidden_sizes"][1])
     ]
     
-    # 保存所有从 happo.yaml 中读取的超参数
+    # 保存所有从配置文件中读取的超参数
     save_yaml_config(config, args.config)
 
 if __name__ == "__main__":
