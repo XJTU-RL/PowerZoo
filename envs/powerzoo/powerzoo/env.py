@@ -347,7 +347,7 @@ class Env(gym.Env):
 
             #loss = self.env.circuit.total_loss()[0] # a postivie float
             #gen = self.env.circuit.total_power()[0] # a negative float
-            ratio = max(0.0, min(1.0, self.env.obs['power_loss']) )
+            ratio = max(0.0, min(1.0, self.env.obs['power_loss_ratio']) )
             return -ratio * self.power_w
 
         def ctrl_reward(self, capdiff, regdiff, soc_err, discharge_err):
@@ -384,7 +384,7 @@ class Env(gym.Env):
                 dict: 包含功率损耗比和总损耗值的字典。
             """
             # 获取功率损耗比（0 到 1 之间）
-            power_loss_ratio = max(0.0, min(1.0, self.env.obs['power_loss']))
+            power_loss_ratio = max(0.0, min(1.0, self.env.obs['power_loss_ratio']))
             # 获取总功率损耗值（假设可以从环境获取 total_loss）
             total_loss = self.env.circuit.total_loss()[0]  # 正值，单位可以是 kW
             # 获取总发电功率值（假设可以从环境获取 total_power）
@@ -726,8 +726,8 @@ class Env(gym.Env):
             if var_dict in \
                 ['bus_voltages','cap_statuses','reg_statuses', 'bat_statuses', 'load_profile_t']:
                 mod_obs = mod_obs + list(obs[var_dict].values())
-            elif var_dict == 'power_loss':
-                mod_obs.append(obs['power_loss'])
+            elif var_dict == 'power_loss_ratio':
+                mod_obs.append(obs['power_loss_ratio'])
         return np.hstack(mod_obs)
 
     def build_graph(self):
