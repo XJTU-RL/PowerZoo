@@ -20,7 +20,7 @@ def main():
 
 #         default="qmix",
 
-        default="shom",
+        default="qmix",
         choices=[
             "happo",
             "hatrpo",

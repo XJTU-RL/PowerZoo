@@ -14,8 +14,7 @@ import cupy as cp
 import dss as opendss
 from scipy.sparse import csr_matrix #大型网络使用稀疏矩阵
 from scipy.linalg import pinv  # 从 scipy.linalg 导入 pinv
-from scipy.sparse.linalg import inv  # 稀疏矩阵的 inv
-from scipy.linalg import pinv  # 稠密矩阵伪逆
+# from scipy.sparse.linalg import inv  # 稀疏矩阵的 inv
 from scipy.sparse.linalg import inv as sparse_inv
 
 class Circuits():

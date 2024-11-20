@@ -24,6 +24,9 @@ class QMIXRunner(MlpRunner):
         self.trainer.prep_rollout()
         eval_infos = {}
         eval_infos['average_episode_rewards'] = []
+        eval_infos['powerloss_average_episode_rewards']=[]
+        eval_infos['voltage_average_episode_rewards']=[]
+        eval_infos['ctrl_average_episode_rewards']=[]
 
         for _ in range(self.args.num_eval_episodes):
             env_info = self.collecter( explore=False, training_episode=False, warmup=False)
@@ -195,6 +198,11 @@ class QMIXRunner(MlpRunner):
 
         # [agents, parallel envs, dim]
         episode_rewards = []
+        episode_powerloss_reward = []
+        episode_ctrl_reward = []
+        episode_violation_reward = []
+        
+        
         step_obs = {}
         step_share_obs = {}
         step_acts = {}
@@ -243,8 +251,17 @@ class QMIXRunner(MlpRunner):
 
             # env step and store the relevant episode information
             next_obs,_, rewards, dones, infos,_ = env.step(np.array(env_acts))
-
+            ##记录每一步的奖励值分离
+            # 使用嵌套的列表推导式来获取所有'power_loss_ratio'的值
+            powerloss_reward = [d['power_loss_ratio'] for sublist in infos for d in sublist if 'power_loss_ratio' in d]
+            vol_reward = [d['vol_reward'] for sublist in infos for d in sublist if 'vol_reward' in d]
+            ctrl_reward = [d['ctrl_reward'] for sublist in infos for d in sublist if 'ctrl_reward' in d]
+            
             episode_rewards.append(rewards)
+            episode_powerloss_reward.append(powerloss_reward)
+            episode_ctrl_reward.append(ctrl_reward)
+            episode_violation_reward.append(vol_reward)
+            
             dones_env = np.all(dones, axis=1)
 
             if explore and n_rollout_threads == 1 and np.all(dones_env):
@@ -252,7 +269,15 @@ class QMIXRunner(MlpRunner):
 
             if not explore and np.all(dones_env):
                 average_episode_rewards = np.mean(np.sum(episode_rewards, axis=0))
+                average_episode_powerloss=np.mean(np.sum(episode_powerloss_reward, axis=0))
+                average_episode_ctrl_reward=np.mean(np.sum(episode_ctrl_reward, axis=0))
+                average_episode_violation_reward=np.mean(np.sum(episode_violation_reward, axis=0))
+                
                 env_info['average_episode_rewards'] = average_episode_rewards
+                env_info['powerloss_average_episode_rewards']=average_episode_powerloss
+                env_info['voltage_average_episode_rewards']=average_episode_ctrl_reward
+                env_info['ctrl_average_episode_rewards']=average_episode_violation_reward
+                
                 return env_info
 
             next_share_obs = []
@@ -314,7 +339,15 @@ class QMIXRunner(MlpRunner):
                     self.last_train_T = self.total_env_steps
 
         average_episode_rewards = np.mean(np.sum(episode_rewards, axis=0))
+        
+        average_episode_powerloss=np.mean(np.sum(episode_powerloss_reward, axis=0))
+        average_episode_ctrl_reward=np.mean(np.sum(episode_ctrl_reward, axis=0))
+        average_episode_violation_reward=np.mean(np.sum(episode_violation_reward, axis=0))
+        
         env_info['average_episode_rewards'] = average_episode_rewards
+        env_info['powerloss_average_episode_rewards']=average_episode_powerloss
+        env_info['voltage_average_episode_rewards']=average_episode_ctrl_reward
+        env_info['ctrl_average_episode_rewards']=average_episode_violation_reward
 
         return env_info
 
@@ -324,7 +357,7 @@ class QMIXRunner(MlpRunner):
         print("\n Env {} Algo {} Exp {} runs total num timesteps {}/{}, FPS {}.\n"
               .format(self.args.env_name,
                       self.algorithm_name,
-                      self.args.experiment_name,
+                      self.env_args.env_name,
                       self.total_env_steps,
                       self.num_env_steps,
                       int(self.total_env_steps / (end - self.start))))
@@ -351,6 +384,10 @@ class QMIXRunner(MlpRunner):
         self.env_infos = {}
 
         self.env_infos['average_episode_rewards'] = []
+        self.env_infos['powerloss_average_episode_rewards']=[]
+        self.env_infos['voltage_average_episode_rewards']=[]
+        self.env_infos['ctrl_average_episode_rewards']=[]
+
     
     @torch.no_grad()
     def warmup(self, num_warmup_episodes):
