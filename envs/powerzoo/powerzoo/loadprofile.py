@@ -163,14 +163,14 @@ class LoadProfile:
         return names     
 
     def gen_loadprofile(self, scale=1.0):
-        
+        #TODO:修改内容
         try:
             dfs = []
             for f in self.FILES:
                 dfs.append( pd.read_csv(f, header=None) )
             assert len(dfs)>0, r'put load shapes files under ./loadshape'
             df = pd.concat(dfs).rename(columns = {0: 'mul'}).reset_index(drop=True)
-            if scale!=1.0: df['mul'] = df['mul']*scale
+            if scale!=1.0: df['mul'] = df['mul']*scale  #因此若需要增加噪声，则需要在此处加入噪声，等下，我好像不能直接加在这里，因为这里用的是实际的数据，应该把他加在训练模型获取的数据上
         except:
             print(r'put load shapes files under ./loadshape')
         

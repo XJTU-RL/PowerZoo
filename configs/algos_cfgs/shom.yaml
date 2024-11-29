@@ -14,7 +14,7 @@ train:
   # 训练数据的并行环境数量，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
   n_rollout_threads: 3
   # 总训练步数，default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
-  num_env_steps: 5088
+  num_env_steps: 24000
   # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
   episode_length: 24
   # 日志间隔，default is 5

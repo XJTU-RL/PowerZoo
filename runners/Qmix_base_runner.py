@@ -476,7 +476,7 @@ class MlpRunner(object):
             self.envs.close()
         else:
             self.envs.close()
-            if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
+            if self.args.eval["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()
