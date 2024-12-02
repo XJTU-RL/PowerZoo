@@ -453,10 +453,10 @@ class OnPolicyBaseRunner:
             dtype=np.float32,
         )
         #print("check the dones signal of the day: ",dones) #TODO:检查一天是否完成。
-        active_masks[dones == True] = np.zeros(
+        active_masks[dones == True] = np.zeros(#如果只有一个智能体done了，说明现在这个智能体挂了，所以active_masks被设置为0
             ((dones == True).sum(), 1), dtype=np.float32
         )
-        active_masks[dones_env == True] = np.ones(
+        active_masks[dones_env == True] = np.ones(#如果所有智能体都挂了，说明现在这个环境挂了，所以active_masks被设置为1
             ((dones_env == True).sum(), self.num_agents, 1), dtype=np.float32
         )
 

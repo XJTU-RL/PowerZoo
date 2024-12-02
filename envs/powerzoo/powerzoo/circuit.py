@@ -14,8 +14,7 @@ import cupy as cp
 import dss as opendss
 from scipy.sparse import csr_matrix #大型网络使用稀疏矩阵
 from scipy.linalg import pinv  # 从 scipy.linalg 导入 pinv
-from scipy.sparse.linalg import inv  # 稀疏矩阵的 inv
-from scipy.linalg import pinv  # 稠密矩阵伪逆
+# from scipy.sparse.linalg import inv  # 稀疏矩阵的 inv
 from scipy.sparse.linalg import inv as sparse_inv
 
 class Circuits():
@@ -788,7 +787,7 @@ class Circuits():
         return node_sensity
 
 
-    def get_node_sensity_acc(self, Ymatrix, use_sparse=False):
+    def get_node_sensity_acc(self, Ymatrix, use_noise=True,use_sparse=False):
         """
         计算节点的无功电压灵敏度矩阵，支持稠密和稀疏两种模式。
 
@@ -804,12 +803,26 @@ class Circuits():
         all_bus_names = self.dss.ActiveCircuit.AllBusNames
 
         # 提取电压和相位角
+        
+        #在此处引入噪声，以模拟实际电网中的不确定性和噪声，电压+相角
         bus_voltages = {name: self.bus_voltage(name)[::2] for name in all_bus_names}
         bus_angles = {name: self.bus_voltage(name)[1::2] for name in all_bus_names}
 
         # 展平电压和角度，并建立节点字典
         flattened_bus_voltage = [v for sublist in bus_voltages.values() for v in sublist]
         flattened_bus_angle = [a for sublist in bus_angles.values() for a in sublist]
+        if use_noise:
+            mean_noise = 0  # 高斯噪声均值
+            variance_noise_angle = 10**-4  # 相角噪声方差
+            variance_noise_voltage = 10**-4  # 电压噪声方差
+            std_noise_angle = np.sqrt(variance_noise_angle)  # 相角噪声标准差
+            std_noise_voltage = np.sqrt(variance_noise_voltage)  # 电压噪声标准差
+            noise_angle = np.random.normal(mean_noise, std_noise_angle, size=len(flattened_bus_angle))
+            noise_voltage = np.random.normal(mean_noise, std_noise_voltage, size=len(flattened_bus_voltage))
+            
+            flattened_bus_voltage=flattened_bus_voltage+noise_voltage
+            flattened_bus_angle=flattened_bus_angle+noise_angle*120
+        
         voltage_dict = dict(zip(temp_order, flattened_bus_voltage))
         angle_dict = dict(zip(temp_order, flattened_bus_angle))
 

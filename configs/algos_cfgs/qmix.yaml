@@ -1,21 +1,14 @@
 algorithm_name: "mqmix"  # 算法名称
-experiment_name: "check"  # 实验名称
 seed: 1  # 随机种子
 cuda: true  # 是否使用 CUDA
 cuda_deterministic: true  # 是否使用 CUDA 的确定性模式
 n_training_threads: 4  # 训练线程数
-n_rollout_threads: 3  # 训练回合的并行环境数
-n_eval_rollout_threads: 3  # 评估回合的并行环境数
-num_env_steps: 48000  # 总环境步数
 use_wandb: false  # 是否使用 Weights & Biases
-user_name: "Shixuan Yu"  # 用户名
 
-experiment_name: "123BUS"
 env_name: "powerzoo"  # 环境名称
 use_obs_instead_of_state: true  # 是否使用全局状态或拼接观察
 use_same_share_obs: true  # 是否共享观察
 
-episode_length: 24  # 每回合的最大长度
 buffer_size: 2400  # 回放缓冲区的最大容量
 use_reward_normalization: false  # 是否对奖励进行归一化
 use_popart: false  # 是否使用 PopArt 对目标损失进行归一化
@@ -91,8 +84,8 @@ train_interval: 72  # 更新 Actor/Critic 的步数间隔
 use_value_active_masks: false  # 是否使用激活遮罩
 
 use_eval: true  # 是否进行评估
-eval_interval: 240  # 评估间隔
-num_eval_episodes: 2  # 每次评估的回合数
+eval_interval: 72  # 评估间隔
+num_eval_episodes: 1  # 每次评估的回合数
 
 save_interval: 1000  # 保存模型的回合间隔
 
@@ -129,25 +122,13 @@ train:
   num_env_steps: 48000
   # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
   episode_length: 24
-  # 日志间隔，default is 5
-  log_interval: 1
-  # 评估间隔，default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
-  eval_interval: 1
-  # 是否使用ValueNorm
-  use_valuenorm: True
-  # 是否使用线性学习率衰减
-  use_linear_lr_decay: False
-  # 是否考虑在episode结束时截断
-  use_proper_time_limits: True
-  # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
-  model_dir: ~
 eval:
   # 是否使用评估
   use_eval: True
   # 评估并行环境数量，default 10，这里使用4个，因为powergym提供的数据只有16个，12个用于训练，4个用于评估。
   n_eval_rollout_threads: 3
   # 每次评估使用的episode数量，default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
-  eval_episodes: 4
+  eval_episodes: 1
 
 model:
   # 网络参数

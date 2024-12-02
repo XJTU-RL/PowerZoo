@@ -40,7 +40,7 @@ class MlpRunner(object):
         self.args = DictToClass(algo_args)
         
         #self.args = algo_args
-        self.env_args = env_args
+        self.env_args = DictToClass(env_args)
         
         self.device =init_device(algo_args["device"])
         self.q_learning = ["mqmix","mvdn"]
@@ -48,8 +48,8 @@ class MlpRunner(object):
         # set tunable hyperparameters
         self.share_policy = self.args.share_policy
         self.algorithm_name = self.args.algorithm_name
-        self.env_name = self.args.env_name
-        self.num_env_steps = self.args.num_env_steps
+        self.env_name = self.env_args.env_name
+        self.num_env_steps = self.args.train["num_env_steps"]
         self.use_wandb = self.args.use_wandb
         self.use_reward_normalization = self.args.use_reward_normalization
         self.use_per = self.args.use_per
@@ -105,7 +105,7 @@ class MlpRunner(object):
         else:
             self.use_avail_acts = False
 
-        self.episode_length = self.args.episode_length
+        self.episode_length = self.args.train["episode_length"]
         
         
         
@@ -192,8 +192,8 @@ class MlpRunner(object):
 
         self.env = self.envs
         self.eval_env = self.eval_envs
-        self.num_envs = algo_args["n_rollout_threads"]
-        self.num_eval_envs = algo_args["n_eval_rollout_threads"]
+        self.num_envs = algo_args["train"]["n_rollout_threads"]
+        self.num_eval_envs = algo_args["eval"]["n_eval_rollout_threads"]
 
         #dir
         self.model_dir = self.args.model_dir
@@ -472,11 +472,11 @@ class MlpRunner(object):
     def close(self):
         """Close environment, writter, and log file."""
         # post process
-        if self.algo_args["render"]["use_render"]:
+        if self.args.render["use_render"]:
             self.envs.close()
         else:
             self.envs.close()
-            if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
+            if self.args.eval["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()
