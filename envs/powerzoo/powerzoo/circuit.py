@@ -787,7 +787,7 @@ class Circuits():
         return node_sensity
 
 
-    def get_node_sensity_acc(self, Ymatrix, use_noise=True,use_sparse=False):
+    def get_node_sensity_acc(self, Ymatrix, use_noise=False,use_sparse=False):
         """
         计算节点的无功电压灵敏度矩阵，支持稠密和稀疏两种模式。
 

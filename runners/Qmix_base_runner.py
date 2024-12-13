@@ -44,6 +44,9 @@ class MlpRunner(object):
         
         self.device =init_device(algo_args["device"])
         self.q_learning = ["mqmix","mvdn"]
+        
+        self.render=algo_args["render"]["use_render"]
+        self.num_render_envs=algo_args["render"]["render_episodes"]
 
         # set tunable hyperparameters
         self.share_policy = self.args.share_policy
@@ -110,20 +113,20 @@ class MlpRunner(object):
         
         
         self.task_name = get_task_name(args["env"], env_args)
-        if not algo_args["render"]["use_render"]:
-            self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
-                args["env"],
-                env_args,
-                args["algo"],
-                args["exp_name"],
-                algo_args["seed"]["seed"],
-                logger_path=algo_args["logger"]["log_dir"],
-            )
-            save_config(args, algo_args, env_args, self.run_dir)
-            
-            self.log_file = open(
-                os.path.join(self.run_dir, "progress.txt"), "w", encoding="utf-8"
-            )
+    #if not algo_args["render"]["use_render"]:
+        self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
+            args["env"],
+            env_args,
+            args["algo"],
+            args["exp_name"],
+            algo_args["seed"]["seed"],
+            logger_path=algo_args["logger"]["log_dir"],
+        )
+        save_config(args, algo_args, env_args, self.run_dir)
+        
+        self.log_file = open(
+            os.path.join(self.run_dir, "progress.txt"), "w", encoding="utf-8"
+        )
             
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
@@ -191,8 +194,12 @@ class MlpRunner(object):
         self.agent_ids = [i for i in range(self.num_agents)]
 
         self.env = self.envs
-        self.eval_env = self.eval_envs
-        self.num_envs = algo_args["train"]["n_rollout_threads"]
+        if not algo_args["render"]["use_render"]:
+            self.eval_env = self.eval_envs
+        if algo_args["render"]["use_render"]:
+            self.num_envs=1
+        else:
+            self.num_envs = algo_args["train"]["n_rollout_threads"]
         self.num_eval_envs = algo_args["eval"]["n_eval_rollout_threads"]
 
         #dir
@@ -233,6 +240,7 @@ class MlpRunner(object):
         self.trainer = TrainAlgo(self.args, self.num_agents, self.policies, self.policy_mapping_fn,
                                  device=self.device)
 
+
         self.policy_agents = {policy_id: sorted(
             [agent_id for agent_id in self.agent_ids if self.policy_mapping_fn(agent_id) == policy_id]) for policy_id in
             self.policies.keys()}
@@ -267,38 +275,43 @@ class MlpRunner(object):
 
     def run(self):
         """Collect a training episode and perform appropriate training, saving, logging, and evaluation steps."""
-        total_num_steps = 0
-        while total_num_steps < self.num_env_steps:
-        # collect data
-            self.trainer.prep_rollout()
-            env_info = self.collecter(explore=True, training_episode=True, warmup=False)
-            for k, v in env_info.items():
-                self.env_infos[k].append(v)
+        if self.render:
+            self.env.close()
+        else:
+            num_warmup_episodes = max((int(self.batch_size//self.episode_length) + 1, self.args.num_random_episodes))
+            warm_up_step=(num_warmup_episodes // self.num_envs) + 1
+            total_num_steps = 0+warm_up_step*self.batch_size#可以在此处将其变为warmup_step
+            while total_num_steps < self.num_env_steps:
+            # collect data
+                self.trainer.prep_rollout()
+                env_info = self.collecter(explore=True, training_episode=True, warmup=False)
+                for k, v in env_info.items():
+                    self.env_infos[k].append(v)
 
-            # save
-            if (self.total_env_steps - self.last_save_T) / self.save_interval >= 1:
-                self.saver()
-                self.last_save_T = self.total_env_steps
+                # save
+                if (self.total_env_steps - self.last_save_T) / self.save_interval >= 1:
+                    self.saver()
+                    self.last_save_T = self.total_env_steps
 
-            # log
-            if ((self.total_env_steps - self.last_log_T) / self.log_interval) >= 1:
-                self.log()
-                self.last_log_T = self.total_env_steps
+                # log
+                if ((self.total_env_steps - self.last_log_T) / self.log_interval) >= 1:
+                    self.log()
+                    self.last_log_T = self.total_env_steps
 
-            # eval
-            if self.use_eval and ((self.total_env_steps - self.last_eval_T) / self.eval_interval) >= 1:
-                self.eval()
-                self.last_eval_T = self.total_env_steps
-            total_num_steps=self.total_env_steps
-        self.envs.close()
-        if self.args.use_eval and (self.eval_env is not self.env):
-            self.eval_env.close()
+                # eval
+                if self.use_eval and ((self.total_env_steps - self.last_eval_T) / self.eval_interval) >= 1:
+                    self.eval()
+                    self.last_eval_T = self.total_env_steps
+                total_num_steps=self.total_env_steps
+            self.envs.close()
+            if self.args.use_eval and (self.eval_env is not self.env):
+                self.eval_env.close()
 
         # if all_args.use_wandb:
         #     run.finish()
         # else:
-        self.writter.export_scalars_to_json(
-            str(self.log_dir + '/summary.json'))
+        # self.writter.export_scalars_to_json(
+        #     str(self.log_dir + '/summary.json'))
         self.writter.close()
 
         return self.total_env_steps
@@ -411,8 +424,8 @@ class MlpRunner(object):
             policy_q_state_dict = torch.load(path + '/q_network.pt')           
             self.policies[pid].q_network.load_state_dict(policy_q_state_dict)
             
-        policy_mixer_state_dict = torch.load(str(self.model_dir) + '/mixer.pt')
-        self.trainer.mixer.load_state_dict(policy_mixer_state_dict)
+        #policy_mixer_state_dict = torch.load(str(self.model_dir) + '/mixer.pt')
+        #self.trainer.mixer.load_state_dict(policy_mixer_state_dict)
 
     @torch.no_grad()
     def warmup(self, num_warmup_episodes):

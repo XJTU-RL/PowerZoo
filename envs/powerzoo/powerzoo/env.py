@@ -237,7 +237,7 @@ class Env(gym.Env):
         self.scale = info['scale'] if 'scale' in info else 1.0
         self.wrap_observation = True
         self.observe_load = False
-        
+        self.use_load_noise=info['load_noise']
         
         #添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
@@ -247,11 +247,12 @@ class Env(gym.Env):
                  info['max_episode_steps'],
                  self.dss_folder_path,
                  self.dss_file,
+                 self.use_load_noise,
                  worker_idx = info['worker_idx'] if 'worker_idx' in info else None)
 
-        self.num_profiles = self.load_profile.gen_loadprofile(scale=self.scale)
+        self.num_profiles = self.load_profile.gen_loadprofile(use_noise=self.use_load_noise,scale=self.scale)
         # choose a dummy load profile for the initialization of the circuit
-        self.load_profile.choose_loadprofile(0)
+        self.load_profile.choose_loadprofile(0,self.use_load_noise)
         
         # 问题范围是负载曲线的长度
         self.horizon = info['max_episode_steps']
@@ -511,12 +512,12 @@ class Env(gym.Env):
         self.obs['reg_statuses'] = reg_statuses  # 调压器状态
         self.obs['bat_statuses'] = bat_statuses  # 电池状态
         self.obs['power_loss_ratio'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
-        # 电路的总损耗，并将结果存储在self.obs字典中
-        self.obs['power_loss_kw']= self.circuit.total_loss()[0]
-        self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
-        # 电路的总功率，并将结果存储在self.obs字典中
-        self.obs['total_power_kw']= self.circuit.total_power()[0]
-        self.obs['total_power_kvar']= self.circuit.total_power()[1]
+        # # 电路的总损耗，并将结果存储在self.obs字典中
+        # self.obs['power_loss_kw']= self.circuit.total_loss()[0]
+        # self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
+        # # 电路的总功率，并将结果存储在self.obs字典中
+        # self.obs['total_power_kw']= self.circuit.total_power()[0]
+        # self.obs['total_power_kvar']= self.circuit.total_power()[1]
         
         self.obs['time'] = self.t  # 当前时间步
         if self.observe_load:  # 如果观察负载
@@ -535,8 +536,23 @@ class Env(gym.Env):
             'av_reg_err': sum(regdiff) / (self.reg_num + 1e-10),  # 平均调压器误差
             'av_dis_err': sum(dis_errs) / (self.bat_num + 1e-10),  # 平均放电误差
             'av_soc_err': sum(soc_errs) / (self.bat_num + 1e-10),  # 平均 SOC 误差
-            'av_soc': sum([soc for soc, _ in bat_statuses.values()]) / (self.bat_num + 1e-10)  # 平均 SOC
+            'av_soc': sum([soc for soc, _ in bat_statuses.values()]) / (self.bat_num + 1e-10),  # 平均 SOC
+            'capacitor_ctrl':sum(capdiff),
+            'regulator_ctrl':sum(regdiff),
+            'discharge_ctrl':sum(dis_errs)
         })
+        # self.obs['power_loss_kw']= self.circuit.total_loss()[0]
+        # self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
+        # # 电路的总功率，并将结果存储在self.obs字典中
+        # self.obs['total_power_kw']= self.circuit.total_power()[0]
+        # self.obs['total_power_kvar']= self.circuit.total_power()[1]
+        
+        info['power_loss_kw']= self.circuit.total_loss()[0]
+        info['power_loss_kvar']= self.circuit.total_loss()[1]
+        info['total_power_kw']= self.circuit.total_power()[0]
+        info['total_power_kvar']= self.circuit.total_power()[1]
+        
+        
 
         ### 可选：计算无功电压敏感度矩阵 ###
         if self.useS:
@@ -573,7 +589,7 @@ class Env(gym.Env):
         self.t = 0
  
         ### choose load profile
-        self.load_profile.choose_loadprofile(load_profile_idx)
+        self.load_profile.choose_loadprofile(load_profile_idx,self.use_load_noise)
         self.all_load_profiles = self.load_profile.get_loadprofile(load_profile_idx)
         
         ### re-compile dss and reset batteries
@@ -669,6 +685,7 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses  # 电容器状态
         self.obs['reg_statuses'] = reg_statuses  # 调压器状态
         self.obs['bat_statuses'] = bat_statuses  # 电池状态
+        
         self.obs['power_loss_ratio'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗比
         # 电路的总损耗，并将结果存储在self.obs字典中
         self.obs['power_loss_kw']= self.circuit.total_loss()[0]

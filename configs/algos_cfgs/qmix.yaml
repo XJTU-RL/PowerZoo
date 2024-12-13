@@ -9,7 +9,7 @@ env_name: "powerzoo"  # 环境名称
 use_obs_instead_of_state: true  # 是否使用全局状态或拼接观察
 use_same_share_obs: true  # 是否共享观察
 
-buffer_size: 2400  # 回放缓冲区的最大容量
+buffer_size: 12000  # 回放缓冲区的最大容量
 use_reward_normalization: false  # 是否对奖励进行归一化
 use_popart: false  # 是否使用 PopArt 对目标损失进行归一化
 popart_update_interval_step: 2  # 更新 PopArt 的步数间隔
@@ -91,8 +91,8 @@ save_interval: 1000  # 保存模型的回合间隔
 
 log_interval: 24  # 日志记录的间隔
 
-model_dir: null  # 预训练模型路径
-
+model_dir: null
+#model_dir: /home/yushixuan/shom_onlie/PowerZoo/results/powerzoo/34Bus/qmix/installtest/seed-00001-2024-12-12-11-31-56/models/  # 预训练模型路径
 # render:
 #   use_render: false  # 是否使用渲染
 
@@ -119,7 +119,7 @@ train:
   # 训练数据的并行环境数量，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
   n_rollout_threads: 3
   # 总训练步数，default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
-  num_env_steps: 48000
+  num_env_steps: 24000
   # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
   episode_length: 24
 eval:

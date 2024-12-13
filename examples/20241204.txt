@@ -1,0 +1,3054 @@
+nohup: 忽略输入
+{'seed_specify': True, 'seed': 1}
+{'cuda': True, 'cuda_deterministic': True, 'torch_threads': 4}
+{'n_rollout_threads': 3, 'num_env_steps': 24000, 'episode_length': 24, 'log_interval': 1, 'eval_interval': 1, 'use_valuenorm': True, 'use_linear_lr_decay': False, 'use_proper_time_limits': True, 'model_dir': None}
+{'use_eval': True, 'n_eval_rollout_threads': 3, 'eval_episodes': 4}
+{'use_render': False, 'render_episodes': 1}
+{'hidden_sizes': [128, 128], 'activation_func': 'relu', 'use_feature_normalization': True, 'initialization_method': 'orthogonal_', 'gain': 0.01, 'use_naive_recurrent_policy': False, 'use_recurrent_policy': False, 'recurrent_n': 1, 'data_chunk_length': 10, 'lr': 0.0005, 'critic_lr': 0.0005, 'opti_eps': 1e-05, 'weight_decay': 0, 'std_x_coef': 1, 'std_y_coef': 0.5}
+{'ppo_epoch': 5, 'critic_epoch': 5, 'use_clipped_value_loss': True, 'clip_param': 0.2, 'actor_num_mini_batch': 4, 'critic_num_mini_batch': 4, 'entropy_coef': 0.01, 'value_loss_coef': 1, 'use_max_grad_norm': True, 'max_grad_norm': 10.0, 'use_gae': True, 'gamma': 0.99, 'gae_lambda': 0.95, 'use_huber_loss': True, 'use_policy_active_masks': True, 'huber_delta': 10.0, 'action_aggregation': 'prod', 'share_param': False, 'ordered': True}
+{'log_dir': './results'}
+choose to use gpu...
+3 {'env_name': '34Bus', 'seed': 123456, 'num_steps': 24, 'num_workers': 'None', 'use_plot': False, 'do_testing': False, 'mode': 'single', 'useS': True, 'big2small': True, 'use_render': False, 'record_node': False}
+make_train_env= 3
+make_eval_env= 3
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/numpy/core/shape_base.py:420: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+  arrays = [asanyarray(arr) for arr in arrays]
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_dsolve/linsolve.py:603: SparseEfficiencyWarning: splu converted its input to CSC format
+  return splu(A).solve
+/home/yushixuan/anaconda3/envs/harl_cupy/lib/python3.9/site-packages/scipy/sparse/linalg/_matfuncs.py:76: SparseEfficiencyWarning: spsolve is more efficient when sparse b is in the CSC matrix format
+  Ainv = spsolve(A, I)
+share_observation_space.shape:  10
+observation_space.shape:  10
+action_space.shape  10
+self.state_type= EP
+{'seed': {'seed_specify': True, 'seed': 1}, 'device': {'cuda': True, 'cuda_deterministic': True, 'torch_threads': 4}, 'train': {'n_rollout_threads': 3, 'num_env_steps': 24000, 'episode_length': 24, 'log_interval': 1, 'eval_interval': 1, 'use_valuenorm': True, 'use_linear_lr_decay': False, 'use_proper_time_limits': True, 'model_dir': None}, 'eval': {'use_eval': True, 'n_eval_rollout_threads': 3, 'eval_episodes': 4}, 'render': {'use_render': False, 'render_episodes': 1}, 'model': {'hidden_sizes': [128, 128], 'activation_func': 'relu', 'use_feature_normalization': True, 'initialization_method': 'orthogonal_', 'gain': 0.01, 'use_naive_recurrent_policy': False, 'use_recurrent_policy': False, 'recurrent_n': 1, 'data_chunk_length': 10, 'lr': 0.0005, 'critic_lr': 0.0005, 'opti_eps': 1e-05, 'weight_decay': 0, 'std_x_coef': 1, 'std_y_coef': 0.5}, 'algo': {'ppo_epoch': 5, 'critic_epoch': 5, 'use_clipped_value_loss': True, 'clip_param': 0.2, 'actor_num_mini_batch': 4, 'critic_num_mini_batch': 4, 'entropy_coef': 0.01, 'value_loss_coef': 1, 'use_max_grad_norm': True, 'max_grad_norm': 10.0, 'use_gae': True, 'gamma': 0.99, 'gae_lambda': 0.95, 'use_huber_loss': True, 'use_policy_active_masks': True, 'huber_delta': 10.0, 'action_aggregation': 'prod', 'share_param': False, 'ordered': True}, 'logger': {'log_dir': './results'}}
+start running
+big2small_S_sorted_order:  [9, 7, 2, 1, 3, 0, 5, 8, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 1/333 episodes,总时间步数 72/24000, FPS 9. 
+平均步数奖励为 -5.420182228088379.
+
+平均奖励值为： -130.08436539364266.
+
+当前步数: 72, Evaluation 平均 episode 奖励: -110.21212066055553
+big2small_S_sorted_order:  [2, 7, 0, 1, 9, 4, 3, 6, 5, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 2/333 episodes,总时间步数 144/24000, FPS 6. 
+平均步数奖励为 -5.043405532836914.
+
+平均奖励值为： -121.04171962927228.
+
+当前步数: 144, Evaluation 平均 episode 奖励: -128.80749440795466
+big2small_S_sorted_order:  [0, 8, 4, 6, 7, 5, 9, 3, 2, 1]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 3/333 episodes,总时间步数 216/24000, FPS 5. 
+平均步数奖励为 -5.31709623336792.
+
+平均奖励值为： -127.61031146208445.
+
+当前步数: 216, Evaluation 平均 episode 奖励: -94.4519457708589
+big2small_S_sorted_order:  [8, 0, 2, 4, 7, 1, 6, 9, 3, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 4/333 episodes,总时间步数 288/24000, FPS 5. 
+平均步数奖励为 -5.260807037353516.
+
+平均奖励值为： -126.2593655939185.
+
+当前步数: 288, Evaluation 平均 episode 奖励: -51.74881757335512
+big2small_S_sorted_order:  [0, 2, 3, 5, 6, 9, 7, 1, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 5/333 episodes,总时间步数 360/24000, FPS 5. 
+平均步数奖励为 -5.060647010803223.
+
+平均奖励值为： -121.45552722714562.
+
+当前步数: 360, Evaluation 平均 episode 奖励: -62.90481246354995
+big2small_S_sorted_order:  [0, 8, 2, 6, 7, 3, 9, 5, 4, 1]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 6/333 episodes,总时间步数 432/24000, FPS 5. 
+平均步数奖励为 -4.91698694229126.
+
+平均奖励值为： -118.0076855845653.
+
+当前步数: 432, Evaluation 平均 episode 奖励: -96.15556168610321
+big2small_S_sorted_order:  [8, 2, 0, 3, 5, 6, 1, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 7/333 episodes,总时间步数 504/24000, FPS 5. 
+平均步数奖励为 -4.945828914642334.
+
+平均奖励值为： -118.69989027514707.
+
+当前步数: 504, Evaluation 平均 episode 奖励: -77.4618447968016
+big2small_S_sorted_order:  [8, 2, 3, 0, 7, 1, 4, 9, 5, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 8/333 episodes,总时间步数 576/24000, FPS 5. 
+平均步数奖励为 -4.933645248413086.
+
+平均奖励值为： -118.40749279329924.
+
+当前步数: 576, Evaluation 平均 episode 奖励: -89.162616875774
+big2small_S_sorted_order:  [8, 2, 7, 9, 3, 0, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 9/333 episodes,总时间步数 648/24000, FPS 5. 
+平均步数奖励为 -5.6885528564453125.
+
+平均奖励值为： -136.52527367056928.
+
+当前步数: 648, Evaluation 平均 episode 奖励: -97.88603969968062
+big2small_S_sorted_order:  [6, 2, 0, 7, 3, 9, 1, 5, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 10/333 episodes,总时间步数 720/24000, FPS 5. 
+平均步数奖励为 -5.421203136444092.
+
+平均奖励值为： -130.1088782647702.
+
+当前步数: 720, Evaluation 平均 episode 奖励: -97.85900622886527
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 11/333 episodes,总时间步数 792/24000, FPS 5. 
+平均步数奖励为 -4.826363563537598.
+
+平均奖励值为： -115.83272343715686.
+
+当前步数: 792, Evaluation 平均 episode 奖励: -86.35707996300967
+big2small_S_sorted_order:  [8, 2, 3, 0, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 12/333 episodes,总时间步数 864/24000, FPS 5. 
+平均步数奖励为 -4.897878170013428.
+
+平均奖励值为： -117.54906199758254.
+
+当前步数: 864, Evaluation 平均 episode 奖励: -86.26532971815901
+big2small_S_sorted_order:  [4, 1, 5, 6, 7, 9, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 13/333 episodes,总时间步数 936/24000, FPS 5. 
+平均步数奖励为 -4.532354354858398.
+
+平均奖励值为： -108.77651332948976.
+
+当前步数: 936, Evaluation 平均 episode 奖励: -74.23438457806782
+big2small_S_sorted_order:  [2, 6, 5, 3, 0, 9, 7, 1, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 14/333 episodes,总时间步数 1008/24000, FPS 5. 
+平均步数奖励为 -5.083534240722656.
+
+平均奖励值为： -122.00482601284743.
+
+当前步数: 1008, Evaluation 平均 episode 奖励: -46.651934510255366
+big2small_S_sorted_order:  [2, 0, 3, 1, 9, 5, 7, 8, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 15/333 episodes,总时间步数 1080/24000, FPS 5. 
+平均步数奖励为 -4.896751880645752.
+
+平均奖励值为： -117.52204236097022.
+
+当前步数: 1080, Evaluation 平均 episode 奖励: -49.99807378431601
+big2small_S_sorted_order:  [8, 2, 7, 1, 3, 4, 9, 0, 6, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 16/333 episodes,总时间步数 1152/24000, FPS 5. 
+平均步数奖励为 -4.849922180175781.
+
+平均奖励值为： -116.39814089000383.
+
+当前步数: 1152, Evaluation 平均 episode 奖励: -105.17025581420774
+big2small_S_sorted_order:  [8, 2, 1, 3, 6, 5, 9, 7, 4, 0]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 17/333 episodes,总时间步数 1224/24000, FPS 5. 
+平均步数奖励为 -5.053625583648682.
+
+平均奖励值为： -121.28702055881892.
+
+当前步数: 1224, Evaluation 平均 episode 奖励: -99.9179454426435
+big2small_S_sorted_order:  [8, 0, 6, 7, 3, 5, 9, 4, 1, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 18/333 episodes,总时间步数 1296/24000, FPS 5. 
+平均步数奖励为 -5.0584540367126465.
+
+平均奖励值为： -121.40288694813296.
+
+当前步数: 1296, Evaluation 平均 episode 奖励: -84.39644495320886
+big2small_S_sorted_order:  [2, 3, 7, 9, 6, 1, 8, 5, 0, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 19/333 episodes,总时间步数 1368/24000, FPS 5. 
+平均步数奖励为 -4.601686954498291.
+
+平均奖励值为： -110.44048767789646.
+
+当前步数: 1368, Evaluation 平均 episode 奖励: -63.845026741601465
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 20/333 episodes,总时间步数 1440/24000, FPS 5. 
+平均步数奖励为 -4.752762317657471.
+
+平均奖励值为： -114.06630130891307.
+
+当前步数: 1440, Evaluation 平均 episode 奖励: -82.56991059500247
+big2small_S_sorted_order:  [8, 2, 3, 0, 6, 1, 7, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 21/333 episodes,总时间步数 1512/24000, FPS 5. 
+平均步数奖励为 -4.722818374633789.
+
+平均奖励值为： -113.3476444592243.
+
+当前步数: 1512, Evaluation 平均 episode 奖励: -57.490483439880904
+big2small_S_sorted_order:  [6, 4, 7, 5, 8, 9, 3, 1, 0, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 22/333 episodes,总时间步数 1584/24000, FPS 5. 
+平均步数奖励为 -4.739104270935059.
+
+平均奖励值为： -113.73850673970044.
+
+当前步数: 1584, Evaluation 平均 episode 奖励: -53.60549196282682
+big2small_S_sorted_order:  [8, 2, 3, 7, 1, 5, 6, 9, 0, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 23/333 episodes,总时间步数 1656/24000, FPS 5. 
+平均步数奖励为 -4.7919230461120605.
+
+平均奖励值为： -115.0061600663666.
+
+当前步数: 1656, Evaluation 平均 episode 奖励: -57.52935648967112
+big2small_S_sorted_order:  [2, 1, 3, 8, 9, 7, 5, 4, 6, 0]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 24/333 episodes,总时间步数 1728/24000, FPS 5. 
+平均步数奖励为 -4.357936382293701.
+
+平均奖励值为： -104.5904780350955.
+
+当前步数: 1728, Evaluation 平均 episode 奖励: -53.110713417239026
+big2small_S_sorted_order:  [8, 2, 1, 3, 5, 0, 9, 7, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 25/333 episodes,总时间步数 1800/24000, FPS 5. 
+平均步数奖励为 -4.253336429595947.
+
+平均奖励值为： -102.0800732724249.
+
+当前步数: 1800, Evaluation 平均 episode 奖励: -59.98450118397759
+big2small_S_sorted_order:  [2, 3, 1, 0, 5, 9, 7, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 26/333 episodes,总时间步数 1872/24000, FPS 5. 
+平均步数奖励为 -4.349422931671143.
+
+平均奖励值为： -104.38614388137267.
+
+当前步数: 1872, Evaluation 平均 episode 奖励: -65.74897588876196
+big2small_S_sorted_order:  [0, 4, 1, 5, 3, 9, 2, 7, 6, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 27/333 episodes,总时间步数 1944/24000, FPS 5. 
+平均步数奖励为 -4.283619403839111.
+
+平均奖励值为： -102.80686628718861.
+
+当前步数: 1944, Evaluation 平均 episode 奖励: -74.15765930239913
+big2small_S_sorted_order:  [8, 2, 3, 1, 9, 7, 5, 0, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 28/333 episodes,总时间步数 2016/24000, FPS 5. 
+平均步数奖励为 -4.492647647857666.
+
+平均奖励值为： -107.82355070100635.
+
+当前步数: 2016, Evaluation 平均 episode 奖励: -46.90944853135699
+big2small_S_sorted_order:  [8, 2, 0, 6, 3, 7, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 29/333 episodes,总时间步数 2088/24000, FPS 5. 
+平均步数奖励为 -4.142828941345215.
+
+平均奖励值为： -99.42790360401216.
+
+当前步数: 2088, Evaluation 平均 episode 奖励: -49.001074553521455
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 5, 9, 7, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 30/333 episodes,总时间步数 2160/24000, FPS 5. 
+平均步数奖励为 -3.8816654682159424.
+
+平均奖励值为： -93.15997014319878.
+
+当前步数: 2160, Evaluation 平均 episode 奖励: -68.56398003635557
+big2small_S_sorted_order:  [6, 7, 0, 3, 4, 9, 5, 1, 2, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 31/333 episodes,总时间步数 2232/24000, FPS 5. 
+平均步数奖励为 -4.665493488311768.
+
+平均奖励值为： -111.9718452272222.
+
+当前步数: 2232, Evaluation 平均 episode 奖励: -62.356422369774144
+big2small_S_sorted_order:  [4, 0, 8, 5, 6, 1, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 32/333 episodes,总时间步数 2304/24000, FPS 5. 
+平均步数奖励为 -4.210995197296143.
+
+平均奖励值为： -101.06387500510694.
+
+当前步数: 2304, Evaluation 平均 episode 奖励: -62.56015251505834
+big2small_S_sorted_order:  [6, 7, 5, 9, 0, 4, 3, 1, 2, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 33/333 episodes,总时间步数 2376/24000, FPS 5. 
+平均步数奖励为 -3.7800302505493164.
+
+平均奖励值为： -90.72072018302686.
+
+当前步数: 2376, Evaluation 平均 episode 奖励: -66.614164461302
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 7, 9, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 34/333 episodes,总时间步数 2448/24000, FPS 5. 
+平均步数奖励为 -3.7294247150421143.
+
+平均奖励值为： -89.50619382497003.
+
+当前步数: 2448, Evaluation 平均 episode 奖励: -64.48075888885286
+big2small_S_sorted_order:  [2, 0, 3, 1, 9, 5, 7, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 35/333 episodes,总时间步数 2520/24000, FPS 5. 
+平均步数奖励为 -3.7929747104644775.
+
+平均奖励值为： -91.03139148303688.
+
+当前步数: 2520, Evaluation 平均 episode 奖励: -96.58983458409456
+big2small_S_sorted_order:  [0, 2, 6, 3, 5, 7, 9, 4, 1, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 36/333 episodes,总时间步数 2592/24000, FPS 5. 
+平均步数奖励为 -3.8233652114868164.
+
+平均奖励值为： -91.76076683974166.
+
+当前步数: 2592, Evaluation 平均 episode 奖励: -51.305235362922055
+big2small_S_sorted_order:  [0, 8, 2, 3, 6, 5, 9, 1, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 37/333 episodes,总时间步数 2664/24000, FPS 5. 
+平均步数奖励为 -3.869044780731201.
+
+平均奖励值为： -92.85707698617237.
+
+当前步数: 2664, Evaluation 平均 episode 奖励: -51.37575381786704
+big2small_S_sorted_order:  [8, 2, 0, 1, 3, 7, 9, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 38/333 episodes,总时间步数 2736/24000, FPS 5. 
+平均步数奖励为 -3.956462860107422.
+
+平均奖励值为： -94.95510536525359.
+
+当前步数: 2736, Evaluation 平均 episode 奖励: -50.98535528811169
+big2small_S_sorted_order:  [0, 2, 8, 3, 1, 7, 9, 5, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 39/333 episodes,总时间步数 2808/24000, FPS 5. 
+平均步数奖励为 -3.963998556137085.
+
+平均奖励值为： -95.13597059712026.
+
+当前步数: 2808, Evaluation 平均 episode 奖励: -51.292366973309356
+big2small_S_sorted_order:  [6, 7, 5, 9, 8, 2, 3, 0, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 40/333 episodes,总时间步数 2880/24000, FPS 5. 
+平均步数奖励为 -3.496399402618408.
+
+平均奖励值为： -83.91358714290526.
+
+当前步数: 2880, Evaluation 平均 episode 奖励: -51.06492257167474
+big2small_S_sorted_order:  [6, 4, 5, 7, 9, 1, 8, 3, 2, 0]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 41/333 episodes,总时间步数 2952/24000, FPS 5. 
+平均步数奖励为 -3.8759329319000244.
+
+平均奖励值为： -93.0223872307749.
+
+当前步数: 2952, Evaluation 平均 episode 奖励: -45.79906424570502
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 42/333 episodes,总时间步数 3024/24000, FPS 5. 
+平均步数奖励为 -3.540957450866699.
+
+平均奖励值为： -84.98297807707446.
+
+当前步数: 3024, Evaluation 平均 episode 奖励: -51.34709165846228
+big2small_S_sorted_order:  [0, 2, 3, 1, 4, 9, 5, 7, 6, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 43/333 episodes,总时间步数 3096/24000, FPS 5. 
+平均步数奖励为 -3.748480796813965.
+
+平均奖励值为： -89.96354063360032.
+
+当前步数: 3096, Evaluation 平均 episode 奖励: -52.462557233876105
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 5, 7, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 44/333 episodes,总时间步数 3168/24000, FPS 5. 
+平均步数奖励为 -3.5230677127838135.
+
+平均奖励值为： -84.55362165894242.
+
+当前步数: 3168, Evaluation 平均 episode 奖励: -51.34709165846228
+big2small_S_sorted_order:  [2, 0, 3, 1, 9, 7, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 45/333 episodes,总时间步数 3240/24000, FPS 5. 
+平均步数奖励为 -3.805589437484741.
+
+平均奖励值为： -91.33414011140333.
+
+当前步数: 3240, Evaluation 平均 episode 奖励: -45.79906424570502
+big2small_S_sorted_order:  [2, 3, 0, 1, 7, 9, 5, 8, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 46/333 episodes,总时间步数 3312/24000, FPS 5. 
+平均步数奖励为 -3.591610908508301.
+
+平均奖励值为： -86.19865277199575.
+
+当前步数: 3312, Evaluation 平均 episode 奖励: -47.589305489334436
+big2small_S_sorted_order:  [2, 0, 8, 3, 1, 9, 5, 7, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 47/333 episodes,总时间步数 3384/24000, FPS 5. 
+平均步数奖励为 -3.3012707233428955.
+
+平均奖励值为： -79.23050293969801.
+
+当前步数: 3384, Evaluation 平均 episode 奖励: -50.92527888041462
+big2small_S_sorted_order:  [4, 0, 1, 7, 9, 8, 5, 3, 2, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 48/333 episodes,总时间步数 3456/24000, FPS 5. 
+平均步数奖励为 -3.1601290702819824.
+
+平均奖励值为： -75.84310051407532.
+
+当前步数: 3456, Evaluation 平均 episode 奖励: -44.066767669044616
+big2small_S_sorted_order:  [7, 6, 4, 0, 3, 9, 1, 5, 2, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 49/333 episodes,总时间步数 3528/24000, FPS 5. 
+平均步数奖励为 -3.094813346862793.
+
+平均奖励值为： -74.27552788891553.
+
+当前步数: 3528, Evaluation 平均 episode 奖励: -45.54417535022035
+big2small_S_sorted_order:  [6, 8, 4, 7, 5, 9, 1, 3, 0, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 50/333 episodes,总时间步数 3600/24000, FPS 5. 
+平均步数奖励为 -3.0632894039154053.
+
+平均奖励值为： -73.51895089769202.
+
+当前步数: 3600, Evaluation 平均 episode 奖励: -45.114902415619184
+big2small_S_sorted_order:  [4, 1, 5, 9, 0, 7, 6, 3, 2, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 51/333 episodes,总时间步数 3672/24000, FPS 5. 
+平均步数奖励为 -3.0217607021331787.
+
+平均奖励值为： -72.52225751500434.
+
+当前步数: 3672, Evaluation 平均 episode 奖励: -46.363044431898935
+big2small_S_sorted_order:  [8, 6, 0, 7, 2, 5, 9, 3, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 52/333 episodes,总时间步数 3744/24000, FPS 5. 
+平均步数奖励为 -2.881516933441162.
+
+平均奖励值为： -69.15640597754462.
+
+当前步数: 3744, Evaluation 平均 episode 奖励: -45.912044218259126
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 9, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 53/333 episodes,总时间步数 3816/24000, FPS 5. 
+平均步数奖励为 -2.897264242172241.
+
+平均奖励值为： -69.53434428628258.
+
+当前步数: 3816, Evaluation 平均 episode 奖励: -41.723821401749866
+big2small_S_sorted_order:  [2, 0, 3, 1, 9, 5, 7, 4, 6, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 54/333 episodes,总时间步数 3888/24000, FPS 5. 
+平均步数奖励为 -2.9455654621124268.
+
+平均奖励值为： -70.69357589741196.
+
+当前步数: 3888, Evaluation 平均 episode 奖励: -40.98300724865765
+big2small_S_sorted_order:  [6, 7, 5, 9, 3, 4, 1, 0, 2, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 55/333 episodes,总时间步数 3960/24000, FPS 5. 
+平均步数奖励为 -3.349184036254883.
+
+平均奖励值为： -80.38041783065172.
+
+当前步数: 3960, Evaluation 平均 episode 奖励: -41.30662388491687
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 56/333 episodes,总时间步数 4032/24000, FPS 5. 
+平均步数奖励为 -2.7433881759643555.
+
+平均奖励值为： -65.84131855579625.
+
+当前步数: 4032, Evaluation 平均 episode 奖励: -42.193714755373584
+big2small_S_sorted_order:  [2, 0, 1, 3, 5, 9, 7, 4, 6, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 57/333 episodes,总时间步数 4104/24000, FPS 5. 
+平均步数奖励为 -2.6076176166534424.
+
+平均奖励值为： -62.58282823334045.
+
+当前步数: 4104, Evaluation 平均 episode 奖励: -42.39538751737675
+big2small_S_sorted_order:  [2, 0, 3, 7, 1, 9, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 58/333 episodes,总时间步数 4176/24000, FPS 5. 
+平均步数奖励为 -2.4555888175964355.
+
+平均奖励值为： -58.93413023032639.
+
+当前步数: 4176, Evaluation 平均 episode 奖励: -41.78315759049874
+big2small_S_sorted_order:  [2, 0, 3, 1, 7, 9, 5, 4, 6, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 59/333 episodes,总时间步数 4248/24000, FPS 5. 
+平均步数奖励为 -2.718541383743286.
+
+平均奖励值为： -65.24499228378751.
+
+当前步数: 4248, Evaluation 平均 episode 奖励: -41.90796989309666
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 60/333 episodes,总时间步数 4320/24000, FPS 5. 
+平均步数奖励为 -2.4665188789367676.
+
+平均奖励值为： -59.1964493993567.
+
+当前步数: 4320, Evaluation 平均 episode 奖励: -39.80977201020718
+big2small_S_sorted_order:  [2, 0, 3, 1, 7, 9, 6, 5, 8, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 61/333 episodes,总时间步数 4392/24000, FPS 5. 
+平均步数奖励为 -2.4140121936798096.
+
+平均奖励值为： -57.9362917977161.
+
+当前步数: 4392, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [8, 4, 1, 5, 0, 9, 3, 7, 6, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 62/333 episodes,总时间步数 4464/24000, FPS 5. 
+平均步数奖励为 -2.2949609756469727.
+
+平均奖励值为： -55.079064435493734.
+
+当前步数: 4464, Evaluation 平均 episode 奖励: -37.19507568038583
+big2small_S_sorted_order:  [2, 0, 3, 7, 6, 9, 1, 5, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 63/333 episodes,总时间步数 4536/24000, FPS 5. 
+平均步数奖励为 -2.4998741149902344.
+
+平均奖励值为： -59.9969792743662.
+
+当前步数: 4536, Evaluation 平均 episode 奖励: -39.64158528216513
+big2small_S_sorted_order:  [2, 7, 8, 9, 1, 3, 6, 0, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 64/333 episodes,总时间步数 4608/24000, FPS 5. 
+平均步数奖励为 -2.514845609664917.
+
+平均奖励值为： -60.35629298679056.
+
+当前步数: 4608, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [2, 0, 3, 1, 9, 7, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 65/333 episodes,总时间步数 4680/24000, FPS 5. 
+平均步数奖励为 -2.1631033420562744.
+
+平均奖励值为： -51.91447878111654.
+
+当前步数: 4680, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [8, 2, 1, 3, 5, 9, 7, 6, 4, 0]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 66/333 episodes,总时间步数 4752/24000, FPS 5. 
+平均步数奖励为 -2.324310779571533.
+
+平均奖励值为： -55.7834576790785.
+
+当前步数: 4752, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 6, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 67/333 episodes,总时间步数 4824/24000, FPS 5. 
+平均步数奖励为 -2.1746864318847656.
+
+平均奖励值为： -52.192474189017524.
+
+当前步数: 4824, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [8, 2, 6, 3, 0, 1, 5, 7, 9, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 68/333 episodes,总时间步数 4896/24000, FPS 5. 
+平均步数奖励为 -2.040928840637207.
+
+平均奖励值为： -48.982291005199905.
+
+当前步数: 4896, Evaluation 平均 episode 奖励: -39.34669753684279
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 69/333 episodes,总时间步数 4968/24000, FPS 5. 
+平均步数奖励为 -2.3311991691589355.
+
+平均奖励值为： -55.94878167429781.
+
+当前步数: 4968, Evaluation 平均 episode 奖励: -37.617766502677796
+big2small_S_sorted_order:  [2, 0, 3, 7, 9, 1, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 70/333 episodes,总时间步数 5040/24000, FPS 5. 
+平均步数奖励为 -2.0908443927764893.
+
+平均奖励值为： -50.18026612579558.
+
+当前步数: 5040, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 71/333 episodes,总时间步数 5112/24000, FPS 5. 
+平均步数奖励为 -2.191622018814087.
+
+平均奖励值为： -52.59892336590591.
+
+当前步数: 5112, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [2, 0, 3, 7, 9, 1, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 72/333 episodes,总时间步数 5184/24000, FPS 5. 
+平均步数奖励为 -1.9370530843734741.
+
+平均奖励值为： -46.48927382767539.
+
+当前步数: 5184, Evaluation 平均 episode 奖励: -37.12250475326412
+big2small_S_sorted_order:  [2, 3, 0, 8, 7, 9, 6, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 73/333 episodes,总时间步数 5256/24000, FPS 5. 
+平均步数奖励为 -2.027559995651245.
+
+平均奖励值为： -48.66144013499911.
+
+当前步数: 5256, Evaluation 平均 episode 奖励: -36.9477734097017
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 74/333 episodes,总时间步数 5328/24000, FPS 5. 
+平均步数奖励为 -1.9465022087097168.
+
+平均奖励值为： -46.71605407770112.
+
+当前步数: 5328, Evaluation 平均 episode 奖励: -37.14398140571042
+big2small_S_sorted_order:  [2, 0, 8, 3, 1, 9, 5, 7, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 75/333 episodes,总时间步数 5400/24000, FPS 5. 
+平均步数奖励为 -1.760547161102295.
+
+平均奖励值为： -42.25313180360343.
+
+当前步数: 5400, Evaluation 平均 episode 奖励: -36.8592268236738
+big2small_S_sorted_order:  [2, 8, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 76/333 episodes,总时间步数 5472/24000, FPS 5. 
+平均步数奖励为 -1.7522873878479004.
+
+平均奖励值为： -42.05489609183752.
+
+当前步数: 5472, Evaluation 平均 episode 奖励: -26.103451520809603
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 77/333 episodes,总时间步数 5544/24000, FPS 5. 
+平均步数奖励为 -1.65608811378479.
+
+平均奖励值为： -39.74611537334499.
+
+当前步数: 5544, Evaluation 平均 episode 奖励: -26.103451520809603
+big2small_S_sorted_order:  [2, 0, 3, 7, 9, 1, 5, 6, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 78/333 episodes,总时间步数 5616/24000, FPS 5. 
+平均步数奖励为 -1.63533616065979.
+
+平均奖励值为： -39.24806569887814.
+
+当前步数: 5616, Evaluation 平均 episode 奖励: -26.103451520809603
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 79/333 episodes,总时间步数 5688/24000, FPS 5. 
+平均步数奖励为 -1.5323960781097412.
+
+平均奖励值为： -36.77750855033602.
+
+当前步数: 5688, Evaluation 平均 episode 奖励: -26.103451520809603
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 9, 6, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 80/333 episodes,总时间步数 5760/24000, FPS 5. 
+平均步数奖励为 -1.7484781742095947.
+
+平均奖励值为： -41.96347498355622.
+
+当前步数: 5760, Evaluation 平均 episode 奖励: -26.103451520809603
+big2small_S_sorted_order:  [8, 0, 2, 1, 3, 5, 9, 7, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 81/333 episodes,总时间步数 5832/24000, FPS 5. 
+平均步数奖励为 -1.545370101928711.
+
+平均奖励值为： -37.08888119412199.
+
+当前步数: 5832, Evaluation 平均 episode 奖励: -26.0819748683633
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 82/333 episodes,总时间步数 5904/24000, FPS 5. 
+平均步数奖励为 -1.4209378957748413.
+
+平均奖励值为： -34.10251111802352.
+
+当前步数: 5904, Evaluation 平均 episode 奖励: -26.356046639111142
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 83/333 episodes,总时间步数 5976/24000, FPS 5. 
+平均步数奖励为 -1.4095202684402466.
+
+平均奖励值为： -33.82848721778873.
+
+当前步数: 5976, Evaluation 平均 episode 奖励: -26.944211605427892
+big2small_S_sorted_order:  [0, 8, 2, 3, 9, 7, 5, 1, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 84/333 episodes,总时间步数 6048/24000, FPS 5. 
+平均步数奖励为 -1.4047765731811523.
+
+平均奖励值为： -33.714638219300184.
+
+当前步数: 6048, Evaluation 平均 episode 奖励: -25.991449837497356
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 85/333 episodes,总时间步数 6120/24000, FPS 5. 
+平均步数奖励为 -1.3538981676101685.
+
+平均奖励值为： -32.49355518973557.
+
+当前步数: 6120, Evaluation 平均 episode 奖励: -25.991449837497356
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 86/333 episodes,总时间步数 6192/24000, FPS 5. 
+平均步数奖励为 -1.2951494455337524.
+
+平均奖励值为： -31.083589565870398.
+
+当前步数: 6192, Evaluation 平均 episode 奖励: -25.991449837497356
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 87/333 episodes,总时间步数 6264/24000, FPS 5. 
+平均步数奖励为 -1.3036346435546875.
+
+平均奖励值为： -31.287232737872696.
+
+当前步数: 6264, Evaluation 平均 episode 奖励: -25.96997318505105
+big2small_S_sorted_order:  [2, 0, 8, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 88/333 episodes,总时间步数 6336/24000, FPS 5. 
+平均步数奖励为 -1.4274333715438843.
+
+平均奖励值为： -34.25839871512844.
+
+当前步数: 6336, Evaluation 平均 episode 奖励: -25.321120149095908
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 89/333 episodes,总时间步数 6408/24000, FPS 5. 
+平均步数奖励为 -1.2391276359558105.
+
+平均奖励值为： -29.73906692839924.
+
+当前步数: 6408, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [2, 0, 3, 8, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 90/333 episodes,总时间步数 6480/24000, FPS 5. 
+平均步数奖励为 -1.4238983392715454.
+
+平均奖励值为： -34.173559770665186.
+
+当前步数: 6480, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [2, 0, 3, 7, 9, 1, 6, 5, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 91/333 episodes,总时间步数 6552/24000, FPS 5. 
+平均步数奖励为 -1.3846921920776367.
+
+平均奖励值为： -33.23261201575055.
+
+当前步数: 6552, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 92/333 episodes,总时间步数 6624/24000, FPS 5. 
+平均步数奖励为 -1.2442817687988281.
+
+平均奖励值为： -29.86276355128852.
+
+当前步数: 6624, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 93/333 episodes,总时间步数 6696/24000, FPS 5. 
+平均步数奖励为 -1.3128100633621216.
+
+平均奖励值为： -31.507442241138623.
+
+当前步数: 6696, Evaluation 平均 episode 奖励: -25.471372096576264
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 94/333 episodes,总时间步数 6768/24000, FPS 5. 
+平均步数奖励为 -1.3490430116653442.
+
+平均奖励值为： -32.37703161057735.
+
+当前步数: 6768, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 5, 1, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 95/333 episodes,总时间步数 6840/24000, FPS 5. 
+平均步数奖励为 -1.2070800065994263.
+
+平均奖励值为： -28.96991988306726.
+
+当前步数: 6840, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 96/333 episodes,总时间步数 6912/24000, FPS 5. 
+平均步数奖励为 -1.2288641929626465.
+
+平均奖励值为： -29.492742750202208.
+
+当前步数: 6912, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 97/333 episodes,总时间步数 6984/24000, FPS 5. 
+平均步数奖励为 -1.3711228370666504.
+
+平均奖励值为： -32.90694540544727.
+
+当前步数: 6984, Evaluation 平均 episode 奖励: -25.811321946877495
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 9, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 98/333 episodes,总时间步数 7056/24000, FPS 5. 
+平均步数奖励为 -1.4367419481277466.
+
+平均奖励值为： -34.4818064000027.
+
+当前步数: 7056, Evaluation 平均 episode 奖励: -25.58587929817239
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 99/333 episodes,总时间步数 7128/24000, FPS 5. 
+平均步数奖励为 -1.184511423110962.
+
+平均奖励值为： -28.42827303442236.
+
+当前步数: 7128, Evaluation 平均 episode 奖励: -25.991449837497356
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 100/333 episodes,总时间步数 7200/24000, FPS 5. 
+平均步数奖励为 -1.3041434288024902.
+
+平均奖励值为： -31.299442432727243.
+
+当前步数: 7200, Evaluation 平均 episode 奖励: -25.991449837497356
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 101/333 episodes,总时间步数 7272/24000, FPS 5. 
+平均步数奖励为 -1.225066065788269.
+
+平均奖励值为： -29.40158563239248.
+
+当前步数: 7272, Evaluation 平均 episode 奖励: -26.469464956459607
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 102/333 episodes,总时间步数 7344/24000, FPS 5. 
+平均步数奖励为 -1.3335647583007812.
+
+平均奖励值为： -32.00555562042106.
+
+当前步数: 7344, Evaluation 平均 episode 奖励: -26.623849446219428
+big2small_S_sorted_order:  [2, 8, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 103/333 episodes,总时间步数 7416/24000, FPS 5. 
+平均步数奖励为 -1.1769345998764038.
+
+平均奖励值为： -28.246431012855734.
+
+当前步数: 7416, Evaluation 平均 episode 奖励: -26.469464956459607
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 104/333 episodes,总时间步数 7488/24000, FPS 5. 
+平均步数奖励为 -1.2358453273773193.
+
+平均奖励值为： -29.660287934192834.
+
+当前步数: 7488, Evaluation 平均 episode 奖励: -26.015511288645783
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 9, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 105/333 episodes,总时间步数 7560/24000, FPS 5. 
+平均步数奖励为 -1.263310432434082.
+
+平均奖励值为： -30.319450715871245.
+
+当前步数: 7560, Evaluation 平均 episode 奖励: -25.607355950618693
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 9, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 106/333 episodes,总时间步数 7632/24000, FPS 5. 
+平均步数奖励为 -1.2301268577575684.
+
+平均奖励值为： -29.52304629756566.
+
+当前步数: 7632, Evaluation 平均 episode 奖励: -25.607355950618693
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 5, 1, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 107/333 episodes,总时间步数 7704/24000, FPS 5. 
+平均步数奖励为 -1.2761105298995972.
+
+平均奖励值为： -30.626655384885648.
+
+当前步数: 7704, Evaluation 平均 episode 奖励: -25.17530031310328
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 7, 9, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 108/333 episodes,总时间步数 7776/24000, FPS 5. 
+平均步数奖励为 -1.2056024074554443.
+
+平均奖励值为： -28.934457221404106.
+
+当前步数: 7776, Evaluation 平均 episode 奖励: -25.107760287453093
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 109/333 episodes,总时间步数 7848/24000, FPS 5. 
+平均步数奖励为 -1.291916012763977.
+
+平均奖励值为： -31.00598407517676.
+
+当前步数: 7848, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 1, 9, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 110/333 episodes,总时间步数 7920/24000, FPS 5. 
+平均步数奖励为 -1.3539036512374878.
+
+平均奖励值为： -32.49368940528863.
+
+当前步数: 7920, Evaluation 平均 episode 奖励: -25.094859678410746
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 9, 6, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 111/333 episodes,总时间步数 7992/24000, FPS 5. 
+平均步数奖励为 -1.135964035987854.
+
+平均奖励值为： -27.263139594857503.
+
+当前步数: 7992, Evaluation 平均 episode 奖励: -25.094859678410746
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 112/333 episodes,总时间步数 8064/24000, FPS 5. 
+平均步数奖励为 -1.1944351196289062.
+
+平均奖励值为： -28.66644089484751.
+
+当前步数: 8064, Evaluation 平均 episode 奖励: -25.094859678410746
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 113/333 episodes,总时间步数 8136/24000, FPS 5. 
+平均步数奖励为 -1.1359658241271973.
+
+平均奖励值为： -27.26317927050088.
+
+当前步数: 8136, Evaluation 平均 episode 奖励: -25.094859678410746
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 9, 1, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 114/333 episodes,总时间步数 8208/24000, FPS 5. 
+平均步数奖励为 -1.2453784942626953.
+
+平均奖励值为： -29.889084748283143.
+
+当前步数: 8208, Evaluation 平均 episode 奖励: -25.088201501884683
+big2small_S_sorted_order:  [2, 8, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 115/333 episodes,总时间步数 8280/24000, FPS 5. 
+平均步数奖励为 -1.17291259765625.
+
+平均奖励值为： -28.149901939408256.
+
+当前步数: 8280, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 6, 9, 4, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 116/333 episodes,总时间步数 8352/24000, FPS 5. 
+平均步数奖励为 -1.301064372062683.
+
+平均奖励值为： -31.225545037881272.
+
+当前步数: 8352, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 117/333 episodes,总时间步数 8424/24000, FPS 5. 
+平均步数奖励为 -1.2989875078201294.
+
+平均奖励值为： -31.175700103928847.
+
+当前步数: 8424, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 118/333 episodes,总时间步数 8496/24000, FPS 5. 
+平均步数奖励为 -1.2418742179870605.
+
+平均奖励值为： -29.80498204657819.
+
+当前步数: 8496, Evaluation 平均 episode 奖励: -24.990438465240896
+big2small_S_sorted_order:  [8, 2, 0, 3, 1, 5, 9, 7, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 119/333 episodes,总时间步数 8568/24000, FPS 5. 
+平均步数奖励为 -1.2059051990509033.
+
+平均奖励值为： -28.94172235437712.
+
+当前步数: 8568, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 4, 1, 7, 3, 6, 5, 9]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 120/333 episodes,总时间步数 8640/24000, FPS 5. 
+平均步数奖励为 -1.1936808824539185.
+
+平均奖励值为： -28.64834454886149.
+
+当前步数: 8640, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 121/333 episodes,总时间步数 8712/24000, FPS 5. 
+平均步数奖励为 -1.210565447807312.
+
+平均奖励值为： -29.053571323544478.
+
+当前步数: 8712, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 1, 4, 3, 5, 7, 9, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 122/333 episodes,总时间步数 8784/24000, FPS 5. 
+平均步数奖励为 -1.1507618427276611.
+
+平均奖励值为： -27.618284395217188.
+
+当前步数: 8784, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 7, 5, 9, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 123/333 episodes,总时间步数 8856/24000, FPS 5. 
+平均步数奖励为 -1.1292815208435059.
+
+平均奖励值为： -27.102758259359252.
+
+当前步数: 8856, Evaluation 平均 episode 奖励: -25.0185732817842
+big2small_S_sorted_order:  [8, 0, 1, 6, 4, 3, 7, 5, 9, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 124/333 episodes,总时间步数 8928/24000, FPS 5. 
+平均步数奖励为 -1.1677061319351196.
+
+平均奖励值为： -28.024948757535373.
+
+当前步数: 8928, Evaluation 平均 episode 奖励: -25.067464318581457
+big2small_S_sorted_order:  [8, 0, 3, 6, 1, 2, 7, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 125/333 episodes,总时间步数 9000/24000, FPS 5. 
+平均步数奖励为 -1.2453008890151978.
+
+平均奖励值为： -29.887222659723932.
+
+当前步数: 9000, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 126/333 episodes,总时间步数 9072/24000, FPS 5. 
+平均步数奖励为 -1.1056723594665527.
+
+平均奖励值为： -26.536136853359977.
+
+当前步数: 9072, Evaluation 平均 episode 奖励: -25.12923693917092
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 127/333 episodes,总时间步数 9144/24000, FPS 5. 
+平均步数奖励为 -1.1300960779190063.
+
+平均奖励值为： -27.122306665160796.
+
+当前步数: 9144, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [2, 0, 8, 3, 1, 9, 7, 5, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 128/333 episodes,总时间步数 9216/24000, FPS 5. 
+平均步数奖励为 -1.2029128074645996.
+
+平均奖励值为： -28.869907428812684.
+
+当前步数: 9216, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 129/333 episodes,总时间步数 9288/24000, FPS 5. 
+平均步数奖励为 -1.1537609100341797.
+
+平均奖励值为： -27.69026025577354.
+
+当前步数: 9288, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 130/333 episodes,总时间步数 9360/24000, FPS 5. 
+平均步数奖励为 -1.1593331098556519.
+
+平均奖励值为： -27.82399509323989.
+
+当前步数: 9360, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 131/333 episodes,总时间步数 9432/24000, FPS 5. 
+平均步数奖励为 -1.1502058506011963.
+
+平均奖励值为： -27.60493743922143.
+
+当前步数: 9432, Evaluation 平均 episode 奖励: -25.196776965549578
+big2small_S_sorted_order:  [0, 7, 2, 9, 3, 5, 1, 8, 4, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 132/333 episodes,总时间步数 9504/24000, FPS 5. 
+平均步数奖励为 -1.1708621978759766.
+
+平均奖励值为： -28.100691345045686.
+
+当前步数: 9504, Evaluation 平均 episode 奖励: -25.196776965549578
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 133/333 episodes,总时间步数 9576/24000, FPS 5. 
+平均步数奖励为 -1.2387487888336182.
+
+平均奖励值为： -29.729969214124097.
+
+当前步数: 9576, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 134/333 episodes,总时间步数 9648/24000, FPS 5. 
+平均步数奖励为 -1.1367146968841553.
+
+平均奖励值为： -27.281153614026323.
+
+当前步数: 9648, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 135/333 episodes,总时间步数 9720/24000, FPS 5. 
+平均步数奖励为 -1.1837724447250366.
+
+平均奖励值为： -28.410537434053783.
+
+当前步数: 9720, Evaluation 平均 episode 奖励: -25.116336330628357
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 136/333 episodes,总时间步数 9792/24000, FPS 5. 
+平均步数奖励为 -1.1287050247192383.
+
+平均奖励值为： -27.08891979082652.
+
+当前步数: 9792, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 137/333 episodes,总时间步数 9864/24000, FPS 5. 
+平均步数奖励为 -1.1096758842468262.
+
+平均奖励值为： -26.632222135338534.
+
+当前步数: 9864, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 138/333 episodes,总时间步数 9936/24000, FPS 5. 
+平均步数奖励为 -1.1006014347076416.
+
+平均奖励值为： -26.414432457682846.
+
+当前步数: 9936, Evaluation 平均 episode 奖励: -23.487977049237514
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 139/333 episodes,总时间步数 10008/24000, FPS 5. 
+平均步数奖励为 -1.1121337413787842.
+
+平均奖励值为： -26.691210425191016.
+
+当前步数: 10008, Evaluation 平均 episode 奖励: -25.154339322999096
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 140/333 episodes,总时间步数 10080/24000, FPS 5. 
+平均步数奖励为 -1.1211634874343872.
+
+平均奖励值为： -26.90792460126318.
+
+当前步数: 10080, Evaluation 平均 episode 奖励: -23.530414691787996
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 141/333 episodes,总时间步数 10152/24000, FPS 5. 
+平均步数奖励为 -1.1066932678222656.
+
+平均奖励值为： -26.560640390175095.
+
+当前步数: 10152, Evaluation 平均 episode 奖励: -23.530414691787996
+big2small_S_sorted_order:  [0, 2, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 142/333 episodes,总时间步数 10224/24000, FPS 5. 
+平均步数奖励为 -1.0861842632293701.
+
+平均奖励值为： -26.06842175414052.
+
+当前步数: 10224, Evaluation 平均 episode 奖励: -23.449974056866775
+big2small_S_sorted_order:  [8, 0, 2, 4, 7, 3, 6, 1, 9, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 143/333 episodes,总时间步数 10296/24000, FPS 5. 
+平均步数奖励为 -1.263310194015503.
+
+平均奖励值为： -30.319444712271018.
+
+当前步数: 10296, Evaluation 平均 episode 奖励: -23.371472407088408
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 144/333 episodes,总时间步数 10368/24000, FPS 5. 
+平均步数奖励为 -1.076500415802002.
+
+平均奖励值为： -25.836012213937313.
+
+当前步数: 10368, Evaluation 平均 episode 奖励: -23.291925403270383
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 145/333 episodes,总时间步数 10440/24000, FPS 5. 
+平均步数奖励为 -1.0961488485336304.
+
+平均奖励值为： -26.307572565784714.
+
+当前步数: 10440, Evaluation 平均 episode 奖励: -23.487977049237514
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 146/333 episodes,总时间步数 10512/24000, FPS 5. 
+平均步数奖励为 -1.0832422971725464.
+
+平均奖励值为： -25.997815863098122.
+
+当前步数: 10512, Evaluation 平均 episode 奖励: -23.449974056866775
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 147/333 episodes,总时间步数 10584/24000, FPS 5. 
+平均步数奖励为 -1.144333839416504.
+
+平均奖励值为： -27.464012589179788.
+
+当前步数: 10584, Evaluation 平均 episode 奖励: -23.252743107901097
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 148/333 episodes,总时间步数 10656/24000, FPS 5. 
+平均步数奖励为 -1.1866008043289185.
+
+平均奖励值为： -28.47841965998568.
+
+当前步数: 10656, Evaluation 平均 episode 奖励: -23.160427488886324
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 149/333 episodes,总时间步数 10728/24000, FPS 5. 
+平均步数奖励为 -1.1219005584716797.
+
+平均奖励值为： -26.925613165776383.
+
+当前步数: 10728, Evaluation 平均 episode 奖励: -23.13262729015534
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 150/333 episodes,总时间步数 10800/24000, FPS 5. 
+平均步数奖励为 -1.0632177591323853.
+
+平均奖励值为： -25.517226499635473.
+
+当前步数: 10800, Evaluation 平均 episode 奖励: -23.17252467265787
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 151/333 episodes,总时间步数 10872/24000, FPS 5. 
+平均步数奖励为 -1.066274642944336.
+
+平均奖励值为： -25.59059076502395.
+
+当前步数: 10872, Evaluation 平均 episode 奖励: -23.17252467265787
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 152/333 episodes,总时间步数 10944/24000, FPS 5. 
+平均步数奖励为 -1.190542221069336.
+
+平均奖励值为： -28.57301590370592.
+
+当前步数: 10944, Evaluation 平均 episode 奖励: -23.13338699594308
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 153/333 episodes,总时间步数 11016/24000, FPS 5. 
+平均步数奖励为 -1.0823668241500854.
+
+平均奖励值为： -25.976804771182938.
+
+当前步数: 11016, Evaluation 平均 episode 奖励: -23.084514983896174
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 154/333 episodes,总时间步数 11088/24000, FPS 5. 
+平均步数奖励为 -1.084327220916748.
+
+平均奖励值为： -26.02385535709091.
+
+当前步数: 11088, Evaluation 平均 episode 奖励: -23.070079424712095
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 5, 7, 9, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 155/333 episodes,总时间步数 11160/24000, FPS 5. 
+平均步数奖励为 -1.041628122329712.
+
+平均奖励值为： -24.999075830753245.
+
+当前步数: 11160, Evaluation 平均 episode 奖励: -23.120358384927027
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 156/333 episodes,总时间步数 11232/24000, FPS 5. 
+平均步数奖励为 -1.1079010963439941.
+
+平均奖励值为： -26.589625656612256.
+
+当前步数: 11232, Evaluation 平均 episode 奖励: -23.11895143675899
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 1, 9, 4, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 157/333 episodes,总时间步数 11304/24000, FPS 5. 
+平均步数奖励为 -1.0957987308502197.
+
+平均奖励值为： -26.299169889627745.
+
+当前步数: 11304, Evaluation 平均 episode 奖励: -23.12152870888168
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 158/333 episodes,总时间步数 11376/24000, FPS 5. 
+平均步数奖励为 -1.0526552200317383.
+
+平均奖励值为： -25.263725505037172.
+
+当前步数: 11376, Evaluation 平均 episode 奖励: -23.139568731648378
+big2small_S_sorted_order:  [0, 8, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 159/333 episodes,总时间步数 11448/24000, FPS 5. 
+平均步数奖励为 -1.0299012660980225.
+
+平均奖励值为： -24.71763126587774.
+
+当前步数: 11448, Evaluation 平均 episode 奖励: -23.13767434163634
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 160/333 episodes,总时间步数 11520/24000, FPS 5. 
+平均步数奖励为 -1.0735507011413574.
+
+平均奖励值为： -25.765219940039543.
+
+当前步数: 11520, Evaluation 平均 episode 奖励: -23.143528417860523
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 161/333 episodes,总时间步数 11592/24000, FPS 5. 
+平均步数奖励为 -1.0727506875991821.
+
+平均奖励值为： -25.746019483156346.
+
+当前步数: 11592, Evaluation 平均 episode 奖励: -23.156954429129737
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 162/333 episodes,总时间步数 11664/24000, FPS 5. 
+平均步数奖励为 -1.0550185441970825.
+
+平均奖励值为： -25.320443697970006.
+
+当前步数: 11664, Evaluation 平均 episode 奖励: -23.11895143675899
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 163/333 episodes,总时间步数 11736/24000, FPS 5. 
+平均步数奖励为 -1.1110692024230957.
+
+平均奖励值为： -26.6656612862274.
+
+当前步数: 11736, Evaluation 平均 episode 奖励: -23.11895143675899
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 164/333 episodes,总时间步数 11808/24000, FPS 5. 
+平均步数奖励为 -1.0284953117370605.
+
+平均奖励值为： -24.683886895632302.
+
+当前步数: 11808, Evaluation 平均 episode 奖励: -23.120358384927027
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 165/333 episodes,总时间步数 11880/24000, FPS 5. 
+平均步数奖励为 -1.071388840675354.
+
+平均奖励值为： -25.71333278330505.
+
+当前步数: 11880, Evaluation 平均 episode 奖励: -23.120845825652776
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 166/333 episodes,总时间步数 11952/24000, FPS 5. 
+平均步数奖励为 -1.0241787433624268.
+
+平均奖励值为： -24.58029011624795.
+
+当前步数: 11952, Evaluation 平均 episode 奖励: -23.122427631214975
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 167/333 episodes,总时间步数 12024/24000, FPS 5. 
+平均步数奖励为 -1.045041799545288.
+
+平均奖励值为： -25.081002360043552.
+
+当前步数: 12024, Evaluation 平均 episode 奖励: -23.192726347602832
+big2small_S_sorted_order:  [8, 2, 3, 1, 9, 7, 5, 6, 4, 0]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 168/333 episodes,总时间步数 12096/24000, FPS 5. 
+平均步数奖励为 -1.0621846914291382.
+
+平均奖励值为： -25.492433332383456.
+
+当前步数: 12096, Evaluation 平均 episode 奖励: -23.159171785882624
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 6, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 169/333 episodes,总时间步数 12168/24000, FPS 5. 
+平均步数奖励为 -1.0639755725860596.
+
+平均奖励值为： -25.535412254599336.
+
+当前步数: 12168, Evaluation 平均 episode 奖励: -23.163212469048403
+big2small_S_sorted_order:  [2, 0, 8, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 170/333 episodes,总时间步数 12240/24000, FPS 5. 
+平均步数奖励为 -1.0810478925704956.
+
+平均奖励值为： -25.945148408854237.
+
+当前步数: 12240, Evaluation 平均 episode 奖励: -23.13343731228437
+big2small_S_sorted_order:  [8, 2, 0, 3, 7, 9, 6, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 171/333 episodes,总时间步数 12312/24000, FPS 5. 
+平均步数奖励为 -1.1866607666015625.
+
+平均奖励值为： -28.479857587498127.
+
+当前步数: 12312, Evaluation 平均 episode 奖励: -23.18305771500687
+big2small_S_sorted_order:  [8, 0, 2, 3, 7, 1, 6, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 172/333 episodes,总时间步数 12384/24000, FPS 5. 
+平均步数奖励为 -1.0976141691207886.
+
+平均奖励值为： -26.342739051395807.
+
+当前步数: 12384, Evaluation 平均 episode 奖励: -23.21825305771773
+big2small_S_sorted_order:  [8, 0, 2, 1, 3, 5, 9, 7, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 173/333 episodes,总时间步数 12456/24000, FPS 5. 
+平均步数奖励为 -1.0410395860671997.
+
+平均奖励值为： -24.98494892707821.
+
+当前步数: 12456, Evaluation 平均 episode 奖励: -23.421267063386697
+big2small_S_sorted_order:  [0, 2, 3, 1, 5, 7, 6, 9, 4, 8]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 174/333 episodes,总时间步数 12528/24000, FPS 5. 
+平均步数奖励为 -1.0633915662765503.
+
+平均奖励值为： -25.52139794341746.
+
+当前步数: 12528, Evaluation 平均 episode 奖励: -23.113426995047334
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 3, 6, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 175/333 episodes,总时间步数 12600/24000, FPS 5. 
+平均步数奖励为 -1.0216484069824219.
+
+平均奖励值为： -24.519562182376408.
+
+当前步数: 12600, Evaluation 平均 episode 奖励: -23.092289435964403
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 3, 9, 6, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 176/333 episodes,总时间步数 12672/24000, FPS 5. 
+平均步数奖励为 -1.055192232131958.
+
+平均奖励值为： -25.32461176064322.
+
+当前步数: 12672, Evaluation 平均 episode 奖励: -23.082372958504887
+big2small_S_sorted_order:  [8, 0, 1, 4, 5, 2, 3, 9, 7, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 177/333 episodes,总时间步数 12744/24000, FPS 5. 
+平均步数奖励为 -0.9955297112464905.
+
+平均奖励值为： -23.892713532340085.
+
+当前步数: 12744, Evaluation 平均 episode 奖励: -22.56442806346881
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 5, 9, 7, 6, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 178/333 episodes,总时间步数 12816/24000, FPS 5. 
+平均步数奖励为 -1.014207124710083.
+
+平均奖励值为： -24.340970584117883.
+
+当前步数: 12816, Evaluation 平均 episode 奖励: -23.1818440717859
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 3, 2, 7, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 179/333 episodes,总时间步数 12888/24000, FPS 5. 
+平均步数奖励为 -1.0453534126281738.
+
+平均奖励值为： -25.088484369241048.
+
+当前步数: 12888, Evaluation 平均 episode 奖励: -23.21825305771773
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 180/333 episodes,总时间步数 12960/24000, FPS 5. 
+平均步数奖励为 -1.073979139328003.
+
+平均奖励值为： -25.775500318723687.
+
+当前步数: 12960, Evaluation 平均 episode 奖励: -23.3375486037064
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 181/333 episodes,总时间步数 13032/24000, FPS 5. 
+平均步数奖励为 -1.0007165670394897.
+
+平均奖励值为： -24.017198772021967.
+
+当前步数: 13032, Evaluation 平均 episode 奖励: -22.752336655457853
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 182/333 episodes,总时间步数 13104/24000, FPS 5. 
+平均步数奖励为 -0.9833140969276428.
+
+平均奖励值为： -23.599538337013936.
+
+当前步数: 13104, Evaluation 平均 episode 奖励: -22.633041109469186
+big2small_S_sorted_order:  [8, 0, 2, 1, 3, 5, 4, 6, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 183/333 episodes,总时间步数 13176/24000, FPS 5. 
+平均步数奖励为 -1.0540754795074463.
+
+平均奖励值为： -25.29781111411714.
+
+当前步数: 13176, Evaluation 平均 episode 奖励: -21.246579226102014
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 7, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 184/333 episodes,总时间步数 13248/24000, FPS 5. 
+平均步数奖励为 -0.99632728099823.
+
+平均奖励值为： -23.911854242360533.
+
+当前步数: 13248, Evaluation 平均 episode 奖励: -21.410396637251463
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 185/333 episodes,总时间步数 13320/24000, FPS 5. 
+平均步数奖励为 -0.9672350287437439.
+
+平均奖励值为： -23.213640155950955.
+
+当前步数: 13320, Evaluation 平均 episode 奖励: -21.410396637251463
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 186/333 episodes,总时间步数 13392/24000, FPS 5. 
+平均步数奖励为 -1.0003341436386108.
+
+平均奖励值为： -24.00801810861606.
+
+当前步数: 13392, Evaluation 平均 episode 奖励: -21.246579226102014
+big2small_S_sorted_order:  [8, 0, 2, 4, 3, 6, 7, 1, 9, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 187/333 episodes,总时间步数 13464/24000, FPS 5. 
+平均步数奖励为 -0.9796923398971558.
+
+平均奖励值为： -23.512615703097765.
+
+当前步数: 13464, Evaluation 平均 episode 奖励: -21.410396637251463
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 188/333 episodes,总时间步数 13536/24000, FPS 5. 
+平均步数奖励为 -0.948948323726654.
+
+平均奖励值为： -22.77476037862674.
+
+当前步数: 13536, Evaluation 平均 episode 奖励: -21.410396637251463
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 189/333 episodes,总时间步数 13608/24000, FPS 5. 
+平均步数奖励为 -0.9843983054161072.
+
+平均奖励值为： -23.62555830417452.
+
+当前步数: 13608, Evaluation 平均 episode 奖励: -21.410396637251463
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 190/333 episodes,总时间步数 13680/24000, FPS 5. 
+平均步数奖励为 -0.9553669691085815.
+
+平均奖励值为： -22.92880898417471.
+
+当前步数: 13680, Evaluation 平均 episode 奖励: -21.458822095794414
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 191/333 episodes,总时间步数 13752/24000, FPS 5. 
+平均步数奖励为 -0.9409424662590027.
+
+平均奖励值为： -22.582618965186622.
+
+当前步数: 13752, Evaluation 平均 episode 奖励: -21.11934533875745
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 192/333 episodes,总时间步数 13824/24000, FPS 5. 
+平均步数奖励为 -0.9422266483306885.
+
+平均奖励值为： -22.613439554624716.
+
+当前步数: 13824, Evaluation 平均 episode 奖励: -21.11934533875745
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 193/333 episodes,总时间步数 13896/24000, FPS 5. 
+平均步数奖励为 -0.9241049289703369.
+
+平均奖励值为： -22.17851861558178.
+
+当前步数: 13896, Evaluation 平均 episode 奖励: -21.018720658073605
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 194/333 episodes,总时间步数 13968/24000, FPS 5. 
+平均步数奖励为 -0.9126313328742981.
+
+平均奖励值为： -21.903153427344808.
+
+当前步数: 13968, Evaluation 平均 episode 奖励: -21.069352561778697
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 195/333 episodes,总时间步数 14040/24000, FPS 5. 
+平均步数奖励为 -0.9393471479415894.
+
+平均奖励值为： -22.54433204964542.
+
+当前步数: 14040, Evaluation 平均 episode 奖励: -21.047791570354235
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 196/333 episodes,总时间步数 14112/24000, FPS 5. 
+平均步数奖励为 -0.928852915763855.
+
+平均奖励值为： -22.292471352364142.
+
+当前步数: 14112, Evaluation 平均 episode 奖励: -21.00126211561386
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 197/333 episodes,总时间步数 14184/24000, FPS 5. 
+平均步数奖励为 -0.9181987047195435.
+
+平均奖励值为： -22.036767517149297.
+
+当前步数: 14184, Evaluation 平均 episode 奖励: -21.178147012537043
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 198/333 episodes,总时间步数 14256/24000, FPS 5. 
+平均步数奖励为 -0.9157840013504028.
+
+平均奖励值为： -21.978814443227417.
+
+当前步数: 14256, Evaluation 平均 episode 奖励: -20.935647604363982
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 4, 7, 9, 1, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 199/333 episodes,总时间步数 14328/24000, FPS 5. 
+平均步数奖励为 -0.9262858629226685.
+
+平均奖励值为： -22.230861142642695.
+
+当前步数: 14328, Evaluation 平均 episode 奖励: -20.935647604363982
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 200/333 episodes,总时间步数 14400/24000, FPS 5. 
+平均步数奖励为 -0.9109877347946167.
+
+平均奖励值为： -21.86370524798495.
+
+当前步数: 14400, Evaluation 平均 episode 奖励: -20.935647604363982
+big2small_S_sorted_order:  [8, 0, 4, 1, 2, 5, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 201/333 episodes,总时间步数 14472/24000, FPS 5. 
+平均步数奖励为 -0.926935613155365.
+
+平均奖励值为： -22.246454925229063.
+
+当前步数: 14472, Evaluation 平均 episode 奖励: -20.925668919272898
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 202/333 episodes,总时间步数 14544/24000, FPS 5. 
+平均步数奖励为 -0.9243109822273254.
+
+平均奖励值为： -22.18346475436469.
+
+当前步数: 14544, Evaluation 平均 episode 奖励: -21.16203895216577
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 203/333 episodes,总时间步数 14616/24000, FPS 5. 
+平均步数奖励为 -0.9384161829948425.
+
+平均奖励值为： -22.52198635238277.
+
+当前步数: 14616, Evaluation 平均 episode 奖励: -21.077077492543935
+big2small_S_sorted_order:  [8, 0, 4, 2, 6, 5, 7, 3, 1, 9]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 204/333 episodes,总时间步数 14688/24000, FPS 5. 
+平均步数奖励为 -0.92841637134552.
+
+平均奖励值为： -22.281993435048822.
+
+当前步数: 14688, Evaluation 平均 episode 奖励: -21.06905075131196
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 205/333 episodes,总时间步数 14760/24000, FPS 5. 
+平均步数奖励为 -0.9209706783294678.
+
+平均奖励值为： -22.103295307412406.
+
+当前步数: 14760, Evaluation 平均 episode 奖励: -20.938577248537722
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 1, 7, 5, 9, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 206/333 episodes,总时间步数 14832/24000, FPS 5. 
+平均步数奖励为 -0.9105247855186462.
+
+平均奖励值为： -21.85259418229917.
+
+当前步数: 14832, Evaluation 平均 episode 奖励: -20.91627709245999
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 3, 9, 2, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 207/333 episodes,总时间步数 14904/24000, FPS 5. 
+平均步数奖励为 -0.9096253514289856.
+
+平均奖励值为： -21.831010327897687.
+
+当前步数: 14904, Evaluation 平均 episode 奖励: -20.88932384826782
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 1, 7, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 208/333 episodes,总时间步数 14976/24000, FPS 5. 
+平均步数奖励为 -0.904657781124115.
+
+平均奖励值为： -21.711788472001246.
+
+当前步数: 14976, Evaluation 平均 episode 奖励: -21.02920231285887
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 209/333 episodes,总时间步数 15048/24000, FPS 5. 
+平均步数奖励为 -0.907079815864563.
+
+平均奖励值为： -21.769915182818625.
+
+当前步数: 15048, Evaluation 平均 episode 奖励: -21.107055561941078
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 9, 6, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 210/333 episodes,总时间步数 15120/24000, FPS 5. 
+平均步数奖励为 -0.925775945186615.
+
+平均奖励值为： -22.218624180676716.
+
+当前步数: 15120, Evaluation 平均 episode 奖励: -21.12164536265198
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 211/333 episodes,总时间步数 15192/24000, FPS 5. 
+平均步数奖励为 -0.952086329460144.
+
+平均奖励值为： -22.850073128394552.
+
+当前步数: 15192, Evaluation 平均 episode 奖励: -20.964973308450023
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 212/333 episodes,总时间步数 15264/24000, FPS 5. 
+平均步数奖励为 -0.9146319627761841.
+
+平均奖励值为： -21.95116724426332.
+
+当前步数: 15264, Evaluation 平均 episode 奖励: -20.971670761381034
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 213/333 episodes,总时间步数 15336/24000, FPS 5. 
+平均步数奖励为 -0.9038934707641602.
+
+平均奖励值为： -21.69344389703193.
+
+当前步数: 15336, Evaluation 平均 episode 奖励: -20.893970469256413
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 214/333 episodes,总时间步数 15408/24000, FPS 5. 
+平均步数奖励为 -0.9072958827018738.
+
+平均奖励值为： -21.77510139065181.
+
+当前步数: 15408, Evaluation 平均 episode 奖励: -21.180643455558847
+big2small_S_sorted_order:  [8, 0, 4, 2, 3, 1, 6, 5, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 215/333 episodes,总时间步数 15480/24000, FPS 5. 
+平均步数奖励为 -0.9005903601646423.
+
+平均奖励值为： -21.614168826551182.
+
+当前步数: 15480, Evaluation 平均 episode 奖励: -21.090493279438434
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 216/333 episodes,总时间步数 15552/24000, FPS 5. 
+平均步数奖励为 -0.9397438764572144.
+
+平均奖励值为： -22.553854066908173.
+
+当前步数: 15552, Evaluation 平均 episode 奖励: -20.971685473414478
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 7, 2, 3, 9, 6]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 217/333 episodes,总时间步数 15624/24000, FPS 5. 
+平均步数奖励为 -0.9041682481765747.
+
+平均奖励值为： -21.700039142460444.
+
+当前步数: 15624, Evaluation 平均 episode 奖励: -20.971685473414478
+big2small_S_sorted_order:  [8, 0, 4, 1, 6, 2, 5, 3, 7, 9]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 218/333 episodes,总时间步数 15696/24000, FPS 5. 
+平均步数奖励为 -0.8992995023727417.
+
+平均奖励值为： -21.583187964680803.
+
+当前步数: 15696, Evaluation 平均 episode 奖励: -20.971685473414478
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 219/333 episodes,总时间步数 15768/24000, FPS 5. 
+平均步数奖励为 -0.8985292911529541.
+
+平均奖励值为： -21.564704326714235.
+
+当前步数: 15768, Evaluation 平均 episode 奖励: -20.93563337841456
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 220/333 episodes,总时间步数 15840/24000, FPS 5. 
+平均步数奖励为 -0.8901351094245911.
+
+平均奖励值为： -21.363243753271195.
+
+当前步数: 15840, Evaluation 平均 episode 奖励: -20.971685473414478
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 221/333 episodes,总时间步数 15912/24000, FPS 5. 
+平均步数奖励为 -0.9075878858566284.
+
+平均奖励值为： -21.78210952517685.
+
+当前步数: 15912, Evaluation 平均 episode 奖励: -20.93563337841456
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 222/333 episodes,总时间步数 15984/24000, FPS 5. 
+平均步数奖励为 -0.8988257646560669.
+
+平均奖励值为： -21.57181896148578.
+
+当前步数: 15984, Evaluation 平均 episode 奖励: -21.1426243752973
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 7, 1, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 223/333 episodes,总时间步数 16056/24000, FPS 5. 
+平均步数奖励为 -0.9059200286865234.
+
+平均奖励值为： -21.742081097810786.
+
+当前步数: 16056, Evaluation 平均 episode 奖励: -20.971685473414478
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 224/333 episodes,总时间步数 16128/24000, FPS 5. 
+平均步数奖励为 -0.904312789440155.
+
+平均奖励值为： -21.703505695302926.
+
+当前步数: 16128, Evaluation 平均 episode 奖励: -21.04713041092481
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 225/333 episodes,总时间步数 16200/24000, FPS 5. 
+平均步数奖励为 -0.909322202205658.
+
+平均奖励值为： -21.823733555033886.
+
+当前步数: 16200, Evaluation 平均 episode 奖励: -20.857203711938656
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 3, 9, 2, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 226/333 episodes,总时间步数 16272/24000, FPS 5. 
+平均步数奖励为 -0.890665590763092.
+
+平均奖励值为： -21.375973097253446.
+
+当前步数: 16272, Evaluation 平均 episode 奖励: -20.89879500362781
+big2small_S_sorted_order:  [8, 0, 2, 3, 4, 6, 7, 1, 9, 5]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 227/333 episodes,总时间步数 16344/24000, FPS 5. 
+平均步数奖励为 -0.9179403781890869.
+
+平均奖励值为： -22.0305695011881.
+
+当前步数: 16344, Evaluation 平均 episode 奖励: -20.985303789329286
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 228/333 episodes,总时间步数 16416/24000, FPS 5. 
+平均步数奖励为 -0.9464346766471863.
+
+平均奖励值为： -22.71443397642678.
+
+当前步数: 16416, Evaluation 平均 episode 奖励: -20.94286765394489
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 229/333 episodes,总时间步数 16488/24000, FPS 5. 
+平均步数奖励为 -0.901117742061615.
+
+平均奖励值为： -21.626827237901065.
+
+当前步数: 16488, Evaluation 平均 episode 奖励: -20.985303789329286
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 230/333 episodes,总时间步数 16560/24000, FPS 5. 
+平均步数奖励为 -0.9114382266998291.
+
+平均奖励值为： -21.874516581141886.
+
+当前步数: 16560, Evaluation 平均 episode 奖励: -20.94286765394489
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 231/333 episodes,总时间步数 16632/24000, FPS 5. 
+平均步数奖励为 -0.905322790145874.
+
+平均奖励值为： -21.727748787027647.
+
+当前步数: 16632, Evaluation 平均 episode 奖励: -21.038297566014805
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 232/333 episodes,总时间步数 16704/24000, FPS 5. 
+平均步数奖励为 -0.8985211253166199.
+
+平均奖励值为： -21.564506713363837.
+
+当前步数: 16704, Evaluation 平均 episode 奖励: -20.981950426057143
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 233/333 episodes,总时间步数 16776/24000, FPS 5. 
+平均步数奖励为 -0.9027705788612366.
+
+平均奖励值为： -21.666492704697124.
+
+当前步数: 16776, Evaluation 平均 episode 奖励: -21.072403859402314
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 234/333 episodes,总时间步数 16848/24000, FPS 5. 
+平均步数奖励为 -0.8900771737098694.
+
+平均奖励值为： -21.36184976605303.
+
+当前步数: 16848, Evaluation 平均 episode 奖励: -21.219017007411065
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 235/333 episodes,总时间步数 16920/24000, FPS 5. 
+平均步数奖励为 -0.9113315939903259.
+
+平均奖励值为： -21.871956823920502.
+
+当前步数: 16920, Evaluation 平均 episode 奖励: -21.08921864861268
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 1, 5, 7, 9, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 236/333 episodes,总时间步数 16992/24000, FPS 5. 
+平均步数奖励为 -0.8987090587615967.
+
+平均奖励值为： -21.569019042555666.
+
+当前步数: 16992, Evaluation 平均 episode 奖励: -21.219017007411065
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 237/333 episodes,总时间步数 17064/24000, FPS 5. 
+平均步数奖励为 -0.897242546081543.
+
+平均奖励值为： -21.53382164191615.
+
+当前步数: 17064, Evaluation 平均 episode 奖励: -21.1435307367408
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 238/333 episodes,总时间步数 17136/24000, FPS 5. 
+平均步数奖励为 -0.8912461400032043.
+
+平均奖励值为： -21.38990632685542.
+
+当前步数: 17136, Evaluation 平均 episode 奖励: -21.1435307367408
+big2small_S_sorted_order:  [8, 0, 4, 2, 1, 3, 5, 6, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 239/333 episodes,总时间步数 17208/24000, FPS 5. 
+平均步数奖励为 -0.8944902420043945.
+
+平均奖励值为： -21.4677651249546.
+
+当前步数: 17208, Evaluation 平均 episode 奖励: -21.100422612483975
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 3, 9, 2, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 240/333 episodes,总时间步数 17280/24000, FPS 5. 
+平均步数奖励为 -0.888158917427063.
+
+平均奖励值为： -21.31581522354199.
+
+当前步数: 17280, Evaluation 平均 episode 奖励: -21.1435307367408
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 241/333 episodes,总时间步数 17352/24000, FPS 5. 
+平均步数奖励为 -0.9127184748649597.
+
+平均奖励值为： -21.9052411432736.
+
+当前步数: 17352, Evaluation 平均 episode 奖励: -21.1435307367408
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 242/333 episodes,总时间步数 17424/24000, FPS 5. 
+平均步数奖励为 -0.9128099083900452.
+
+平均奖励值为： -21.907436902575956.
+
+当前步数: 17424, Evaluation 平均 episode 奖励: -21.273329095539182
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 243/333 episodes,总时间步数 17496/24000, FPS 5. 
+平均步数奖励为 -0.9400420784950256.
+
+平均奖励值为： -22.561010961684335.
+
+当前步数: 17496, Evaluation 平均 episode 奖励: -21.13655840169196
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 244/333 episodes,总时间步数 17568/24000, FPS 5. 
+平均步数奖励为 -0.9002882838249207.
+
+平均奖励值为： -21.606919633274988.
+
+当前步数: 17568, Evaluation 平均 episode 奖励: -21.100422612483975
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 2, 3, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 245/333 episodes,总时间步数 17640/24000, FPS 5. 
+平均步数奖励为 -0.8986018300056458.
+
+平均奖励值为： -21.5664447113575.
+
+当前步数: 17640, Evaluation 平均 episode 奖励: -21.273329095539182
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 246/333 episodes,总时间步数 17712/24000, FPS 5. 
+平均步数奖励为 -0.919790506362915.
+
+平均奖励值为： -22.074972900616388.
+
+当前步数: 17712, Evaluation 平均 episode 奖励: -21.273329095539182
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 247/333 episodes,总时间步数 17784/24000, FPS 5. 
+平均步数奖励为 -0.9041618704795837.
+
+平均奖励值为： -21.699883915553457.
+
+当前步数: 17784, Evaluation 平均 episode 奖励: -21.273329095539182
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 248/333 episodes,总时间步数 17856/24000, FPS 5. 
+平均步数奖励为 -0.887595534324646.
+
+平均奖励值为： -21.302293748916455.
+
+当前步数: 17856, Evaluation 平均 episode 奖励: -21.687089795358997
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 249/333 episodes,总时间步数 17928/24000, FPS 5. 
+平均步数奖励为 -0.9171767830848694.
+
+平均奖励值为： -22.01224191579114.
+
+当前步数: 17928, Evaluation 平均 episode 奖励: -22.496765455661563
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 250/333 episodes,总时间步数 18000/24000, FPS 5. 
+平均步数奖励为 -0.9441269636154175.
+
+平均奖励值为： -22.659046554523385.
+
+当前步数: 18000, Evaluation 平均 episode 奖励: -21.687089795358997
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 251/333 episodes,总时间步数 18072/24000, FPS 5. 
+平均步数奖励为 -0.9221055507659912.
+
+平均奖励值为： -22.13053487134071.
+
+当前步数: 18072, Evaluation 平均 episode 奖励: -21.687089795358997
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 252/333 episodes,总时间步数 18144/24000, FPS 5. 
+平均步数奖励为 -0.9303299784660339.
+
+平均奖励值为： -22.327919166592977.
+
+当前步数: 18144, Evaluation 平均 episode 奖励: -21.117627839886243
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 253/333 episodes,总时间步数 18216/24000, FPS 5. 
+平均步数奖励为 -0.8987987041473389.
+
+平均奖励值为： -21.571168774964846.
+
+当前步数: 18216, Evaluation 平均 episode 奖励: -21.1435307367408
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 254/333 episodes,总时间步数 18288/24000, FPS 5. 
+平均步数奖励为 -0.9145324230194092.
+
+平均奖励值为： -21.94877897546282.
+
+当前步数: 18288, Evaluation 平均 episode 奖励: -21.100422612483975
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 255/333 episodes,总时间步数 18360/24000, FPS 5. 
+平均步数奖励为 -0.8865649104118347.
+
+平均奖励值为： -21.27755829104667.
+
+当前步数: 18360, Evaluation 平均 episode 奖励: -21.08921864861268
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 256/333 episodes,总时间步数 18432/24000, FPS 5. 
+平均步数奖励为 -0.8909392952919006.
+
+平均奖励值为： -21.382541905196025.
+
+当前步数: 18432, Evaluation 平均 episode 奖励: -21.03571720223295
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 9, 3, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 257/333 episodes,总时间步数 18504/24000, FPS 5. 
+平均步数奖励为 -0.8870991468429565.
+
+平均奖励值为： -21.290380917060926.
+
+当前步数: 18504, Evaluation 平均 episode 奖励: -21.050018275252892
+big2small_S_sorted_order:  [8, 0, 4, 2, 1, 3, 6, 5, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 258/333 episodes,总时间步数 18576/24000, FPS 5. 
+平均步数奖励为 -0.8907663822174072.
+
+平均奖励值为： -21.378391860147776.
+
+当前步数: 18576, Evaluation 平均 episode 奖励: -21.198007331452747
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 259/333 episodes,总时间步数 18648/24000, FPS 5. 
+平均步数奖励为 -0.9042869210243225.
+
+平均奖励值为： -21.702884995090233.
+
+当前步数: 18648, Evaluation 平均 episode 奖励: -21.284475237998972
+big2small_S_sorted_order:  [8, 0, 2, 4, 1, 3, 6, 5, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 260/333 episodes,总时间步数 18720/24000, FPS 5. 
+平均步数奖励为 -0.9003506898880005.
+
+平均奖励值为： -21.60841666098428.
+
+当前步数: 18720, Evaluation 平均 episode 奖励: -21.168095925041303
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 261/333 episodes,总时间步数 18792/24000, FPS 5. 
+平均步数奖励为 -0.8940762281417847.
+
+平均奖励值为： -21.457830248923973.
+
+当前步数: 18792, Evaluation 平均 episode 奖励: -21.038297566014805
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 262/333 episodes,总时间步数 18864/24000, FPS 5. 
+平均步数奖励为 -0.8920912146568298.
+
+平均奖励值为： -21.410189365677525.
+
+当前步数: 18864, Evaluation 平均 episode 奖励: -20.91219221962972
+big2small_S_sorted_order:  [8, 0, 4, 2, 1, 6, 5, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 263/333 episodes,总时间步数 18936/24000, FPS 5. 
+平均步数奖励为 -0.8833064436912537.
+
+平均奖励值为： -21.199356270420502.
+
+当前步数: 18936, Evaluation 平均 episode 奖励: -20.9654070962269
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 264/333 episodes,总时间步数 19008/24000, FPS 5. 
+平均步数奖励为 -0.897368848323822.
+
+平均奖励值为： -21.536851514850756.
+
+当前步数: 19008, Evaluation 平均 episode 奖励: -20.9654070962269
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 265/333 episodes,总时间步数 19080/24000, FPS 5. 
+平均步数奖励为 -0.8870183825492859.
+
+平均奖励值为： -21.288440328046928.
+
+当前步数: 19080, Evaluation 平均 episode 奖励: -20.94260550042449
+big2small_S_sorted_order:  [8, 0, 4, 2, 1, 6, 5, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 266/333 episodes,总时间步数 19152/24000, FPS 5. 
+平均步数奖励为 -0.8848056197166443.
+
+平均奖励值为： -21.23533477181306.
+
+当前步数: 19152, Evaluation 平均 episode 奖励: -20.926039248869497
+big2small_S_sorted_order:  [8, 0, 4, 1, 2, 5, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 267/333 episodes,总时间步数 19224/24000, FPS 5. 
+平均步数奖励为 -0.8895801901817322.
+
+平均奖励值为： -21.349923626237267.
+
+当前步数: 19224, Evaluation 平均 episode 奖励: -20.981950426057143
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 268/333 episodes,总时间步数 19296/24000, FPS 5. 
+平均步数奖励为 -0.9064462184906006.
+
+平均奖励值为： -21.75471036988884.
+
+当前步数: 19296, Evaluation 平均 episode 奖励: -21.038559719535204
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 269/333 episodes,总时间步数 19368/24000, FPS 5. 
+平均步数奖励为 -0.8980117440223694.
+
+平均奖励值为： -21.55228241652935.
+
+当前步数: 19368, Evaluation 平均 episode 奖励: -21.187527541205668
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 270/333 episodes,总时间步数 19440/24000, FPS 5. 
+平均步数奖励为 -0.9021589756011963.
+
+平均奖励值为： -21.65181635524632.
+
+当前步数: 19440, Evaluation 平均 episode 奖励: -20.981081168465835
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 271/333 episodes,总时间步数 19512/24000, FPS 5. 
+平均步数奖励为 -0.8897829055786133.
+
+平均奖励值为： -21.354790429831326.
+
+当前步数: 19512, Evaluation 平均 episode 奖励: -21.218000649771714
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 272/333 episodes,总时间步数 19584/24000, FPS 5. 
+平均步数奖励为 -0.9092547297477722.
+
+平均奖励值为： -21.822112406651367.
+
+当前步数: 19584, Evaluation 平均 episode 奖励: -21.23367472097281
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 273/333 episodes,总时间步数 19656/24000, FPS 5. 
+平均步数奖励为 -0.898188054561615.
+
+平均奖励值为： -21.55651366391731.
+
+当前步数: 19656, Evaluation 平均 episode 奖励: -21.103752484815654
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 274/333 episodes,总时间步数 19728/24000, FPS 5. 
+平均步数奖励为 -0.8929981589317322.
+
+平均奖励值为： -21.4319562261425.
+
+当前步数: 19728, Evaluation 平均 episode 奖励: -21.04165092928695
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 275/333 episodes,总时间步数 19800/24000, FPS 5. 
+平均步数奖励为 -0.9015330076217651.
+
+平均奖励值为： -21.636793353216316.
+
+当前步数: 19800, Evaluation 平均 episode 奖励: -21.05087038241522
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 276/333 episodes,总时间步数 19872/24000, FPS 5. 
+平均步数奖励为 -0.9022856950759888.
+
+平均奖励值为： -21.65485819428091.
+
+当前步数: 19872, Evaluation 平均 episode 奖励: -20.94286765394489
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 277/333 episodes,总时间步数 19944/24000, FPS 5. 
+平均步数奖励为 -0.8829392790794373.
+
+平均奖励值为： -21.19054405324405.
+
+当前步数: 19944, Evaluation 平均 episode 奖励: -20.920219916381708
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 3, 9, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 278/333 episodes,总时间步数 20016/24000, FPS 5. 
+平均步数奖励为 -0.8853751420974731.
+
+平均奖励值为： -21.24900429663487.
+
+当前步数: 20016, Evaluation 平均 episode 奖励: -20.95194214572405
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 279/333 episodes,总时间步数 20088/24000, FPS 5. 
+平均步数奖励为 -0.9322137832641602.
+
+平均奖励值为： -22.37313206180491.
+
+当前步数: 20088, Evaluation 平均 episode 奖励: -20.94286765394489
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 280/333 episodes,总时间步数 20160/24000, FPS 5. 
+平均步数奖励为 -0.8879732489585876.
+
+平均奖励值为： -21.311358142182076.
+
+当前步数: 20160, Evaluation 平均 episode 奖励: -21.07505097777783
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 2, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 281/333 episodes,总时间步数 20232/24000, FPS 5. 
+平均步数奖励为 -0.8950555324554443.
+
+平均奖励值为： -21.48133393127559.
+
+当前步数: 20232, Evaluation 平均 episode 奖励: -20.914469075957424
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 282/333 episodes,总时间步数 20304/24000, FPS 5. 
+平均步数奖励为 -0.9041169285774231.
+
+平均奖励值为： -21.698806957943177.
+
+当前步数: 20304, Evaluation 平均 episode 奖励: -20.942912466678738
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 283/333 episodes,总时间步数 20376/24000, FPS 5. 
+平均步数奖励为 -0.8863803744316101.
+
+平均奖励值为： -21.27312888839664.
+
+当前步数: 20376, Evaluation 平均 episode 奖励: -20.856467126392648
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 284/333 episodes,总时间步数 20448/24000, FPS 5. 
+平均步数奖励为 -0.8884232044219971.
+
+平均奖励值为： -21.3221565233313.
+
+当前步数: 20448, Evaluation 平均 episode 奖励: -20.89879500362781
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 285/333 episodes,总时间步数 20520/24000, FPS 5. 
+平均步数奖励为 -0.8879735469818115.
+
+平均奖励值为： -21.311367908053658.
+
+当前步数: 20520, Evaluation 平均 episode 奖励: -20.89879500362781
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 2, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 286/333 episodes,总时间步数 20592/24000, FPS 5. 
+平均步数奖励为 -0.8860024213790894.
+
+平均奖励值为： -21.26405815157434.
+
+当前步数: 20592, Evaluation 平均 episode 奖励: -20.87258514070949
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 287/333 episodes,总时间步数 20664/24000, FPS 5. 
+平均步数奖励为 -0.8909643888473511.
+
+平均奖励值为： -21.383145081351277.
+
+当前步数: 20664, Evaluation 平均 episode 奖励: -20.8834623868132
+big2small_S_sorted_order:  [8, 0, 4, 2, 1, 5, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 288/333 episodes,总时间步数 20736/24000, FPS 5. 
+平均步数奖励为 -0.8980399370193481.
+
+平均奖励值为： -21.552956781707337.
+
+当前步数: 20736, Evaluation 平均 episode 奖励: -20.867876712706025
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 1, 7, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 289/333 episodes,总时间步数 20808/24000, FPS 5. 
+平均步数奖励为 -0.8817470073699951.
+
+平均奖励值为： -21.161929247780392.
+
+当前步数: 20808, Evaluation 平均 episode 奖励: -19.893487991502553
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 290/333 episodes,总时间步数 20880/24000, FPS 5. 
+平均步数奖励为 -0.8836126327514648.
+
+平均奖励值为： -21.206703213609114.
+
+当前步数: 20880, Evaluation 平均 episode 奖励: -19.903929407671516
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 7, 9, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 291/333 episodes,总时间步数 20952/24000, FPS 5. 
+平均步数奖励为 -0.9115077257156372.
+
+平均奖励值为： -21.876185934100562.
+
+当前步数: 20952, Evaluation 平均 episode 奖励: -19.88650097971126
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 292/333 episodes,总时间步数 21024/24000, FPS 5. 
+平均步数奖励为 -0.8644235730171204.
+
+平均奖励值为： -20.746166668187797.
+
+当前步数: 21024, Evaluation 平均 episode 奖励: -19.88650097971126
+big2small_S_sorted_order:  [8, 0, 2, 1, 5, 3, 6, 9, 4, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 293/333 episodes,总时间步数 21096/24000, FPS 5. 
+平均步数奖励为 -0.88672935962677.
+
+平均奖励值为： -21.281504226325037.
+
+当前步数: 21096, Evaluation 平均 episode 奖励: -20.160633841724177
+big2small_S_sorted_order:  [8, 0, 2, 3, 6, 7, 5, 9, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 294/333 episodes,总时间步数 21168/24000, FPS 5. 
+平均步数奖励为 -0.9077572226524353.
+
+平均奖励值为： -21.786174238402605.
+
+当前步数: 21168, Evaluation 平均 episode 奖励: -19.71037858130643
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 295/333 episodes,总时间步数 21240/24000, FPS 5. 
+平均步数奖励为 -0.8545299768447876.
+
+平均奖励值为： -20.508719459032818.
+
+当前步数: 21240, Evaluation 平均 episode 奖励: -19.45234332295729
+big2small_S_sorted_order:  [8, 0, 1, 2, 5, 4, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 296/333 episodes,总时间步数 21312/24000, FPS 5. 
+平均步数奖励为 -0.8508559465408325.
+
+平均奖励值为： -20.420543969409216.
+
+当前步数: 21312, Evaluation 平均 episode 奖励: -19.42969558935403
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 1, 7, 9, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 297/333 episodes,总时间步数 21384/24000, FPS 5. 
+平均步数奖励为 -0.8452685475349426.
+
+平均奖励值为： -20.286445978462684.
+
+当前步数: 21384, Evaluation 平均 episode 奖励: -19.745832747216316
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 298/333 episodes,总时间步数 21456/24000, FPS 5. 
+平均步数奖励为 -0.8903195858001709.
+
+平均奖励值为： -21.367669811431824.
+
+当前步数: 21456, Evaluation 平均 episode 奖励: -19.904294857377618
+big2small_S_sorted_order:  [8, 0, 2, 1, 3, 5, 6, 9, 7, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 299/333 episodes,总时间步数 21528/24000, FPS 5. 
+平均步数奖励为 -0.8706068396568298.
+
+平均奖励值为： -20.894565754852323.
+
+当前步数: 21528, Evaluation 平均 episode 奖励: -20.1621764214277
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 7, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 300/333 episodes,总时间步数 21600/24000, FPS 5. 
+平均步数奖励为 -0.8640097379684448.
+
+平均奖励值为： -20.736232759628063.
+
+当前步数: 21600, Evaluation 平均 episode 奖励: -20.22301593751452
+big2small_S_sorted_order:  [4, 1, 5, 8, 9, 6, 7, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 301/333 episodes,总时间步数 21672/24000, FPS 5. 
+平均步数奖励为 -0.8957229256629944.
+
+平均奖励值为： -21.497348226366537.
+
+当前步数: 21672, Evaluation 平均 episode 奖励: -19.986155467968242
+big2small_S_sorted_order:  [8, 0, 2, 3, 1, 6, 5, 7, 9, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 302/333 episodes,总时间步数 21744/24000, FPS 5. 
+平均步数奖励为 -0.8624033331871033.
+
+平均奖励值为： -20.697678551573034.
+
+当前步数: 21744, Evaluation 平均 episode 奖励: -19.871839674503036
+big2small_S_sorted_order:  [2, 8, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 303/333 episodes,总时间步数 21816/24000, FPS 5. 
+平均步数奖励为 -0.8568636775016785.
+
+平均奖励值为： -20.564727331521574.
+
+当前步数: 21816, Evaluation 平均 episode 奖励: -19.85969129622895
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 304/333 episodes,总时间步数 21888/24000, FPS 5. 
+平均步数奖励为 -0.847082257270813.
+
+平均奖励值为： -20.32997340935506.
+
+当前步数: 21888, Evaluation 平均 episode 奖励: -19.77624520052311
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 305/333 episodes,总时间步数 21960/24000, FPS 5. 
+平均步数奖励为 -0.8442269563674927.
+
+平均奖励值为： -20.261446946839083.
+
+当前步数: 21960, Evaluation 平均 episode 奖励: -19.733279660405216
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 306/333 episodes,总时间步数 22032/24000, FPS 5. 
+平均步数奖励为 -0.8448758125305176.
+
+平均奖励值为： -20.277019072419847.
+
+当前步数: 22032, Evaluation 平均 episode 奖励: -20.157838516649036
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 2, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 307/333 episodes,总时间步数 22104/24000, FPS 5. 
+平均步数奖励为 -0.8564023971557617.
+
+平均奖励值为： -20.553658360133255.
+
+当前步数: 22104, Evaluation 平均 episode 奖励: -20.19123172667465
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 308/333 episodes,总时间步数 22176/24000, FPS 5. 
+平均步数奖励为 -0.9000577926635742.
+
+平均奖励值为： -21.601387603565854.
+
+当前步数: 22176, Evaluation 平均 episode 奖励: -19.76241603334059
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 309/333 episodes,总时间步数 22248/24000, FPS 5. 
+平均步数奖励为 -0.8429745435714722.
+
+平均奖励值为： -20.231388452683024.
+
+当前步数: 22248, Evaluation 平均 episode 奖励: -19.765488132175836
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 310/333 episodes,总时间步数 22320/24000, FPS 5. 
+平均步数奖励为 -0.8494510650634766.
+
+平均奖励值为： -20.38682557060763.
+
+当前步数: 22320, Evaluation 平均 episode 奖励: -19.91611660912282
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 311/333 episodes,总时间步数 22392/24000, FPS 5. 
+平均步数奖励为 -0.8589677810668945.
+
+平均奖励值为： -20.615226928633607.
+
+当前步数: 22392, Evaluation 平均 episode 奖励: -19.778485105025577
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 312/333 episodes,总时间步数 22464/24000, FPS 5. 
+平均步数奖励为 -0.8470048308372498.
+
+平均奖励值为： -20.32811608191305.
+
+当前步数: 22464, Evaluation 平均 episode 奖励: -19.725758579594014
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 313/333 episodes,总时间步数 22536/24000, FPS 5. 
+平均步数奖励为 -0.8381795883178711.
+
+平均奖励值为： -20.116311965703076.
+
+当前步数: 22536, Evaluation 平均 episode 奖励: -19.9266838157851
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 314/333 episodes,总时间步数 22608/24000, FPS 5. 
+平均步数奖励为 -0.848484456539154.
+
+平均奖励值为： -20.363627488249037.
+
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+There are 40 edges and 36 unique edges. Overlapping transformer edges
+Closing the environment
+当前步数: 22608, Evaluation 平均 episode 奖励: -19.898940852741138
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 315/333 episodes,总时间步数 22680/24000, FPS 5. 
+平均步数奖励为 -0.843634843826294.
+
+平均奖励值为： -20.247234205791802.
+
+当前步数: 22680, Evaluation 平均 episode 奖励: -19.735095224768354
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 316/333 episodes,总时间步数 22752/24000, FPS 5. 
+平均步数奖励为 -0.8577911853790283.
+
+平均奖励值为： -20.586988038691025.
+
+当前步数: 22752, Evaluation 平均 episode 奖励: -19.97596414388559
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 317/333 episodes,总时间步数 22824/24000, FPS 5. 
+平均步数奖励为 -0.849041223526001.
+
+平均奖励值为： -20.376990703571998.
+
+当前步数: 22824, Evaluation 平均 episode 奖励: -19.67768226431222
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 318/333 episodes,总时间步数 22896/24000, FPS 5. 
+平均步数奖励为 -0.8420916795730591.
+
+平均奖励值为： -20.21020059831576.
+
+当前步数: 22896, Evaluation 平均 episode 奖励: -19.77043349740613
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 319/333 episodes,总时间步数 22968/24000, FPS 5. 
+平均步数奖励为 -0.8451699018478394.
+
+平均奖励值为： -20.28407807045511.
+
+当前步数: 22968, Evaluation 平均 episode 奖励: -19.822373176089197
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 320/333 episodes,总时间步数 23040/24000, FPS 5. 
+平均步数奖励为 -0.8428667783737183.
+
+平均奖励值为： -20.22880240616455.
+
+当前步数: 23040, Evaluation 平均 episode 奖励: -19.740522088940384
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 321/333 episodes,总时间步数 23112/24000, FPS 5. 
+平均步数奖励为 -0.8450686931610107.
+
+平均奖励值为： -20.28164873657541.
+
+当前步数: 23112, Evaluation 平均 episode 奖励: -19.68417494852448
+big2small_S_sorted_order:  [8, 4, 0, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 322/333 episodes,总时间步数 23184/24000, FPS 5. 
+平均步数奖励为 -0.8409683108329773.
+
+平均奖励值为： -20.18323861676127.
+
+当前步数: 23184, Evaluation 平均 episode 奖励: -19.740522088940384
+big2small_S_sorted_order:  [8, 2, 0, 3, 6, 7, 9, 1, 5, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 323/333 episodes,总时间步数 23256/24000, FPS 5. 
+平均步数奖励为 -0.8408617377281189.
+
+平均奖励值为： -20.180681362837436.
+
+当前步数: 23256, Evaluation 平均 episode 奖励: -19.97596414388559
+big2small_S_sorted_order:  [8, 0, 4, 1, 2, 5, 6, 3, 9, 7]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 324/333 episodes,总时间步数 23328/24000, FPS 5. 
+平均步数奖励为 -0.8540318012237549.
+
+平均奖励值为： -20.49676223588415.
+
+当前步数: 23328, Evaluation 平均 episode 奖励: -20.198279445016443
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 325/333 episodes,总时间步数 23400/24000, FPS 5. 
+平均步数奖励为 -0.8599092960357666.
+
+平均奖励值为： -20.63782396724595.
+
+当前步数: 23400, Evaluation 平均 episode 奖励: -19.87146298033375
+big2small_S_sorted_order:  [2, 8, 0, 3, 6, 7, 9, 5, 1, 4]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 326/333 episodes,总时间步数 23472/24000, FPS 5. 
+平均步数奖励为 -0.8502480983734131.
+
+平均奖励值为： -20.40595522145107.
+
+当前步数: 23472, Evaluation 平均 episode 奖励: -19.937392185154913
+big2small_S_sorted_order:  [8, 0, 4, 1, 5, 6, 9, 3, 7, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 327/333 episodes,总时间步数 23544/24000, FPS 5. 
+平均步数奖励为 -0.8507000803947449.
+
+平均奖励值为： -20.416801907804075.
+
+当前步数: 23544, Evaluation 平均 episode 奖励: -19.948073880668165
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 328/333 episodes,总时间步数 23616/24000, FPS 5. 
+平均步数奖励为 -0.8445476293563843.
+
+平均奖励值为： -20.269142137399513.
+
+当前步数: 23616, Evaluation 平均 episode 奖励: -19.785581845697447
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 329/333 episodes,总时间步数 23688/24000, FPS 5. 
+平均步数奖励为 -0.8421981930732727.
+
+平均奖励值为： -20.212756122407686.
+
+当前步数: 23688, Evaluation 平均 episode 奖励: -19.785581845697447
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 330/333 episodes,总时间步数 23760/24000, FPS 5. 
+平均步数奖励为 -0.839601993560791.
+
+平均奖励值为： -20.150447557477346.
+
+当前步数: 23760, Evaluation 平均 episode 奖励: -19.704653289291816
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 0, 8, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 331/333 episodes,总时间步数 23832/24000, FPS 5. 
+平均步数奖励为 -0.8387917280197144.
+
+平均奖励值为： -20.13100148362931.
+
+当前步数: 23832, Evaluation 平均 episode 奖励: -19.704653289291816
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 332/333 episodes,总时间步数 23904/24000, FPS 5. 
+平均步数奖励为 -0.8384191989898682.
+
+平均奖励值为： -20.122061347760216.
+
+当前步数: 23904, Evaluation 平均 episode 奖励: -19.765492805346746
+big2small_S_sorted_order:  [4, 1, 5, 9, 6, 7, 8, 0, 3, 2]
+
+环境：powerzoo 网络: 34Bus 算法: shom 实验名称: installtest 
+更新次数 333/333 episodes,总时间步数 23976/24000, FPS 5. 
+平均步数奖励为 -0.864513099193573.
+
+平均奖励值为： -20.748315246470074.
+
+当前步数: 23976, Evaluation 平均 episode 奖励: -19.750971752123885

@@ -5,11 +5,14 @@ from pathlib import Path
 from fnmatch import fnmatch
 
 class LoadProfile:
-    def __init__(self, steps, dss_folder_path, dss_file, worker_idx=None):
+    def __init__(self, steps, dss_folder_path, dss_file, use_noise=False, worker_idx=None):
         self.steps = steps
         
         self.dss_folder_path = dss_folder_path
-        self.loadshape_path = os.path.join(dss_folder_path, 'loadshape')
+        if use_noise:
+            self.loadshape_path = os.path.join(dss_folder_path, 'loadshape/data_with_gaussian_noise')
+        else:
+            self.loadshape_path = os.path.join(dss_folder_path, 'loadshape/data_without_noise')
         if worker_idx is None:
             self.loadshape_dss = 'loadshape.dss'
         else:
@@ -162,7 +165,7 @@ class LoadProfile:
         
         return names     
 
-    def gen_loadprofile(self, scale=1.0):
+    def gen_loadprofile(self, use_noise=False, scale=1.0):
         #TODO:修改内容
         try:
             dfs = []
@@ -171,6 +174,12 @@ class LoadProfile:
             assert len(dfs)>0, r'put load shapes files under ./loadshape'
             df = pd.concat(dfs).rename(columns = {0: 'mul'}).reset_index(drop=True)
             if scale!=1.0: df['mul'] = df['mul']*scale  #因此若需要增加噪声，则需要在此处加入噪声，等下，我好像不能直接加在这里，因为这里用的是实际的数据，应该把他加在训练模型获取的数据上
+            if use_noise:
+                mean_noise = 0  # 高斯噪声均值
+                variance_noise_load = 10**-4  # 负荷数据噪声方差
+                std_noise_load = np.sqrt(variance_noise_load)  # 负荷噪声标准差
+                noise_load = np.random.normal(mean_noise, std_noise_load, size=len(df['mul']))
+                df['mul'] = df['mul'] + noise_load
         except:
             print(r'put load shapes files under ./loadshape')
         
@@ -182,6 +191,9 @@ class LoadProfile:
         episodes = len(df) // ( self.steps * len(self.LOAD_NAMES) )
         
         # stop here only if the loadprofile folders exist
+        
+        #todo:在此处添加修改内容，把校验定在特定文件夹下
+        
         checks = [fnmatch(f, '0*') for f in os.listdir(self.loadshape_path)]
         scale_txt = os.path.join(self.loadshape_path, 'scale.txt')
         fscale = np.genfromtxt(scale_txt).reshape(1)[0] if os.path.exists(scale_txt) else None
@@ -201,10 +213,9 @@ class LoadProfile:
         df['load'] = load_col
         df['episode'] = episode_col
         df['step'] = step_col
-        
         # sort and output
         df = df.sort_values(by=['episode','load','step'])[['episode','load','step','mul']].reset_index(drop=True)
-        for episode in range(episodes):
+        for episode in range(episodes):#这里只补充缺的那个数据，先快速出图，把所有的loadshape都删了或者存到新的文件夹，然后生成一个噪声文件夹，同时把噪声数据存储下来
             if not os.path.exists(os.path.join(self.loadshape_path, str(episode).zfill(3))):
                 os.mkdir(os.path.join(self.loadshape_path, str(episode).zfill(3)))
             sdf = df[df['episode']==episode]
@@ -216,13 +227,18 @@ class LoadProfile:
 
         return episodes # number of distinct epochs
     
-    def choose_loadprofile(self, idx):
+    def choose_loadprofile(self, idx, use_noise=False):#这一步是写loadshape文件的
         assert os.path.exists(os.path.join(self.loadshape_path, str(idx).zfill(3))), 'idx does not exist'
         
         with open(os.path.join(self.dss_folder_path, self.loadshape_dss), 'w') as fp:
-            for load_name in self.LOAD_NAMES:
-                fp.write(f'New Loadshape.loadshape_{load_name} npts={self.steps} sinterval={60*60*24//self.steps} ' +
-                    'mult=(file=./' + os.path.join('loadshape', str(idx).zfill(3), load_name+'.csv') + ')\n' )
+            if use_noise:
+                for load_name in self.LOAD_NAMES:
+                    fp.write(f'New Loadshape.loadshape_{load_name} npts={self.steps} sinterval={60*60*24//self.steps} ' +
+                        'mult=(file=./' + os.path.join('loadshape/data_with_gaussian_noise', str(idx).zfill(3), load_name+'.csv') + ')\n' )
+            else:
+                for load_name in self.LOAD_NAMES:
+                    fp.write(f'New Loadshape.loadshape_{load_name} npts={self.steps} sinterval={60*60*24//self.steps} ' +
+                        'mult=(file=./' + os.path.join('loadshape/data_without_noise', str(idx).zfill(3), load_name+'.csv') + ')\n' )
 
         return os.path.join(self.loadshape_path, str(idx).zfill(3))
 

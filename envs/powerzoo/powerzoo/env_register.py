@@ -14,21 +14,24 @@ _SYS_INFO = {
         'source_bus': 'sourcebus',      # 电力系统中的源节点
         'node_size': 500,              # 节点的大小
         'shift': 10,                   # 节点位置的偏移
-        'show_node_labels': True       # 是否显示节点标签
+        'show_node_labels': True,       # 是否显示节点标签
+        'load_noise':True               #是否使用噪声
     },
 
     '34Bus': {
         'source_bus': 'sourcebus',
         'node_size': 500,
         'shift': 80,
-        'show_node_labels': True
+        'show_node_labels': True,
+        'load_noise':False    
     },
 
     '123Bus': {
         'source_bus': '150',
         'node_size': 400,
         'shift': 80,
-        'show_node_labels': True
+        'show_node_labels': True,
+        'load_noise':False 
     },
 
     '8500-Node': {

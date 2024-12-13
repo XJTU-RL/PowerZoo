@@ -199,7 +199,7 @@ class OnPolicyBaseRunner:
 
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_agents, self.writter, self.run_dir
-            )
+            )#在此处再加入随机动作的模块
         if self.algo_args["train"]["model_dir"] is not None:  # restore model
             self.restore()
 

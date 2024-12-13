@@ -215,7 +215,7 @@ def make_render_env(env_name, seed, env_args):
     elif env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
         from envs.powerzoo.powerzoo_env import PowerZooEnv
 
-        env = PowerZooEnv(env_args,rank=1)
+        env = PowerZooEnv(env_args,rank=4)
         manual_render = False  
         manual_expand_dims = (
             False  # dexhands uses parallel envs, thus dimension is already expanded
