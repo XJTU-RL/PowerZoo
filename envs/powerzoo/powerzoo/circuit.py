@@ -50,7 +50,7 @@
     - 计算节点的无功电压敏感度。
 3. **依赖库**：依赖 `networkx`、`numpy`、`pandas`、`scipy`、`cupy` 和 `dss` 等库。
 """
-# Copyright 2021 Siemens Corporation
+# 
 # SPDX-License-Identifier: MIT
 
 #import dss as opendss

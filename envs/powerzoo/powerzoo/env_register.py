@@ -13,7 +13,7 @@
   - `remove_parallel_dss`：移除并行运行时生成的 DSS 文件。
 - 工作流程：通过字典存储系统和环境信息，在创建环境时，根据环境名称获取相应信息，若为多线程模式则复制并修改 DSS 文件，最后创建环境实例。
 """
-# Copyright 2021 Siemens Corporation
+# 
 # SPDX-License-Identifier: MIT
 
 import os
