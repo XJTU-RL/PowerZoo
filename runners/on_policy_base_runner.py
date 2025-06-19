@@ -140,7 +140,7 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #TODO:自定义的powerzoo更新顺序
+        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #NOTE:自定义的powerzoo更新顺序
         if args["env"] == "powerzoo":
             if env_args["useS"]==True:
                 self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
@@ -307,7 +307,6 @@ class OnPolicyBaseRunner:
                     rnn_states,
                     rnn_states_critic,
                 )
-                #print("obs+++++++++++++shape",obs.shape)
                 self.logger.per_step(data)  # logger callback at each step
                 self.insert(data)  # insert data into buffer,此处的insert是actorbuffer的insert
 
@@ -617,10 +616,9 @@ class OnPolicyBaseRunner:
         )
 
         while True:
-            #print("eval_available_actions: eval_available_actions) #TODO:检查评价动作输出
+            #print("eval_available_actions: eval_available_actions) 
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
-                #TODO:availible_action check报错解决
                 test=eval_available_actions[:, agent_id].copy()
                 test1 = np.vstack([np.array(item, dtype=np.float32) for item in test])
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
@@ -630,7 +628,7 @@ class OnPolicyBaseRunner:
                     # eval_available_actions[:, agent_id]
                     # if eval_available_actions[0] is not None
                     # else None,
-                    test1 ###TODO:加了一层转换
+                    test1 
                     if test1[0] is not None
                     else None,
                     deterministic=True,

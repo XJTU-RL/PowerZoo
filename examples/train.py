@@ -36,9 +36,6 @@ def main():
     parser.add_argument(
         "--algo", 
         type=str,
-
-#         default="qmix",
-
         default="shom",
         choices=[
             "happo",
@@ -72,8 +69,9 @@ def main():
             "smacv2",
             "lag",
             "powerzoo",
+            "dsr",
         ],
-        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag,powerzoo.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag, powerzoo, dsr.",
     )
     # 添加实验名称参数，默认为"installtest"
     parser.add_argument(

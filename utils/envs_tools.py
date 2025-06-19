@@ -94,6 +94,11 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
                 env = PowerZooEnv(env_args,rank) 
                 
+            elif env_name == "dsr":
+                from envs.dsr.dsr_env import DSREnv
+                
+                env = DSREnv(env_args, rank)
+                
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -150,6 +155,9 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
             elif env_name == "powerzoo":
                 from envs.powerzoo.powerzoo_env import PowerZooEnv
                 env = PowerZooEnv(env_args,rank+train_threads)
+            elif env_name == "dsr":
+                from envs.dsr.dsr_env import DSREnv
+                env = DSREnv(env_args, rank+train_threads)
             elif env_name == "lag":
                 from envs.lag.lag_env import LAGEnv
 
@@ -222,6 +230,14 @@ def make_render_env(env_name, seed, env_args):
         )
         manual_delay = False
         env.seed(seed * 60000)
+    elif env_name == "dsr":
+        from envs.dsr.dsr_env import DSREnv
+
+        env = DSREnv(env_args, rank=4)
+        manual_render = False  
+        manual_expand_dims = False
+        manual_delay = False
+        env.seed(seed * 60000)
         
     elif env_name == "dexhands":
         from envs.dexhands.dexhands_env import DexHandsEnv
@@ -277,6 +293,8 @@ def get_num_agents(env, env_args, envs):
     elif env == "lag":
         return envs.n_agents
     elif env == "powerzoo":
+        return envs.n_agents
+    elif env == "dsr":
         return envs.n_agents
 
 # def get_agents_orders(env, env_args, envs):
