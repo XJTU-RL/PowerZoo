@@ -30,4 +30,5 @@ RUNNER_REGISTRY = {
     "mappo": OnPolicyMARunner,
     "qmix": QMIXRunner,
     "shom": OnPolicyHARunner,
+    "sn_mappo": OnPolicyHARunner,  # Stackelberg-Nash MAPPO uses heterogeneous runner
 }

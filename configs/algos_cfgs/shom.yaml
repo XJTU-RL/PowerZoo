@@ -28,7 +28,7 @@ train:
   # 是否考虑在episode结束时截断
   use_proper_time_limits: True
   # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
-  model_dir: /home/yushixuan/shom_onlie/PowerZoo/results/VVC_noise_experiment/34bus/no_noise/shom/seed-00001-2024-12-09-17-56-48_b2s/models
+  model_dir: ～
 eval:
   # 是否使用评估
   use_eval: True

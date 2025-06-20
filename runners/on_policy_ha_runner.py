@@ -63,7 +63,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             std_advantages = np.nanstd(advantages_copy)
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
         
-        if self.useS==True:
+        if hasattr(self, 'useS') and self.useS:
            result = {}
            for step_data in self.critic_buffer.infos.values():
         # 遍历每个步骤中的字典
@@ -107,8 +107,8 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             # 2. 固定顺序,第一种是所有更新使用一个固定顺序，第二种是每一轮更新都产生一个随机顺序
             # agent_order = list(range(self.num_agents)) #TODO:固定顺序,原始代码
             
-            if self.useS==True:
-               if self.big2small:# 从大到小按照S排序
+            if hasattr(self, 'useS') and self.useS:
+               if hasattr(self, 'big2small') and self.big2small:# 从大到小按照S排序
                   agent_order=sorted_values
                   print("big2small_S_sorted_order: ",agent_order)
                else: # 小到大按照S排序

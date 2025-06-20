@@ -1,0 +1,277 @@
+# Configuration for Stackelberg Game Environment - 123Bus System
+
+env_name: stackelberg_123bus
+system_name: 123Bus
+dss_file: IEEE123Master.dss
+
+# Episode configuration
+max_episode_steps: 24  # 24-hour episodes
+num_steps: 24
+
+# Random seed
+seed: 123456
+
+# Agent configuration
+n_consumer_agents_123bus: 20  # 20 consumer agents for 123Bus system
+n_uc_agents: 1  # Single UC agent
+
+# Load aggregation configuration
+load_aggregation:
+  method: graph  # Use graph-based for large system
+  use_electrical_distance: True
+  spectral_clusters: True
+  consider_power_flow: True
+  
+  # Graph-based specific settings
+  max_electrical_distance: 5  # Maximum hops for connectivity
+  community_detection: True
+  weight_by_load_size: True
+  
+  # Adaptive settings
+  enable_dynamic_reaggregation: True
+  adaptation_interval: 200
+  adaptation_threshold: 0.2
+  load_balance_factor: 0.8
+
+# Stackelberg game configuration
+stackelberg_config:
+  price_bounds: [0.7, 1.6]  # Tighter bounds for large system stability
+  dr_incentive_bounds: [0.0, 0.35]
+  nash_iterations: 3  # More iterations needed
+  enable_best_response: True
+  best_response_buffer_size: 200
+  equilibrium_threshold: 0.05  # Tighter convergence
+  equilibrium_window: 100
+  
+  # Advanced settings for 123Bus
+  enable_opponent_modeling: True
+  opponent_model_update_freq: 50
+  nash_max_iterations: 200
+  nash_convergence_threshold: 5e-5
+  nash_learning_rate: 0.005
+  
+  # Hierarchical decision making
+  enable_hierarchical_decisions: True
+  decision_levels: 3  # UC -> Zone coordinators -> Individual consumers
+  zone_coordinator_count: 5
+
+# Reward weights (carefully tuned for 123Bus)
+reward_weights:
+  # UC rewards
+  power_loss_weight: 15.0  # Critical for large system
+  voltage_violation_weight: 8.0
+  revenue_weight: 1.0
+  carbon_penalty_weight: 3.0
+  line_overload_weight: 10.0
+  transformer_overload_weight: 12.0
+  n_minus_1_violation_weight: 20.0  # Very high penalty
+  
+  # Consumer rewards
+  comfort_penalty_weight: 1.5
+  dr_benefit_weight: 15.0
+  electricity_cost_weight: 1.0
+  reliability_bonus: 3.0
+  coordination_bonus: 2.0  # Bonus for following zone coordinator
+
+# Physical constraints (strict for large system)
+constraints:
+  v_min: 0.95
+  v_max: 1.05
+  max_load_adjustment: 0.25  # More conservative for stability
+  line_rating_factor: 0.8  # Conservative line loading
+  emergency_rating_factor: 1.05
+  transformer_rating_factor: 0.85
+  
+  # N-1 security constraints
+  enable_n_minus_1: True
+  n_minus_1_contingencies: 10  # Check top 10 contingencies
+  critical_lines: auto  # Automatically identify critical lines
+  
+  # Additional constraints
+  max_voltage_unbalance: 0.02  # 2% max unbalance
+  max_frequency_deviation: 0.1  # Hz
+  power_factor_limits: [0.85, 1.0]
+
+# Multi-timescale configuration (essential for 123Bus)
+timescale_config:
+  enable_multiscale: True
+  day_ahead_horizon: 24
+  intraday_horizon: 4
+  real_time_horizon: 1
+  rolling_window: 8
+  
+  # Coordination between timescales
+  day_ahead_weight: 0.5
+  intraday_weight: 0.3
+  real_time_weight: 0.2
+
+# Monitoring configuration (comprehensive for 123Bus)
+monitoring_config:
+  enabled: True
+  metrics:
+    - power_loss
+    - voltage_violation
+    - carbon_emission
+    - nash_gap
+    - social_welfare
+    - convergence
+    - line_loading
+    - agent_rewards
+    - transformer_loading
+    - reactive_power_balance
+    - frequency_stability
+    - three_phase_unbalance
+    - zone_coordination
+    - computational_time
+    - memory_usage
+  log_interval: 1  # Log every step for debugging
+  save_interval: 25
+  plot_interval: 10
+  
+  # Performance monitoring
+  profile_computation: True
+  track_convergence_speed: True
+  measure_scalability: True
+
+# Visualization settings (optimized for large network)
+visualization:
+  show_network: False  # Too large to display by default
+  show_agents: True
+  show_aggregate_view: True  # Show aggregated zone view
+  node_size: 100
+  shift: 20
+  show_node_labels: False
+  show_critical_paths: True
+  use_interactive_plot: False
+  
+  # Selective visualization
+  show_voltage_violations_only: True
+  show_overloaded_lines_only: True
+  update_frequency: 100  # Update viz every 100 steps
+
+# Training configuration (optimized for 123Bus scale)
+training:
+  num_workers: 4  # Parallel workers
+  use_cuda: True
+  buffer_size: 50000  # Large buffer for stability
+  batch_size: 1024  # Large batch for efficiency
+  learning_rate: 1e-4  # Lower LR for stability
+  gamma: 0.998
+  
+  # Advanced training settings
+  use_gae: True
+  gae_lambda: 0.97
+  use_proper_time_limits: True
+  max_grad_norm: 0.3  # Aggressive clipping
+  
+  # Distributed training settings
+  use_distributed: True
+  backend: nccl
+  gradient_accumulation_steps: 4
+
+# Asynchronous execution configuration (complex for 123Bus)
+async_config:
+  consumer_delay: 2  # Base delay
+  consumer_delays: variable  # Will be set based on zone
+  zone_delays:  # Zone-based delays
+    zone_1: 1
+    zone_2: 2
+    zone_3: 2
+    zone_4: 3
+    zone_5: 3
+  action_persistence: 3
+  history_length: 20  # Longer history for patterns
+  enable_action_prediction: True
+  prediction_horizon: 5
+  partial_observability: True
+  observation_noise: 0.03
+  
+  # Communication delays
+  enable_communication_delays: True
+  communication_dropout_rate: 0.01
+
+# Environment options
+env_options:
+  use_load_noise: True
+  scale: 1.0
+  load_noise_std: 0.1  # 10% load noise
+  wrap_observation: True
+  observe_load: True
+  use_render: False
+  record_node: True
+  
+  # Performance options
+  use_sparse_matrices: True
+  cache_network_data: True
+  parallel_power_flow: True
+
+# Device configuration
+reg_act_num: 17  # Fewer discrete levels for faster computation
+bat_act_num: 17
+dss_act: False
+
+# Carbon emission factors (detailed for 123Bus)
+carbon_factors:
+  grid_average: 450.0
+  solar: 0.0
+  wind: 0.0
+  natural_gas: 350.0
+  coal: 820.0
+  hydro: 5.0
+  nuclear: 10.0
+  biomass: 230.0
+  
+  # Time-varying factors
+  use_time_varying: True
+  peak_factor: 1.3
+  off_peak_factor: 0.7
+
+# Zone definitions for 123Bus
+zone_definitions:
+  automatic_detection: True
+  n_zones: 5
+  zone_overlap_allowed: False
+  zone_balancing: True
+  
+  # Manual zone seeds (optional)
+  zone_seeds:
+    zone_1: [bus_1, bus_13, bus_18]
+    zone_2: [bus_25, bus_28, bus_35]
+    zone_3: [bus_40, bus_44, bus_51]
+    zone_4: [bus_60, bus_65, bus_72]
+    zone_5: [bus_80, bus_97, bus_108]
+
+# Data logging (extensive for research)
+data_logging:
+  save_episodes: True
+  save_interval: 10  # Save frequently
+  log_dir: logs/stackelberg_123bus
+  save_format: hdf5
+  compression: lzf  # Fast compression
+  
+  # Detailed logging
+  save_agent_trajectories: True
+  save_system_states: True
+  save_convergence_metrics: True
+  save_power_flow_results: True
+  save_communication_logs: True
+  
+  # Checkpointing
+  enable_checkpoints: True
+  checkpoint_interval: 1000
+  keep_checkpoints: 5
+
+# Computational optimization
+optimization:
+  use_jit: True  # Just-in-time compilation
+  cache_power_flow: True
+  parallel_agent_step: True
+  batch_observations: True
+  
+  # Memory management
+  clear_buffer_interval: 1000
+  gc_collect_interval: 500
+  
+  # Numerical settings
+  power_flow_tolerance: 1e-6
+  max_power_flow_iterations: 50

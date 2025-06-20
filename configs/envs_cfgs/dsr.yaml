@@ -51,7 +51,8 @@ env_args:
   # PowerZoo集成配置
   load_noise: False        # 是否使用负荷噪声
   scale: 1.0              # 负荷缩放因子
-  useS: False             # 是否使用敏感度矩阵（PowerZoo兼容）
+  # useS和big2small参数仅用于SHOM算法，已移除
+  # useS: False             # 是否使用敏感度矩阵（PowerZoo兼容）
   
   # 过载检测相关配置
   overload_threshold: 1.0  # 过载阈值倍数

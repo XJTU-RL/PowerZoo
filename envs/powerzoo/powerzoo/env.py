@@ -777,8 +777,10 @@ class Env(gym.Env):
         self.lines = dict()
         self.circuit.dss.ActiveCircuit.Lines.First
         while(True):
-            bus1 = self.circuit.dss.ActiveCircuit.Lines.Bus1.split('.', 1)[0].lower()
-            bus2 = self.circuit.dss.ActiveCircuit.Lines.Bus2.split('.', 1)[0].lower()
+            # 使用正确的DSS Python API方式获取Bus1和Bus2信息
+            bus_names = self.circuit.dss.ActiveCircuit.ActiveCktElement.BusNames
+            bus1 = bus_names[0].split('.', 1)[0].lower() if len(bus_names) > 0 else ''
+            bus2 = bus_names[1].split('.', 1)[0].lower() if len(bus_names) > 1 else ''
             line_name = self.circuit.dss.ActiveCircuit.Lines.Name.lower()
             self.lines[line_name] = (bus1, bus2)
             if self.circuit.dss.ActiveCircuit.Lines.Next==0:

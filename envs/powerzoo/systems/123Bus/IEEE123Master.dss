@@ -226,4 +226,7 @@ New Generator.batt4 bus1=300.1.2.3 Phases=3 kV=2.4 kW=0 pf=0.95 conn=Delta Model
 Set VoltageBases = [4.16, 0.48]    ! ARRAY OF VOLTAGES IN KV
 CalcVoltageBases  ! PERFORMS ZERO LOAD POWER FLOW TO ESTIMATE VOLTAGE BASES
 
+! Set daily mode for load profile analysis
+Set mode=Daily number=1 hour=0 stepsize=3600 sec=0
+
 BusCoords BusCoords.csv

@@ -1,0 +1,139 @@
+# Configuration for Stackelberg Game Environment - 13Bus System
+
+env_name: stackelberg_13bus
+system_name: 13Bus
+dss_file: Master_noPV_1.dss
+
+# Episode configuration
+max_episode_steps: 24  # 24-hour episodes
+num_steps: 24
+
+# Random seed
+seed: 123456
+
+# Agent configuration
+n_consumer_agents_13bus: 5  # 5 consumer agents for 13Bus system
+n_uc_agents: 1  # Single UC agent
+
+# Load aggregation configuration
+load_aggregation:
+  method: zone  # zone, priority, graph, adaptive
+  use_electrical_distance: True
+  zone_definitions: null  # Use automatic zone detection
+  adaptation_interval: 100
+  adaptation_threshold: 0.1
+
+# Stackelberg game configuration
+stackelberg_config:
+  price_bounds: [0.5, 2.0]  # Min/max price multiplier
+  dr_incentive_bounds: [0.0, 0.5]  # DR incentive range
+  nash_iterations: 1
+  enable_best_response: True
+  best_response_buffer_size: 100
+  equilibrium_threshold: 0.1
+  equilibrium_window: 50
+
+# Reward weights
+reward_weights:
+  # UC rewards
+  power_loss_weight: 10.0
+  voltage_violation_weight: 5.0
+  revenue_weight: 1.0
+  carbon_penalty_weight: 2.0
+  
+  # Consumer rewards
+  comfort_penalty_weight: 2.0
+  dr_benefit_weight: 10.0
+  electricity_cost_weight: 1.0
+
+# Physical constraints
+constraints:
+  v_min: 0.95
+  v_max: 1.05
+  max_load_adjustment: 0.3  # Maximum 30% load adjustment
+  line_rating_factor: 0.9  # Use 90% of line rating
+  
+# Multi-timescale configuration
+timescale_config:
+  enable_multiscale: False  # Can be enabled later
+  day_ahead_horizon: 24
+  intraday_horizon: 4
+  real_time_horizon: 1
+
+# Monitoring configuration
+monitoring_config:
+  enabled: True
+  metrics:
+    - power_loss
+    - voltage_violation
+    - carbon_emission
+    - nash_gap
+    - social_welfare
+    - convergence
+    - line_loading
+    - agent_rewards
+  log_interval: 10
+  save_interval: 100
+  plot_interval: 50
+  
+# Visualization settings
+visualization:
+  show_network: True
+  show_agents: True
+  node_size: 300
+  shift: 50
+  show_node_labels: False
+
+# Training configuration
+training:
+  num_workers: 1
+  use_cuda: False
+  buffer_size: 10000
+  batch_size: 256
+  learning_rate: 3e-4
+  gamma: 0.99
+  
+# Asynchronous execution configuration
+async_config:
+  consumer_delay: 1
+  action_persistence: 1
+  history_length: 5
+  enable_action_prediction: False
+  partial_observability: False
+  observation_noise: 0.0
+
+# Environment options
+env_options:
+  use_load_noise: True
+  scale: 1.0
+  wrap_observation: True
+  observe_load: True
+  use_render: False
+  record_node: True
+  
+# Device configuration for actions
+reg_act_num: 33  # Number of regulator actions
+bat_act_num: 33  # Number of battery actions
+dss_act: False  # Don't use OpenDSS controllers
+
+# Carbon emission factors (kg CO2/MWh)
+carbon_factors:
+  grid_average: 500.0
+  solar: 0.0
+  wind: 0.0
+  natural_gas: 400.0
+  coal: 900.0
+
+# Priority weights for load classification
+priority_weights:
+  residential: 1.0
+  commercial: 2.0
+  industrial: 3.0
+  critical: 10.0
+
+# Data logging
+data_logging:
+  save_episodes: True
+  save_interval: 100
+  log_dir: logs/stackelberg_13bus
+  save_format: hdf5  # csv, hdf5, json

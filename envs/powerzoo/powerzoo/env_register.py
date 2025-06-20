@@ -267,6 +267,59 @@ _ENV_INFO = {
         'reg_w': 1.0/33,
         'soc_w': 10000/33,
         'dis_w': 100/33,
+    },
+
+    # DSR (Distribution System Restoration) environments
+    'dsr': {
+        'system_name': '123Bus',
+        'dss_file': 'IEEE123Master_daily.dss',
+        'max_episode_steps': 15,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'power_w': 20.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 5.0/33,
+    },
+
+    'dsr_13bus': {
+        'system_name': '13Bus',
+        'dss_file': 'IEEE13Nodeckt_daily.dss',
+        'max_episode_steps': 10,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'power_w': 20.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 5.0/33,
+    },
+
+    'dsr_34bus': {
+        'system_name': '34Bus',
+        'dss_file': 'ieee34Mod1_daily.dss',
+        'max_episode_steps': 12,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'power_w': 20.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 5.0/33,
+    },
+
+    'dsr_8500node': {
+        'system_name': '8500-Node',
+        'dss_file': 'Master_daily.dss',
+        'max_episode_steps': 20,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'power_w': 20.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 100.0/33,
     }
 }
 

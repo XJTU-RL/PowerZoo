@@ -106,9 +106,12 @@ class DSRCoreEnv:
         self.circuit.dss.ActiveCircuit.Lines.First
         while True:
             line_name = self.circuit.dss.ActiveCircuit.Lines.Name
-            bus1 = self.circuit.dss.ActiveCircuit.Lines.Bus1.split('.')[0].lower()
-            bus2 = self.circuit.dss.ActiveCircuit.Lines.Bus2.split('.')[0].lower()
-            enabled = self.circuit.dss.ActiveCircuit.Lines.Enabled
+            # 使用正确的DSS Python API方式获取Bus1和Bus2信息
+            bus_names = self.circuit.dss.ActiveCircuit.ActiveCktElement.BusNames
+            bus1 = bus_names[0].split('.')[0].lower() if len(bus_names) > 0 else ''
+            bus2 = bus_names[1].split('.')[0].lower() if len(bus_names) > 1 else ''
+            # 使用正确的DSS Python API方式获取Enabled状态
+            enabled = self.circuit.dss.ActiveCircuit.ActiveCktElement.Enabled
             
             self.line_info[line_name] = {
                 'bus1': bus1,
@@ -127,9 +130,12 @@ class DSRCoreEnv:
         
         for load_name in load_names:
             self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-            bus = self.circuit.dss.ActiveCircuit.Loads.Bus1.split('.')[0].lower()
+            # 使用正确的DSS Python API方式获取Bus1信息
+            bus_names = self.circuit.dss.ActiveCircuit.ActiveCktElement.BusNames
+            bus = bus_names[0].split('.')[0].lower() if bus_names else ''
             kw = self.circuit.dss.ActiveCircuit.Loads.kW
-            enabled = self.circuit.dss.ActiveCircuit.Loads.Enabled
+            # 使用正确的DSS Python API方式获取Enabled状态
+            enabled = self.circuit.dss.ActiveCircuit.ActiveCktElement.Enabled
             
             # 随机分配负荷优先级
             priority = random.choice(list(range(1, self.config.max_priority_level + 1)))
@@ -447,8 +453,8 @@ class DSRCoreEnv:
         
         # 在OpenDSS中设置线路故障
         for line_name in self.fault_lines:
-            self.circuit.dss.ActiveCircuit.Lines.Name = line_name
-            self.circuit.dss.ActiveCircuit.Lines.Enabled = False
+            # 使用DSS文本命令设置线路禁用状态
+            self.circuit.dss.Text.Command = f'line.{line_name}.enabled=no'
             self.line_info[line_name]['enabled'] = False
         
         logger.info(f"生成{len(self.fault_lines)}个故障: {self.fault_lines}")
@@ -460,8 +466,8 @@ class DSRCoreEnv:
             if line_name not in self.fault_lines:
                 # 保持一些基本连接，断开其他
                 if random.random() < self.config.line_disconnect_prob:  # 配置的概率断开
-                    self.circuit.dss.ActiveCircuit.Lines.Name = line_name
-                    self.circuit.dss.ActiveCircuit.Lines.Enabled = False
+                    # 使用DSS文本命令设置线路禁用状态
+                    self.circuit.dss.Text.Command = f'line.{line_name}.enabled=no'
                     line_data['enabled'] = False
         
         # 重置PV输出
@@ -470,8 +476,8 @@ class DSRCoreEnv:
         
         # 断开所有负荷
         for load_name in self.load_info:
-            self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-            self.circuit.dss.ActiveCircuit.Loads.Enabled = False
+            # 使用DSS文本命令设置负荷禁用状态
+            self.circuit.dss.Text.Command = f'load.{load_name}.enabled=no'
             self.load_info[load_name]['enabled'] = False
     
     def _update_energized_buses(self):
@@ -553,8 +559,9 @@ class DSRCoreEnv:
                 new_state = not current_state
                 
                 try:
-                    self.circuit.dss.ActiveCircuit.Lines.Name = line_name
-                    self.circuit.dss.ActiveCircuit.Lines.Enabled = new_state
+                    # 使用DSS文本命令设置线路启用/禁用状态
+                    enabled_str = 'yes' if new_state else 'no'
+                    self.circuit.dss.Text.Command = f'line.{line_name}.enabled={enabled_str}'
                     self.line_info[line_name]['enabled'] = new_state
                     action_results['switch']['successful'] = 1
                     action_results['switch']['line_name'] = line_name
@@ -602,8 +609,8 @@ class DSRCoreEnv:
                         load_bus = self.load_info[load_name]['bus']
                         if load_bus in self.energized_buses:
                             try:
-                                self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-                                self.circuit.dss.ActiveCircuit.Loads.Enabled = True
+                                # 使用DSS文本命令设置负荷启用状态
+                                self.circuit.dss.Text.Command = f'load.{load_name}.enabled=yes'
                                 self.load_info[load_name]['enabled'] = True
                                 action_results['load']['successful_restore'] += 1
                             except:
@@ -611,8 +618,8 @@ class DSRCoreEnv:
                         else:
                             action_results['load']['failed_restore'] += 1
                     elif load_action == 0:  # 断开负荷
-                        self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-                        self.circuit.dss.ActiveCircuit.Loads.Enabled = False
+                        # 使用DSS文本命令设置负荷禁用状态
+                        self.circuit.dss.Text.Command = f'load.{load_name}.enabled=no'
                         self.load_info[load_name]['enabled'] = False
         
         return action_results

@@ -1,0 +1,199 @@
+# Configuration for Stackelberg-Nash MAPPO Algorithm
+
+# Basic algorithm settings
+algo: sn_mappo
+agent_num: -1  # Will be set based on environment
+share_parameter: False  # UC and consumers use different parameters
+
+# Network architecture
+network:
+  # Actor network
+  actor_hidden_sizes: [256, 128, 128]
+  actor_activation: relu
+  actor_use_orthogonal: True
+  actor_gain: 0.01
+  
+  # Critic network  
+  critic_hidden_sizes: [256, 256, 128]
+  critic_activation: relu
+  critic_use_orthogonal: True
+  critic_gain: 1.0
+  
+  # Recurrent settings
+  use_recurrent_policy: False
+  use_naive_recurrent_policy: False
+  recurrent_hidden_size: 128
+  recurrent_hidden_layers: 1
+  
+  # Other network settings
+  use_feature_normalization: True
+  use_popart: True
+  popart_beta: 0.999
+
+# PPO specific parameters
+ppo_epoch: 10  # Number of PPO epochs
+clip_param: 0.2  # PPO clip parameter
+value_clip_param: 10.0  # Value function clip parameter
+entropy_coef: 0.01  # Entropy coefficient
+value_loss_coef: 0.5  # Value loss coefficient
+
+# Optimization settings
+lr: 3e-4  # Base learning rate
+critic_lr: 3e-4  # Critic learning rate
+opti_eps: 1e-5  # Adam epsilon
+weight_decay: 0.0  # L2 weight decay
+
+# Gradient settings
+use_max_grad_norm: True
+max_grad_norm: 0.5  # Gradient clipping
+
+# Hierarchical learning settings
+is_leader: False  # Will be set per agent
+hierarchy_level: 0  # Will be set per agent
+agent_type: consumer  # Will be set per agent (uc or consumer)
+
+# Learning rate scaling for hierarchy
+leader_lr_scale: 1.0  # UC learns at normal rate
+follower_lr_scale: 0.8  # Consumers learn slightly slower
+
+# Nash equilibrium settings
+enable_best_response: True
+best_response_buffer_size: 200
+nash_iterations: 2  # Iterations per update
+equilibrium_threshold: 0.1
+equilibrium_window: 100
+
+# Nash solver configuration
+nash_max_iterations: 100
+nash_convergence_threshold: 1e-4
+nash_learning_rate: 0.01
+
+# Opponent modeling
+enable_opponent_modeling: True
+opponent_model_update_freq: 50
+opponent_model_hidden_size: 128
+
+# Advantage estimation
+use_gae: True
+gae_lambda: 0.95
+gamma: 0.99
+use_proper_time_limits: True
+
+# Training configuration
+num_env_steps: 10000000  # Total environment steps
+episode_length: 24  # Episode length (24 hours)
+n_rollout_threads: 1  # Number of parallel environments
+buffer_size: 10000  # Replay buffer size
+
+# Batch settings
+batch_size: 256  # Batch size for training
+num_mini_batch: 1  # Number of mini-batches
+actor_num_mini_batch: 1  # Actor mini-batches
+critic_num_mini_batch: 1  # Critic mini-batches
+
+# Data handling
+use_huber_loss: False
+huber_delta: 10.0
+use_value_active_masks: False
+use_policy_active_masks: False
+
+# Action aggregation
+action_aggregation: sum  # How to aggregate multi-dimensional actions
+
+# Evaluation settings
+use_eval: True
+eval_interval: 25  # Evaluate every N episodes
+eval_episodes: 5  # Number of evaluation episodes
+
+# Save settings
+save_interval: 100  # Save model every N episodes
+log_interval: 5  # Log stats every N episodes
+
+# Agent-specific configurations
+uc_config:
+  # UC specific settings
+  is_leader: True
+  hierarchy_level: 0
+  agent_type: uc
+  leader_lr_scale: 1.0
+  
+  # UC may need different network size
+  actor_hidden_sizes: [512, 256, 128]
+  critic_hidden_sizes: [512, 256, 128]
+  
+  # UC specific PPO settings
+  ppo_epoch: 15  # More updates for UC
+  clip_param: 0.15  # Tighter clipping
+  
+  # Nash settings for UC
+  nash_iterations: 3
+  enable_anticipation: True
+
+consumer_config:
+  # Consumer specific settings
+  is_leader: False
+  hierarchy_level: 1
+  agent_type: consumer
+  follower_lr_scale: 0.8
+  
+  # Consumer network (can be smaller)
+  actor_hidden_sizes: [256, 128, 128]
+  critic_hidden_sizes: [256, 128, 128]
+  
+  # Consumer PPO settings
+  ppo_epoch: 10
+  clip_param: 0.2
+  
+  # Best response settings
+  enable_best_response: True
+  response_delay: 1
+
+# Parameter sharing configurations
+share_within_type: True  # Consumers share parameters
+type_embedding_dim: 16  # Embedding size for agent type
+
+# Advanced features
+use_action_masks: True  # Mask invalid actions
+use_influence_reward: False  # Influence-based rewards
+influence_reward_weight: 0.1
+
+# Curriculum learning
+use_curriculum: True
+curriculum_stages:
+  - episodes: 1000
+    price_range: [0.9, 1.1]
+    dr_range: [0.0, 0.1]
+    load_noise: 0.02
+  - episodes: 3000
+    price_range: [0.7, 1.3]
+    dr_range: [0.0, 0.3]
+    load_noise: 0.05
+  - episodes: 10000
+    price_range: [0.5, 2.0]
+    dr_range: [0.0, 0.5]
+    load_noise: 0.1
+
+# Exploration settings
+use_linear_lr_decay: True
+use_linear_clip_decay: False
+exploration_noise: 0.1
+exploration_decay: 0.995
+
+# Logging and debugging
+use_wandb: False  # Weights & Biases logging
+wandb_project: stackelberg_powerzoo
+wandb_entity: null
+verbose: True
+debug: False
+
+# Device settings
+cuda: True
+cuda_deterministic: False
+torch_threads: 4
+
+# Seed
+seed: 1  # Random seed
+
+# Mixed precision training
+use_mixed_precision: False
+mixed_precision_dtype: float16

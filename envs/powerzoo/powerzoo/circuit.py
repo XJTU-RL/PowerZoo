@@ -62,7 +62,6 @@ from pathlib import Path
 import sys
 import re
 from math import sin, cos, fabs, pi
-import cupy as cp
 import dss as opendss
 from scipy.sparse import csr_matrix #大型网络使用稀疏矩阵
 from scipy.linalg import pinv  # 从 scipy.linalg 导入 pinv
@@ -677,6 +676,7 @@ class Circuits():
         return Y
 
     def get_Y_matrix_acc(self, use_sparse=False, use_gpu=True):
+        import cupy as cp
         """
         提取并返回排序后的导纳矩阵 Y，支持稀疏矩阵和 GPU 加速选项。
 
@@ -718,6 +718,7 @@ class Circuits():
         return Y_complex
     
     def get_node_sensity(self,Ymatrix):#需要给一个导纳矩阵的传参
+        import cupy as cp
         temp_order = np.array(self.dss.Circuits.YNodeOrder)
         all_bus_names = self.dss.ActiveCircuit.AllBusNames
         bus_voltages_angles= dict()
@@ -741,42 +742,7 @@ class Circuits():
         bus1_length = len(temp_order)
         
         Y1=Ymatrix #获取导纳阵，这样后期调用的时候，在每一步，只是给step里的敏感度向量传递一个值
-        
-        # H=np.zeros((bus1_length, bus1_length))
-        # M=np.zeros((bus1_length, bus1_length))
-        # L=np.zeros((bus1_length, bus1_length))
-        # N=np.zeros((bus1_length, bus1_length))
-        # S=np.zeros((bus1_length, bus1_length))
-        # n2 = 2*bus1_length
-        # nu = n2 + 1
-        # for i in range(0,bus1_length):
-        #     vi = new_voltage_list[i]
-        #     di = new_angle_list[i]
-        #     dp = 0.0
-        #     dq = 0.0
-        #     for j in range(0,bus1_length):
-        #         if j != i:                  # when i <> j, off-diagonal elements
-        #            g = Y1[i][j].real        # G        
-        #            b = Y1[i][j].imag        # B
-        #            vj = new_voltage_list[j]
-        #            dj = new_angle_list[j]
-        #            dij = di - dj           # diff of Phase Angle
-        #            H[i][j] = -new_voltage_list[i] * new_voltage_list[j] * (g*sin(dij) - b*cos(dij))
-        #            L[i][j] = H[i][j]
-        #            N[i][j] = -new_voltage_list[i]*new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
-        #            M[i][j] = -N[i][j]
-        #            p = new_voltage_list[j]*(g*cos(dij)+b*sin(dij))
-        #            q = new_voltage_list[j]*(g*sin(dij)-b*cos(dij))
-        #            dp += p
-        #            dq += q
-        #     g = Y1[i][i].real
-        #     b = Y1[i][i].imag
-        #     H[i][i] = vi*dq
-        #     N[i][i] = -vi*dp - 2*vi*vi*g
-        #     M[i][i] = -vi*dp
-        #     L[i][i] = -vi*dq + 2*vi*vi*b
-        #     #print(H[40][40])
-        # S=np.linalg.inv(L-M@np.linalg.pinv(H)@N)
+    
 
         H=np.zeros((bus1_length, bus1_length))
         M=np.zeros((bus1_length, bus1_length))
@@ -840,6 +806,7 @@ class Circuits():
 
 
     def get_node_sensity_acc(self, Ymatrix, use_noise=False,use_sparse=False):
+        import cupy as cp
         """
         计算节点的无功电压灵敏度矩阵，支持稠密和稀疏两种模式。
 

@@ -1,12 +1,10 @@
 #!/bin/bash
 
-"""
-@File    : run_dsr_aggregation.sh
-@Time    : 2025/01/27
-@Author  : Xiaodong Zheng
-@Description: 灵活的DSR聚合训练运行脚本
-文件路径: examples/run_dsr_aggregation.sh
-"""
+# @File    : run_dsr_aggregation.sh
+# @Time    : 2025/01/27
+# @Author  : Xiaodong Zheng
+# @Description: 灵活的DSR聚合训练运行脚本
+# 文件路径: examples/run_dsr_aggregation.sh
 
 # 设置默认参数
 SYSTEM_NAME="123Bus"

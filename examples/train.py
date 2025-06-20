@@ -50,6 +50,7 @@ def main():
             "mappo",
             "qmix",
             "shom",
+            "sn_mappo",
         ],
         help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo, shom.",
     )

@@ -1,0 +1,201 @@
+# Configuration for Stackelberg Game Environment - 34Bus System
+
+env_name: stackelberg_34bus
+system_name: 34Bus
+dss_file: Master.dss
+
+# Episode configuration
+max_episode_steps: 24  # 24-hour episodes
+num_steps: 24
+
+# Random seed
+seed: 123456
+
+# Agent configuration
+n_consumer_agents_34bus: 10  # 10 consumer agents for 34Bus system
+n_uc_agents: 1  # Single UC agent
+
+# Load aggregation configuration
+load_aggregation:
+  method: priority  # Use priority-based for 34Bus
+  use_electrical_distance: True
+  priority_levels: 3
+  adaptation_interval: 100
+  adaptation_threshold: 0.15
+  
+  # Priority-based specific settings
+  priority_weights:
+    residential: 1.0
+    commercial: 2.5
+    industrial: 4.0
+    critical: 10.0
+
+# Stackelberg game configuration
+stackelberg_config:
+  price_bounds: [0.6, 1.8]  # Slightly tighter bounds for medium system
+  dr_incentive_bounds: [0.0, 0.4]
+  nash_iterations: 2  # More iterations for larger system
+  enable_best_response: True
+  best_response_buffer_size: 150
+  equilibrium_threshold: 0.08
+  equilibrium_window: 75
+  
+  # Enhanced settings for 34Bus
+  enable_opponent_modeling: True
+  nash_max_iterations: 150
+  nash_convergence_threshold: 1e-4
+  nash_learning_rate: 0.01
+
+# Reward weights (adjusted for 34Bus characteristics)
+reward_weights:
+  # UC rewards
+  power_loss_weight: 12.0  # Higher weight for larger system
+  voltage_violation_weight: 6.0
+  revenue_weight: 1.0
+  carbon_penalty_weight: 2.5
+  line_overload_weight: 8.0  # Additional penalty
+  
+  # Consumer rewards
+  comfort_penalty_weight: 1.8
+  dr_benefit_weight: 12.0
+  electricity_cost_weight: 1.0
+  reliability_bonus: 2.0  # Bonus for maintaining service
+
+# Physical constraints
+constraints:
+  v_min: 0.94  # Slightly relaxed for distribution system
+  v_max: 1.06
+  max_load_adjustment: 0.35  # Maximum 35% load adjustment
+  line_rating_factor: 0.85  # More conservative for 34Bus
+  emergency_rating_factor: 1.1  # Emergency rating
+  
+  # N-1 security constraints
+  enable_n_minus_1: True
+  critical_lines: [line_1_2, line_2_3, line_3_4]  # Example critical lines
+
+# Multi-timescale configuration
+timescale_config:
+  enable_multiscale: True  # Enable for 34Bus
+  day_ahead_horizon: 24
+  intraday_horizon: 4
+  real_time_horizon: 1
+  rolling_window: 6  # 6-hour rolling window
+
+# Monitoring configuration (enhanced for 34Bus)
+monitoring_config:
+  enabled: True
+  metrics:
+    - power_loss
+    - voltage_violation
+    - carbon_emission
+    - nash_gap
+    - social_welfare
+    - convergence
+    - line_loading
+    - agent_rewards
+    - transformer_loading
+    - reactive_power_balance
+    - frequency_stability
+  log_interval: 5  # More frequent logging
+  save_interval: 50
+  plot_interval: 25
+  
+  # Additional monitoring for 34Bus
+  track_line_flows: True
+  track_bus_injections: True
+  track_agent_coordination: True
+
+# Visualization settings
+visualization:
+  show_network: True
+  show_agents: True
+  node_size: 250
+  shift: 40
+  show_node_labels: False
+  show_line_flows: True
+  show_voltage_heatmap: True
+  
+# Training configuration (tuned for 34Bus)
+training:
+  num_workers: 2
+  use_cuda: True
+  buffer_size: 20000
+  batch_size: 512
+  learning_rate: 2e-4
+  gamma: 0.995
+  
+  # Advanced training settings
+  use_gae: True
+  gae_lambda: 0.95
+  use_proper_time_limits: True
+  max_grad_norm: 0.5
+
+# Asynchronous execution configuration
+async_config:
+  consumer_delay: 1
+  consumer_delays:  # Variable delays for different consumer types
+    1: 1   # Fast response consumers
+    2: 1
+    3: 1
+    4: 2   # Medium response
+    5: 2
+    6: 2
+    7: 3   # Slow response
+    8: 3
+    9: 2
+    10: 1
+  action_persistence: 2
+  history_length: 10
+  enable_action_prediction: True
+  partial_observability: True
+  observation_noise: 0.02
+
+# Environment options
+env_options:
+  use_load_noise: True
+  scale: 1.0
+  load_noise_std: 0.05  # 5% load noise
+  wrap_observation: True
+  observe_load: True
+  use_render: False
+  record_node: True
+  
+# Device configuration for actions
+reg_act_num: 33
+bat_act_num: 33
+dss_act: False
+
+# Carbon emission factors (kg CO2/MWh)
+carbon_factors:
+  grid_average: 480.0
+  solar: 0.0
+  wind: 0.0
+  natural_gas: 380.0
+  coal: 850.0
+  hydro: 10.0
+
+# Enhanced load classification for 34Bus
+load_classification:
+  residential_prefix: [res, home, apt]
+  commercial_prefix: [com, shop, office, store]
+  industrial_prefix: [ind, factory, plant]
+  critical_prefix: [hosp, emerg, data, critical]
+  
+  # Size-based classification thresholds (kW)
+  size_thresholds:
+    residential_max: 100
+    commercial_max: 1000
+    industrial_min: 1000
+
+# Data logging
+data_logging:
+  save_episodes: True
+  save_interval: 50
+  log_dir: logs/stackelberg_34bus
+  save_format: hdf5
+  compression: gzip
+  
+  # Additional logging for analysis
+  save_agent_trajectories: True
+  save_system_states: True
+  save_convergence_metrics: True

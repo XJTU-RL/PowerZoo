@@ -109,7 +109,64 @@ def main():
     print("=" * 80)
     
     # 运行训练
-    train_main(args)
+    from train import main as train_main
+    
+    # 将args转换为sys.argv格式供train.py使用
+    import sys
+    original_argv = sys.argv.copy()
+    
+    # 构建新的命令行参数
+    new_argv = ['train.py']
+    new_argv.extend(['--env', 'dsr'])  # 使用dsr环境
+    new_argv.extend(['--algo', args.algorithm_name])
+    new_argv.extend(['--exp_name', args.experiment_name])
+    new_argv.extend(['--env_name', args.env_name])
+    new_argv.extend(['--system_name', args.system_name])
+    
+    if args.use_load_aggregation:
+        new_argv.append('--use_load_aggregation')
+    if args.n_load_agents is not None:
+        new_argv.extend(['--n_load_agents', str(args.n_load_agents)])
+    new_argv.extend(['--load_aggregation_method', args.load_aggregation_method])
+    new_argv.extend(['--seed', str(args.seed)])
+    
+    if args.cuda:
+        new_argv.append('--cuda')
+    if args.cuda_deterministic:
+        new_argv.append('--cuda_deterministic')
+    
+    new_argv.extend(['--n_training_threads', str(args.n_training_threads)])
+    new_argv.extend(['--n_rollout_threads', str(args.n_rollout_threads)])
+    new_argv.extend(['--num_mini_batch', str(args.num_mini_batch)])
+    new_argv.extend(['--episode_length', str(args.episode_length)])
+    new_argv.extend(['--num_env_steps', str(args.num_env_steps)])
+    
+    if args.use_eval:
+        new_argv.append('--use_eval')
+    new_argv.extend(['--eval_interval', str(args.eval_interval)])
+    new_argv.extend(['--n_eval_rollout_threads', str(args.n_eval_rollout_threads)])
+    
+    if args.use_wandb:
+        new_argv.append('--use_wandb')
+    
+    new_argv.extend(['--save_interval', str(args.save_interval)])
+    
+    if args.share_policy:
+        new_argv.append('--share_policy')
+    if args.use_centralized_V:
+        new_argv.append('--use_centralized_V')
+    
+    new_argv.extend(['--hidden_size', str(args.hidden_size)])
+    new_argv.extend(['--layer_N', str(args.layer_N)])
+    new_argv.extend(['--lr', str(args.lr)])
+    new_argv.extend(['--ppo_epoch', str(args.ppo_epoch)])
+    
+    # 替换sys.argv并调用train_main
+    sys.argv = new_argv
+    train_main()
+    
+    # 恢复原始argv
+    sys.argv = original_argv
 
 
 if __name__ == "__main__":

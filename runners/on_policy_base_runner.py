@@ -87,11 +87,20 @@ class OnPolicyBaseRunner:
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
-        self.ordered = algo_args["algo"]["ordered"]
-        # 是否使用无功电压矩阵
-        self.useS=env_args["useS"]
-        # 是否使用无功电压值从大到小的顺序更新智能体
-        self.big2small= env_args["big2small"]
+        # 如果是shom算法才加载这些参数
+        if args["algo"] == "shom":
+            self.action_aggregation = algo_args["algo"]["action_aggregation"]
+            self.ordered = algo_args["algo"]["ordered"]
+             # 是否使用无功电压矩阵
+            self.useS = env_args.get("useS", False)
+            # 是否使用无功电压值从大到小的顺序更新智能体
+            self.big2small = env_args.get("big2small", False)
+        else:
+            # 非SHOM算法不使用这些参数
+            self.action_aggregation = None
+            self.ordered = False
+            self.useS = False
+            self.big2small = False
         # 设置随机种子
         set_seed(algo_args["seed"])
         # 初始化设备
@@ -141,10 +150,13 @@ class OnPolicyBaseRunner:
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
         #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #NOTE:自定义的powerzoo更新顺序
-        if args["env"] == "powerzoo":
-            if env_args["useS"]==True:
+        if args["env"] == "powerzoo" and args["algo"] == "shom":
+            if self.useS:
                 self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
                 self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
+        else:
+            self.get_ordered_agents_pairs = None
+            self.get_agents_bus = None
         
         print("share_observation_space.shape: ", len(self.envs.share_observation_space))
         print("observation_space.shape: ", len(self.envs.observation_space))
