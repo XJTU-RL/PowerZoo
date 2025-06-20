@@ -320,6 +320,46 @@ _ENV_INFO = {
         'reg_w': 1.0/33,
         'soc_w': 0.0/33,
         'dis_w': 100.0/33,
+    },
+
+    # Stackelberg game environments
+    'stackelberg_13bus': {
+        'system_name': '13Bus',
+        'dss_file': 'IEEE13Nodeckt_daily.dss',
+        'max_episode_steps': 24,
+        'is_stackelberg': True,
+        'n_consumer_agents': 8,
+        'power_w': 10.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 6.0/33,
+    },
+
+    'stackelberg_34bus': {
+        'system_name': '34Bus',
+        'dss_file': 'ieee34Mod1_daily.dss',
+        'max_episode_steps': 24,
+        'is_stackelberg': True,
+        'n_consumer_agents': 12,
+        'power_w': 10.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 10.0/33,
+    },
+
+    'stackelberg_123bus': {
+        'system_name': '123Bus',
+        'dss_file': 'IEEE123Master_daily.dss',
+        'max_episode_steps': 24,
+        'is_stackelberg': True,
+        'n_consumer_agents': 20,
+        'power_w': 10.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 7.0/33,
     }
 }
 

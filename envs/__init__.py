@@ -9,6 +9,8 @@ from envs.dexhands.dexhands_logger import DexHandsLogger
 from envs.lag.lag_logger import LAGLogger
 from envs.powerzoo.powerzoo_logger import PowerZooLogger
 from envs.dsr.dsr_logger import DSRLogger
+from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
 
 FLAGS = flags.FLAGS
 FLAGS(["train_sc.py"])
@@ -24,4 +26,7 @@ LOGGER_REGISTRY = {
     "lag": LAGLogger,
     "powerzoo": PowerZooLogger,
     "dsr": DSRLogger,
+    "stackelberg": StackelbergBaseEnv,
+    "stackelberg_powerzoo": StackelbergPowerZooEnv,
+    "stackelberg_powerzoo_make_env": make_stackelberg_env,
 }

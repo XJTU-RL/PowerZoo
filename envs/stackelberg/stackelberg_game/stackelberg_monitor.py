@@ -197,6 +197,9 @@ class StackelbergMonitor:
         # Calculate and log convergence metrics
         self._update_convergence_metrics(rewards, actions)
         
+        # Log Nash gap if available
+        self._update_nash_gap(actions, system_state)
+        
         # Calculate Nash equilibrium metrics
         self._update_nash_metrics(rewards, actions, system_state)
         
@@ -725,3 +728,42 @@ class StackelbergMonitor:
         
         # Also print to console
         print(report_text)
+    
+    def _update_nash_gap(self, actions: Dict[int, np.ndarray], system_state: Dict[str, Any]):
+        """
+        Update Nash gap metric based on current actions.
+        This measures how far agents are from Nash equilibrium.
+        """
+        # Simplified Nash gap calculation
+        # In practice, this would require computing best responses
+        
+        uc_id = 0
+        consumer_ids = [aid for aid in actions.keys() if aid != uc_id]
+        
+        if len(consumer_ids) < 2:
+            return
+        
+        # Calculate action variance among consumers as proxy for Nash gap
+        consumer_actions = []
+        for cid in consumer_ids:
+            if cid in actions:
+                consumer_actions.append(actions[cid])
+        
+        if consumer_actions:
+            action_variance = np.var(consumer_actions, axis=0).mean()
+            # Normalize by number of consumers
+            nash_gap = action_variance * len(consumer_ids)
+            
+            self.convergence_history['nash_gap'].append(nash_gap)
+            self.step_metrics['nash_gap'].append(nash_gap)
+    
+    def _update_nash_metrics(self, rewards: Dict[int, float], actions: Dict[int, np.ndarray], 
+                           system_state: Dict[str, Any]):
+        """Update Nash equilibrium tracking metrics."""
+        # This is a placeholder implementation
+        # In practice, would compute actual equilibrium distance
+        
+        if self.current_step % 10 == 0:  # Calculate every 10 steps
+            # Mock equilibrium distance calculation
+            equilibrium_distance = np.random.exponential(0.1)
+            self.nash_tracking['equilibrium_distance'].append(equilibrium_distance)

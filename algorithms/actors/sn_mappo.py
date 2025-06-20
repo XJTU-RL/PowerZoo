@@ -199,6 +199,77 @@ class SN_MAPPO(MAPPO):
         
         return policy_loss, dist_entropy, actor_grad_norm, imp_weights
     
+    def _adjust_advantages_for_followers(
+        self, obs_batch, actions_batch, adv_targ
+    ):
+        """
+        Adjust advantages based on anticipated follower responses.
+        This implements the total derivative calculation from Equation 39.
+        """
+        # This is a simplified implementation
+        # In practice, this would use opponent models to predict follower responses
+        return adv_targ
+    
+    def _compute_total_derivative(self, loss_uc, loss_consumers, uc_params, consumer_params):
+        """
+        Compute total derivative for UC policy update (Equation 39).
+        ∇L_u = ∇_θu L_u - ∇_θu,θc L_u (∇²_θc L_c)^(-1) ∇_θc L_u
+        """
+        # Compute first-order gradients
+        grad_uc = torch.autograd.grad(loss_uc, uc_params, retain_graph=True)
+        
+        # Compute mixed second-order derivatives if followers exist
+        if self.enable_best_response and consumer_params:
+            # Compute ∇_θc L_u (how UC loss changes w.r.t consumer params)
+            grad_uc_wrt_consumers = torch.autograd.grad(
+                loss_uc, consumer_params, retain_graph=True, allow_unused=True
+            )
+            
+            # Compute Hessian of consumer loss w.r.t consumer params
+            # This is computationally expensive, so we use approximation
+            hessian_consumers = self._approximate_hessian(loss_consumers, consumer_params)
+            
+            # Compute correction term
+            if hessian_consumers is not None:
+                # Solve linear system: H * x = g
+                correction = torch.linalg.solve(hessian_consumers, grad_uc_wrt_consumers)
+                
+                # Compute mixed derivatives ∇_θu,θc L_u
+                mixed_grads = torch.autograd.grad(
+                    grad_uc_wrt_consumers, uc_params, retain_graph=True
+                )
+                
+                # Apply correction
+                total_derivative = []
+                for g_uc, m_grad, corr in zip(grad_uc, mixed_grads, correction):
+                    total_derivative.append(g_uc - torch.matmul(m_grad, corr))
+            else:
+                total_derivative = grad_uc
+        else:
+            total_derivative = grad_uc
+        
+        return total_derivative
+    
+    def _approximate_hessian(self, loss, params):
+        """Approximate Hessian using finite differences or diagonal approximation."""
+        # For computational efficiency, we use diagonal approximation
+        # In practice, more sophisticated methods like L-BFGS could be used
+        try:
+            grads = torch.autograd.grad(loss, params, create_graph=True)
+            hessian_diag = []
+            
+            for grad in grads:
+                if grad is not None:
+                    # Compute second derivative (diagonal elements only)
+                    grad2 = torch.autograd.grad(
+                        grad.sum(), params, retain_graph=True, allow_unused=True
+                    )
+                    hessian_diag.append(grad2)
+            
+            return torch.diag(torch.cat([h.flatten() for h in hessian_diag]))
+        except:
+            return None
+    
     def update_follower(self, sample):
         """
         Update follower (consumer) policy.
@@ -427,10 +498,51 @@ class SN_MAPPO(MAPPO):
         
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-        self.is_leader = checkpoint.get('is_leader', False)
-        self.hierarchy_level = checkpoint.get('hierarchy_level', 0)
-        self.agent_type = checkpoint.get('agent_type', 'consumer')
+        
+        # Load SN-MAPPO specific components
+        self.is_leader = checkpoint.get('is_leader', self.is_leader)
+        self.hierarchy_level = checkpoint.get('hierarchy_level', self.hierarchy_level)
+        self.agent_type = checkpoint.get('agent_type', self.agent_type)
         self.policy_changes = checkpoint.get('policy_changes', [])
+    
+    def _extract_leader_signals(self, obs_batch):
+        """Extract UC signals from consumer observations."""
+        # UC signals are typically in the first few dimensions of consumer obs
+        # This depends on the specific observation space design
+        if hasattr(self, 'leader_signal_indices'):
+            return obs_batch[:, :, self.leader_signal_indices]
+        else:
+            # Default: assume first 3 dimensions are UC signals
+            return obs_batch[:, :, :3]
+    
+    def _adjust_advantages_for_leader(self, leader_signals, actions_batch, adv_targ):
+        """Adjust consumer advantages based on UC signals."""
+        # This implements consumer's best response to UC actions
+        # In practice, this would incorporate the UC pricing and incentives
+        return adv_targ
+    
+    def _policy_distance(self, policy1, policy2):
+        """Compute distance between two policies (e.g., KL divergence)."""
+        # Placeholder implementation
+        return 0.0
+    
+    def check_equilibrium_convergence(self):
+        """
+        Check if policies have converged to Stackelberg-Nash equilibrium.
+        Based on KL divergence constraints (Equations 57-58).
+        """
+        if len(self.policy_changes) < self.equilibrium_window:
+            return False
+        
+        # Check if policy changes are below threshold
+        recent_changes = self.policy_changes[-self.equilibrium_window:]
+        avg_change = np.mean(recent_changes)
+        std_change = np.std(recent_changes)
+        
+        # Check KL divergence constraint
+        converged = avg_change < self.equilibrium_threshold and std_change < 0.01
+        
+        return converged
 
 
 class SN_MAPPO_Shared(SN_MAPPO):

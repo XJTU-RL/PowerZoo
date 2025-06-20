@@ -26,6 +26,7 @@ import json
 
 from envs.powerzoo.powerzoo.circuit import Circuits
 from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
 
 
 class StackelbergBaseEnv:
@@ -84,6 +85,21 @@ class StackelbergBaseEnv:
         self.current_step = 0
         self.episode_count = 0
         
+        # Prioritized Experience Replay
+        self.per_config = config.get('per_config', {})
+        self.enable_per = self.per_config.get('enable', False)
+        self.per_buffer_size = self.per_config.get('buffer_size', 10000)
+        self.per_alpha = self.per_config.get('alpha', 0.6)  # Priority exponent
+        self.per_beta = self.per_config.get('beta', 0.4)   # Importance sampling
+        self.per_beta_increment = self.per_config.get('beta_increment', 0.001)
+        self.per_epsilon = self.per_config.get('epsilon', 1e-6)
+        
+        if self.enable_per:
+            self.replay_buffer = []
+            self.priorities = np.zeros(self.per_buffer_size)
+            self.buffer_ptr = 0
+            self.buffer_size = 0
+        
         # Asynchronous execution support
         self.uc_action_buffer = None
         self.consumer_actions_buffer = {}
@@ -97,6 +113,18 @@ class StackelbergBaseEnv:
         # System state tracking
         self.system_state = {}
         self.agent_states = {}
+        
+        # ESS (Energy Storage System) parameters
+        self.ess_config = config.get('ess_config', {})
+        self.ess_capacity = self.ess_config.get('capacity', 100.0)  # MWh
+        self.ess_max_power = self.ess_config.get('max_power', 20.0)  # MW
+        self.ess_efficiency_charge = self.ess_config.get('eta_c', 0.95)
+        self.ess_efficiency_discharge = self.ess_config.get('eta_o', 0.95)
+        self.ess_decay_rate = self.ess_config.get('eta_s', 0.99)
+        self.ess_soc = 0.5  # Initial State of Charge (50%)
+        
+        # DER generation profile
+        self.der_profile = config.get('der_profile', None)
         
     def _get_consumer_count(self, config: Dict[str, Any]) -> int:
         """Determine number of consumer agents based on system size."""
@@ -180,11 +208,25 @@ class StackelbergBaseEnv:
         """Initialize action spaces for UC and consumers."""
         self.action_spaces = {}
         
-        # UC action space: [price_signal, dr_incentive, capacity_allocation]
-        uc_action_dim = 3  # Simplified for now
+        # UC action space based on paper: [p_b, p_s, p_a, p_c, p_d, p_e, p_o, p_m]
+        # For practical implementation, we use a simplified version:
+        # [price_multiplier, dr_incentive, dr_target, ess_charge, ess_discharge]
+        uc_action_dim = 5
         self.action_spaces[self.uc_agent_id] = gym.spaces.Box(
-            low=np.array([self.price_bounds[0], self.dr_incentive_bounds[0], 0.0]),
-            high=np.array([self.price_bounds[1], self.dr_incentive_bounds[1], 1.0]),
+            low=np.array([
+                self.price_bounds[0],          # price_multiplier
+                self.dr_incentive_bounds[0],   # dr_incentive
+                0.0,                          # dr_target
+                0.0,                          # ess_charge
+                0.0                           # ess_discharge
+            ]),
+            high=np.array([
+                self.price_bounds[1],          # price_multiplier
+                self.dr_incentive_bounds[1],   # dr_incentive
+                1.0,                          # dr_target (fraction of total load)
+                1.0,                          # ess_charge
+                1.0                           # ess_discharge
+            ]),
             dtype=np.float32
         )
         
@@ -524,6 +566,13 @@ class StackelbergBaseEnv:
                 min_voltage = min(min_voltage, v)
                 max_voltage = max(max_voltage, v)
         
+        # Update ESS state if UC actions available
+        if self.uc_action_buffer is not None and len(self.uc_action_buffer) >= 5:
+            self._update_ess_state(self.uc_action_buffer[3], self.uc_action_buffer[4])
+        
+        # Get DER generation
+        der_generation = self._get_der_generation()
+        
         # Update system state
         self.system_state = {
             'bus_voltages': bus_voltages,
@@ -535,8 +584,66 @@ class StackelbergBaseEnv:
             'max_voltage': max_voltage,
             'total_load': sum(load.feature[1] for load in self.circuit.loads.values()),
             'total_generation': abs(total_power),
-            'carbon_intensity': 0.5  # Placeholder - would calculate based on generation mix
+            'der_generation': der_generation,
+            'ess_soc': self.ess_soc,
+            'carbon_intensity': self._calculate_carbon_intensity(der_generation, abs(total_power))
         }
+    
+    def _update_ess_state(self, charge_action: float, discharge_action: float):
+        """
+        Update ESS state based on UC actions.
+        Implements Equation 19 from the paper.
+        """
+        # Ensure charge and discharge don't happen simultaneously
+        if charge_action > 0 and discharge_action > 0:
+            # Prioritize discharge
+            charge_action = 0.0
+        
+        # Calculate actual power considering constraints
+        charge_power = min(charge_action * self.ess_max_power, 
+                          (1.0 - self.ess_soc) * self.ess_capacity)
+        discharge_power = min(discharge_action * self.ess_max_power,
+                            self.ess_soc * self.ess_capacity)
+        
+        # Update SOC based on Equation 19
+        # S_t = (1 - η_s) * S_{t-1} + η_c * p_c - p_o / η_o
+        delta_t = 1.0  # 1 hour time step
+        
+        self.ess_soc = (self.ess_decay_rate * self.ess_soc + 
+                       self.ess_efficiency_charge * charge_power * delta_t / self.ess_capacity -
+                       discharge_power * delta_t / (self.ess_efficiency_discharge * self.ess_capacity))
+        
+        # Constrain SOC between 0 and 1
+        self.ess_soc = np.clip(self.ess_soc, 0.0, 1.0)
+    
+    def _get_der_generation(self) -> float:
+        """Get current DER generation based on time step."""
+        if self.der_profile is not None:
+            # Use provided profile
+            return self.der_profile[self.current_step % len(self.der_profile)]
+        else:
+            # Simple solar generation model
+            hour = self.current_step % 24
+            if 6 <= hour <= 18:  # Daylight hours
+                # Peak at noon
+                solar_gen = 50.0 * np.sin(np.pi * (hour - 6) / 12)  # MW
+            else:
+                solar_gen = 0.0
+            return solar_gen * 1000  # Convert to kW
+    
+    def _calculate_carbon_intensity(self, der_generation: float, total_generation: float) -> float:
+        """Calculate carbon intensity based on generation mix."""
+        if total_generation <= 0:
+            return 0.5
+        
+        # DER (renewable) has zero carbon
+        renewable_fraction = min(der_generation / total_generation, 1.0)
+        
+        # Grid carbon intensity (kg CO2/MWh)
+        grid_carbon_intensity = 0.5  # Default value
+        
+        # Weighted average
+        return grid_carbon_intensity * (1 - renewable_fraction)
     
     def _calculate_uc_immediate_reward(self, uc_action: np.ndarray) -> float:
         """Calculate immediate reward for UC before consumer response."""
@@ -564,58 +671,271 @@ class StackelbergBaseEnv:
         return rewards
     
     def _calculate_uc_reward(self) -> float:
-        """Calculate UC reward based on system state."""
-        # Power loss penalty
-        power_loss_reward = -self.system_state['power_loss_ratio'] * 10.0
+        """
+        Calculate UC reward based on paper equations (5-10).
+        UC utility = C_t^s + C_t^m + C_t^g + C_t^r
+        """
+        if self.uc_action_buffer is None:
+            return 0.0
         
-        # Voltage violation penalty
-        voltage_reward = -self.system_state['voltage_violations'] * 0.5
+        # Extract UC actions
+        # uc_action = [price_multiplier, dr_incentive, dr_target, ess_charge, ess_discharge]
+        price_multiplier = self.uc_action_buffer[0]  # Price signal
+        dr_incentive = self.uc_action_buffer[1]      # DR incentive
+        dr_target = self.uc_action_buffer[2] if len(self.uc_action_buffer) > 2 else 0.5
+        ess_charge = self.uc_action_buffer[3] if len(self.uc_action_buffer) > 3 else 0.0
+        ess_discharge = self.uc_action_buffer[4] if len(self.uc_action_buffer) > 4 else 0.0
         
-        # Revenue from electricity sales (simplified)
-        if self.uc_action_buffer is not None:
-            price = self.uc_action_buffer[0]
-            revenue = price * self.system_state['total_load'] / 1000.0 * 0.01
+        # Get time of day for TUTT pricing
+        hour = self.current_step % 24
+        
+        # C_t^s: Revenue from selling electricity (Equation 7)
+        # Using Time-of-Use Tiered Tariff (TUTT)
+        C_t_s = self._calculate_electricity_revenue(price_multiplier, hour)
+        
+        # C_t^m: Cost of purchasing from power grid (Equation 8)
+        # Including uncertainty epsilon
+        base_market_price = self._get_market_price(hour)
+        uncertainty = np.random.normal(0, 0.03)  # 3% std as per paper
+        market_price = base_market_price * (1 + np.clip(uncertainty, -0.03, 0.03))
+        total_purchase = self.system_state.get('total_power', 0) / 1000.0  # MW
+        C_t_m = -market_price * total_purchase
+        
+        # C_t_g: DER absorption profit (Equation 9)
+        # T_d(p_g) = T_1^d + T_2^d * p_g (linear DER tariff)
+        der_generation = self.system_state.get('der_generation', 0) / 1000.0  # MW
+        der_absorbed = der_generation * 0.9  # Assume 90% absorption
+        der_curtailed = der_generation * 0.1
+        T_1_d = 0.05  # Base DER tariff ($/kWh)
+        T_2_d = -0.001  # DER tariff slope
+        T_a = 0.02  # Curtailment cost
+        
+        der_tariff = T_1_d + T_2_d * der_generation
+        C_t_g = der_tariff * der_absorbed - T_a * der_curtailed
+        
+        # C_t_r: DR flexibility service cost (Equation 10)
+        # Quadratic subsidy structure
+        total_dr_response = self._calculate_total_dr_response()
+        dr_target_mw = dr_target * self.system_state.get('total_load', 0) / 1000.0  # MW target
+        T_s = 0.01  # DR subsidy rate
+        T_r = dr_incentive  # DR flexibility purchase price
+        
+        if dr_target_mw > 0:
+            C_t_r = T_s * (total_dr_response ** 2) / dr_target_mw - T_r * total_dr_response
         else:
-            revenue = 0.0
+            C_t_r = -T_r * total_dr_response
         
-        # Carbon emission penalty (simplified)
-        carbon_penalty = -self.system_state['carbon_intensity'] * 2.0
+        # Total UC utility
+        total_utility = C_t_s + C_t_m + C_t_g + C_t_r
         
-        return power_loss_reward + voltage_reward + revenue + carbon_penalty
+        # Add power quality penalties (not in paper but important for system)
+        voltage_penalty = -self.system_state['voltage_violations'] * 0.1
+        loss_penalty = -self.system_state['power_loss_ratio'] * 5.0
+        
+        return total_utility + voltage_penalty + loss_penalty
+    
+    def _calculate_electricity_revenue(self, price_multiplier: float, hour: int) -> float:
+        """
+        Calculate revenue from selling electricity with TUTT pricing.
+        Based on Equation 7 in the paper.
+        """
+        # Time-of-Use periods (based on paper Table II)
+        peak_hours = [20, 21, 22]  # 20:00-22:00
+        high_hours = list(range(9, 16))  # 09:00-15:00
+        
+        # Base tariffs ($/kWh) - from paper Table II
+        if hour in peak_hours:
+            base_tariff = 0.078  # Peak period
+        elif hour in high_hours:
+            base_tariff = 0.068  # High period
+        else:
+            base_tariff = 0.048  # Flat period
+        
+        # Apply price multiplier
+        actual_tariff = base_tariff * price_multiplier
+        
+        # Calculate total consumer consumption
+        total_consumption = 0.0
+        for agent_id in self.consumer_agent_ids:
+            agent_loads = self.agent_to_loads.get(agent_id, [])
+            for load_name in agent_loads:
+                if load_name in self.circuit.loads:
+                    total_consumption += self.circuit.loads[load_name].feature[1]
+        
+        total_consumption = total_consumption / 1000.0  # Convert to MW
+        
+        # Apply tiered pricing based on cumulative consumption
+        # Tier 1: 0-28.8 GWh, Tier 2: 28.8-48 GWh, Tier 3: >48 GWh
+        cumulative_consumption = self.agent_states.get('cumulative_consumption', 0.0)
+        
+        if cumulative_consumption < 28800:  # Tier 1
+            tier_factor = 1.0
+        elif cumulative_consumption < 48000:  # Tier 2
+            tier_factor = 0.9
+        else:  # Tier 3
+            tier_factor = 0.8
+        
+        revenue = actual_tariff * total_consumption * tier_factor
+        
+        # Update cumulative consumption
+        self.agent_states['cumulative_consumption'] = cumulative_consumption + total_consumption
+        
+        return revenue
+    
+    def _get_market_price(self, hour: int) -> float:
+        """Get base market price for electricity purchase."""
+        # Simplified market price model based on time of day
+        if hour in [20, 21, 22]:  # Peak
+            return 0.12
+        elif hour in range(9, 16):  # High
+            return 0.09
+        else:  # Flat
+            return 0.06
+    
+    def _calculate_total_dr_response(self) -> float:
+        """Calculate total demand response from all consumers."""
+        total_dr = 0.0
+        for agent_id in self.consumer_agent_ids:
+            if agent_id in self.consumer_actions_buffer:
+                action = self.consumer_actions_buffer[agent_id]
+                load_adjustment = action[0]  # First component is load adjustment
+                
+                # Get agent's base load
+                agent_loads = self.agent_to_loads.get(agent_id, [])
+                base_load = sum(
+                    self.circuit.loads[load].feature[1]
+                    for load in agent_loads
+                    if load in self.circuit.loads
+                ) / 1000.0  # MW
+                
+                dr_amount = abs(load_adjustment) * base_load
+                total_dr += dr_amount
+        
+        return total_dr
     
     def _calculate_consumer_reward(self, agent_id: int) -> float:
-        """Calculate consumer reward."""
+        """
+        Calculate consumer reward based on paper equations (21-25).
+        Consumer utility = C_i,t^p + C_i,t^d + C_i,t^l
+        Note: We minimize cost, so return negative of utility
+        """
         if agent_id not in self.consumer_actions_buffer:
             return 0.0
         
         action = self.consumer_actions_buffer[agent_id]
         
-        # Cost of electricity (based on UC price)
+        # Extract consumer actions
+        # action = [load_adjustment, der_output, storage_action]
+        load_adjustment = action[0]  # Delta p_i,t^l + Delta p_i,t^s
+        der_consumption = action[1] if len(action) > 1 else 0.0  # p_i,t^r
+        storage_action = action[2] if len(action) > 2 else 0.0
+        
+        # Get UC signals
         if self.uc_action_buffer is not None:
-            price = self.uc_action_buffer[0]
+            price_multiplier = self.uc_action_buffer[0]
             dr_incentive = self.uc_action_buffer[1]
         else:
-            price = 1.0
+            price_multiplier = 1.0
             dr_incentive = 0.0
         
-        # Load adjustment cost (comfort penalty)
-        load_adjustment = action[0]
-        comfort_penalty = -abs(load_adjustment) * 2.0
-        
-        # Economic benefit from DR participation
-        dr_benefit = dr_incentive * abs(load_adjustment) * 10.0
-        
-        # Electricity cost
+        # Get agent's base load
         agent_loads = self.agent_to_loads.get(agent_id, [])
-        total_load = sum(
-            self.circuit.loads[load].feature[1] 
-            for load in agent_loads 
+        base_load = sum(
+            self.circuit.loads[load].feature[1]
+            for load in agent_loads
             if load in self.circuit.loads
-        ) / 1000.0  # Convert to MW
+        ) / 1000.0  # MW
         
-        electricity_cost = -price * total_load * (1 + load_adjustment)
+        # Actual consumption after adjustment
+        actual_load = base_load * (1 + load_adjustment)
         
-        return comfort_penalty + dr_benefit + electricity_cost
+        # C_i,t^p: Cost of purchasing electricity from UC (Equation 23)
+        hour = self.current_step % 24
+        electricity_tariff = self._get_consumer_tariff(price_multiplier, hour, agent_id)
+        C_i_t_p = electricity_tariff * actual_load
+        
+        # C_i,t^d: DER consumption reward (Equation 24)
+        # T_t^d(p_g) = T_1^d + T_2^d * p_g
+        der_generation = self.system_state.get('der_generation', 0) / 1000.0  # MW
+        T_1_d = 0.05  # Base DER tariff
+        T_2_d = -0.001  # DER tariff slope
+        der_tariff = T_1_d + T_2_d * der_generation
+        
+        # Consumer can consume DER up to their share
+        max_der_share = der_generation / self.n_consumer_agents
+        actual_der_consumption = min(der_consumption * base_load, max_der_share)
+        C_i_t_d = -der_tariff * actual_der_consumption  # Negative because it's a benefit
+        
+        # C_i,t^l: Load scheduling utility with comfort penalty (Equation 25)
+        # Quadratic comfort penalty for deviating from base load
+        T_i_c = 0.01  # Comfort tariff ($/kW)
+        dr_amount = abs(load_adjustment) * base_load
+        
+        if actual_load > 0:
+            comfort_penalty = T_i_c * (dr_amount ** 2) / actual_load
+        else:
+            comfort_penalty = T_i_c * (dr_amount ** 2)
+        
+        # DR participation incentive
+        T_r = dr_incentive  # DR flexibility purchase price
+        dr_benefit = T_r * dr_amount
+        
+        C_i_t_l = comfort_penalty - dr_benefit
+        
+        # Total consumer cost (we return negative for RL reward)
+        total_cost = C_i_t_p + C_i_t_d + C_i_t_l
+        
+        # Add voltage quality bonus (not in paper but helps convergence)
+        avg_voltage = self._get_agent_avg_voltage(agent_id)
+        voltage_bonus = 0.0
+        if 0.95 <= avg_voltage <= 1.05:
+            voltage_bonus = 0.1
+        
+        return -total_cost + voltage_bonus
+    
+    def _get_consumer_tariff(self, price_multiplier: float, hour: int, agent_id: int) -> float:
+        """
+        Get consumer electricity tariff with TUTT pricing.
+        Based on time-of-use and cumulative consumption tiers.
+        """
+        # Time-of-Use base tariffs
+        if hour in [20, 21, 22]:  # Peak
+            base_tariff = 0.078
+        elif hour in range(9, 16):  # High
+            base_tariff = 0.068
+        else:  # Flat
+            base_tariff = 0.048
+        
+        # Apply price multiplier from UC
+        tariff = base_tariff * price_multiplier
+        
+        # Get agent's cumulative consumption for tiered pricing
+        agent_cumulative = self.agent_states.get(f'consumer_{agent_id}_cumulative', 0.0)
+        
+        # Apply tier factors based on monthly consumption
+        if agent_cumulative < 2880:  # Tier 1: < 2.88 GWh/month
+            tier_factor = 1.0
+        elif agent_cumulative < 4800:  # Tier 2: 2.88-4.8 GWh/month
+            tier_factor = 0.85
+        else:  # Tier 3: > 4.8 GWh/month
+            tier_factor = 0.75
+        
+        return tariff * tier_factor
+    
+    def _get_agent_avg_voltage(self, agent_id: int) -> float:
+        """Get average voltage for agent's loads."""
+        agent_loads = self.agent_to_loads.get(agent_id, [])
+        if not agent_loads:
+            return 1.0
+        
+        voltages = []
+        for load_name in agent_loads:
+            if load_name in self.circuit.loads:
+                bus = self.circuit.loads[load_name].bus1
+                bus_voltages = self.system_state.get('bus_voltages', {}).get(bus, [1.0])
+                voltages.extend(bus_voltages)
+        
+        return np.mean(voltages) if voltages else 1.0
     
     def _prepare_step_info(self) -> Dict[int, Dict[str, Any]]:
         """Prepare information dictionaries for all agents."""
@@ -753,3 +1073,70 @@ class StackelbergBaseEnv:
     def unwrapped(self):
         """Return the unwrapped environment."""
         return self
+    
+    def add_to_replay_buffer(self, transition: Dict[str, Any], td_error: float):
+        """
+        Add transition to prioritized replay buffer.
+        
+        Args:
+            transition: Dictionary containing state, action, reward, next_state, done
+            td_error: Temporal difference error for prioritization
+        """
+        if not self.enable_per:
+            return
+        
+        # Calculate priority based on TD error
+        priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
+        
+        # Add to buffer
+        if self.buffer_size < self.per_buffer_size:
+            self.replay_buffer.append(transition)
+            self.buffer_size += 1
+        else:
+            self.replay_buffer[self.buffer_ptr] = transition
+        
+        # Update priority
+        self.priorities[self.buffer_ptr] = priority
+        
+        # Update pointer
+        self.buffer_ptr = (self.buffer_ptr + 1) % self.per_buffer_size
+    
+    def sample_from_replay_buffer(self, batch_size: int) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
+        """
+        Sample batch from prioritized replay buffer.
+        
+        Returns:
+            transitions: List of sampled transitions
+            weights: Importance sampling weights
+            indices: Indices of sampled transitions
+        """
+        if not self.enable_per or self.buffer_size < batch_size:
+            return [], np.array([]), np.array([])
+        
+        # Calculate sampling probabilities
+        priorities = self.priorities[:self.buffer_size]
+        probs = priorities / priorities.sum()
+        
+        # Sample indices
+        indices = np.random.choice(self.buffer_size, batch_size, p=probs)
+        
+        # Get transitions
+        transitions = [self.replay_buffer[idx] for idx in indices]
+        
+        # Calculate importance sampling weights
+        weights = (self.buffer_size * probs[indices]) ** (-self.per_beta)
+        weights = weights / weights.max()  # Normalize
+        
+        # Increment beta
+        self.per_beta = min(1.0, self.per_beta + self.per_beta_increment)
+        
+        return transitions, weights, indices
+    
+    def update_priorities(self, indices: np.ndarray, td_errors: np.ndarray):
+        """Update priorities for sampled transitions."""
+        if not self.enable_per:
+            return
+        
+        for idx, td_error in zip(indices, td_errors):
+            priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
+            self.priorities[idx] = priority

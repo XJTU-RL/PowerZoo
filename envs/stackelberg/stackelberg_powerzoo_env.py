@@ -12,11 +12,11 @@ import numpy as np
 from typing import Dict, List, Optional, Any, Tuple
 import logging
 
-from envs.powerzoo.powerzoo.stackelberg_base_env import StackelbergBaseEnv
-from envs.powerzoo.powerzoo.async_wrapper import AsyncMultiAgentWrapper
-from envs.powerzoo.powerzoo.load_aggregator import IntelligentLoadAggregator
-from envs.powerzoo.powerzoo.stackelberg_monitor import StackelbergMonitor
+from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper
 
+from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
+from envs.stackelberg.stackelberg_game.load_aggregator import IntelligentLoadAggregator
 
 class StackelbergPowerZooEnv:
     """

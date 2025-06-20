@@ -16,11 +16,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from envs.powerzoo.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
-from envs.powerzoo.powerzoo.stackelberg_base_env import StackelbergBaseEnv
-from envs.powerzoo.powerzoo.async_wrapper import AsyncMultiAgentWrapper
-from envs.powerzoo.powerzoo.load_aggregator import IntelligentLoadAggregator
-from envs.powerzoo.powerzoo.stackelberg_monitor import StackelbergMonitor
+from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
+from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper
+from envs.stackelberg.stackelberg_game.load_aggregator import IntelligentLoadAggregator
+from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
 
 
 class TestStackelbergBaseEnv:

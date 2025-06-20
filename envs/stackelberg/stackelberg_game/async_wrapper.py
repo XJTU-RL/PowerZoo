@@ -13,8 +13,8 @@ from collections import deque, defaultdict
 from copy import deepcopy
 import logging
 
-from envs.powerzoo.powerzoo.stackelberg_base_env import StackelbergBaseEnv
-from envs.powerzoo.powerzoo.stackelberg_monitor import StackelbergMonitor
+from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
 
 
 class AsyncMultiAgentWrapper:
@@ -59,6 +59,10 @@ class AsyncMultiAgentWrapper:
         self.current_phase = 'uc_decision'  # 'uc_decision' or 'consumer_response'
         self.phase_step = 0
         self.episode_step = 0
+        
+        # Stackelberg game environments
+        self.stackelberg_env = env  # UC-consumer interaction
+        self.nash_env = None  # Consumer-consumer interaction (placeholder)
         
         # Observation caching
         self.cached_observations = {}

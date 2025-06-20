@@ -68,6 +68,13 @@ nash_max_iterations: 100
 nash_convergence_threshold: 1e-4
 nash_learning_rate: 0.01
 
+# Total derivative computation (Equation 39)
+enable_total_derivative: True
+hessian_approximation: diagonal  # Options: diagonal, finite_diff, l_bfgs
+hessian_reg_epsilon: 1e-6
+mixed_derivative_steps: 2
+gradient_correction_weight: 0.1
+
 # Opponent modeling
 enable_opponent_modeling: True
 opponent_model_update_freq: 50
@@ -84,6 +91,14 @@ num_env_steps: 10000000  # Total environment steps
 episode_length: 24  # Episode length (24 hours)
 n_rollout_threads: 1  # Number of parallel environments
 buffer_size: 10000  # Replay buffer size
+
+# Prioritized Experience Replay (PER)
+use_per: True
+per_alpha: 0.6  # Priority exponent (0 = uniform, 1 = full prioritization)
+per_beta: 0.4  # Importance sampling exponent
+per_beta_increment: 0.001  # Beta increment per update
+per_epsilon: 1e-6  # Small constant to avoid zero priorities
+per_td_lambda: 0.95  # TD error discount for multi-step returns
 
 # Batch settings
 batch_size: 256  # Batch size for training
@@ -197,3 +212,48 @@ seed: 1  # Random seed
 # Mixed precision training
 use_mixed_precision: False
 mixed_precision_dtype: float16
+
+# Paper-specific configurations based on Section IV
+# Time-of-Use Tiered Tariff (TUTT) settings
+tutt_config:
+  peak_hours: [8, 9, 10, 11, 17, 18, 19, 20]  # Peak hours
+  valley_hours: [0, 1, 2, 3, 4, 5, 23]  # Valley hours
+  normal_hours: [6, 7, 12, 13, 14, 15, 16, 21, 22]  # Normal hours
+  tier_thresholds: [0.0, 0.5, 1.0, 2.0]  # kWh thresholds for tiers
+  tier_multipliers: [1.0, 1.2, 1.5, 2.0]  # Price multipliers per tier
+
+# DR subsidy configuration (Equation 10)
+dr_subsidy_config:
+  T_s: 0.1  # Quadratic coefficient for DR subsidy
+  T_r: 0.05  # Linear coefficient for DR reward
+  max_dr_ratio: 0.3  # Maximum DR as fraction of load
+
+# ESS configuration (Equation 19)
+ess_config:
+  eta_c: 0.95  # Charging efficiency
+  eta_d: 0.95  # Discharging efficiency
+  eta_s: 0.001  # Self-discharge rate
+  soc_min: 0.2  # Minimum SOC
+  soc_max: 0.9  # Maximum SOC
+  p_max: 0.5  # Maximum charge/discharge power (MW)
+
+# DER configuration (Equation 9)
+der_config:
+  T_1_d: 0.08  # Linear DER purchase tariff
+  T_2_d: 0.001  # Quadratic DER purchase coefficient
+  T_a: 0.02  # Curtailment penalty
+  max_curtailment_ratio: 0.2  # Maximum curtailment ratio
+
+# Carbon intensity tracking
+carbon_tracking:
+  enable: True
+  base_intensity: 0.5  # kg CO2/kWh for grid
+  der_intensity: 0.0  # kg CO2/kWh for renewables
+  tracking_window: 24  # Hours to track
+
+# Convergence criteria from paper
+convergence_config:
+  kl_threshold: 0.001  # KL divergence threshold (Equations 57-58)
+  nash_gap_threshold: 0.01  # Nash gap convergence criterion
+  min_episodes_for_convergence: 100
+  convergence_check_window: 50
