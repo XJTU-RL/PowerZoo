@@ -9,46 +9,51 @@
 
 import torch
 import numpy as np
-from utils.util import get_shape_from_obs_space, get_shape_from_act_space
-from utils.shared_buffer import SharedReplayBuffer
+from utils.envs_tools import get_shape_from_obs_space, get_shape_from_act_space
+from common.buffers.on_policy_actor_buffer import OnPolicyActorBuffer
 
-class DANSharedReplayBuffer(SharedReplayBuffer):
+class DANSharedReplayBuffer(OnPolicyActorBuffer):
     """Extended replay buffer for DAN-HAPPO algorithm
     
     This buffer extends the base SharedReplayBuffer to handle DAN-specific data
     such as neighbor observations and agent masks.
     """
     
-    def __init__(self, args, obs_space, cent_obs_space, act_space):
-        """Initialize DAN replay buffer
+    def __init__(self, args, obs_space, act_space):
+        """Initialize DAN shared replay buffer
         Args:
-            args: Arguments containing buffer configuration
+            args: Configuration arguments
             obs_space: Observation space
-            cent_obs_space: Centralized observation space
             act_space: Action space
         """
-        super(DANSharedReplayBuffer, self).__init__(args, obs_space, cent_obs_space, act_space)
+        super(DANSharedReplayBuffer, self).__init__(args, obs_space, act_space)
         
         # DAN-specific parameters
         self.use_neighbor_obs = getattr(args, 'use_neighbor_obs', True)
         self.max_neighbors = getattr(args, 'max_neighbors', 5)
         
+        # Get observation shape
+        self.obs_shape = get_shape_from_obs_space(obs_space)
+        if isinstance(self.obs_shape[-1], list):
+            self.obs_shape = self.obs_shape[:1]
+        
         if self.use_neighbor_obs:
             # Initialize neighbor observation buffer
             self.neighbor_obs = np.zeros(
-                (self.episode_length + 1, self.n_rollout_threads, self.num_agents, 
+                (self.episode_length + 1, self.n_rollout_threads, 
                  self.max_neighbors, *self.obs_shape), dtype=np.float32
             )
             
             # Initialize agent mask buffer (indicates which neighbors are valid)
             self.agent_masks = np.ones(
-                (self.episode_length + 1, self.n_rollout_threads, self.num_agents, 
+                (self.episode_length + 1, self.n_rollout_threads, 
                  self.max_neighbors), dtype=np.float32
             )
             
             # Initialize attention weights buffer (for analysis)
+            # NOTE: In actor buffer we don't need num_agents dimension
             self.attention_weights = np.zeros(
-                (self.episode_length, self.n_rollout_threads, self.num_agents, 
+                (self.episode_length, self.n_rollout_threads, 
                  self.max_neighbors), dtype=np.float32
             )
             

@@ -19,12 +19,12 @@ class DAN(nn.Module):
     3. Attention mechanism: aggregates features from neighboring agents
     """
     
-    def __init__(self, env_obs_dim, agent_obs_dim, hidden_dim=128, num_heads=4, 
+    def __init__(self, env_obs_dim, neighbor_obs_dim, hidden_dim=128, num_heads=4, 
                  use_attention=True, dropout=0.1, layer_norm=True):
         super(DAN, self).__init__()
         
         self.env_obs_dim = env_obs_dim
-        self.agent_obs_dim = agent_obs_dim
+        self.neighbor_obs_dim = neighbor_obs_dim  # Full dimension of neighbor observations
         self.hidden_dim = hidden_dim
         self.num_heads = num_heads
         self.use_attention = use_attention
@@ -41,9 +41,9 @@ class DAN(nn.Module):
             nn.ReLU()
         )
         
-        # Agent interaction information encoder
+        # Agent interaction information encoder - processes full neighbor observations
         self.agent_encoder = nn.Sequential(
-            nn.Linear(agent_obs_dim, hidden_dim),
+            nn.Linear(neighbor_obs_dim, hidden_dim),
             nn.LayerNorm(hidden_dim) if layer_norm else nn.Identity(),
             nn.ReLU(),
             nn.Dropout(dropout),
@@ -79,7 +79,7 @@ class DAN(nn.Module):
         """Forward pass of DAN
         Args:
             env_obs: Environmental observations [batch_size, env_obs_dim]
-            neighbor_obs: Neighboring agent observations [batch_size, num_neighbors, agent_obs_dim]
+            neighbor_obs: Neighboring agent observations [batch_size, num_neighbors, neighbor_obs_dim]
             agent_mask: Mask for valid agents [batch_size, num_neighbors] (1 for valid, 0 for invalid)
         Returns:
             encoded_features: Encoded features [batch_size, hidden_dim]
@@ -93,15 +93,16 @@ class DAN(nn.Module):
         
         # Handle neighbor observations
         if neighbor_obs.dim() == 2:
-            # Single neighbor case: [batch_size, agent_obs_dim]
-            neighbor_obs = neighbor_obs.unsqueeze(1)  # [batch_size, 1, agent_obs_dim]
+            # Single neighbor case: [batch_size, neighbor_obs_dim]
+            neighbor_obs = neighbor_obs.unsqueeze(1)  # [batch_size, 1, neighbor_obs_dim]
             if agent_mask is not None:
                 agent_mask = agent_mask.unsqueeze(1)  # [batch_size, 1]
                 
         # Encode agent interaction information
         num_neighbors = neighbor_obs.size(1)
+        neighbor_obs_dim = neighbor_obs.size(2)
         neighbor_features = self.agent_encoder(
-            neighbor_obs.view(-1, self.agent_obs_dim)
+            neighbor_obs.view(-1, neighbor_obs_dim)
         ).view(batch_size, num_neighbors, self.hidden_dim)
         
         # Aggregate neighboring agent features
@@ -172,14 +173,14 @@ class DAN(nn.Module):
     def encode_agent_only(self, agent_obs):
         """Encode only agent information
         Args:
-            agent_obs: Agent observations [batch_size, agent_obs_dim] or [batch_size, num_agents, agent_obs_dim]
+            agent_obs: Agent observations [batch_size, neighbor_obs_dim] or [batch_size, num_agents, neighbor_obs_dim]
         Returns:
             agent_features: Encoded agent features
         """
         if agent_obs.dim() == 3:
-            batch_size, num_agents, agent_obs_dim = agent_obs.shape
+            batch_size, num_agents, neighbor_obs_dim = agent_obs.shape
             return self.agent_encoder(
-                agent_obs.view(-1, agent_obs_dim)
+                agent_obs.view(-1, neighbor_obs_dim)
             ).view(batch_size, num_agents, self.hidden_dim)
         else:
             return self.agent_encoder(agent_obs)

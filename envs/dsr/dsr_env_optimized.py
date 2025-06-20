@@ -8,7 +8,7 @@
 import numpy as np
 import torch
 from envs.dsr.dsr_env import DSREnv
-from envs.dsr.core.dsr_core import DSRCore
+from envs.dsr.core.dsr_core import DSRCoreEnv
 
 class DSREnvOptimized(DSREnv):
     """优化的DSR环境，改进奖励函数和安全约束"""
@@ -283,25 +283,62 @@ class DSREnvOptimized(DSREnv):
         Args:
             agent_id: 当前智能体ID
         Returns:
-            neighbor_obs: 邻居观测列表
-            agent_mask: 智能体掩码
+            neighbor_obs: 邻居观测列表 [max_neighbors, obs_dim]
+            agent_mask: 智能体掩码 [max_neighbors]
         """
-        # TODO: 实现基于电网拓扑的邻居关系确定
-        # 这里需要根据具体的电网拓扑和智能体分布来实现
+        max_neighbors = getattr(self.args, 'max_neighbors', 5)
         
-        # 简单实现：返回所有其他智能体的观测
+        # NOTE: 根据论文，邻居定义为同一微电网内的其他智能体
+        # 在DSR环境中，我们根据电气连接关系确定邻居
+        
+        # 获取当前智能体的微电网ID
+        if hasattr(self, 'get_agent_microgrid'):
+            agent_mg = self.get_agent_microgrid(agent_id)
+            neighbor_ids = []
+            
+            # 找到同一微电网内的其他智能体
+            for i in range(self.num_agents):
+                if i != agent_id and self.get_agent_microgrid(i) == agent_mg:
+                    neighbor_ids.append(i)
+        else:
+            # 如果没有微电网信息，使用距离最近的智能体作为邻居
+            # 这是一个简化实现，实际应根据电网拓扑确定
+            neighbor_ids = [i for i in range(self.num_agents) if i != agent_id]
+            # 限制邻居数量
+            if len(neighbor_ids) > max_neighbors:
+                # TODO: 根据电气距离或其他度量选择最相关的邻居
+                neighbor_ids = neighbor_ids[:max_neighbors]
+        
+        # 准备邻居观测和掩码
         neighbor_obs = []
         agent_mask = []
         
-        for i in range(self.num_agents):
-            if i != agent_id:
-                obs = self._get_observation(i)
+        # 填充邻居观测
+        for i in range(max_neighbors):
+            if i < len(neighbor_ids):
+                obs = self._get_observation(neighbor_ids[i])
                 neighbor_obs.append(obs)
                 agent_mask.append(1.0)
             else:
-                # 填充零观测以保持维度一致
-                obs = np.zeros_like(self._get_observation(agent_id))
+                # 填充零观测
+                obs = np.zeros(self.observation_space[0].shape[0])
                 neighbor_obs.append(obs)
                 agent_mask.append(0.0)
-                
+        
         return np.array(neighbor_obs), np.array(agent_mask)
+    
+    def get_all_neighbor_observations(self):
+        """获取所有智能体的邻居观测
+        Returns:
+            all_neighbor_obs: 所有智能体的邻居观测 [num_agents, max_neighbors, obs_dim]
+            all_agent_masks: 所有智能体的掩码 [num_agents, max_neighbors]
+        """
+        all_neighbor_obs = []
+        all_agent_masks = []
+        
+        for agent_id in range(self.num_agents):
+            neighbor_obs, agent_mask = self.get_neighbor_observations(agent_id)
+            all_neighbor_obs.append(neighbor_obs)
+            all_agent_masks.append(agent_mask)
+        
+        return np.array(all_neighbor_obs), np.array(all_agent_masks)
