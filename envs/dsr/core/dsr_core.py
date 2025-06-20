@@ -66,7 +66,7 @@ class DSRCoreEnv:
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             'powerzoo', 'systems', self.config.system_name
         )
-        dss_file_path = os.path.join(dss_folder, self.config.dss_file)
+        dss_file_path = os.path.join(dss_folder, powerzoo_config['dss_file'])
         
         # 创建Circuits对象
         self.circuit = Circuits(
@@ -89,7 +89,7 @@ class DSRCoreEnv:
         self.load_profile = LoadProfile(
             self.config.max_episode_steps,
             dss_folder,
-            self.config.dss_file,
+            powerzoo_config['dss_file'],
             self.config.load_noise,
             worker_idx=self.worker_idx
         )
@@ -99,6 +99,32 @@ class DSRCoreEnv:
         )
         
         logger.info(f"OpenDSS电路初始化完成: {self.n_bus}个母线, {len(self.line_info)}条线路")
+        
+        # 执行电路健康检查
+        self._validate_circuit_health()
+    
+    def _validate_circuit_health(self):
+        """验证电路健康状态"""
+        try:
+            # 执行初始求解
+            self.circuit.dss.ActiveCircuit.Solution.Solve()
+            converged = self.circuit.dss.ActiveCircuit.Solution.Converged
+            
+            if not converged:
+                logger.warning("电路初始化后未收敛，可能存在配置问题")
+            
+            # 检查母线电压获取能力
+            try:
+                all_voltages = self.circuit.dss.ActiveCircuit.AllBusVmag
+                if len(all_voltages) < len(self.all_bus_names):
+                    logger.warning(f"母线电压数量不匹配: 期望{len(self.all_bus_names)}，实际{len(all_voltages)}")
+            except Exception as e:
+                logger.warning(f"无法获取AllBusVmag，将使用逐个获取方式: {e}")
+            
+            logger.info("电路健康检查完成")
+            
+        except Exception as e:
+            logger.error(f"电路健康检查失败: {e}")
     
     def _get_line_info(self):
         """获取线路信息"""
@@ -511,8 +537,17 @@ class DSRCoreEnv:
         
         # 运行潮流计算
         try:
+            # 确保电路状态正确
             self.circuit.dss.ActiveCircuit.Solution.Solve()
             converged = self.circuit.dss.ActiveCircuit.Solution.Converged
+            
+            # 验证求解质量
+            if not converged:
+                logger.warning(f"步骤 {self.current_step}: 潮流计算未收敛")
+                # 尝试重新求解
+                self.circuit.dss.ActiveCircuit.Solution.Solve()
+                converged = self.circuit.dss.ActiveCircuit.Solution.Converged
+                
         except Exception as e:
             logger.warning(f"潮流计算失败: {e}")
             converged = False
@@ -547,6 +582,11 @@ class DSRCoreEnv:
         """执行智能体动作"""
         # 开关智能体动作
         switch_action = actions[0]
+        # 确保switch_action是标量值
+        if hasattr(switch_action, 'item'):
+            switch_action = switch_action.item()
+        switch_action = int(switch_action)
+        
         if switch_action > 0 and switch_action <= len(self.faultable_lines):
             action_results['switch']['attempted'] = 1
             # 选择操作的线路（排除故障线路）
@@ -573,6 +613,11 @@ class DSRCoreEnv:
         for i, pv_agent in enumerate(self.pv_agents):
             if 1 + i < len(actions):
                 pv_action = actions[1 + i]
+                # 确保pv_action是标量值
+                if hasattr(pv_action, 'item'):
+                    pv_action = pv_action.item()
+                pv_action = int(pv_action)
+                
                 # 设置PV输出功率（配置的等级范围）
                 max_level = self.config.pv_power_levels - 1
                 if 0 <= pv_action <= max_level:
@@ -595,6 +640,10 @@ class DSRCoreEnv:
             action_idx = 1 + self.n_pv_agents + i
             if action_idx < len(actions):
                 load_action = actions[action_idx]
+                # 确保load_action是标量值
+                if hasattr(load_action, 'item'):
+                    load_action = load_action.item()
+                load_action = int(load_action)
                 
                 # 处理聚合负荷智能体管理的所有负荷
                 managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
@@ -769,15 +818,39 @@ class DSRCoreEnv:
     def _get_observations(self) -> Dict[str, Any]:
         """获取智能体观测"""
         obs = {}
+        bus_voltages = {}
+        
+        # 首先验证电路状态
+        try:
+            circuit_solved = self.circuit.dss.ActiveCircuit.Solution.Converged
+            if not circuit_solved:
+                logger.debug("电路未收敛，使用默认电压值")
+        except:
+            circuit_solved = False
         
         # 获取母线电压
-        bus_voltages = {}
-        for bus_name in self.all_bus_names:
+        if circuit_solved:
             try:
-                voltages = self.circuit.bus_voltage(bus_name)
-                bus_voltages[bus_name] = [voltages[i] for i in range(len(voltages)) if i % 2 == 0]
-            except:
-                bus_voltages[bus_name] = [self.config.default_voltage]  # 配置的默认电压
+                # 方法1：使用AllBusVmag获取所有母线电压（推荐）
+                all_voltages = self.circuit.dss.ActiveCircuit.AllBusVmag
+                if len(all_voltages) >= len(self.all_bus_names):
+                    for i, bus_name in enumerate(self.all_bus_names):
+                        voltage_magnitude = all_voltages[i]
+                        if np.isnan(voltage_magnitude) or np.isinf(voltage_magnitude):
+                            voltage_magnitude = self.config.default_voltage
+                        else:
+                            voltage_magnitude = np.clip(voltage_magnitude, 0.0, 2.0)
+                        bus_voltages[bus_name] = [voltage_magnitude]
+                else:
+                    # 回退到逐个获取
+                    self._get_bus_voltages_individually(bus_voltages)
+            except Exception as e:
+                logger.debug(f"批量获取母线电压失败: {e}，回退到逐个获取")
+                self._get_bus_voltages_individually(bus_voltages)
+        else:
+            # 电路未收敛，使用默认电压
+            for bus_name in self.all_bus_names:
+                bus_voltages[bus_name] = [self.config.default_voltage]
         
         obs['bus_voltages'] = bus_voltages
         obs['energized_buses'] = list(self.energized_buses)
@@ -787,6 +860,35 @@ class DSRCoreEnv:
         obs['max_steps'] = self.config.max_episode_steps
         
         return obs
+    
+    def _get_bus_voltages_individually(self, bus_voltages: Dict[str, List[float]]):
+        """逐个获取母线电压的备用方法"""
+        for bus_name in self.all_bus_names:
+            try:
+                voltages = self.circuit.bus_voltage(bus_name)
+                # 处理numpy数组的情况，避免歧义错误
+                if voltages is not None and len(voltages) > 0:
+                    # 提取电压幅值（每隔一个元素）
+                    voltage_mags = [voltages[i] for i in range(len(voltages)) if i % 2 == 0]
+                    
+                    # 检查并处理无效值
+                    cleaned_voltages = []
+                    for v in voltage_mags:
+                        if np.isnan(v) or np.isinf(v):
+                            v = self.config.default_voltage
+                        else:
+                            # 限制电压在合理范围内
+                            v = np.clip(v, 0.0, 2.0)
+                        cleaned_voltages.append(v)
+                    
+                    bus_voltages[bus_name] = cleaned_voltages if cleaned_voltages else [self.config.default_voltage]
+                else:
+                    bus_voltages[bus_name] = [self.config.default_voltage]
+            except Exception as e:
+                # 只在调试模式下打印详细错误
+                if hasattr(self.config, 'debug_mode') and self.config.debug_mode:
+                    logger.debug(f"获取母线 {bus_name} 电压失败: {e}")
+                bus_voltages[bus_name] = [self.config.default_voltage]
     
     def _get_global_state(self) -> Dict[str, Any]:
         """获取全局状态"""
@@ -798,40 +900,55 @@ class DSRCoreEnv:
         """获取可用动作"""
         avail_actions = []
         
+        # 计算统一的动作空间大小
+        max_switch_actions = len(self.faultable_lines) + 1
+        max_pv_actions = self.config.pv_power_levels
+        max_load_actions = self.config.load_action_levels
+        max_actions = max(max_switch_actions, max_pv_actions, max_load_actions)
+        
         for i in range(self.n_agents):
+            # 初始化为统一长度的可用动作列表
+            avail = [0] * max_actions
+            
             if self.agent_types[i] == 'switch':
-                # 开关智能体：可以操作的线路数量+1（不操作）
-                n_actions = len([line for line in self.faultable_lines 
-                               if line not in self.fault_lines]) + 1
-                avail_actions.append([1] * n_actions)
+                # 开关智能体：不操作动作总是可用
+                avail[0] = 1
+                
+                # 检查每条可故障线路是否可操作
+                for j, line in enumerate(self.faultable_lines):
+                    if line not in self.fault_lines:
+                        avail[j + 1] = 1
             
             elif self.agent_types[i] == 'pv':
-                # PV智能体：配置的功率等级数量
-                avail_actions.append([1] * self.config.pv_power_levels)
+                # PV智能体：所有功率等级都可用
+                for j in range(self.config.pv_power_levels):
+                    avail[j] = 1
             
             elif self.agent_types[i] == 'load':
-                # 负荷智能体：断开(0)或恢复(1)
-                agent_idx = self.agent_indices[i]
-                load_agent = self.load_agents[agent_idx]
+                # 负荷智能体：断开动作总是可用
+                avail[0] = 1
                 
-                avail = [1, 1]  # 默认都可用
-                
-                # 对于聚合负荷智能体，检查所有管理的负荷
-                managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
-                
-                # 如果所有管理的负荷所在母线都未通电，不能恢复
-                can_restore = False
-                for load_name in managed_loads:
-                    if load_name in self.load_info:
-                        load_bus = self.load_info[load_name]['bus']
-                        if load_bus in self.energized_buses:
-                            can_restore = True
-                            break
-                
-                if not can_restore:
-                    avail[1] = 0
-                
-                avail_actions.append(avail)
+                # 检查恢复动作是否可用
+                if self.config.load_action_levels > 1:
+                    agent_idx = self.agent_indices[i]
+                    load_agent = self.load_agents[agent_idx]
+                    
+                    # 对于聚合负荷智能体，检查所有管理的负荷
+                    managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
+                    
+                    # 如果有任何管理的负荷所在母线通电，就可以恢复
+                    can_restore = False
+                    for load_name in managed_loads:
+                        if load_name in self.load_info:
+                            load_bus = self.load_info[load_name]['bus']
+                            if load_bus in self.energized_buses:
+                                can_restore = True
+                                break
+                    
+                    if can_restore:
+                        avail[1] = 1
+            
+            avail_actions.append(avail)
         
         return avail_actions
     
@@ -1089,9 +1206,93 @@ class DSRCoreEnv:
         return info
     
     def _execute_actions(self, actions: List[int]) -> Dict[str, Any]:
-        """执行智能体动作并记录结果"""
+        """执行智能体动作"""
         action_results = {
             'switch': {'attempted': 0, 'successful': 0, 'failed': 0},
             'pv': {'adjustments': [], 'total_power_change': 0},
             'load': {'attempted_restore': 0, 'successful_restore': 0, 'failed_restore': 0},
         }
+        
+        # 开关智能体动作
+        switch_action = actions[0]
+        # 确保 switch_action 是标量整数
+        if hasattr(switch_action, 'item'):
+            switch_action = switch_action.item()
+        switch_action = int(switch_action)
+        
+        if switch_action > 0 and switch_action <= len(self.faultable_lines):
+            action_results['switch']['attempted'] = 1
+            # 选择操作的线路（排除故障线路）
+            available_lines = [line for line in self.faultable_lines 
+                             if line not in self.fault_lines]
+            if available_lines and switch_action <= len(available_lines):
+                line_name = available_lines[switch_action - 1]
+                # 切换线路状态
+                current_state = self.line_info[line_name]['enabled']
+                new_state = not current_state
+                
+                try:
+                    # 使用DSS文本命令设置线路启用/禁用状态
+                    enabled_str = 'yes' if new_state else 'no'
+                    self.circuit.dss.Text.Command = f'line.{line_name}.enabled={enabled_str}'
+                    self.line_info[line_name]['enabled'] = new_state
+                    action_results['switch']['successful'] = 1
+                    action_results['switch']['line_name'] = line_name
+                    action_results['switch']['new_state'] = new_state
+                except:
+                    action_results['switch']['failed'] = 1
+        
+        # PV智能体动作
+        for i, pv_agent in enumerate(self.pv_agents):
+            if 1 + i < len(actions):
+                pv_action = actions[1 + i]
+                # 设置PV输出功率（配置的等级范围）
+                max_level = self.config.pv_power_levels - 1
+                if 0 <= pv_action <= max_level:
+                    power_ratio = pv_action / max_level
+                    old_power = pv_agent['current_power']
+                    new_power = power_ratio * pv_agent['max_power']
+                    pv_agent['current_power'] = new_power
+                    
+                    power_change = new_power - old_power
+                    action_results['pv']['adjustments'].append({
+                        'agent_id': 1 + i,
+                        'old_power': old_power,
+                        'new_power': new_power,
+                        'change': power_change
+                    })
+                    action_results['pv']['total_power_change'] += power_change
+        
+        # 负荷智能体动作
+        for i, load_agent in enumerate(self.load_agents):
+            action_idx = 1 + self.n_pv_agents + i
+            if action_idx < len(actions):
+                load_action = actions[action_idx]
+                
+                # 处理聚合负荷智能体管理的所有负荷
+                managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
+                
+                for load_name in managed_loads:
+                    if load_name not in self.load_info:
+                        continue
+                        
+                    if load_action == 1:  # 尝试恢复负荷
+                        action_results['load']['attempted_restore'] += 1
+                        # 检查负荷所在母线是否通电
+                        load_bus = self.load_info[load_name]['bus']
+                        if load_bus in self.energized_buses:
+                            try:
+                                # 使用DSS文本命令设置负荷启用状态
+                                self.circuit.dss.Text.Command = f'load.{load_name}.enabled=yes'
+                                self.load_info[load_name]['enabled'] = True
+                                action_results['load']['successful_restore'] += 1
+                            except:
+                                action_results['load']['failed_restore'] += 1
+                        else:
+                            action_results['load']['failed_restore'] += 1
+                    elif load_action == 0:  # 断开负荷
+                        # 使用DSS文本命令设置负荷禁用状态
+                        self.circuit.dss.Text.Command = f'load.{load_name}.enabled=no'
+                        self.load_info[load_name]['enabled'] = False
+        
+        return action_results

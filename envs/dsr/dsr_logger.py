@@ -36,7 +36,7 @@ except ImportError:
 class DSRLogger:
     """DSR环境日志记录器，兼容PowerZoo框架"""
     
-    def __init__(self, args, algo_args, env_args, run_dir, writter):
+    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
         """
         初始化DSR日志记录器
         
@@ -44,12 +44,14 @@ class DSRLogger:
             args: 全局参数
             algo_args: 算法参数  
             env_args: 环境参数
-            run_dir: 运行目录
+            num_agents: 智能体数量
             writter: TensorBoard写入器
+            run_dir: 运行目录
         """
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
+        self.num_agents = num_agents
         self.run_dir = run_dir
         self.writter = writter
         
@@ -126,10 +128,54 @@ class DSRLogger:
             for key in metrics_dict:
                 metrics_dict[key] = []
     
+    def episode_init(self, episode):
+        """初始化每个episode的记录器"""
+        self.episode = episode
+    
+    def eval_init(self):
+        """初始化评估阶段的记录器"""
+        # 重置评估指标
+        for key in self.eval_metrics:
+            self.eval_metrics[key] = []
+        print("DSR评估阶段初始化完成")
+    
+    def eval_per_step(self, eval_data):
+        """评估阶段每步记录"""
+        # eval_data包含评估环境返回的信息
+        (
+            eval_obs,
+            eval_share_obs,
+            eval_rewards,
+            eval_dones,
+            eval_infos,
+            eval_available_actions,
+        ) = eval_data
+        
+        # 记录评估信息
+        if eval_infos:
+            self._log_env_info(eval_infos)
+    
+    def eval_thread_done(self, tid):
+        """评估线程完成时的回调"""
+        # 可以在这里添加线程特定的清理或记录逻辑
+        pass
+    
     def per_step(self, data):
         """每步记录"""
         # data包含环境返回的信息
-        obs, share_obs, rewards, dones, infos, available_actions = data
+        (
+            obs,
+            share_obs,
+            rewards,
+            dones,
+            infos,
+            available_actions,
+            values,
+            actions,
+            action_log_probs,
+            rnn_states,
+            rnn_states_critic,
+        ) = data
         
         # 如果启用了监控器，更新可视化
         if self.monitor and infos:
@@ -138,13 +184,9 @@ class DSRLogger:
         
         self.total_env_steps += 1
     
-    def episode_log(self, actor_train_infos, critic_train_infos, env_infos):
+    def episode_log(self, actor_train_infos, critic_train_infos, actor_buffer, critic_buffer):
         """每个episode的日志记录"""
         self.episode_count += 1
-        
-        # 处理环境信息
-        if env_infos is not None and len(env_infos) > 0:
-            self._log_env_info(env_infos)
         
         # 处理训练信息
         if actor_train_infos is not None:
@@ -152,6 +194,9 @@ class DSRLogger:
         
         if critic_train_infos is not None:
             self._log_train_info(critic_train_infos, "critic")
+        
+        # 可以从buffer中提取环境信息进行记录
+        # 这里暂时不处理buffer，保持简单的实现
     
     def _log_env_info(self, env_infos: List[Dict[str, Any]]):
         """记录环境信息"""
@@ -277,22 +322,25 @@ class DSRLogger:
         if self.episode_count % log_interval == 0:
             self._write_metrics_to_tensorboard()
     
-    def _log_train_info(self, train_infos: List[Dict[str, Any]], prefix: str):
+    def _log_train_info(self, train_infos, prefix: str):
         """记录训练信息"""
         if not train_infos:
             return
         
-        # 计算平均训练指标
-        avg_train_info = {}
-        for key in train_infos[0].keys():
-            if isinstance(train_infos[0][key], (int, float)):
-                values = [info[key] for info in train_infos if key in info]
-                if values:
-                    avg_train_info[f"{prefix}_{key}"] = np.mean(values)
-        
-        # 记录到TensorBoard
-        for key, value in avg_train_info.items():
-            self.writter.add_scalar(f"train/{key}", value, self.episode_count)
+        # 如果是actor_train_infos（列表格式），处理每个agent的信息
+        if isinstance(train_infos, list):
+            for agent_id, agent_info in enumerate(train_infos):
+                if isinstance(agent_info, dict):
+                    for key, value in agent_info.items():
+                        if isinstance(value, (int, float)):
+                            agent_key = f"{prefix}_agent{agent_id}_{key}"
+                            self.writter.add_scalar(f"train/{agent_key}", value, self.episode_count)
+        # 如果是critic_train_infos（字典格式），直接处理
+        elif isinstance(train_infos, dict):
+            for key, value in train_infos.items():
+                if isinstance(value, (int, float)):
+                    critic_key = f"{prefix}_{key}"
+                    self.writter.add_scalar(f"train/{critic_key}", value, self.episode_count)
     
     def _write_metrics_to_tensorboard(self):
         """将所有指标写入TensorBoard"""
@@ -347,7 +395,7 @@ class DSRLogger:
             self.writter.add_scalar("overview/restoration_score", restoration_score, self.episode_count)
             self.writter.add_scalar("overview/convergence_score", convergence_score, self.episode_count)
     
-    def eval_log(self, eval_episode, eval_env_infos, eval_average_episode_rewards):
+    def eval_log(self, eval_episode, eval_env_infos=None, eval_average_episode_rewards=None):
         """评估日志记录"""
         # 处理评估环境信息
         if eval_env_infos is not None and len(eval_env_infos) > 0:

@@ -74,6 +74,7 @@ class DSRConfig:
     # 观测空间配置
     obs_reserved_dim: int = 10  # 智能体特定观测预留维度
     default_voltage: float = 1.0  # 默认电压标幺值
+    debug_mode: bool = False  # 调试模式，控制详细日志输出
     
     # 设备重置配置
     line_disconnect_prob: float = 0.7  # 线路断开概率（重置时）

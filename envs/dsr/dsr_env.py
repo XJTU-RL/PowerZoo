@@ -36,7 +36,6 @@ class DSREnv:
         
         # 设置智能体信息
         self.n_agents = self.core_env.n_agents
-        self.agents = list(range(self.n_agents))
         
         # 定义观测和动作空间
         self._setup_spaces()
@@ -49,6 +48,16 @@ class DSREnv:
         self.useS = args.get('useS', False)
         self.use_render = args.get('use_render', False)
         self.record_node = args.get('record_node', True)
+        
+        # 设置ordered_agents_pairs和agents_bus
+        if self.useS:
+            agents_names = [f"agent_{i}" for i in range(self.n_agents)]
+            update_orders = list(range(self.n_agents))
+            self.ordered_agents_pairs = dict(zip(agents_names, update_orders))
+            self.agents_bus = getattr(self.core_env, 'agents_bus', None)
+        else:
+            self.ordered_agents_pairs = None
+            self.agents_bus = None
         
         # 动作是否为离散
         self.discrete = True
@@ -82,7 +91,7 @@ class DSREnv:
             # 动作空间配置
             'pv_power_levels', 'load_action_levels', 'pv_max_power',
             # 观测空间配置
-            'obs_reserved_dim', 'default_voltage',
+            'obs_reserved_dim', 'default_voltage', 'debug_mode',
             # 设备重置配置
             'line_disconnect_prob', 'max_faultable_lines',
             # 负荷优先级配置
@@ -132,27 +141,21 @@ class DSREnv:
         """设置初始动作空间（在知道故障线路之前）"""
         self.action_space = []
         
+        # 计算最大动作空间大小
+        max_switch_actions = len(self.core_env.faultable_lines) + 1
+        max_pv_actions = self.config.pv_power_levels
+        max_load_actions = self.config.load_action_levels
+        
+        # 使用所有类型中的最大动作数作为统一的动作空间大小
+        max_actions = max(max_switch_actions, max_pv_actions, max_load_actions)
+        
         for i in range(self.n_agents):
-            if self.core_env.agent_types[i] == 'switch':
-                # 开关智能体：使用最大可能的动作数（所有可故障线路+1）
-                self.action_space.append(Discrete(len(self.core_env.faultable_lines) + 1))
-            
-            elif self.core_env.agent_types[i] == 'pv':
-                # PV智能体：配置的功率等级数量
-                self.action_space.append(Discrete(self.config.pv_power_levels))
-            
-            elif self.core_env.agent_types[i] == 'load':
-                # 负荷智能体：配置的动作等级数量
-                self.action_space.append(Discrete(self.config.load_action_levels))
+            # 所有智能体使用相同的动作空间大小
+            self.action_space.append(Discrete(max_actions))
     
     def _update_action_spaces(self):
-        """在reset后更新动作空间（知道故障线路后）"""
-        for i in range(self.n_agents):
-            if self.core_env.agent_types[i] == 'switch':
-                # 更新开关智能体的动作空间：排除故障线路
-                n_lines = len([line for line in self.core_env.faultable_lines 
-                              if line not in self.core_env.fault_lines])
-                self.action_space[i] = Discrete(n_lines + 1)
+        """在reset后更新动作空间（现在不需要更新，因为使用统一的动作空间大小）"""
+        pass
     
     def _calculate_obs_dim(self) -> int:
         """计算观测维度"""
@@ -257,7 +260,16 @@ class DSREnv:
         for bus_name in self.core_env.all_bus_names:
             if bus_name in obs_dict['bus_voltages']:
                 voltages = obs_dict['bus_voltages'][bus_name]
-                min_voltage = min(voltages) if voltages else self.config.default_voltage
+                if voltages:
+                    min_voltage = min(voltages)
+                    # 检查并处理无效值
+                    if np.isnan(min_voltage) or np.isinf(min_voltage):
+                        min_voltage = self.config.default_voltage
+                        print(f"警告: 母线 {bus_name} 电压值无效，使用默认值 {self.config.default_voltage}")
+                    # 限制电压范围在合理区间内
+                    min_voltage = np.clip(min_voltage, 0.5, 1.5)
+                else:
+                    min_voltage = self.config.default_voltage
                 obs_components.append(min_voltage)
             else:
                 obs_components.append(self.config.default_voltage)  # 配置的默认电压
@@ -272,10 +284,6 @@ class DSREnv:
                     obs_components.append(float(obs_dict['line_states'][line_name]))
                 else:
                     obs_components.append(0.0)
-            
-            # 补充到目标维度
-            while len(obs_components) < self._calculate_obs_dim():
-                obs_components.append(0.0)
         
         elif agent_type == 'pv':
             # PV智能体：PV状态和附近负荷状态
@@ -286,10 +294,6 @@ class DSREnv:
                     pv_agent['current_power'] / pv_agent['max_power'],  # 当前功率比
                     float(pv_agent['bus'] in obs_dict['energized_buses']),  # 母线通电状态
                 ])
-            
-            # 补充到目标维度
-            while len(obs_components) < self._calculate_obs_dim():
-                obs_components.append(0.0)
         
         elif agent_type == 'load':
             # 负荷智能体：负荷状态和优先级信息
@@ -330,22 +334,71 @@ class DSREnv:
                         float(load_agent['bus'] in obs_dict['energized_buses']),  # 母线通电状态
                         1.0,  # 管理1个负荷
                     ])
-            
-            # 补充到目标维度
-            while len(obs_components) < self._calculate_obs_dim():
-                obs_components.append(0.0)
         
-        # 确保观测维度正确
+        # 统一的维度处理：确保观测维度正确
         target_dim = self._calculate_obs_dim()
-        obs_components = obs_components[:target_dim]  # 截断
-        while len(obs_components) < target_dim:  # 补齐
-            obs_components.append(0.0)
         
-        return np.array(obs_components, dtype=np.float32)
+        # 调试信息：检查obs_components的结构
+        try:
+            # 展平嵌套列表
+            flattened_obs = []
+            for item in obs_components:
+                if isinstance(item, (list, np.ndarray)):
+                    if isinstance(item, np.ndarray):
+                        flattened_obs.extend(item.flatten())
+                    else:
+                        # 递归展平嵌套列表
+                        def flatten_list(lst):
+                            result = []
+                            for element in lst:
+                                if isinstance(element, (list, np.ndarray)):
+                                    if isinstance(element, np.ndarray):
+                                        result.extend(element.flatten())
+                                    else:
+                                        result.extend(flatten_list(element))
+                                else:
+                                    result.append(element)
+                            return result
+                        flattened_obs.extend(flatten_list(item))
+                else:
+                    flattened_obs.append(item)
+            
+            # 确保所有元素都是数值类型
+            flattened_obs = [float(x) if not np.isnan(float(x)) else 0.0 for x in flattened_obs]
+            
+            # 调整到目标维度
+            if len(flattened_obs) > target_dim:
+                # 截断
+                flattened_obs = flattened_obs[:target_dim]
+            elif len(flattened_obs) < target_dim:
+                # 填充
+                padding_needed = target_dim - len(flattened_obs)
+                flattened_obs.extend([0.0] * padding_needed)
+            
+            # 转换为numpy数组
+            obs_array = np.array(flattened_obs, dtype=np.float32)
+            
+        except Exception as e:
+            print(f"错误: 智能体 {agent_id} 观测构建失败: {e}")
+            print(f"obs_components 结构: {[type(c) for c in obs_components]}")
+            print(f"obs_components 内容: {obs_components}")
+            # 创建默认观测
+            obs_array = np.zeros(target_dim, dtype=np.float32)
+        
+        # 检查并处理NaN和无穷大值
+        if np.any(np.isnan(obs_array)) or np.any(np.isinf(obs_array)):
+            print(f"警告: 智能体 {agent_id} 观测中包含无效值，进行修复")
+            # 将NaN和无穷大值替换为0
+            obs_array = np.nan_to_num(obs_array, nan=0.0, posinf=1.0, neginf=-1.0)
+        
+        return obs_array
     
     def get_avail_actions(self) -> List[List[int]]:
         """获取所有智能体的可用动作"""
-        return self.core_env.get_available_actions()
+        avail_actions = self.core_env.get_available_actions()
+        # 确保返回numpy兼容的格式
+        import numpy as np
+        return np.array(avail_actions, dtype=object).tolist()
     
     def get_avail_agent_actions(self, agent_id: int) -> List[int]:
         """获取单个智能体的可用动作"""

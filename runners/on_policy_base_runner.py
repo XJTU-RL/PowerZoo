@@ -89,7 +89,6 @@ class OnPolicyBaseRunner:
         self.share_param = algo_args["algo"]["share_param"]
         # 如果是shom算法才加载这些参数
         if args["algo"] == "shom":
-            self.action_aggregation = algo_args["algo"]["action_aggregation"]
             self.ordered = algo_args["algo"]["ordered"]
              # 是否使用无功电压矩阵
             self.useS = env_args.get("useS", False)
@@ -97,7 +96,6 @@ class OnPolicyBaseRunner:
             self.big2small = env_args.get("big2small", False)
         else:
             # 非SHOM算法不使用这些参数
-            self.action_aggregation = None
             self.ordered = False
             self.useS = False
             self.big2small = False
