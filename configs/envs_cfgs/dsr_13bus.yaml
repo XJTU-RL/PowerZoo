@@ -71,6 +71,17 @@ env_args:
   restoration_threshold: 0.95
   recent_episodes_window: 10
   ieee123_load_count: 85
+  
+  # 监控配置
+  monitoring:
+    detailed_logging: True
+    log_frequency: 5           # 小系统更频繁的日志
+    visualization: True
+    anomaly_detection: True
+    save_snapshots: True
+    metrics_aggregation: "mean"
+    visualization_interval: 20  # 小系统更频繁的可视化
+    save_final_report: True
 
 # 训练参数（适配小系统）
 train_interval_episode: 1

@@ -497,8 +497,11 @@ class DSRCoreEnv:
         """执行一步动作"""
         self.current_step += 1
         
+        # 记录动作前的系统状态（用于对比分析）
+        pre_action_state = self._capture_system_state()
+        
         # 执行智能体动作
-        self._execute_actions(actions)
+        action_results = self._execute_actions(actions)
         
         # 运行潮流计算
         try:
@@ -510,6 +513,9 @@ class DSRCoreEnv:
         
         # 更新通电状态
         self._update_energized_buses()
+        
+        # 记录动作后的系统状态
+        post_action_state = self._capture_system_state()
         
         # 计算奖励
         rewards = self._calculate_rewards(converged)
@@ -523,15 +529,11 @@ class DSRCoreEnv:
         obs = self._get_observations()
         state = self._get_global_state()
         
-        # 生成信息字典
-        info = {
-            'converged': converged,
-            'restored_load_ratio': self._get_restored_load_ratio(),
-            'energized_buses': len(self.energized_buses),
-            'total_buses': self.n_bus,
-            'current_step': self.current_step,
-            'fault_lines': self.fault_lines,
-        }
+        # 生成增强的信息字典
+        info = self._generate_enhanced_info(
+            converged, actions, action_results, 
+            pre_action_state, post_action_state, rewards
+        )
         
         return obs, state, rewards, self.done, info
     
@@ -540,6 +542,7 @@ class DSRCoreEnv:
         # 开关智能体动作
         switch_action = actions[0]
         if switch_action > 0 and switch_action <= len(self.faultable_lines):
+            action_results['switch']['attempted'] = 1
             # 选择操作的线路（排除故障线路）
             available_lines = [line for line in self.faultable_lines 
                              if line not in self.fault_lines]
@@ -549,9 +552,15 @@ class DSRCoreEnv:
                 current_state = self.line_info[line_name]['enabled']
                 new_state = not current_state
                 
-                self.circuit.dss.ActiveCircuit.Lines.Name = line_name
-                self.circuit.dss.ActiveCircuit.Lines.Enabled = new_state
-                self.line_info[line_name]['enabled'] = new_state
+                try:
+                    self.circuit.dss.ActiveCircuit.Lines.Name = line_name
+                    self.circuit.dss.ActiveCircuit.Lines.Enabled = new_state
+                    self.line_info[line_name]['enabled'] = new_state
+                    action_results['switch']['successful'] = 1
+                    action_results['switch']['line_name'] = line_name
+                    action_results['switch']['new_state'] = new_state
+                except:
+                    action_results['switch']['failed'] = 1
         
         # PV智能体动作
         for i, pv_agent in enumerate(self.pv_agents):
@@ -561,7 +570,18 @@ class DSRCoreEnv:
                 max_level = self.config.pv_power_levels - 1
                 if 0 <= pv_action <= max_level:
                     power_ratio = pv_action / max_level
-                    pv_agent['current_power'] = power_ratio * pv_agent['max_power']
+                    old_power = pv_agent['current_power']
+                    new_power = power_ratio * pv_agent['max_power']
+                    pv_agent['current_power'] = new_power
+                    
+                    power_change = new_power - old_power
+                    action_results['pv']['adjustments'].append({
+                        'agent_id': 1 + i,
+                        'old_power': old_power,
+                        'new_power': new_power,
+                        'change': power_change
+                    })
+                    action_results['pv']['total_power_change'] += power_change
         
         # 负荷智能体动作
         for i, load_agent in enumerate(self.load_agents):
@@ -577,16 +597,25 @@ class DSRCoreEnv:
                         continue
                         
                     if load_action == 1:  # 尝试恢复负荷
+                        action_results['load']['attempted_restore'] += 1
                         # 检查负荷所在母线是否通电
                         load_bus = self.load_info[load_name]['bus']
                         if load_bus in self.energized_buses:
-                            self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-                            self.circuit.dss.ActiveCircuit.Loads.Enabled = True
-                            self.load_info[load_name]['enabled'] = True
+                            try:
+                                self.circuit.dss.ActiveCircuit.Loads.Name = load_name
+                                self.circuit.dss.ActiveCircuit.Loads.Enabled = True
+                                self.load_info[load_name]['enabled'] = True
+                                action_results['load']['successful_restore'] += 1
+                            except:
+                                action_results['load']['failed_restore'] += 1
+                        else:
+                            action_results['load']['failed_restore'] += 1
                     elif load_action == 0:  # 断开负荷
                         self.circuit.dss.ActiveCircuit.Loads.Name = load_name
                         self.circuit.dss.ActiveCircuit.Loads.Enabled = False
                         self.load_info[load_name]['enabled'] = False
+        
+        return action_results
     
     def _calculate_rewards(self, converged: bool) -> List[float]:
         """计算奖励"""
@@ -652,7 +681,7 @@ class DSRCoreEnv:
     def _get_line_overloads(self) -> int:
         """获取线路过载数量"""
         overloads = 0
-        overload_details = []  # 用于调试和日志记录
+        self.overload_details = []  # 保存为实例变量，供其他方法使用
         
         try:
             # 遍历所有启用的线路
@@ -699,7 +728,7 @@ class DSRCoreEnv:
                     if max_current > norm_amps:
                         overloads += 1
                         overload_ratio = max_current / norm_amps
-                        overload_details.append({
+                        self.overload_details.append({
                             'line': line_name,
                             'current': max_current,
                             'rating': norm_amps,
@@ -718,8 +747,8 @@ class DSRCoreEnv:
             logger.warning(f"线路过载检测失败: {e}")
             
         # 记录过载详情（用于调试）
-        if overload_details and logger.isEnabledFor(logging.DEBUG):
-            for detail in overload_details:
+        if self.overload_details and logger.isEnabledFor(logging.DEBUG):
+            for detail in self.overload_details:
                 logger.debug(f"过载线路: {detail['line']}, 电流: {detail['current']:.2f}A, "
                             f"额定: {detail['rating']:.2f}A, 比例: {detail['ratio']:.2f}")
         
@@ -804,7 +833,258 @@ class DSRCoreEnv:
         np.random.seed(seed)
         random.seed(seed)
     
+    def _get_total_restored_load(self) -> float:
+        """获取总恢复负荷（kW）"""
+        total = 0.0
+        for load_name, load_data in self.load_info.items():
+            if load_data['enabled']:
+                total += load_data['kw']
+        return total
+    
+    def _get_priority_restoration_status(self) -> Dict[int, Dict[str, float]]:
+        """获取按优先级的恢复状态"""
+        priority_status = {}
+        
+        for priority in range(1, self.config.max_priority_level + 1):
+            total_kw = 0.0
+            restored_kw = 0.0
+            count_total = 0
+            count_restored = 0
+            
+            for load_name, load_data in self.load_info.items():
+                if load_data['priority'] == priority:
+                    total_kw += load_data['kw']
+                    count_total += 1
+                    if load_data['enabled']:
+                        restored_kw += load_data['kw']
+                        count_restored += 1
+            
+            priority_status[priority] = {
+                'total_kw': total_kw,
+                'restored_kw': restored_kw,
+                'restoration_ratio': restored_kw / total_kw if total_kw > 0 else 0,
+                'total_count': count_total,
+                'restored_count': count_restored,
+            }
+        
+        return priority_status
+    
+    def _calculate_restoration_rate(self, pre_state: Dict, post_state: Dict) -> float:
+        """计算恢复速率（本步恢复的负荷数量）"""
+        loads_restored = post_state['restored_loads'] - pre_state['restored_loads']
+        return loads_restored
+    
+    def _calculate_action_effectiveness(self, pre_state: Dict, post_state: Dict) -> float:
+        """计算动作有效性（0-1之间）"""
+        # 基于系统改善程度计算
+        improvements = 0
+        total_metrics = 0
+        
+        # 通电母线增加
+        if post_state['energized_buses'] > pre_state['energized_buses']:
+            improvements += 1
+        total_metrics += 1
+        
+        # 负荷恢复增加
+        if post_state['restored_loads'] > pre_state['restored_loads']:
+            improvements += 1
+        total_metrics += 1
+        
+        # 线路连接增加（如果不是减少）
+        if post_state['active_lines'] >= pre_state['active_lines']:
+            improvements += 0.5
+        total_metrics += 1
+        
+        return improvements / total_metrics if total_metrics > 0 else 0
+    
+    def _get_line_loading_details(self) -> Dict[str, Dict[str, float]]:
+        """获取详细的线路负载信息"""
+        line_loading = {}
+        
+        for line_name, line_data in self.line_info.items():
+            if not line_data['enabled']:
+                line_loading[line_name] = {'status': 'disabled', 'loading': 0}
+                continue
+            
+            try:
+                self.circuit.dss.ActiveCircuit.Lines.Name = line_name
+                norm_amps = self.circuit.dss.ActiveCircuit.Lines.NormAmps
+                
+                if norm_amps > 0:
+                    currents = self.circuit.edge_current(f"Line.{line_name}")
+                    # 计算最大相电流
+                    max_current = 0
+                    for i in range(0, len(currents), 2):
+                        real = currents[i]
+                        imag = currents[i + 1] if i + 1 < len(currents) else 0
+                        magnitude = (real**2 + imag**2)**0.5
+                        max_current = max(max_current, magnitude)
+                    
+                    loading_percent = (max_current / norm_amps) * 100
+                    
+                    line_loading[line_name] = {
+                        'status': 'active',
+                        'current': max_current,
+                        'rating': norm_amps,
+                        'loading': loading_percent,
+                        'overloaded': loading_percent > 100
+                    }
+                else:
+                    line_loading[line_name] = {'status': 'no_rating', 'loading': 0}
+                    
+            except:
+                line_loading[line_name] = {'status': 'error', 'loading': 0}
+        
+        return line_loading
+    
+    def _get_voltage_profile(self) -> Dict[str, Dict[str, Any]]:
+        """获取电压分布信息"""
+        voltage_profile = {}
+        
+        for bus_name in self.all_bus_names:
+            try:
+                voltages = self.circuit.bus_voltage(bus_name)
+                phase_voltages = [voltages[i] for i in range(len(voltages)) if i % 2 == 0]
+                
+                min_v = min(phase_voltages) if phase_voltages else 0
+                max_v = max(phase_voltages) if phase_voltages else 0
+                avg_v = np.mean(phase_voltages) if phase_voltages else 0
+                
+                voltage_profile[bus_name] = {
+                    'min': min_v,
+                    'max': max_v,
+                    'avg': avg_v,
+                    'phases': len(phase_voltages),
+                    'violation': min_v < self.config.v_min or max_v > self.config.v_max,
+                    'energized': bus_name in self.energized_buses
+                }
+            except:
+                voltage_profile[bus_name] = {
+                    'min': 0,
+                    'max': 0,
+                    'avg': 0,
+                    'phases': 0,
+                    'violation': False,
+                    'energized': False
+                }
+        
+        return voltage_profile
+    
+    def _calculate_topology_metrics(self) -> Dict[str, Any]:
+        """计算网络拓扑指标"""
+        # 构建当前网络图
+        G = nx.Graph()
+        G.add_nodes_from(self.all_bus_names)
+        
+        for line_name, line_data in self.line_info.items():
+            if line_data['enabled']:
+                G.add_edge(line_data['bus1'], line_data['bus2'])
+        
+        # 计算连通分量
+        components = list(nx.connected_components(G))
+        
+        # 找出有电源的分量
+        powered_components = []
+        for component in components:
+            if any(bus in self.dg_buses for bus in component):
+                powered_components.append(component)
+        
+        # 计算指标
+        metrics = {
+            'total_components': len(components),
+            'powered_components': len(powered_components),
+            'largest_component_size': len(max(components, key=len)) if components else 0,
+            'isolated_buses': len([n for n in G.nodes() if G.degree(n) == 0]),
+            'average_degree': np.mean([d for n, d in G.degree()]) if G.number_of_nodes() > 0 else 0,
+            'graph_density': nx.density(G) if G.number_of_nodes() > 1 else 0,
+        }
+        
+        return metrics
+    
     def close(self):
         """关闭环境"""
         # 清理OpenDSS资源
         pass
+    
+    def _capture_system_state(self) -> Dict[str, Any]:
+        """捕获当前系统状态快照"""
+        state = {
+            'timestamp': self.current_step,
+            'energized_buses': len(self.energized_buses),
+            'restored_loads': sum(1 for load in self.load_info.values() if load['enabled']),
+            'active_lines': sum(1 for line in self.line_info.values() if line['enabled']),
+        }
+        
+        # 获取系统级指标
+        if hasattr(self.circuit.dss.ActiveCircuit, 'Losses'):
+            losses = self.circuit.dss.ActiveCircuit.Losses
+            state['power_losses'] = {
+                'active': losses[0] if len(losses) > 0 else 0,
+                'reactive': losses[1] if len(losses) > 1 else 0
+            }
+        
+        return state
+    
+    def _generate_enhanced_info(self, converged: bool, actions: List[int], 
+                                action_results: Dict[str, Any],
+                                pre_state: Dict[str, Any], 
+                                post_state: Dict[str, Any],
+                                rewards: List[float]) -> Dict[str, Any]:
+        """生成增强的信息字典"""
+        # 基础信息
+        info = {
+            'converged': converged,
+            'restored_load_ratio': self._get_restored_load_ratio(),
+            'energized_buses': len(self.energized_buses),
+            'total_buses': self.n_bus,
+            'current_step': self.current_step,
+            'fault_lines': self.fault_lines,
+        }
+        
+        # 系统状态信息
+        info['system_state'] = {
+            'voltage_violations': self._get_voltage_violations(),
+            'line_overloads': len(self.overload_details) if hasattr(self, 'overload_details') else 0,
+            'overload_details': self.overload_details if hasattr(self, 'overload_details') else [],
+            'power_losses': post_state.get('power_losses', {}),
+            'topology_changes': {
+                'lines_switched': post_state['active_lines'] - pre_state['active_lines'],
+                'loads_restored': post_state['restored_loads'] - pre_state['restored_loads'],
+                'buses_energized': post_state['energized_buses'] - pre_state['energized_buses'],
+            }
+        }
+        
+        # 智能体行为信息
+        info['agent_behavior'] = {
+            'actions': actions,
+            'action_results': action_results,
+            'rewards': rewards,
+            'action_effectiveness': self._calculate_action_effectiveness(pre_state, post_state),
+        }
+        
+        # 恢复过程信息
+        info['restoration_progress'] = {
+            'total_load_restored': self._get_total_restored_load(),
+            'priority_restoration': self._get_priority_restoration_status(),
+            'restoration_rate': self._calculate_restoration_rate(pre_state, post_state),
+            'completion_ratio': self._get_restored_load_ratio(),
+        }
+        
+        # 详细的线路负载信息
+        info['line_loading'] = self._get_line_loading_details()
+        
+        # 详细的电压分布信息
+        info['voltage_profile'] = self._get_voltage_profile()
+        
+        # 网络拓扑指标
+        info['topology_metrics'] = self._calculate_topology_metrics()
+        
+        return info
+    
+    def _execute_actions(self, actions: List[int]) -> Dict[str, Any]:
+        """执行智能体动作并记录结果"""
+        action_results = {
+            'switch': {'attempted': 0, 'successful': 0, 'failed': 0},
+            'pv': {'adjustments': [], 'total_power_change': 0},
+            'load': {'attempted_restore': 0, 'successful_restore': 0, 'failed_restore': 0},
+        }

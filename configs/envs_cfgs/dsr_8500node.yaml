@@ -75,6 +75,17 @@ env_args:
   use_emergency_rating: False
   log_overload_details: False
   ieee123_load_count: 85  # 仅用于参考
+  
+  # 监控配置（大系统优化）
+  monitoring:
+    detailed_logging: False    # 大系统禁用详细日志以节省资源
+    log_frequency: 20         # 减少日志频率
+    visualization: False      # 大系统默认禁用可视化
+    anomaly_detection: True   # 保留异常检测
+    save_snapshots: False     # 不保存快照以节省空间
+    metrics_aggregation: "mean"
+    visualization_interval: 100  # 如果启用，减少更新频率
+    save_final_report: True
 
 # 训练参数（适配大系统）
 train_interval_episode: 1

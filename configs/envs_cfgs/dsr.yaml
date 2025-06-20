@@ -86,6 +86,17 @@ env_args:
   
   # IEEE 123节点系统配置
   ieee123_load_count: 85   # IEEE 123节点系统的典型负荷数量
+  
+  # 监控配置
+  monitoring:
+    detailed_logging: True      # 启用详细日志
+    log_frequency: 10          # 详细日志频率（步数）
+    visualization: True        # 启用可视化
+    anomaly_detection: True    # 异常检测
+    save_snapshots: True       # 保存系统快照
+    metrics_aggregation: "mean" # 指标聚合方式: mean, max, min
+    visualization_interval: 50  # 可视化更新间隔
+    save_final_report: True    # 保存最终报告
 
 # 训练参数
 train_interval_episode: 1
@@ -141,6 +152,10 @@ use_linear_lr_decay: False
 use_wandb: False
 use_render: False
 render_episodes: 5
+
+# TensorBoard设置
+use_tensorboard: True
+tensorboard_log_dir: "./results/tensorboard"
 
 # 模型目录
 model_dir: null
