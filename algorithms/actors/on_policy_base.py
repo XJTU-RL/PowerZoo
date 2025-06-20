@@ -126,7 +126,6 @@ class OnPolicyBase:
                                     (if None, all actions available)
             deterministic: (bool) whether the action should be mode of distribution or should be sampled.
         """
-        #TODO:onpolicybase可用动作打印
         actions, _, rnn_states_actor = self.actor(
             obs, rnn_states_actor, masks, available_actions, deterministic
         )

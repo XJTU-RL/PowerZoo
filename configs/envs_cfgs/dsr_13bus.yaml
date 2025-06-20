@@ -1,0 +1,68 @@
+# DSR Environment Configuration for IEEE 13-Bus System
+# 配电网恢复环境配置 - 13节点系统
+
+env_name: "dsr"
+scenario_name: "ieee13_restoration"
+
+# 基础设置
+seed_specify: True
+seed: 123456
+
+# 环境参数
+env_args:
+  # 基础配置
+  system_name: "13Bus"
+  max_episode_steps: 10
+  
+  # 设备配置（适配小系统）
+  n_dg: 3          # 柴油发电机数量
+  n_pv: 3          # 光伏数量
+  n_switch: 10     # 开关数量
+  n_load_levels: 3 # 负荷优先级等级
+  
+  # 聚合智能体配置
+  use_load_aggregation: False  # 小系统不需要聚合
+  n_load_agents: null         # 自动设置为负荷数量
+  load_aggregation_method: "zone"
+  
+  # 物理约束
+  v_min: 0.95
+  v_max: 1.05
+  max_load_per_step: 200.0  # 小系统降低每步恢复量
+  
+  # 奖励权重
+  reward_restore: 20.0
+  reward_voltage: 1.0
+  reward_overload: 1.0
+  reward_done: -5.0
+  
+  # 故障配置
+  fault_scenarios: 3
+  min_faults: 1
+  max_faults: 3
+  
+  # 其他配置与默认相同
+  use_action_mask: True
+  use_dynamic_network: True
+  use_render: False
+  record_node: True
+  load_noise: False
+  scale: 1.0
+
+# 训练参数（适配小系统）
+train_interval_episode: 1
+eval_interval: 20
+use_eval: True
+n_eval_rollout_threads: 1
+n_rollout_threads: 2
+episode_length: 10
+num_env_steps: 5000000
+
+# 其他参数与默认相同
+runner: "OnPolicyHARunner"
+share_policy: False
+use_centralized_V: True
+hidden_size: 64  # 小系统使用较小网络
+layer_N: 2
+lr: 5e-4
+ppo_epoch: 5

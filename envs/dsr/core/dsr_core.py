@@ -182,28 +182,226 @@ class DSRCoreEnv:
             })
         
         # 负荷智能体
+        self.use_aggregation = agent_config.get('use_aggregation', False)
+        self.aggregation_ratio = agent_config.get('aggregation_ratio', 1.0)
+        
         load_names = list(self.load_info.keys())
         self.load_agents = []
-        for i, load_name in enumerate(load_names[:self.n_load_agents]):
-            agent_id = 1 + self.n_pv_agents + i
+        self.load_agent_mapping = {}  # 智能体到负荷的映射
+        
+        if self.use_aggregation and self.aggregation_ratio > 1:
+            # 使用聚合模式
+            self._init_aggregated_load_agents(load_names)
+        else:
+            # 一对一模式，一个智能体对应一个负荷，适用于小网络
+            self._init_individual_load_agents(load_names)
+        
+        logger.info(f"智能体初始化完成: 1个开关 + {self.n_pv_agents}个PV + {self.n_load_agents}个负荷智能体")
+        if self.use_aggregation and self.aggregation_ratio > 1:
+            logger.info(f"负荷聚合模式: {len(load_names)}个负荷聚合到{self.n_load_agents}个智能体")
+    
+    def _init_individual_load_agents(self, load_names: List[str]):
+        """初始化一对一负荷智能体"""
+        for i, load_name in enumerate(load_names):
+            if i >= self.n_load_agents:
+                break  # 限制智能体数量
+                
+            load_data = self.load_info[load_name]
             self.agent_types.append('load')
             self.agent_indices.append(i)
-            self.agent_bus_mapping[agent_id] = self.load_info[load_name]['bus']
+            
+            agent_id = 1 + self.n_pv_agents + i
+            self.agent_bus_mapping[agent_id] = load_data['bus']
+            
             self.load_agents.append({
                 'agent_id': agent_id,
                 'load_name': load_name,
-                'bus': self.load_info[load_name]['bus'],
-                'priority': self.load_info[load_name]['priority'],
-                'kw': self.load_info[load_name]['kw']
+                'bus': load_data['bus'],
+                'priority': load_data['priority'],
+                'kw': load_data['kw'],
+                'managed_loads': [load_name]  # 管理的负荷列表
             })
+            
+            self.load_agent_mapping[agent_id] = [load_name]
+    
+    def _init_aggregated_load_agents(self, load_names: List[str]):
+        """初始化聚合负荷智能体"""
+        # 根据聚合方法对负荷进行分组
+        load_groups = self._group_loads_for_aggregation(load_names)
         
-        logger.info(f"智能体初始化完成: 1个开关 + {self.n_pv_agents}个PV + {self.n_load_agents}个负荷")
+        for i, (group_key, group_loads) in enumerate(load_groups.items()):
+            if i >= self.n_load_agents:
+                break
+                
+            self.agent_types.append('load')
+            self.agent_indices.append(i)
+            
+            agent_id = 1 + self.n_pv_agents + i
+            
+            # 选择代表性母线（优先级最高或功率最大的负荷所在母线）
+            representative_load = self._select_representative_load(group_loads)
+            representative_bus = self.load_info[representative_load]['bus']
+            
+            self.agent_bus_mapping[agent_id] = representative_bus
+            
+            # 计算聚合信息
+            total_kw = sum(self.load_info[load]['kw'] for load in group_loads)
+            avg_priority = np.mean([self.load_info[load]['priority'] for load in group_loads])
+            
+            self.load_agents.append({
+                'agent_id': agent_id,
+                'load_name': f"aggregated_load_{i}",  # 聚合负荷的虚拟名称
+                'bus': representative_bus,
+                'priority': round(avg_priority),
+                'kw': total_kw,
+                'managed_loads': group_loads  # 管理的负荷列表
+            })
+            
+            self.load_agent_mapping[agent_id] = group_loads
+    
+    def _group_loads_for_aggregation(self, load_names: List[str]) -> Dict[str, List[str]]:
+        """根据聚合方法对负荷进行分组"""
+        if self.config.load_aggregation_method == "zone":
+            # 基于区域（母线）的聚合
+            return self._group_loads_by_zone(load_names)
+        elif self.config.load_aggregation_method == "priority":
+            # 基于优先级的聚合
+            return self._group_loads_by_priority(load_names)
+        elif self.config.load_aggregation_method == "random":
+            # 随机聚合
+            return self._group_loads_randomly(load_names)
+        else:
+            # 默认使用区域聚合
+            logger.warning(f"未知的聚合方法: {self.config.load_aggregation_method}, 使用区域聚合")
+            return self._group_loads_by_zone(load_names)
+    
+    def _group_loads_by_zone(self, load_names: List[str]) -> Dict[str, List[str]]:
+        """基于区域（母线）的负荷分组"""
+        # 构建网络拓扑图
+        G = nx.Graph()
+        for line_name, line_data in self.line_info.items():
+            if line_data['original_enabled']:  # 使用原始状态
+                G.add_edge(line_data['bus1'], line_data['bus2'])
+        
+        # 按母线对负荷进行初步分组
+        bus_loads = {}
+        for load_name in load_names:
+            bus = self.load_info[load_name]['bus']
+            if bus not in bus_loads:
+                bus_loads[bus] = []
+            bus_loads[bus].append(load_name)
+        
+        # 使用社区检测或简单的距离聚类
+        groups = {}
+        loads_per_group = max(1, len(load_names) // self.n_load_agents)
+        
+        # 简单实现：将相邻母线的负荷聚合在一起
+        #TODO 可以实现更复杂的负荷聚类
+        assigned_loads = set()
+        group_id = 0
+        
+        for bus, loads in bus_loads.items():
+            if any(load in assigned_loads for load in loads):
+                continue
+                
+            group_key = f"zone_{group_id}"
+            groups[group_key] = []
+            
+            # 添加当前母线的负荷
+            for load in loads:
+                if load not in assigned_loads:
+                    groups[group_key].append(load)
+                    assigned_loads.add(load)
+            
+            # 如果组还不够大，添加相邻母线的负荷
+            if bus in G:
+                neighbors = list(G.neighbors(bus))
+                for neighbor in neighbors:
+                    if len(groups[group_key]) >= loads_per_group:
+                        break
+                    if neighbor in bus_loads:
+                        for load in bus_loads[neighbor]:
+                            if load not in assigned_loads and len(groups[group_key]) < loads_per_group:
+                                groups[group_key].append(load)
+                                assigned_loads.add(load)
+            
+            if groups[group_key]:  # 只保留非空组
+                group_id += 1
+            else:
+                del groups[group_key]
+        
+        # 处理剩余未分配的负荷
+        unassigned = [load for load in load_names if load not in assigned_loads]
+        if unassigned:
+            # 分配到现有组或创建新组
+            for load in unassigned:
+                # 找到最小的组
+                min_group = min(groups.keys(), key=lambda k: len(groups[k]))
+                groups[min_group].append(load)
+        
+        return groups
+    
+    def _group_loads_by_priority(self, load_names: List[str]) -> Dict[str, List[str]]:
+        """基于优先级的负荷分组"""
+        # 按优先级排序负荷
+        sorted_loads = sorted(load_names, key=lambda x: self.load_info[x]['priority'])
+        
+        groups = {}
+        loads_per_group = max(1, len(load_names) // self.n_load_agents)
+        
+        for i in range(self.n_load_agents):
+            group_key = f"priority_group_{i}"
+            start_idx = i * loads_per_group
+            end_idx = start_idx + loads_per_group if i < self.n_load_agents - 1 else len(sorted_loads)
+            
+            groups[group_key] = sorted_loads[start_idx:end_idx]
+            
+            if not groups[group_key]:  # 删除空组
+                del groups[group_key]
+        
+        return groups
+    
+    def _group_loads_randomly(self, load_names: List[str]) -> Dict[str, List[str]]:
+        """随机负荷分组"""
+        # 随机打乱负荷顺序
+        shuffled_loads = load_names.copy()
+        random.shuffle(shuffled_loads)
+        
+        groups = {}
+        loads_per_group = max(1, len(load_names) // self.n_load_agents)
+        
+        for i in range(self.n_load_agents):
+            group_key = f"random_group_{i}"
+            start_idx = i * loads_per_group
+            end_idx = start_idx + loads_per_group if i < self.n_load_agents - 1 else len(shuffled_loads)
+            
+            groups[group_key] = shuffled_loads[start_idx:end_idx]
+            
+            if not groups[group_key]:  # 删除空组
+                del groups[group_key]
+        
+        return groups
+    
+    def _select_representative_load(self, load_names: List[str]) -> str:
+        """选择代表性负荷（优先级最高或功率最大）"""
+        if not load_names:
+            return None
+            
+        # 首先按优先级选择（优先级数字越小越重要）
+        min_priority = min(self.load_info[load]['priority'] for load in load_names)
+        high_priority_loads = [load for load in load_names 
+                              if self.load_info[load]['priority'] == min_priority]
+        
+        # 在同优先级中选择功率最大的
+        return max(high_priority_loads, key=lambda x: self.load_info[x]['kw'])
     
     def _init_fault_management(self):
         """初始化故障管理"""
         # 可故障的线路（排除重要的主干线路）
         all_lines = list(self.line_info.keys())
-        # 简化：随机选择可能故障的线路
+        # TODO 简化：随机选择可能故障的线路
+        # TODO 后面可以按照场景来分配故障线路
+        
         self.faultable_lines = random.sample(all_lines, min(len(all_lines), self.config.max_faultable_lines))
         
         # 分布式发电机（黑启动电源）位置
@@ -233,7 +431,7 @@ class DSRCoreEnv:
         self._update_energized_buses()
         
         # 获取初始观测和状态
-        #TODO 这里暂且将二者等同
+        #TODO 这里暂且将状态空间等同于观测空间，后面可以深化实现
         obs = self._get_observations() 
         state = self._get_global_state()
         
@@ -370,18 +568,25 @@ class DSRCoreEnv:
             action_idx = 1 + self.n_pv_agents + i
             if action_idx < len(actions):
                 load_action = actions[action_idx]
-                load_name = load_agent['load_name']
                 
-                if load_action == 1:  # 尝试恢复负荷
-                    # 检查负荷所在母线是否通电
-                    if load_agent['bus'] in self.energized_buses:
+                # 处理聚合负荷智能体管理的所有负荷
+                managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
+                
+                for load_name in managed_loads:
+                    if load_name not in self.load_info:
+                        continue
+                        
+                    if load_action == 1:  # 尝试恢复负荷
+                        # 检查负荷所在母线是否通电
+                        load_bus = self.load_info[load_name]['bus']
+                        if load_bus in self.energized_buses:
+                            self.circuit.dss.ActiveCircuit.Loads.Name = load_name
+                            self.circuit.dss.ActiveCircuit.Loads.Enabled = True
+                            self.load_info[load_name]['enabled'] = True
+                    elif load_action == 0:  # 断开负荷
                         self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-                        self.circuit.dss.ActiveCircuit.Loads.Enabled = True
-                        self.load_info[load_name]['enabled'] = True
-                elif load_action == 0:  # 断开负荷
-                    self.circuit.dss.ActiveCircuit.Loads.Name = load_name
-                    self.circuit.dss.ActiveCircuit.Loads.Enabled = False
-                    self.load_info[load_name]['enabled'] = False
+                        self.circuit.dss.ActiveCircuit.Loads.Enabled = False
+                        self.load_info[load_name]['enabled'] = False
     
     def _calculate_rewards(self, converged: bool) -> List[float]:
         """计算奖励"""
@@ -575,8 +780,19 @@ class DSRCoreEnv:
                 
                 avail = [1, 1]  # 默认都可用
                 
-                # 如果母线未通电，不能恢复
-                if load_agent['bus'] not in self.energized_buses:
+                # 对于聚合负荷智能体，检查所有管理的负荷
+                managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
+                
+                # 如果所有管理的负荷所在母线都未通电，不能恢复
+                can_restore = False
+                for load_name in managed_loads:
+                    if load_name in self.load_info:
+                        load_bus = self.load_info[load_name]['bus']
+                        if load_bus in self.energized_buses:
+                            can_restore = True
+                            break
+                
+                if not can_restore:
                     avail[1] = 0
                 
                 avail_actions.append(avail)

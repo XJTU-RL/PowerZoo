@@ -442,7 +442,7 @@ class MissileSimulator(BaseSimulator):
         self._left_t = int(1 / self.dt)  # remove missile 1s after its destroying
 
     def target(self, target: AircraftSimulator):
-        self.target_aircraft = target  # TODO: change target?
+        self.target_aircraft = target 
         self.target_aircraft.under_missiles.append(self)
 
     def run(self):

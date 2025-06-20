@@ -25,6 +25,11 @@ class DSRConfig:
     n_switch: int = 20  # 开关数量
     n_load_levels: int = 3  # 负荷优先级等级
     
+    # 聚合智能体配置
+    use_load_aggregation: bool = True  # 是否使用负荷聚合智能体
+    n_load_agents: Optional[int] = None  # 负荷智能体数量（None表示自动计算）
+    load_aggregation_method: str = "zone"  # 聚合方法: zone(区域), priority(优先级), random(随机)
+    
     # 物理约束
     v_min: float = 0.95  # 最小电压标幺值
     v_max: float = 1.05  # 最大电压标幺值
@@ -142,21 +147,35 @@ class DSRConfig:
             'dis_w': 0.1,   # 放电权重
         }
     
-    def get_agent_config(self) -> Dict[str, int]:
+    def get_agent_config(self) -> Dict[str, Any]:
         """获取智能体配置"""
-        # 根据系统规模动态设置负荷数量
+        # 根据系统规模获取实际负荷数量
         load_counts = {
             '13Bus': 15,      # 13节点系统约15个负荷
             '34Bus': 25,      # 34节点系统约25个负荷
             '123Bus': 85,     # 123节点系统约85个负荷
-            '8500-Node': 1177 # 8500节点系统约1177个负荷（可能需要采样）
+            '8500-Node': 1177 # 8500节点系统约1177个负荷
         }
         
-        n_loads = load_counts.get(self.system_name, 85)
+        actual_load_count = load_counts.get(self.system_name, 85)
         
-        # 对于超大系统，限制负荷智能体数量避免计算爆炸
-        if n_loads > 200:
-            n_loads = 200  # 采样200个重要负荷
+        # 确定负荷智能体数量
+        if self.n_load_agents is not None:
+            # 用户指定了负荷智能体数量
+            n_load_agents = min(self.n_load_agents, actual_load_count)
+        elif self.use_load_aggregation:
+            # 自动计算合理的负荷智能体数量
+            if actual_load_count <= 20:
+                n_load_agents = actual_load_count  # 小系统不需要聚合
+            elif actual_load_count <= 50:
+                n_load_agents = 15  # 中等系统
+            elif actual_load_count <= 200:
+                n_load_agents = 30  # 大系统
+            else:
+                n_load_agents = 50  # 超大系统
+        else:
+            # 不使用聚合，每个负荷一个智能体
+            n_load_agents = actual_load_count
         
         # 根据系统规模调整PV和开关数量
         if self.system_name == '13Bus':
@@ -172,14 +191,20 @@ class DSRConfig:
             n_pv = self.n_pv
             n_switch = self.n_switch
         
-        total_agents = 1 + n_pv + n_loads
+        # 计算聚合比例
+        aggregation_ratio = actual_load_count / max(n_load_agents, 1)
+        
+        total_agents = 1 + n_pv + n_load_agents
         
         return {
             'n_switch_agents': 1,
             'n_pv_agents': n_pv,
-            'n_load_agents': n_loads,
+            'n_load_agents': n_load_agents,
             'total_agents': total_agents,
-            'n_switches': n_switch,  # 可控开关数量
+            'n_switches': n_switch,
+            'actual_load_count': actual_load_count,
+            'aggregation_ratio': aggregation_ratio,
+            'use_aggregation': self.use_load_aggregation and aggregation_ratio > 1,
         }
     
     def get_reward_config(self) -> Dict[str, float]:

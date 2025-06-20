@@ -115,7 +115,6 @@ class BaseLogger:
             rnn_states,
             rnn_states_critic,
         ) = data
-        #print("log_dones:",dones)#TODO:打印dones
         dones_env = np.all(dones, axis=1)
         reward_env = np.mean(rewards, axis=1).flatten()#rewards 是一个包含多个环境的奖励值的数组（单步），其中每行代表一个环境的奖励序列,对每行求平均（此处每行只有一个元素）
         self.train_episode_rewards += reward_env#将单步奖励求和，变成episode奖励

@@ -162,8 +162,8 @@ class ActionSpace:
         otherwise, space is a tuple of MultiDiscrete and Box
     '''
     def __init__(self, CRB_num, RB_act_num):
-        self.cap_num, self.reg_num, self.bat_num = CRB_num#三元组，包括了电容器数量，调压器数量和电池数量，如果要改为多智能体模式，则应该给每个智能体一个actionspace
-        #我的想法是造三个类，电容器类，电池类和调压器类，或者就把他们写死
+        #三元组，包括了电容器数量，调压器数量和电池数量，如果要改为多智能体模式，则应该给每个智能体一个actionspace
+        self.cap_num, self.reg_num, self.bat_num = CRB_num
         self.reg_act_num, self.bat_act_num = RB_act_num#二元组，包含了调压器和电池的动作数量
 
         if self.bat_act_num < float('inf'):

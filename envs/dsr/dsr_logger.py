@@ -121,7 +121,8 @@ class DSRLogger:
             self.dsr_metrics['restoration_steps'].append(info['current_step'])
         
         # 计算平均值并记录到TensorBoard
-        if len(self.dsr_metrics['restored_load_ratio']) % 10 == 0:  # 按配置间隔记录TensorBoard
+        log_interval = self.env_args.get('log_interval_episodes', 10)
+        if len(self.dsr_metrics['restored_load_ratio']) % log_interval == 0:
             self._write_metrics_to_tensorboard()
     
     def _log_train_info(self, train_infos: List[Dict[str, Any]], prefix: str):
@@ -143,9 +144,10 @@ class DSRLogger:
     
     def _write_metrics_to_tensorboard(self):
         """将DSR指标写入TensorBoard"""
+        recent_window = self.env_args.get('recent_episodes_window', 10)
         for metric_name, values in self.dsr_metrics.items():
             if values:
-                avg_value = np.mean(values[-self.config.recent_episodes_window:])  # 最近配置窗口的平均值
+                avg_value = np.mean(values[-recent_window:])  # 最近窗口的平均值
                 self.writter.add_scalar(f"dsr/{metric_name}", avg_value, self.episode_count)
     
     def eval_log(self, eval_episode, eval_env_infos, eval_average_episode_rewards):
@@ -173,10 +175,12 @@ class DSRLogger:
         success_flags = []
         convergence_flags = []
         
+        success_threshold = self.env_args.get('success_threshold', 0.9)
+        
         for info in eval_env_infos:
             if 'restored_load_ratio' in info:
                 restored_ratios.append(info['restored_load_ratio'])
-                success_flags.append(info['restored_load_ratio'] >= self.config.success_threshold)  # 配置阈值视为成功
+                success_flags.append(info['restored_load_ratio'] >= success_threshold)  # 配置阈值视为成功
             
             if 'energized_buses' in info and 'total_buses' in info:
                 ratio = info['energized_buses'] / max(info['total_buses'], 1)

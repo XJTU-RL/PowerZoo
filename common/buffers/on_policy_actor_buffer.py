@@ -78,7 +78,7 @@ class OnPolicyActorBuffer:
             # self.available_actions = np.ones(
             #     (self.episode_length + 1, self.n_rollout_threads, *int_nvec),
             #     dtype=np.float32,
-            # )我加的代码
+            # )
         act_shape = get_shape_from_act_space(act_space)
 
         # Buffer for actions of this actor.
@@ -118,7 +118,7 @@ class OnPolicyActorBuffer:
         available_actions=None,
     ):
         """Insert data into actor buffer."""
-        #print("obs-------------shape",obs.shape)#TODO:打印obs.shape
+        #print("obs-------------shape",obs.shape)
         self.obs[self.step + 1] = obs.copy()
         self.rnn_states[self.step + 1] = rnn_states.copy()
         self.actions[self.step] = actions.copy()
@@ -129,7 +129,6 @@ class OnPolicyActorBuffer:
         if available_actions is not None:
             #self.available_actions[self.step + 1] = available_actions.copy()
             self.available_actions[self.step + 1] = np.array(available_actions).tolist().copy()
-            #TODO，验证数据结构
         self.step = (self.step + 1) % self.episode_length
 
     def after_update(self):

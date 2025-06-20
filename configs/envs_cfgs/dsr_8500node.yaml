@@ -1,0 +1,85 @@
+# DSR Environment Configuration for IEEE 8500-Node System
+# 配电网恢复环境配置 - 8500节点大系统
+
+env_name: "dsr"
+scenario_name: "ieee8500_restoration"
+
+# 基础设置
+seed_specify: True
+seed: 123456
+
+# 环境参数
+env_args:
+  # 基础配置
+  system_name: "8500-Node"
+  max_episode_steps: 20
+  
+  # 设备配置（适配大系统）
+  n_dg: 15         # 更多柴油发电机
+  n_pv: 20         # 更多光伏
+  n_switch: 50     # 更多开关
+  n_load_levels: 3 # 负荷优先级等级
+  
+  # 聚合智能体配置（重要！）
+  use_load_aggregation: True   # 必须使用聚合
+  n_load_agents: 50           # 将1177个负荷聚合到50个智能体
+  load_aggregation_method: "zone"  # 基于区域聚合
+  
+  # 物理约束
+  v_min: 0.95
+  v_max: 1.05
+  max_load_per_step: 1000.0  # 大系统增加每步恢复量
+  
+  # 奖励权重
+  reward_restore: 20.0
+  reward_voltage: 1.0
+  reward_overload: 1.0
+  reward_done: -5.0
+  
+  # 故障配置
+  fault_scenarios: 10
+  min_faults: 5
+  max_faults: 10
+  
+  # 大系统特殊配置
+  max_faultable_lines: 100   # 增加可故障线路数量
+  line_disconnect_prob: 0.8  # 增加初始断开概率
+  
+  # 其他配置
+  use_action_mask: True
+  use_dynamic_network: True
+  use_render: False  # 大系统不建议渲染
+  record_node: False # 大系统不记录节点信息以节省内存
+  load_noise: False
+  scale: 1.0
+  
+  # 日志配置
+  log_interval_episodes: 20  # 减少日志频率
+  success_threshold: 0.85    # 降低成功阈值
+  recent_episodes_window: 20
+
+# 训练参数（适配大系统）
+train_interval_episode: 1
+eval_interval: 50  # 减少评估频率
+use_eval: True
+n_eval_rollout_threads: 1
+n_rollout_threads: 4  # 增加并行进程
+episode_length: 20
+num_env_steps: 20000000  # 增加训练步数
+
+# 算法参数（适配大系统）
+runner: "OnPolicyHARunner"
+share_policy: False
+use_centralized_V: True
+hidden_size: 256  # 大系统使用较大网络
+layer_N: 3        # 增加网络深度
+lr: 3e-4          # 略微降低学习率
+ppo_epoch: 5
+entropy_coef: 0.02  # 增加探索
+
+# 优化大系统性能
+num_mini_batch: 2   # 增加mini batch以提高效率
+use_feature_normalization: True
+max_grad_norm: 10.0
+gamma: 0.99
+gae_lambda: 0.95

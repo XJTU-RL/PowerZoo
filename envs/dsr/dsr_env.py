@@ -55,21 +55,37 @@ class DSREnv:
     
     def _parse_config(self, args: Dict[str, Any]) -> DSRConfig:
         """解析配置参数"""
-        config = DEFAULT_DSR_CONFIG
+        # 创建配置副本
+        config_dict = DEFAULT_DSR_CONFIG.__dict__.copy()
         
         # 从args中更新配置
-        if 'max_episode_steps' in args:
-            config.max_episode_steps = args['max_episode_steps']
-        if 'seed' in args:
-            config.seed = args['seed']
-        if 'system_name' in args:
-            config.system_name = args['system_name']
-        if 'use_render' in args:
-            config.use_render = args['use_render']
-        if 'load_noise' in args:
-            config.load_noise = args['load_noise']
+        # 处理env_args中的参数
+        env_args = args.get('env_args', {})
         
-        return config
+        # 更新所有相关参数
+        update_keys = [
+            'system_name', 'max_episode_steps', 'seed', 'use_render', 'load_noise',
+            'n_dg', 'n_pv', 'n_switch', 'n_load_levels',
+            'use_load_aggregation', 'n_load_agents', 'load_aggregation_method',
+            'v_min', 'v_max', 'max_load_per_step',
+            'reward_restore', 'reward_voltage', 'reward_overload', 'reward_done',
+            'min_faults', 'max_faults', 'fault_scenarios',
+            'use_action_mask', 'use_dynamic_network', 'record_node',
+            'scale', 'worker_idx'
+        ]
+        
+        # 首先从env_args更新
+        for key in update_keys:
+            if key in env_args:
+                config_dict[key] = env_args[key]
+        
+        # 然后从顶层args更新（优先级更高）
+        for key in update_keys:
+            if key in args:
+                config_dict[key] = args[key]
+        
+        # 创建新的配置对象
+        return DSRConfig(**config_dict)
     
     def _setup_spaces(self):
         """设置观测和动作空间"""
@@ -242,13 +258,40 @@ class DSREnv:
             agent_idx = self.core_env.agent_indices[agent_id]
             if agent_idx < len(self.core_env.load_agents):
                 load_agent = self.core_env.load_agents[agent_idx]
-                load_name = load_agent['load_name']
                 
-                obs_components.extend([
-                    float(obs_dict['load_states'].get(load_name, False)),  # 负荷状态
-                    load_agent['priority'] / self.config.max_priority_level,  # 归一化优先级
-                    float(load_agent['bus'] in obs_dict['energized_buses']),  # 母线通电状态
-                ])
+                # 处理聚合负荷智能体
+                managed_loads = load_agent.get('managed_loads', [])
+                if managed_loads:
+                    # 聚合负荷智能体的观测
+                    # 1. 管理的负荷总体状态
+                    enabled_count = sum(1 for load in managed_loads 
+                                      if obs_dict['load_states'].get(load, False))
+                    total_count = len(managed_loads)
+                    restoration_ratio = enabled_count / max(total_count, 1)
+                    
+                    # 2. 平均优先级和总功率信息
+                    avg_priority = load_agent['priority'] / self.config.max_priority_level
+                    
+                    # 3. 可恢复负荷比例（母线通电的负荷）
+                    restorable_count = sum(1 for load in managed_loads
+                                         if self.core_env.load_info[load]['bus'] in obs_dict['energized_buses'])
+                    restorable_ratio = restorable_count / max(total_count, 1)
+                    
+                    obs_components.extend([
+                        restoration_ratio,  # 已恢复负荷比例
+                        avg_priority,      # 平均优先级
+                        restorable_ratio,  # 可恢复负荷比例
+                        float(total_count),  # 管理的负荷数量（归一化）
+                    ])
+                else:
+                    # 单个负荷智能体的观测
+                    load_name = load_agent['load_name']
+                    obs_components.extend([
+                        float(obs_dict['load_states'].get(load_name, False)),  # 负荷状态
+                        load_agent['priority'] / self.config.max_priority_level,  # 归一化优先级
+                        float(load_agent['bus'] in obs_dict['energized_buses']),  # 母线通电状态
+                        1.0,  # 管理1个负荷
+                    ])
             
             # 补充到目标维度
             while len(obs_components) < self._calculate_obs_dim():

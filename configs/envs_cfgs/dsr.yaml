@@ -21,6 +21,11 @@ env_args:
   n_switch: 20     # 开关数量
   n_load_levels: 3 # 负荷优先级等级
   
+  # 聚合智能体配置
+  use_load_aggregation: True  # 是否使用负荷聚合智能体
+  n_load_agents: null         # 负荷智能体数量（null表示自动计算）
+  load_aggregation_method: "zone"  # 聚合方法: zone(区域), priority(优先级), random(随机)
+  
   # 物理约束
   v_min: 0.95      # 最小电压标幺值
   v_max: 1.05      # 最大电压标幺值
