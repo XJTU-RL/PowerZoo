@@ -51,7 +51,7 @@ env_args:
   # PowerZoo集成配置
   load_noise: False        # 是否使用负荷噪声
   scale: 1.0              # 负荷缩放因子
-  useS: False             # 是否使用敏感度矩阵
+  useS: False             # 是否使用敏感度矩阵（PowerZoo兼容）
   
   # 过载检测相关配置
   overload_threshold: 1.0  # 过载阈值倍数
@@ -81,6 +81,7 @@ env_args:
   # 日志记录配置
   log_interval_episodes: 10  # 日志记录间隔（episode数）
   success_threshold: 0.9   # 成功恢复阈值（90%恢复率）
+  restoration_threshold: 0.95  # 恢复完成阈值（95%恢复率）
   recent_episodes_window: 10  # 最近episode窗口大小
   
   # IEEE 123节点系统配置

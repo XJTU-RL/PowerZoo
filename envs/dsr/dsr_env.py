@@ -64,14 +64,37 @@ class DSREnv:
         
         # 更新所有相关参数
         update_keys = [
-            'system_name', 'max_episode_steps', 'seed', 'use_render', 'load_noise',
+            # 基础配置
+            'system_name', 'dss_file', 'max_episode_steps', 'seed', 'use_render', 'load_noise',
+            # 设备配置
             'n_dg', 'n_pv', 'n_switch', 'n_load_levels',
+            # 聚合配置
             'use_load_aggregation', 'n_load_agents', 'load_aggregation_method',
+            # 物理约束
             'v_min', 'v_max', 'max_load_per_step',
+            # 奖励权重
             'reward_restore', 'reward_voltage', 'reward_overload', 'reward_done',
+            # 故障配置
             'min_faults', 'max_faults', 'fault_scenarios',
+            # 高级特性
             'use_action_mask', 'use_dynamic_network', 'record_node',
-            'scale', 'worker_idx'
+            'scale', 'worker_idx', 'useS',
+            # 动作空间配置
+            'pv_power_levels', 'load_action_levels', 'pv_max_power',
+            # 观测空间配置
+            'obs_reserved_dim', 'default_voltage',
+            # 设备重置配置
+            'line_disconnect_prob', 'max_faultable_lines',
+            # 负荷优先级配置
+            'priority_weights', 'max_priority_level',
+            # 恢复判断
+            'restoration_threshold', 'success_threshold',
+            # 日志记录配置
+            'log_interval_episodes', 'recent_episodes_window',
+            # 过载检测配置
+            'overload_threshold', 'use_emergency_rating', 'log_overload_details',
+            # IEEE系统配置
+            'ieee123_load_count'
         ]
         
         # 首先从env_args更新
@@ -101,15 +124,18 @@ class DSREnv:
         # 共享观测空间（与单智能体观测相同）
         self.share_observation_space = self.observation_space.copy()
         
-        # 动作空间
+        # 动作空间（初始设置，将在reset后更新）
+        self.action_space = []
+        self._setup_initial_action_spaces()
+    
+    def _setup_initial_action_spaces(self):
+        """设置初始动作空间（在知道故障线路之前）"""
         self.action_space = []
         
         for i in range(self.n_agents):
             if self.core_env.agent_types[i] == 'switch':
-                # 开关智能体：可选择的线路数量+1（不操作）
-                n_lines = len([line for line in self.core_env.faultable_lines 
-                              if line not in self.core_env.fault_lines])
-                self.action_space.append(Discrete(n_lines + 1))
+                # 开关智能体：使用最大可能的动作数（所有可故障线路+1）
+                self.action_space.append(Discrete(len(self.core_env.faultable_lines) + 1))
             
             elif self.core_env.agent_types[i] == 'pv':
                 # PV智能体：配置的功率等级数量
@@ -118,6 +144,15 @@ class DSREnv:
             elif self.core_env.agent_types[i] == 'load':
                 # 负荷智能体：配置的动作等级数量
                 self.action_space.append(Discrete(self.config.load_action_levels))
+    
+    def _update_action_spaces(self):
+        """在reset后更新动作空间（知道故障线路后）"""
+        for i in range(self.n_agents):
+            if self.core_env.agent_types[i] == 'switch':
+                # 更新开关智能体的动作空间：排除故障线路
+                n_lines = len([line for line in self.core_env.faultable_lines 
+                              if line not in self.core_env.fault_lines])
+                self.action_space[i] = Discrete(n_lines + 1)
     
     def _calculate_obs_dim(self) -> int:
         """计算观测维度"""
@@ -184,6 +219,9 @@ class DSREnv:
         """
         # 重置核心环境
         obs_dict, state_dict = self.core_env.reset()
+        
+        # 更新动作空间（现在知道了故障线路）
+        self._update_action_spaces()
         
         # 转换观测格式
         observations = self._convert_observations(obs_dict)

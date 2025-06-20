@@ -43,6 +43,7 @@ class DSRConfig:
     
     # 恢复完成判断
     restoration_threshold: float = 0.95  # 恢复完成阈值（负荷恢复率）
+    success_threshold: float = 0.9  # 成功恢复阈值（用于日志记录）
     
     # 故障配置
     fault_scenarios: int = 5  # 故障场景数量
@@ -98,10 +99,10 @@ class DSRConfig:
         """转换为PowerZoo格式的配置"""
         # 根据系统名称自动选择DSS文件
         dss_files = {
-            '13Bus': 'IEEE13Nodeckt_daily.dss',
-            '34Bus': 'ieee34Mod1_daily.dss', 
-            '123Bus': 'IEEE123Master_daily.dss',
-            '8500-Node': 'Master_daily.dss'
+            '13Bus': 'IEEE13Nodeckt.dss',
+            '34Bus': 'ieee34Mod1.dss', 
+            '123Bus': 'IEEE123Master.dss',
+            '8500-Node': 'Master.dss'
         }
         
         # 根据系统名称设置源母线
@@ -121,7 +122,7 @@ class DSRConfig:
         }
         
         # 使用指定的dss_file，如果没有则根据system_name选择
-        dss_file = self.dss_file or dss_files.get(self.system_name, 'IEEE123Master_daily.dss')
+        dss_file = self.dss_file or dss_files.get(self.system_name, 'IEEE123Master.dss')
         
         return {
             'env_name': self.env_name,
