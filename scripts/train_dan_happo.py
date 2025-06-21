@@ -16,8 +16,8 @@ import numpy as np
 from pathlib import Path
 import wandb
 from configs.dan_happo_config import get_config
-from envs.env_wrappers import SubprocVecEnv, DummyVecEnv
-from envs.dsr.dsr_env_optimized import DSREnvOptimized
+from envs.env_wrappers import ShareSubprocVecEnv, ShareDummyVecEnv
+from envs.dsr.dsr_env import DSREnv  # Unified environment
 from utils.dan_buffer import DANSharedReplayBuffer
 
 def make_train_env(all_args):
@@ -31,7 +31,7 @@ def make_train_env(all_args):
         def init_env():
             if all_args.env_name == "DSR":
                 if all_args.scenario_name == "dsr_optimized":
-                    env = DSREnvOptimized(all_args)
+                    env = DSREnv(all_args)
                 else:
                     # Fallback to original DSR environment
                     from envs.dsr.dsr_env import DSREnv
@@ -44,9 +44,9 @@ def make_train_env(all_args):
         return init_env
     
     if all_args.n_rollout_threads == 1:
-        return DummyVecEnv([get_env_fn(0)])
+        return ShareDummyVecEnv([get_env_fn(0)])
     else:
-        return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
+        return ShareSubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
 
 def make_eval_env(all_args):
     """Create evaluation environment
@@ -59,7 +59,7 @@ def make_eval_env(all_args):
         def init_env():
             if all_args.env_name == "DSR":
                 if all_args.scenario_name == "dsr_optimized":
-                    env = DSREnvOptimized(all_args)
+                    env = DSREnv(all_args)
                 else:
                     from envs.dsr.dsr_env import DSREnv
                     env = DSREnv(all_args)
@@ -71,9 +71,9 @@ def make_eval_env(all_args):
         return init_env
     
     if all_args.n_eval_rollout_threads == 1:
-        return DummyVecEnv([get_env_fn(0)])
+        return ShareDummyVecEnv([get_env_fn(0)])
     else:
-        return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
+        return ShareSubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
 
 def parse_args(args, parser):
     """Parse additional arguments

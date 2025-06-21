@@ -9,7 +9,6 @@
 
 import sys
 import os
-import wandb
 import socket
 import setproctitle
 import numpy as np
@@ -19,9 +18,9 @@ import torch
 # Add project root to path
 sys.path.append(str(Path(__file__).parent))
 
-from config.dan_happo_config import get_config
-from envs.dsr.dsr_env_optimized import DSREnvOptimized
-from envs.env_wrappers import SubprocVecEnv, DummyVecEnv
+from configs.dan_happo_config import get_config
+from envs.dsr.dsr_env import DSREnv  # Unified environment
+from envs.env_wrappers import ShareSubprocVecEnv, ShareDummyVecEnv
 from algorithms.actors.dan_happo import DAN_HAPPO
 from runner.shared.dsr_dan_runner import DSRDANRunner
 from utils.dan_buffer import DANSharedReplayBuffer
@@ -36,17 +35,20 @@ def make_train_env(all_args):
     def get_env_fn(rank):
         def init_env():
             if all_args.env_name == "DSR":
-                env = DSREnvOptimized(
-                    case_path=all_args.case_path,
-                    max_episode_steps=all_args.episode_length,
-                    use_optimized_reward=True,
-                    use_enhanced_action_mask=all_args.use_enhanced_action_mask,
-                    severe_overload_threshold=all_args.severe_overload_threshold,
-                    terminate_on_severe_overload=all_args.terminate_on_severe_overload,
-                    progressive_overload_penalty=all_args.progressive_overload_penalty,
-                    overload_penalty_levels=all_args.overload_penalty_levels,
-                    overload_penalty_weights=all_args.overload_penalty_weights
-                )
+                # Create args dictionary for unified environment
+                env_args = {
+                    'env_name': 'dsr',
+                    'use_dan': True,  # Enable DAN features
+                    'case_path': getattr(all_args, 'case_path', None),
+                    'max_episode_steps': all_args.episode_length,
+                    'use_enhanced_action_mask': all_args.use_enhanced_action_mask,
+                    'severe_overload_threshold': all_args.severe_overload_threshold,
+                    'terminate_on_severe_overload': all_args.terminate_on_severe_overload,
+                    'use_progressive_penalty': all_args.progressive_overload_penalty,
+                    'overload_penalty_levels': all_args.overload_penalty_levels,
+                    'overload_penalty_weights': all_args.overload_penalty_weights
+                }
+                env = DSREnv(env_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError
@@ -65,17 +67,20 @@ def make_eval_env(all_args):
     def get_env_fn(rank):
         def init_env():
             if all_args.env_name == "DSR":
-                env = DSREnvOptimized(
-                    case_path=all_args.case_path,
-                    max_episode_steps=all_args.episode_length,
-                    use_optimized_reward=True,
-                    use_enhanced_action_mask=all_args.use_enhanced_action_mask,
-                    severe_overload_threshold=all_args.severe_overload_threshold,
-                    terminate_on_severe_overload=all_args.terminate_on_severe_overload,
-                    progressive_overload_penalty=all_args.progressive_overload_penalty,
-                    overload_penalty_levels=all_args.overload_penalty_levels,
-                    overload_penalty_weights=all_args.overload_penalty_weights
-                )
+                # Create args dictionary for unified environment
+                env_args = {
+                    'env_name': 'dsr',
+                    'use_dan': True,  # Enable DAN features
+                    'case_path': getattr(all_args, 'case_path', None),
+                    'max_episode_steps': all_args.episode_length,
+                    'use_enhanced_action_mask': all_args.use_enhanced_action_mask,
+                    'severe_overload_threshold': all_args.severe_overload_threshold,
+                    'terminate_on_severe_overload': all_args.terminate_on_severe_overload,
+                    'use_progressive_penalty': all_args.progressive_overload_penalty,
+                    'overload_penalty_levels': all_args.overload_penalty_levels,
+                    'overload_penalty_weights': all_args.overload_penalty_weights
+                }
+                env = DSREnv(env_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError
@@ -84,89 +89,18 @@ def make_eval_env(all_args):
         return init_env
     return get_env_fn
 
-def parse_args(args, parser):
-    """Parse command line arguments
-    Args:
-        args: Command line arguments
-        parser: Argument parser
-    Returns:
-        Parsed arguments
-    """
-    parser.add_argument('--scenario_name', type=str, default='DSR', 
-                       help="Which scenario to run on")
-    parser.add_argument("--num_landmarks", type=int, default=3)
-    parser.add_argument('--num_agents', type=int, default=4, 
-                       help="number of players")
-    
-    # DSR specific arguments
-    parser.add_argument('--case_path', type=str, 
-                       default='./envs/dsr/data/case33bw_3DG.dss',
-                       help="Path to DSS case file")
-    
-    # DAN specific arguments
-    parser.add_argument('--use_dan', action='store_true', default=True,
-                       help="Whether to use DAN architecture")
-    parser.add_argument('--dan_hidden_dim', type=int, default=128,
-                       help="Hidden dimension for DAN")
-    parser.add_argument('--dan_num_heads', type=int, default=4,
-                       help="Number of attention heads for DAN")
-    parser.add_argument('--dan_dropout', type=float, default=0.1,
-                       help="Dropout rate for DAN")
-    parser.add_argument('--use_layer_norm', action='store_true', default=True,
-                       help="Whether to use layer normalization in DAN")
-    parser.add_argument('--env_obs_ratio', type=float, default=0.7,
-                       help="Ratio of environmental observations")
-    parser.add_argument('--use_neighbor_obs', action='store_true', default=True,
-                       help="Whether to use neighbor observations")
-    parser.add_argument('--max_neighbors', type=int, default=5,
-                       help="Maximum number of neighbors")
-    parser.add_argument('--dan_lr', type=float, default=3e-4,
-                       help="Learning rate for DAN")
-    parser.add_argument('--dan_weight_decay', type=float, default=1e-5,
-                       help="Weight decay for DAN")
-    parser.add_argument('--dan_grad_clip', type=float, default=1.0,
-                       help="Gradient clipping for DAN")
-    
-    # Enhanced environment arguments
-    parser.add_argument('--use_optimized_env', action='store_true', default=True,
-                       help="Whether to use optimized DSR environment")
-    parser.add_argument('--use_enhanced_action_mask', action='store_true', default=True,
-                       help="Whether to use enhanced action masking")
-    
-    # Improved reward function arguments
-    parser.add_argument('--reward_overload', type=float, default=5.0,
-                       help="Weight for overload penalty")
-    parser.add_argument('--reward_severe_overload', type=float, default=20.0,
-                       help="Weight for severe overload penalty")
-    parser.add_argument('--severe_overload_threshold', type=float, default=1.5,
-                       help="Threshold for severe overload")
-    parser.add_argument('--progressive_overload_penalty', action='store_true', default=True,
-                       help="Whether to use progressive overload penalty")
-    parser.add_argument('--overload_penalty_levels', type=list, 
-                       default=[1.0, 1.2, 1.5, 2.0],
-                       help="Overload penalty levels")
-    parser.add_argument('--overload_penalty_weights', type=list,
-                       default=[1.0, 2.0, 5.0, 10.0],
-                       help="Overload penalty weights")
-    
-    # Termination conditions
-    parser.add_argument('--terminate_on_severe_overload', action='store_true', default=True,
-                       help="Whether to terminate on severe overload")
-    parser.add_argument('--terminate_on_voltage_violation', action='store_true', default=False,
-                       help="Whether to terminate on voltage violation")
-    
-    all_args = parser.parse_known_args(args)[0]
-    
-    return all_args
+
 
 def main(args):
     """Main training function
     Args:
         args: Command line arguments
     """
-    # Parse arguments
+    # Get configuration parser
     parser = get_config()
-    all_args = parse_args(args, parser)
+    
+    # Parse command line arguments
+    all_args = parser.parse_args(args)
     
     # Set device
     if all_args.cuda and torch.cuda.is_available():
@@ -198,17 +132,22 @@ def main(args):
     
     # Initialize wandb
     if all_args.use_wandb:
-        run = wandb.init(
-            config=all_args,
-            project=all_args.env_name,
-            entity=all_args.user_name,
-            notes=socket.gethostname(),
-            name=str(all_args.algorithm_name) + "_" + str(all_args.experiment_name) + "_seed" + str(all_args.seed),
-            group=all_args.scenario_name,
-            dir=str(run_dir),
-            job_type="training",
-            reinit=True
-        )
+        try:
+            import wandb
+            run = wandb.init(
+                config=all_args,
+                project=all_args.env_name,
+                entity=all_args.user_name,
+                notes=socket.gethostname(),
+                name=str(all_args.algorithm_name) + "_" + str(all_args.experiment_name) + "_seed" + str(all_args.seed),
+                group=all_args.scenario_name,
+                dir=str(run_dir),
+                job_type="training",
+                reinit=True
+            )
+        except ImportError:
+            print("Warning: wandb not installed, disabling wandb logging")
+            all_args.use_wandb = False
     else:
         if not run_dir.exists():
             curr_run = 'run1'
@@ -240,15 +179,15 @@ def main(args):
     
     # Create environments
     if all_args.n_rollout_threads == 1:
-        envs = DummyVecEnv([envs(0)])
+        envs = ShareDummyVecEnv([envs(0)])
     else:
-        envs = SubprocVecEnv([envs(i) for i in range(all_args.n_rollout_threads)])
+        envs = ShareSubprocVecEnv([envs(i) for i in range(all_args.n_rollout_threads)])
     
     if all_args.use_eval:
         if all_args.n_eval_rollout_threads == 1:
-            eval_envs = DummyVecEnv([eval_envs(0)])
+            eval_envs = ShareDummyVecEnv([eval_envs(0)])
         else:
-            eval_envs = SubprocVecEnv([eval_envs(i) for i in range(all_args.n_eval_rollout_threads)])
+            eval_envs = ShareSubprocVecEnv([eval_envs(i) for i in range(all_args.n_eval_rollout_threads)])
     
     config["envs"] = envs
     config["eval_envs"] = eval_envs

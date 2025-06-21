@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-DSR Environment Wrapper
-配电网恢复环境包装器，对接PowerZoo框架
+DSR Environment
+统一的配电网恢复环境，支持标准RL和DAN算法
 """
 
 import copy
@@ -15,7 +15,7 @@ from envs.dsr.core.config import DSRConfig, DEFAULT_DSR_CONFIG
 
 
 class DSREnv:
-    """配电网恢复环境"""
+    """统一的配电网恢复环境，支持多种算法需求"""
     
     def __init__(self, args: Dict[str, Any], rank: Optional[int] = None):
         """
@@ -33,9 +33,14 @@ class DSREnv:
         
         # 创建核心环境
         self.core_env = DSRCoreEnv(self.config, worker_idx=rank)
+        self.dsr_core = self.core_env  # 兼容性别名
         
         # 设置智能体信息
         self.n_agents = self.core_env.n_agents
+        
+        # 复制必要属性
+        self.agent_types = self.core_env.agent_types
+        self.agent_bus_mapping = self.core_env.agent_bus_mapping
         
         # 定义观测和动作空间
         self._setup_spaces()
@@ -49,6 +54,22 @@ class DSREnv:
         self.use_render = args.get('use_render', False)
         self.record_node = args.get('record_node', True)
         
+        # DAN算法支持标志
+        self.use_dan = args.get('use_dan', False)
+        
+        # 增强功能参数（主要用于DAN算法）
+        if self.use_dan:
+            self._setup_dan_features(args)
+        else:
+            # 使用基础奖励权重
+            self.reward_restore = self.config.reward_restore
+            self.reward_voltage = self.config.reward_voltage
+            self.reward_overload = self.config.reward_overload
+            self.reward_done = self.config.reward_done
+            self.use_enhanced_action_mask = False
+            self.use_progressive_penalty = False
+            self.terminate_on_severe_overload = False
+        
         # 设置ordered_agents_pairs和agents_bus
         if self.useS:
             agents_names = [f"agent_{i}" for i in range(self.n_agents)]
@@ -61,6 +82,29 @@ class DSREnv:
         
         # 动作是否为离散
         self.discrete = True
+    
+    def _setup_dan_features(self, args):
+        """设置DAN算法相关的增强功能"""
+        # 优化的奖励函数权重
+        self.reward_restore = getattr(args, 'reward_restore', 20.0)
+        self.reward_voltage = getattr(args, 'reward_voltage', 2.0)  # 增加电压惩罚权重
+        self.reward_overload = getattr(args, 'reward_overload', 8.0)  # 大幅增加过载惩罚权重
+        self.reward_severe_overload = getattr(args, 'reward_severe_overload', 50.0)  # 严重过载惩罚
+        self.reward_done = getattr(args, 'reward_done', -5.0)
+        
+        # 安全约束参数
+        self.severe_overload_threshold = getattr(args, 'severe_overload_threshold', 2.0)  # 严重过载阈值（倍数）
+        self.max_overload_current = getattr(args, 'max_overload_current', 1000.0)  # 最大允许过载电流（安培）
+        self.terminate_on_severe_overload = getattr(args, 'terminate_on_severe_overload', True)
+        
+        # 渐进式惩罚参数
+        self.use_progressive_penalty = getattr(args, 'use_progressive_penalty', True)
+        self.overload_penalty_levels = getattr(args, 'overload_penalty_levels', [1.2, 1.5, 2.0])  # 过载等级阈值
+        self.overload_penalty_weights = getattr(args, 'overload_penalty_weights', [1.0, 3.0, 8.0, 20.0])  # 对应惩罚权重
+        
+        # 动作掩码增强
+        self.use_enhanced_action_mask = getattr(args, 'use_enhanced_action_mask', True)
+        self.action_mask_safety_margin = getattr(args, 'action_mask_safety_margin', 0.1)  # 安全边际
     
     def _parse_config(self, args: Dict[str, Any]) -> DSRConfig:
         """解析配置参数"""
@@ -153,10 +197,6 @@ class DSREnv:
             # 所有智能体使用相同的动作空间大小
             self.action_space.append(Discrete(max_actions))
     
-    def _update_action_spaces(self):
-        """在reset后更新动作空间（现在不需要更新，因为使用统一的动作空间大小）"""
-        pass
-    
     def _calculate_obs_dim(self) -> int:
         """计算观测维度"""
         # 基础观测维度包括：
@@ -184,6 +224,13 @@ class DSREnv:
             infos: 信息字典列表
             available_actions: 可用动作
         """
+        if self.use_dan:
+            return self._step_dan(actions)
+        else:
+            return self._step_standard(actions)
+    
+    def _step_standard(self, actions):
+        """标准环境步进（用于非DAN算法）"""
         # 执行动作
         obs_dict, state_dict, rewards, done, info = self.core_env.step(actions)
         
@@ -211,6 +258,173 @@ class DSREnv:
         
         return local_obs, global_state, rewards_list, dones_list, infos_list, available_actions
     
+    def _step_dan(self, actions):
+        """DAN算法增强的环境步进"""
+        # 执行动作
+        self.dsr_core.step(actions)
+        self.current_step += 1
+        
+        # 获取观测
+        observations = self.dsr_core._get_observations()
+        
+        # 计算奖励
+        rewards = []
+        infos = []
+        for agent_id in range(self.n_agents):
+            reward, info = self._calculate_dan_reward(agent_id)
+            rewards.append(reward)
+            infos.append(info)
+            
+        # 检查终止条件
+        should_terminate, termination_reason = self._check_termination_conditions()
+        dones = [should_terminate] * self.n_agents
+        
+        # 添加终止原因到info
+        if should_terminate:
+            for info in infos:
+                info['termination_reason'] = termination_reason
+        
+        # 转换为标准格式
+        local_obs = self._convert_observations(observations)
+        global_state = self._convert_observations(observations)
+        rewards_list = [[reward] for reward in rewards]
+        available_actions = self.get_avail_actions()
+        
+        return local_obs, global_state, rewards_list, dones, infos, available_actions
+    
+    def _calculate_dan_reward(self, agent_id):
+        """计算DAN算法的优化奖励函数"""
+        info = {}
+        
+        # 1. 负载恢复奖励
+        restored_load_ratio = self.dsr_core._get_restored_load_ratio()
+        restore_reward = self.reward_restore * restored_load_ratio
+        info['restore_reward'] = restore_reward
+        
+        # 2. 电压违规惩罚
+        voltage_violations = self.dsr_core._get_voltage_violations()
+        voltage_penalty = -self.reward_voltage * voltage_violations
+        info['voltage_penalty'] = voltage_penalty
+        info['voltage_violations'] = voltage_violations
+        
+        # 3. 优化的过载惩罚
+        overload_penalty, overload_info = self._calculate_overload_penalty()
+        info.update(overload_info)
+        
+        # 4. 完成奖励
+        done_reward = 0
+        if self.dsr_core._check_restoration_complete():
+            done_reward = self.reward_done
+        info['done_reward'] = done_reward
+        
+        # 总奖励
+        total_reward = restore_reward + voltage_penalty + overload_penalty + done_reward
+        info['total_reward'] = total_reward
+        
+        return total_reward, info
+    
+    def _calculate_overload_penalty(self):
+        """计算优化的过载惩罚"""
+        # 获取线路过载数量
+        overload_count = self.dsr_core._get_line_overloads()
+        
+        # 获取过载详情
+        overload_details = []
+        if hasattr(self.dsr_core, 'overload_details'):
+            overload_details = self.dsr_core.overload_details
+        
+        info = {
+            'overload_penalty': 0,
+            'overload_count': overload_count,
+            'severe_overload_count': 0,
+            'max_overload_ratio': 0,
+            'overload_details': overload_details
+        }
+        
+        if overload_count == 0:
+            return 0, info
+            
+        total_penalty = 0
+        severe_overload_count = 0
+        max_overload_ratio = 0
+        
+        for detail in overload_details:
+            current = detail['current']
+            rating = detail['rating']
+            ratio = detail['ratio']
+            
+            max_overload_ratio = max(max_overload_ratio, ratio)
+            
+            # 检查异常过载电流
+            if current > self.max_overload_current:
+                # 异常过载，给予极大惩罚
+                total_penalty -= 100.0
+                severe_overload_count += 1
+                continue
+                
+            if self.use_progressive_penalty:
+                # 渐进式惩罚
+                penalty_weight = self._get_progressive_penalty_weight(ratio)
+                # Apply exponential penalty for severe overloads
+                severity_multiplier = min(ratio, 10.0)  # Cap at 10x
+                total_penalty -= penalty_weight * severity_multiplier
+            else:
+                # 基础过载惩罚 (scaled by severity)
+                base_penalty = self.reward_overload
+                if ratio > 1.0:
+                    # Exponential scaling for overloads
+                    severity_factor = min(ratio ** 2, 100.0)  # Cap at 100x
+                    base_penalty *= severity_factor
+                total_penalty -= base_penalty
+                
+            # 严重过载检查 with exponential scaling
+            if ratio >= self.severe_overload_threshold:
+                severe_overload_count += 1
+                severe_factor = min((ratio / self.severe_overload_threshold) ** 3, 1000.0)  # Cap at 1000x
+                total_penalty -= self.reward_severe_overload * severe_factor
+                
+        info['overload_penalty'] = total_penalty
+        info['severe_overload_count'] = severe_overload_count
+        info['max_overload_ratio'] = max_overload_ratio
+        
+        return total_penalty, info
+    
+    def _get_progressive_penalty_weight(self, overload_ratio):
+        """根据过载比例获取渐进式惩罚权重"""
+        for i, threshold in enumerate(self.overload_penalty_levels):
+            if overload_ratio <= threshold:
+                return self.overload_penalty_weights[i]
+        # 超过最高等级
+        return self.overload_penalty_weights[-1]
+    
+    def _check_termination_conditions(self):
+        """检查终止条件"""
+        # 检查原有终止条件
+        if self.dsr_core._check_restoration_complete():
+            return True, "restoration_complete"
+            
+        if self.current_step >= self.dsr_core.config.max_episode_steps:
+            return True, "max_steps_reached"
+            
+        # 检查严重过载终止条件
+        if self.terminate_on_severe_overload:
+            # 获取过载详情
+            self.dsr_core._get_line_overloads()  # 调用以更新overload_details
+            if hasattr(self.dsr_core, 'overload_details'):
+                for detail in self.dsr_core.overload_details:
+                    current = detail['current']
+                    ratio = detail['ratio']
+                
+                # 异常过载电流终止
+                if current > self.max_overload_current:
+                    return True, "abnormal_overload_current"
+                    
+                # 严重过载终止
+                if ratio >= self.severe_overload_threshold:
+                    return True, "severe_overload"
+                    
+        return False, None
+    
     def reset(self) -> Tuple[List[np.ndarray], List[np.ndarray], List[List[int]]]:
         """
         重置环境
@@ -223,8 +437,8 @@ class DSREnv:
         # 重置核心环境
         obs_dict, state_dict = self.core_env.reset()
         
-        # 更新动作空间（现在知道了故障线路）
-        self._update_action_spaces()
+        # 重置步数
+        self.current_step = 0
         
         # 转换观测格式
         observations = self._convert_observations(obs_dict)
@@ -265,7 +479,6 @@ class DSREnv:
                     # 检查并处理无效值
                     if np.isnan(min_voltage) or np.isinf(min_voltage):
                         min_voltage = self.config.default_voltage
-                        print(f"警告: 母线 {bus_name} 电压值无效，使用默认值 {self.config.default_voltage}")
                     # 限制电压范围在合理区间内
                     min_voltage = np.clip(min_voltage, 0.5, 1.5)
                 else:
@@ -380,14 +593,11 @@ class DSREnv:
             
         except Exception as e:
             print(f"错误: 智能体 {agent_id} 观测构建失败: {e}")
-            print(f"obs_components 结构: {[type(c) for c in obs_components]}")
-            print(f"obs_components 内容: {obs_components}")
             # 创建默认观测
             obs_array = np.zeros(target_dim, dtype=np.float32)
         
         # 检查并处理NaN和无穷大值
         if np.any(np.isnan(obs_array)) or np.any(np.isinf(obs_array)):
-            print(f"警告: 智能体 {agent_id} 观测中包含无效值，进行修复")
             # 将NaN和无穷大值替换为0
             obs_array = np.nan_to_num(obs_array, nan=0.0, posinf=1.0, neginf=-1.0)
         
@@ -395,10 +605,190 @@ class DSREnv:
     
     def get_avail_actions(self) -> List[List[int]]:
         """获取所有智能体的可用动作"""
-        avail_actions = self.core_env.get_available_actions()
-        # 确保返回numpy兼容的格式
-        import numpy as np
-        return np.array(avail_actions, dtype=object).tolist()
+        if self.use_dan and self.use_enhanced_action_mask:
+            # 使用增强的动作掩码
+            avail_actions = []
+            for agent_id in range(self.n_agents):
+                mask = self._get_enhanced_action_mask(agent_id)
+                avail_actions.append(mask.tolist())
+            return avail_actions
+        else:
+            # 使用标准动作掩码
+            avail_actions = self.core_env.get_available_actions()
+            # 确保返回numpy兼容的格式
+            return np.array(avail_actions, dtype=object).tolist()
+    
+    def _get_enhanced_action_mask(self, agent_id):
+        """Get enhanced action mask based on safety predictions"""
+        # Get basic action mask
+        basic_mask = self._get_action_mask(agent_id)
+        
+        if not self.use_enhanced_action_mask:
+            return basic_mask
+            
+        # Enhanced safety-based masking
+        enhanced_mask = basic_mask.copy()
+        
+        # Get current system state
+        try:
+            # Check current overload status
+            overload_count = self.dsr_core._get_line_overloads()
+            
+            # If system is already severely overloaded, be more conservative
+            if overload_count > 0 and hasattr(self.dsr_core, 'overload_details'):
+                overload_details = self.dsr_core.overload_details
+                if len(overload_details) > 0:
+                    max_overload_ratio = max([detail['ratio'] for detail in overload_details])
+                    if max_overload_ratio >= self.severe_overload_threshold:
+                        # Mask actions that might worsen the situation
+                        # For switch agents, prefer opening switches to reduce load
+                        if self._would_action_increase_overload(agent_id, enhanced_mask):
+                            # Apply conservative masking
+                            pass
+                        
+        except Exception as e:
+            # If enhanced masking fails, fall back to basic mask
+            return basic_mask
+            
+        # Ensure at least one action is available
+        if not any(enhanced_mask):
+            # If all actions are masked, allow the safest action (usually 'do nothing')
+            enhanced_mask[0] = True  # Assuming action 0 is 'do nothing'
+            
+        return enhanced_mask
+    
+    def _get_action_mask(self, agent_id):
+        """Get basic action mask"""
+        # Get available actions from dsr_core
+        avail_actions = self.dsr_core.get_available_actions()
+        if agent_id < len(avail_actions):
+            return np.array(avail_actions[agent_id], dtype=bool)
+        else:
+            # Return default mask
+            return np.ones(self.action_space[agent_id].n, dtype=bool)
+    
+    def _would_action_increase_overload(self, agent_id, action_mask):
+        """Predict if actions would increase system overloads"""
+        # Simplified heuristic - can be improved with more sophisticated prediction
+        try:
+            # Basic safety check based on current system state
+            overload_count = self.dsr_core._get_line_overloads()
+            return overload_count > 0
+        except:
+            pass
+        return False
+    
+    # DAN算法专用方法
+    def get_neighbor_observations(self, agent_id):
+        """获取邻居智能体的观测（用于DAN）"""
+        if not self.use_dan:
+            raise NotImplementedError("get_neighbor_observations仅在use_dan=True时可用")
+        
+        max_neighbors = getattr(self.args, 'max_neighbors', 5) if hasattr(self, 'args') else 5
+        
+        # NOTE: 根据论文，邻居定义为同一微电网内的其他智能体
+        # 在DSR环境中，我们根据电气连接关系确定邻居
+        
+        # 获取当前智能体的微电网ID
+        if hasattr(self, 'get_agent_microgrid'):
+            agent_mg = self.get_agent_microgrid(agent_id)
+            neighbor_ids = []
+            
+            # 找到同一微电网内的其他智能体
+            for i in range(self.n_agents):
+                if i != agent_id and self.get_agent_microgrid(i) == agent_mg:
+                    neighbor_ids.append(i)
+        else:
+            # 如果没有微电网信息，使用距离最近的智能体作为邻居
+            # 这是一个简化实现，实际应根据电网拓扑确定
+            neighbor_ids = [i for i in range(self.n_agents) if i != agent_id]
+            # 限制邻居数量
+            if len(neighbor_ids) > max_neighbors:
+                # TODO: 根据电气距离或其他度量选择最相关的邻居
+                neighbor_ids = neighbor_ids[:max_neighbors]
+        
+        # 准备邻居观测和掩码
+        neighbor_obs = []
+        agent_mask = []
+        
+        # 填充邻居观测
+        for i in range(max_neighbors):
+            if i < len(neighbor_ids):
+                obs = self._get_observation(neighbor_ids[i])
+                neighbor_obs.append(obs)
+                agent_mask.append(1.0)
+            else:
+                # 填充零观测
+                obs = np.zeros(self.observation_space[0].shape[0])
+                neighbor_obs.append(obs)
+                agent_mask.append(0.0)
+        
+        return np.array(neighbor_obs), np.array(agent_mask)
+    
+    def get_all_neighbor_observations(self):
+        """获取所有智能体的邻居观测"""
+        if not self.use_dan:
+            raise NotImplementedError("get_all_neighbor_observations仅在use_dan=True时可用")
+        
+        all_neighbor_obs = []
+        all_agent_masks = []
+        
+        for agent_id in range(self.n_agents):
+            neighbor_obs, agent_mask = self.get_neighbor_observations(agent_id)
+            all_neighbor_obs.append(neighbor_obs)
+            all_agent_masks.append(agent_mask)
+        
+        return np.array(all_neighbor_obs), np.array(all_agent_masks)
+    
+    def _get_observation(self, agent_id):
+        """获取单个智能体的观测"""
+        all_obs = self.dsr_core._get_observations()
+        # 根据智能体类型构建观测
+        agent_type = self.agent_types[agent_id] if agent_id < len(self.agent_types) else 'load'
+        
+        # 构建基础观测向量
+        obs = []
+        
+        # 添加时间步信息
+        obs.append(self.current_step / self.dsr_core.config.max_episode_steps)
+        
+        # 添加全局信息
+        obs.append(len(all_obs['energized_buses']) / self.dsr_core.n_bus if self.dsr_core.n_bus > 0 else 0)
+        obs.append(self.dsr_core._get_restored_load_ratio())
+        
+        # 添加智能体特定信息
+        if agent_type == 'switch':
+            # 开关智能体：线路状态信息
+            for line_name in self.dsr_core.faultable_lines[:10]:  # 限制数量
+                if line_name in all_obs['line_states']:
+                    obs.append(float(all_obs['line_states'][line_name]))
+                else:
+                    obs.append(0.0)
+        elif agent_type == 'pv':
+            # PV智能体：当前功率输出
+            if agent_id - 1 < len(self.dsr_core.pv_agents):
+                pv_agent = self.dsr_core.pv_agents[agent_id - 1]
+                obs.append(pv_agent['current_power'] / pv_agent['max_power'])
+            else:
+                obs.append(0.0)
+        elif agent_type == 'load':
+            # 负荷智能体：母线电压和负荷状态
+            if agent_id < len(self.agent_bus_mapping):
+                bus = self.agent_bus_mapping.get(agent_id, '')
+                if bus in all_obs['bus_voltages']:
+                    voltage = all_obs['bus_voltages'][bus][0]
+                    obs.append(voltage)
+                else:
+                    obs.append(1.0)
+            else:
+                obs.append(1.0)
+        
+        # 填充到固定维度
+        obs_dim = getattr(self.dsr_core.config, 'obs_reserved_dim', 10)
+        while len(obs) < obs_dim:
+            obs.append(0.0)
+        
+        return np.array(obs[:obs_dim])
     
     def get_avail_agent_actions(self, agent_id: int) -> List[int]:
         """获取单个智能体的可用动作"""
@@ -423,6 +813,9 @@ class DSREnv:
         """智能体ID列表"""
         return list(range(self.n_agents))
 
+
+# 兼容性别名
+DSREnvDAN = DSREnv  # 向后兼容
 
 # 环境创建函数
 def make_dsr_env(args: Dict[str, Any], rank: Optional[int] = None) -> DSREnv:

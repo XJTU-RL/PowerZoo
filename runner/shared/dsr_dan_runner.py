@@ -10,10 +10,10 @@
 import time
 import numpy as np
 import torch
-from runner.shared.base_runner import Runner
-from utils.util import update_linear_schedule
+from runners.on_policy_base_runner import OnPolicyBaseRunner
+from utils.models_tools import update_linear_schedule
 
-class DSRDANRunner(Runner):
+class DSRDANRunner(OnPolicyBaseRunner):
     """Runner for DSR environment with DAN-HAPPO algorithm
     
     This runner extends the base runner to handle DAN-specific features

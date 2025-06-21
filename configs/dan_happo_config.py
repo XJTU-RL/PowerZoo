@@ -79,6 +79,11 @@ def get_base_config():
     parser.add_argument("--eval_interval", type=int, default=25, help="time duration between contiunous twice evaluation progress.")
     parser.add_argument("--eval_episodes", type=int, default=32, help="number of episodes of a single evaluation.")
     
+    # Logging parameters
+    parser.add_argument("--use_wandb", action='store_true', default=False, help="by default, do not use wandb. If set, use wandb for logging.")
+    parser.add_argument("--user_name", type=str, default='zxd_xjtu', help="wandb user name")
+    parser.add_argument("--wandb_name", type=str, default=None, help="wandb project name")
+    
     # Render parameters
     parser.add_argument("--save_gifs", action='store_true', default=False, help="by default, do not save render video. If set, save video.")
     parser.add_argument("--use_render", action='store_true', default=False, help="by default, do not render the env during training. If set, start render. Note: something, the environment has internal render process which is not controlled by this hyperparam.")
@@ -97,16 +102,27 @@ def get_base_config():
     parser.add_argument("--use_action_attention", action='store_true', default=False, help="Whether to use action attention")
     parser.add_argument("--action_aggregation", type=str, default='prod', help="action aggregation method")
     
-    args = parser.parse_args()
-    return args
+    return parser
 
 def get_dan_happo_config():
     """Get DAN-HAPPO specific configuration
     Returns:
         args: Configuration arguments
     """
-    # Get base configuration
-    args = get_base_config()
+    # Get base configuration parser
+    parser = get_base_config()
+    
+    # Add DAN-HAPPO specific arguments
+    parser.add_argument('--scenario_name', type=str, default='DSR', help="Scenario name")
+    parser.add_argument('--case_path', type=str, default='./envs/cases/13Bus/IEEE13Nodeckt.dss', help="Path to DSS case file")
+    parser.add_argument('--num_agents', type=int, default=4, help="Number of agents")
+    parser.add_argument('--use_dan', action='store_true', default=True, help="Whether to use DAN architecture")
+    parser.add_argument('--use_neighbor_obs', action='store_true', default=True, help="Whether to use neighbor observations")
+    parser.add_argument('--use_enhanced_action_mask', action='store_true', default=True, help="Whether to use enhanced action masking")
+    parser.add_argument('--progressive_overload_penalty', action='store_true', default=True, help="Whether to use progressive overload penalty")
+    
+    # Parse arguments and get base args object
+    args = parser.parse_args([])
     
     # DAN-HAPPO specific parameters
     
@@ -173,6 +189,7 @@ def get_dan_happo_config():
     args.use_common_layer = True
     
     # === Logging and Evaluation ===
+    args.use_wandb = False  # Disable wandb by default
     args.log_interval = 10
     args.eval_interval = 25
     args.save_interval = 100
@@ -192,11 +209,23 @@ def get_dan_happo_config():
     return args
 
 def get_config():
-    """Main configuration function
+    """Get configuration for DAN-HAPPO
     Returns:
-        args: Configuration arguments
+        parser: ArgumentParser object
     """
-    return get_dan_happo_config()
+    # Get base configuration parser
+    parser = get_base_config()
+    
+    # Add DAN-HAPPO specific arguments
+    parser.add_argument('--scenario_name', type=str, default='DSR', help="Scenario name")
+    parser.add_argument('--case_path', type=str, default='./envs/cases/13Bus/IEEE13Nodeckt.dss', help="Path to DSS case file")
+    parser.add_argument('--num_agents', type=int, default=4, help="Number of agents")
+    parser.add_argument('--use_dan', action='store_true', default=True, help="Whether to use DAN architecture")
+    parser.add_argument('--use_neighbor_obs', action='store_true', default=True, help="Whether to use neighbor observations")
+    parser.add_argument('--use_enhanced_action_mask', action='store_true', default=True, help="Whether to use enhanced action masking")
+    parser.add_argument('--progressive_overload_penalty', action='store_true', default=True, help="Whether to use progressive overload penalty")
+    
+    return parser
 
 if __name__ == "__main__":
     # Test configuration
