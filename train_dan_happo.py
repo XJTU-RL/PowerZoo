@@ -22,7 +22,7 @@ from configs.dan_happo_config import get_config
 from envs.dsr.dsr_env import DSREnv  # Unified environment
 from envs.env_wrappers import ShareSubprocVecEnv, ShareDummyVecEnv
 from algorithms.actors.dan_happo import DAN_HAPPO
-from runner.shared.dsr_dan_runner import DSRDANRunner
+from runners.shared.dsr_dan_runner import DSRDANRunner
 from utils.dan_buffer import DANSharedReplayBuffer
 
 def make_train_env(all_args):
@@ -194,9 +194,8 @@ def main(args):
     
     # Initialize DAN-HAPPO policy
     policy = DAN_HAPPO(
-        all_args,
+        vars(all_args),
         envs.observation_space[0],
-        envs.share_observation_space[0],
         envs.action_space[0],
         device=device
     )
@@ -205,16 +204,15 @@ def main(args):
     
     # Create DAN shared replay buffer
     buffer = DANSharedReplayBuffer(
-        all_args,
+        vars(all_args),
         envs.observation_space[0],
-        envs.share_observation_space[0],
         envs.action_space[0]
     )
     
     config["buffer"] = buffer
     
     # Create DAN runner
-    runner = DSRDANRunner(config)
+    runner = DSRDANRunner(vars(all_args), vars(all_args), vars(all_args))
     
     # Start training
     runner.run()

@@ -31,6 +31,7 @@ def get_base_config():
     
     # Network parameters
     parser.add_argument("--hidden_size", type=int, default=64, help="Dimension of hidden layers for actor/critic networks")
+    parser.add_argument("--hidden_sizes", type=lambda x: eval(x), default=[64, 64], help="Hidden layer sizes for actor/critic networks as list")
     parser.add_argument("--layer_N", type=int, default=1, help="Number of layers for actor/critic networks")
     parser.add_argument("--use_ReLU", action='store_false', default=True, help="Whether to use ReLU")
     parser.add_argument("--use_popart", action='store_true', default=False, help="by default False, use PopArt to normalize rewards.")
@@ -43,6 +44,9 @@ def get_base_config():
     parser.add_argument("--use_naive_recurrent_policy", action='store_true', default=False, help='Whether to use a naive recurrent policy')
     parser.add_argument("--use_recurrent_policy", action='store_false', default=True, help='use a recurrent policy')
     parser.add_argument("--recurrent_N", type=int, default=1, help="The number of recurrent layers.")
+    parser.add_argument("--recurrent_n", type=int, default=1, help="The number of recurrent layers (alias for recurrent_N)")
+    parser.add_argument("--initialization_method", type=str, default='orthogonal_', help="Initialization method for network weights")
+    parser.add_argument("--activation_func", type=str, default='relu', help="Activation function for neural networks")
     parser.add_argument("--data_chunk_length", type=int, default=10, help="Time length of chunks used to train a recurrent_policy")
     
     # Optimizer parameters
@@ -81,7 +85,6 @@ def get_base_config():
     
     # Logging parameters
     parser.add_argument("--use_wandb", action='store_true', default=False, help="by default, do not use wandb. If set, use wandb for logging.")
-    parser.add_argument("--user_name", type=str, default='zxd_xjtu', help="wandb user name")
     parser.add_argument("--wandb_name", type=str, default=None, help="wandb project name")
     
     # Render parameters
@@ -109,19 +112,8 @@ def get_dan_happo_config():
     Returns:
         args: Configuration arguments
     """
-    # Get base configuration parser
-    parser = get_base_config()
-    
-    # Add DAN-HAPPO specific arguments
-    parser.add_argument('--scenario_name', type=str, default='DSR', help="Scenario name")
-    parser.add_argument('--case_path', type=str, default='./envs/cases/13Bus/IEEE13Nodeckt.dss', help="Path to DSS case file")
-    parser.add_argument('--num_agents', type=int, default=4, help="Number of agents")
-    parser.add_argument('--use_dan', action='store_true', default=True, help="Whether to use DAN architecture")
-    parser.add_argument('--use_neighbor_obs', action='store_true', default=True, help="Whether to use neighbor observations")
-    parser.add_argument('--use_enhanced_action_mask', action='store_true', default=True, help="Whether to use enhanced action masking")
-    parser.add_argument('--progressive_overload_penalty', action='store_true', default=True, help="Whether to use progressive overload penalty")
-    
-    # Parse arguments and get base args object
+    # Get configuration parser and parse empty args to get defaults
+    parser = get_config()
     args = parser.parse_args([])
     
     # DAN-HAPPO specific parameters
@@ -224,6 +216,10 @@ def get_config():
     parser.add_argument('--use_neighbor_obs', action='store_true', default=True, help="Whether to use neighbor observations")
     parser.add_argument('--use_enhanced_action_mask', action='store_true', default=True, help="Whether to use enhanced action masking")
     parser.add_argument('--progressive_overload_penalty', action='store_true', default=True, help="Whether to use progressive overload penalty")
+    parser.add_argument('--severe_overload_threshold', type=float, default=1.5, help="Threshold for severe overload")
+    parser.add_argument('--terminate_on_severe_overload', action='store_true', default=False, help="Whether to terminate episode on severe overload")
+    parser.add_argument('--overload_penalty_levels', type=str, default='[1.1, 1.3, 1.5]', help="Overload penalty levels as string")
+    parser.add_argument('--overload_penalty_weights', type=str, default='[0.1, 0.5, 1.0]', help="Overload penalty weights as string")
     
     return parser
 

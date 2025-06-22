@@ -20,14 +20,14 @@ class DSRDANRunner(OnPolicyBaseRunner):
     such as neighbor observations and enhanced action masking.
     """
     
-    def __init__(self, config):
-        super(DSRDANRunner, self).__init__(config)
+    def __init__(self, args, algo_args, env_args):
+        super(DSRDANRunner, self).__init__(args, algo_args, env_args)
         
         # DAN-specific parameters
-        self.use_dan = getattr(config, 'use_dan', True)
-        self.use_neighbor_obs = getattr(config, 'use_neighbor_obs', True)
-        self.max_neighbors = getattr(config, 'max_neighbors', 5)
-        self.use_enhanced_action_mask = getattr(config, 'use_enhanced_action_mask', True)
+        self.use_dan = getattr(args, 'use_dan', True)
+        self.use_neighbor_obs = getattr(args, 'use_neighbor_obs', True)
+        self.max_neighbors = getattr(args, 'max_neighbors', 5)
+        self.use_enhanced_action_mask = getattr(args, 'use_enhanced_action_mask', True)
         
         # Training metrics
         self.dan_metrics = {
