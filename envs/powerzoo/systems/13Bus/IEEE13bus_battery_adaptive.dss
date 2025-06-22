@@ -1,0 +1,26 @@
+! Created for Stackelberg Game Environment
+
+! Redirect to the base IEEE 13-bus system configuration
+Redirect IEEE13Nodeckt.dss
+
+! Add storage element (Battery) for demand response and grid support
+! This battery is placed at bus 675, a common point for load control.
+New Storage.B1 Bus1=675 kV=4.16 kWRated=250 kWhRated=1000 %stored=50
+
+! Add monitors for key measurements needed by the RL environment
+! Monitor for system losses
+New Monitor.SystemLosses element=Line.650632 terminal=1 mode=1 ppolar=no
+
+! Monitor for voltages at a critical load bus (Corrected from Line.632671)
+New Monitor.Bus675_Voltage element=Line.692675 terminal=2 mode=0
+
+! Monitor for DER/Storage output
+New Monitor.BatteryOutput element=Storage.B1 terminal=1 mode=1
+
+! Set simulation mode to daily to allow for load shape evaluation over 24 hours
+Set mode=daily
+Set stepsize=1h
+Set number=24
+
+! Solve the initial state
+Solve 

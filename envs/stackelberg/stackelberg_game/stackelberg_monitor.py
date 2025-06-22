@@ -1,769 +1,444 @@
 # -*- coding: utf-8 -*-
 """
-Comprehensive Monitoring System for Stackelberg Game Environment
+Stackelberg Game Monitor
 
-This module provides real-time monitoring and visualization capabilities
-for the Stackelberg game-based demand response framework.
+This module provides comprehensive monitoring and logging for the
+Stackelberg game environment, tracking convergence, Nash gaps, and
+system performance metrics.
 """
 
 import os
+import json
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from typing import Dict, List, Optional, Any, Tuple
-from collections import defaultdict, deque
+from collections import defaultdict
 from datetime import datetime
-import json
-import pickle
 import logging
-from pathlib import Path
-
-# Optional imports for advanced features
-try:
-    from tensorboardX import SummaryWriter
-    HAS_TENSORBOARD = True
-except ImportError:
-    HAS_TENSORBOARD = False
-    print("TensorboardX not available. Install with: pip install tensorboardX")
 
 
 class StackelbergMonitor:
-    """
-    Comprehensive monitoring system for Stackelberg game environment.
-    
-    Features:
-    - Real-time metric tracking
-    - Convergence analysis
-    - Nash equilibrium monitoring
-    - System stability metrics
-    - Agent behavior analysis
-    - Visualization and logging
-    """
-    
-    def __init__(self, 
-                 log_dir: str = "logs/stackelberg",
-                 experiment_name: Optional[str] = None,
-                 config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the monitoring system.
-        
-        Args:
-            log_dir: Directory for saving logs and visualizations
-            experiment_name: Name of the experiment
-            config: Configuration dictionary
-        """
-        # Setup directories
-        self.log_dir = Path(log_dir)
-        if experiment_name is None:
-            experiment_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.experiment_name = experiment_name
-        self.experiment_dir = self.log_dir / experiment_name
-        self._setup_directories()
-        
-        # Configuration
-        self.config = config or {}
-        self.save_interval = self.config.get('save_interval', 100)
-        self.plot_interval = self.config.get('plot_interval', 50)
-        
-        # Metrics storage
-        self.metrics_history = defaultdict(list)
-        self.episode_metrics = defaultdict(list)
-        self.step_metrics = defaultdict(list)
-        
-        # Agent-specific metrics
-        self.uc_metrics = defaultdict(list)
-        self.consumer_metrics = defaultdict(lambda: defaultdict(list))
-        
-        # Convergence tracking
-        self.convergence_history = {
-            'nash_gap': deque(maxlen=100),
-            'price_stability': deque(maxlen=100),
-            'action_variance': deque(maxlen=100)
-        }
-        
-        # System stability metrics
-        self.stability_metrics = {
-            'voltage_violations': [],
-            'power_loss_ratio': [],
-            'line_overloads': [],
-            'n_minus_1_violations': []
-        }
-        
-        # Nash equilibrium tracking
-        self.nash_tracking = {
-            'uc_best_response': [],
-            'consumer_best_responses': defaultdict(list),
-            'equilibrium_distance': []
-        }
-        
-        # Setup logging
-        self._setup_logging()
-        
-        # Setup TensorBoard if available
-        if HAS_TENSORBOARD:
-            self.tb_writer = SummaryWriter(str(self.experiment_dir / 'tensorboard'))
-        else:
-            self.tb_writer = None
-        
-        # Visualization settings
-        plt.style.use('seaborn-v0_8-darkgrid')
-        self.figure_size = (12, 8)
-        
-        # Statistics tracking
-        self.current_episode = 0
-        self.current_step = 0
-        self.total_steps = 0
-        
-    def _setup_directories(self):
-        """Create necessary directories for logging."""
-        dirs = [
-            self.experiment_dir,
-            self.experiment_dir / 'plots',
-            self.experiment_dir / 'data',
-            self.experiment_dir / 'checkpoints',
-            self.experiment_dir / 'tensorboard'
-        ]
-        for dir_path in dirs:
-            dir_path.mkdir(parents=True, exist_ok=True)
-    
-    def _setup_logging(self):
-        """Setup logging configuration."""
-        log_file = self.experiment_dir / 'experiment.log'
-        
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger('StackelbergMonitor')
-        self.logger.info(f"Starting experiment: {self.experiment_name}")
-    
-    def log_step(self, 
-                 rewards: Dict[int, float],
-                 observations: Dict[int, np.ndarray],
-                 actions: Dict[int, np.ndarray],
-                 infos: Dict[int, Dict[str, Any]],
-                 system_state: Dict[str, Any]):
-        """
-        Log metrics for a single environment step.
-        
-        Args:
-            rewards: Agent rewards
-            observations: Agent observations
-            actions: Agent actions
-            infos: Additional information
-            system_state: System state dictionary
-        """
-        self.current_step += 1
-        self.total_steps += 1
-        
-        # Extract UC and consumer IDs
-        uc_id = 0  # Assuming UC is always agent 0
-        consumer_ids = [aid for aid in rewards.keys() if aid != uc_id]
-        
-        # Log UC metrics
-        if uc_id in rewards:
-            self.uc_metrics['reward'].append(rewards[uc_id])
-            if uc_id in actions:
-                self.uc_metrics['price_signal'].append(actions[uc_id][0])
-                self.uc_metrics['dr_incentive'].append(actions[uc_id][1])
-        
-        # Log consumer metrics
-        for cid in consumer_ids:
-            if cid in rewards:
-                self.consumer_metrics[cid]['reward'].append(rewards[cid])
-            if cid in actions:
-                self.consumer_metrics[cid]['load_adjustment'].append(actions[cid][0])
-                self.consumer_metrics[cid]['der_output'].append(actions[cid][1])
-        
-        # Log system metrics
-        self.step_metrics['power_loss_ratio'].append(
-            system_state.get('power_loss_ratio', 0.0)
-        )
-        self.step_metrics['voltage_violations'].append(
-            system_state.get('voltage_violations', 0)
-        )
-        self.step_metrics['min_voltage'].append(
-            system_state.get('min_voltage', 1.0)
-        )
-        self.step_metrics['max_voltage'].append(
-            system_state.get('max_voltage', 1.0)
-        )
-        
-        # Calculate and log convergence metrics
-        self._update_convergence_metrics(rewards, actions)
-        
-        # Log Nash gap if available
-        self._update_nash_gap(actions, system_state)
-        
-        # Calculate Nash equilibrium metrics
-        self._update_nash_metrics(rewards, actions, system_state)
-        
-        # Log to TensorBoard if available
-        if self.tb_writer:
-            self._log_to_tensorboard(rewards, actions, system_state)
-    
-    def log_episode_end(self):
-        """Log metrics at the end of an episode."""
-        self.current_episode += 1
-        
-        # Calculate episode statistics
-        episode_stats = self._calculate_episode_statistics()
-        
-        # Log episode summary
-        self.logger.info(f"Episode {self.current_episode} completed:")
-        self.logger.info(f"  - Total reward (UC): {episode_stats['uc_total_reward']:.2f}")
-        self.logger.info(f"  - Avg consumer reward: {episode_stats['avg_consumer_reward']:.2f}")
-        self.logger.info(f"  - Social welfare: {episode_stats['social_welfare']:.2f}")
-        self.logger.info(f"  - Avg power loss: {episode_stats['avg_power_loss']:.4f}")
-        self.logger.info(f"  - Total voltage violations: {episode_stats['total_voltage_violations']}")
-        self.logger.info(f"  - Nash gap: {episode_stats['nash_gap']:.4f}")
-        
-        # Store episode metrics
-        for key, value in episode_stats.items():
-            self.episode_metrics[key].append(value)
-        
-        # Generate plots if needed
-        if self.current_episode % self.plot_interval == 0:
-            self.generate_plots()
-        
-        # Save data if needed
-        if self.current_episode % self.save_interval == 0:
-            self.save_monitoring_data()
-        
-        # Reset step counter
-        self.current_step = 0
-        
-        # Clear step metrics
-        for key in self.step_metrics:
-            self.step_metrics[key].clear()
-    
-    def _update_convergence_metrics(self, 
-                                  rewards: Dict[int, float],
-                                  actions: Dict[int, np.ndarray]):
-        """Update convergence tracking metrics."""
-        # Nash gap (simplified)
-        uc_reward = rewards.get(0, 0.0)
-        consumer_rewards = [r for aid, r in rewards.items() if aid != 0]
-        if consumer_rewards:
-            nash_gap = abs(uc_reward - np.mean(consumer_rewards))
-            self.convergence_history['nash_gap'].append(nash_gap)
-        
-        # Price stability (if UC action available)
-        if 0 in actions and len(self.uc_metrics['price_signal']) > 1:
-            price_variance = np.var(self.uc_metrics['price_signal'][-10:])
-            self.convergence_history['price_stability'].append(price_variance)
-        
-        # Action variance across consumers
-        consumer_actions = [a[0] for aid, a in actions.items() if aid != 0]
-        if consumer_actions:
-            action_variance = np.var(consumer_actions)
-            self.convergence_history['action_variance'].append(action_variance)
-    
-    def _update_nash_metrics(self,
-                            rewards: Dict[int, float],
-                            actions: Dict[int, np.ndarray],
-                            system_state: Dict[str, Any]):
-        """Update Nash equilibrium tracking metrics."""
-        # This is a simplified implementation
-        # In practice, you would compute best response strategies
-        
-        # Track UC's current strategy effectiveness
-        uc_reward = rewards.get(0, 0.0)
-        self.nash_tracking['uc_best_response'].append(uc_reward)
-        
-        # Track consumer best responses
-        for aid, reward in rewards.items():
-            if aid != 0:
-                self.nash_tracking['consumer_best_responses'][aid].append(reward)
-        
-        # Estimate equilibrium distance (simplified)
-        if len(self.nash_tracking['uc_best_response']) > 10:
-            recent_uc = self.nash_tracking['uc_best_response'][-10:]
-            recent_consumer = [
-                np.mean(list(self.nash_tracking['consumer_best_responses'][aid])[-10:])
-                for aid in self.nash_tracking['consumer_best_responses']
-                if len(self.nash_tracking['consumer_best_responses'][aid]) >= 10
-            ]
-            if recent_consumer:
-                equilibrium_distance = np.std(recent_uc) + np.mean([
-                    np.std(self.nash_tracking['consumer_best_responses'][aid][-10:])
-                    for aid in self.nash_tracking['consumer_best_responses']
-                    if len(self.nash_tracking['consumer_best_responses'][aid]) >= 10
-                ])
-                self.nash_tracking['equilibrium_distance'].append(equilibrium_distance)
-    
-    def _calculate_episode_statistics(self) -> Dict[str, float]:
-        """Calculate statistics for the completed episode."""
-        stats = {}
-        
-        # UC statistics
-        if self.uc_metrics['reward']:
-            stats['uc_total_reward'] = sum(self.uc_metrics['reward'])
-            stats['uc_avg_reward'] = np.mean(self.uc_metrics['reward'])
-        else:
-            stats['uc_total_reward'] = 0.0
-            stats['uc_avg_reward'] = 0.0
-        
-        # Consumer statistics
-        consumer_total_rewards = []
-        for cid, metrics in self.consumer_metrics.items():
-            if metrics['reward']:
-                consumer_total_rewards.append(sum(metrics['reward']))
-        
-        if consumer_total_rewards:
-            stats['avg_consumer_reward'] = np.mean(consumer_total_rewards)
-            stats['std_consumer_reward'] = np.std(consumer_total_rewards)
-        else:
-            stats['avg_consumer_reward'] = 0.0
-            stats['std_consumer_reward'] = 0.0
-        
-        # Social welfare
-        stats['social_welfare'] = stats['uc_total_reward'] + sum(consumer_total_rewards)
-        
-        # System metrics
-        if self.step_metrics['power_loss_ratio']:
-            stats['avg_power_loss'] = np.mean(self.step_metrics['power_loss_ratio'])
-            stats['max_power_loss'] = np.max(self.step_metrics['power_loss_ratio'])
-        else:
-            stats['avg_power_loss'] = 0.0
-            stats['max_power_loss'] = 0.0
-        
-        if self.step_metrics['voltage_violations']:
-            stats['total_voltage_violations'] = sum(self.step_metrics['voltage_violations'])
-            stats['avg_voltage_violations'] = np.mean(self.step_metrics['voltage_violations'])
-        else:
-            stats['total_voltage_violations'] = 0
-            stats['avg_voltage_violations'] = 0.0
-        
-        # Convergence metrics
-        if self.convergence_history['nash_gap']:
-            stats['nash_gap'] = np.mean(list(self.convergence_history['nash_gap']))
-        else:
-            stats['nash_gap'] = float('inf')
-        
-        if self.convergence_history['price_stability']:
-            stats['price_stability'] = np.mean(list(self.convergence_history['price_stability']))
-        else:
-            stats['price_stability'] = float('inf')
-        
-        return stats
-    
-    def _log_to_tensorboard(self,
-                           rewards: Dict[int, float],
-                           actions: Dict[int, np.ndarray],
-                           system_state: Dict[str, Any]):
-        """Log metrics to TensorBoard."""
-        if not self.tb_writer:
-            return
-        
-        # Log rewards
-        self.tb_writer.add_scalar('rewards/uc', rewards.get(0, 0.0), self.total_steps)
-        
-        consumer_rewards = [r for aid, r in rewards.items() if aid != 0]
-        if consumer_rewards:
-            self.tb_writer.add_scalar('rewards/avg_consumer', 
-                                    np.mean(consumer_rewards), 
-                                    self.total_steps)
-            self.tb_writer.add_scalar('rewards/social_welfare',
-                                    sum(rewards.values()),
-                                    self.total_steps)
-        
-        # Log system metrics
-        self.tb_writer.add_scalar('system/power_loss_ratio',
-                                system_state.get('power_loss_ratio', 0.0),
-                                self.total_steps)
-        self.tb_writer.add_scalar('system/voltage_violations',
-                                system_state.get('voltage_violations', 0),
-                                self.total_steps)
-        
-        # Log convergence metrics
-        if self.convergence_history['nash_gap']:
-            self.tb_writer.add_scalar('convergence/nash_gap',
-                                    list(self.convergence_history['nash_gap'])[-1],
-                                    self.total_steps)
-    
-    def generate_plots(self):
-        """Generate visualization plots."""
-        # Episode rewards plot
-        self._plot_episode_rewards()
-        
-        # System metrics plot
-        self._plot_system_metrics()
-        
-        # Convergence analysis plot
-        self._plot_convergence_analysis()
-        
-        # Nash equilibrium tracking plot
-        self._plot_nash_equilibrium()
-        
-        # Agent behavior analysis
-        self._plot_agent_behaviors()
-    
-    def _plot_episode_rewards(self):
-        """Plot episode reward trends."""
-        if not self.episode_metrics['uc_total_reward']:
-            return
-        
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figure_size)
-        
-        episodes = list(range(1, len(self.episode_metrics['uc_total_reward']) + 1))
-        
-        # UC rewards
-        ax1.plot(episodes, self.episode_metrics['uc_total_reward'], 
-                label='UC Total Reward', linewidth=2)
-        ax1.fill_between(episodes, 
-                        self.episode_metrics['uc_total_reward'],
-                        alpha=0.3)
-        ax1.set_ylabel('UC Reward')
-        ax1.set_title('UC Reward Progression')
-        ax1.grid(True, alpha=0.3)
-        ax1.legend()
-        
-        # Consumer rewards and social welfare
-        ax2.plot(episodes, self.episode_metrics['avg_consumer_reward'],
-                label='Avg Consumer Reward', linewidth=2)
-        ax2.plot(episodes, self.episode_metrics['social_welfare'],
-                label='Social Welfare', linewidth=2, linestyle='--')
-        ax2.set_xlabel('Episode')
-        ax2.set_ylabel('Reward')
-        ax2.set_title('Consumer Rewards and Social Welfare')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        
-        plt.tight_layout()
-        plt.savefig(self.experiment_dir / 'plots' / 'episode_rewards.png', dpi=300)
-        plt.close()
-    
-    def _plot_system_metrics(self):
-        """Plot system performance metrics."""
-        if not self.episode_metrics['avg_power_loss']:
-            return
-        
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
-        
-        episodes = list(range(1, len(self.episode_metrics['avg_power_loss']) + 1))
-        
-        # Power loss
-        ax1.plot(episodes, self.episode_metrics['avg_power_loss'], linewidth=2)
-        ax1.set_ylabel('Power Loss Ratio')
-        ax1.set_title('Average Power Loss per Episode')
-        ax1.grid(True, alpha=0.3)
-        
-        # Voltage violations
-        ax2.bar(episodes, self.episode_metrics['total_voltage_violations'], alpha=0.7)
-        ax2.set_ylabel('Voltage Violations')
-        ax2.set_title('Total Voltage Violations per Episode')
-        ax2.grid(True, alpha=0.3)
-        
-        # Nash gap
-        ax3.plot(episodes, self.episode_metrics['nash_gap'], linewidth=2, color='red')
-        ax3.set_ylabel('Nash Gap')
-        ax3.set_xlabel('Episode')
-        ax3.set_title('Nash Gap Convergence')
-        ax3.grid(True, alpha=0.3)
-        
-        # Price stability
-        if 'price_stability' in self.episode_metrics:
-            ax4.plot(episodes, self.episode_metrics['price_stability'], 
-                    linewidth=2, color='green')
-            ax4.set_ylabel('Price Variance')
-            ax4.set_xlabel('Episode')
-            ax4.set_title('Price Signal Stability')
-            ax4.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(self.experiment_dir / 'plots' / 'system_metrics.png', dpi=300)
-        plt.close()
-    
-    def _plot_convergence_analysis(self):
-        """Plot convergence analysis."""
-        if not self.convergence_history['nash_gap']:
-            return
-        
-        fig, ax = plt.subplots(figsize=self.figure_size)
-        
-        # Plot recent convergence history
-        nash_gaps = list(self.convergence_history['nash_gap'])
-        steps = list(range(len(nash_gaps)))
-        
-        ax.plot(steps, nash_gaps, linewidth=2, alpha=0.7)
-        
-        # Add moving average
-        if len(nash_gaps) > 10:
-            window = min(20, len(nash_gaps) // 5)
-            moving_avg = pd.Series(nash_gaps).rolling(window=window).mean()
-            ax.plot(steps, moving_avg, linewidth=3, color='red', 
-                   label=f'{window}-step Moving Average')
-        
-        ax.set_xlabel('Recent Steps')
-        ax.set_ylabel('Nash Gap')
-        ax.set_title('Convergence Analysis - Nash Gap')
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-        
-        plt.tight_layout()
-        plt.savefig(self.experiment_dir / 'plots' / 'convergence_analysis.png', dpi=300)
-        plt.close()
-    
-    def _plot_nash_equilibrium(self):
-        """Plot Nash equilibrium tracking."""
-        if not self.nash_tracking['equilibrium_distance']:
-            return
-        
-        fig, ax = plt.subplots(figsize=self.figure_size)
-        
-        distances = self.nash_tracking['equilibrium_distance']
-        steps = list(range(len(distances)))
-        
-        ax.plot(steps, distances, linewidth=2)
-        ax.set_xlabel('Calculation Step')
-        ax.set_ylabel('Equilibrium Distance')
-        ax.set_title('Nash Equilibrium Convergence')
-        ax.grid(True, alpha=0.3)
-        
-        # Add convergence threshold line
-        if distances:
-            threshold = 0.1  # Example threshold
-            ax.axhline(y=threshold, color='red', linestyle='--', 
-                      label=f'Convergence Threshold ({threshold})')
-            ax.legend()
-        
-        plt.tight_layout()
-        plt.savefig(self.experiment_dir / 'plots' / 'nash_equilibrium.png', dpi=300)
-        plt.close()
-    
-    def _plot_agent_behaviors(self):
-        """Plot agent behavior analysis."""
-        # UC behavior
-        if self.uc_metrics['price_signal'] and len(self.uc_metrics['price_signal']) > 100:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figure_size)
-            
-            # Price signals over time
-            steps = list(range(len(self.uc_metrics['price_signal'])))
-            ax1.plot(steps, self.uc_metrics['price_signal'], linewidth=1, alpha=0.7)
-            ax1.set_ylabel('Price Signal')
-            ax1.set_title('UC Price Signal Evolution')
-            ax1.grid(True, alpha=0.3)
-            
-            # DR incentives
-            if self.uc_metrics['dr_incentive']:
-                ax2.plot(steps, self.uc_metrics['dr_incentive'], 
-                        linewidth=1, alpha=0.7, color='green')
-                ax2.set_xlabel('Step')
-                ax2.set_ylabel('DR Incentive')
-                ax2.set_title('UC DR Incentive Evolution')
-                ax2.grid(True, alpha=0.3)
-            
-            plt.tight_layout()
-            plt.savefig(self.experiment_dir / 'plots' / 'uc_behavior.png', dpi=300)
-            plt.close()
-        
-        # Consumer behavior heatmap
-        if len(self.consumer_metrics) > 0:
-            self._plot_consumer_heatmap()
-    
-    def _plot_consumer_heatmap(self):
-        """Plot consumer behavior heatmap."""
-        # Collect load adjustments for all consumers
-        consumer_ids = sorted(self.consumer_metrics.keys())
-        if not consumer_ids:
-            return
-        
-        # Get recent load adjustments
-        window = min(100, min(len(self.consumer_metrics[cid]['load_adjustment']) 
-                             for cid in consumer_ids))
-        if window < 10:
-            return
-        
-        load_adjustments = []
-        for cid in consumer_ids:
-            if self.consumer_metrics[cid]['load_adjustment']:
-                recent_adjustments = self.consumer_metrics[cid]['load_adjustment'][-window:]
-                load_adjustments.append(recent_adjustments)
-        
-        if not load_adjustments:
-            return
-        
-        # Create heatmap
-        fig, ax = plt.subplots(figsize=(12, 6))
-        
-        heatmap_data = np.array(load_adjustments)
-        sns.heatmap(heatmap_data, 
-                   cmap='RdBu_r', 
-                   center=0,
-                   yticklabels=[f'Consumer {cid}' for cid in consumer_ids],
-                   xticklabels=False,
-                   cbar_kws={'label': 'Load Adjustment'},
-                   ax=ax)
-        
-        ax.set_xlabel(f'Recent {window} Steps')
-        ax.set_title('Consumer Load Adjustment Patterns')
-        
-        plt.tight_layout()
-        plt.savefig(self.experiment_dir / 'plots' / 'consumer_behavior_heatmap.png', dpi=300)
-        plt.close()
-    
-    def save_monitoring_data(self):
-        """Save all monitoring data to disk."""
-        # Save raw data
-        data = {
-            'experiment_name': self.experiment_name,
-            'config': self.config,
-            'episode_metrics': dict(self.episode_metrics),
-            'uc_metrics': dict(self.uc_metrics),
-            'consumer_metrics': {k: dict(v) for k, v in self.consumer_metrics.items()},
-            'convergence_history': {k: list(v) for k, v in self.convergence_history.items()},
-            'nash_tracking': dict(self.nash_tracking),
-            'total_episodes': self.current_episode,
-            'total_steps': self.total_steps
-        }
-        
-        # Save as pickle
-        with open(self.experiment_dir / 'data' / 'monitoring_data.pkl', 'wb') as f:
-            pickle.dump(data, f)
-        
-        # Save episode metrics as CSV
-        if self.episode_metrics:
-            df = pd.DataFrame(self.episode_metrics)
-            df.to_csv(self.experiment_dir / 'data' / 'episode_metrics.csv', index=False)
-        
-        # Save summary statistics
-        summary = self.get_summary_statistics()
-        with open(self.experiment_dir / 'data' / 'summary_statistics.json', 'w') as f:
-            json.dump(summary, f, indent=2)
-        
-        self.logger.info(f"Monitoring data saved at episode {self.current_episode}")
-    
-    def get_summary_statistics(self) -> Dict[str, Any]:
-        """Get summary statistics of the experiment."""
-        summary = {
-            'experiment_name': self.experiment_name,
-            'total_episodes': self.current_episode,
-            'total_steps': self.total_steps,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Episode statistics
-        if self.episode_metrics:
-            for metric, values in self.episode_metrics.items():
-                if values:
-                    summary[f'{metric}_final'] = values[-1]
-                    summary[f'{metric}_mean'] = np.mean(values)
-                    summary[f'{metric}_std'] = np.std(values)
-                    summary[f'{metric}_min'] = np.min(values)
-                    summary[f'{metric}_max'] = np.max(values)
-                    
-                    # Improvement over time
-                    if len(values) > 10:
-                        early_mean = np.mean(values[:10])
-                        late_mean = np.mean(values[-10:])
-                        summary[f'{metric}_improvement'] = late_mean - early_mean
-        
-        # Convergence statistics
-        if self.convergence_history['nash_gap']:
-            recent_gaps = list(self.convergence_history['nash_gap'])[-50:]
-            summary['final_nash_gap'] = np.mean(recent_gaps)
-            summary['nash_gap_converged'] = summary['final_nash_gap'] < 0.1
-        
-        return summary
-    
-    def close(self):
-        """Clean up resources."""
-        if self.tb_writer:
-            self.tb_writer.close()
-        
-        # Final save
-        self.save_monitoring_data()
-        
-        # Generate final report
-        self.generate_final_report()
-        
-        self.logger.info("Monitoring system closed")
-    
-    def generate_final_report(self):
-        """Generate a final experiment report."""
-        report = []
-        report.append("=" * 60)
-        report.append(f"STACKELBERG GAME EXPERIMENT REPORT")
-        report.append(f"Experiment: {self.experiment_name}")
-        report.append(f"Timestamp: {datetime.now().isoformat()}")
-        report.append("=" * 60)
-        report.append("")
-        
-        summary = self.get_summary_statistics()
-        
-        report.append("SUMMARY STATISTICS:")
-        report.append(f"- Total Episodes: {summary['total_episodes']}")
-        report.append(f"- Total Steps: {summary['total_steps']}")
-        report.append("")
-        
-        report.append("FINAL PERFORMANCE:")
-        if 'social_welfare_final' in summary:
-            report.append(f"- Social Welfare: {summary['social_welfare_final']:.2f}")
-        if 'avg_power_loss_final' in summary:
-            report.append(f"- Power Loss: {summary['avg_power_loss_final']:.4f}")
-        if 'final_nash_gap' in summary:
-            report.append(f"- Nash Gap: {summary['final_nash_gap']:.4f}")
-            report.append(f"- Converged: {'Yes' if summary.get('nash_gap_converged', False) else 'No'}")
-        report.append("")
-        
-        report.append("IMPROVEMENTS:")
-        for key, value in summary.items():
-            if key.endswith('_improvement'):
-                metric_name = key.replace('_improvement', '')
-                report.append(f"- {metric_name}: {value:+.4f}")
-        
-        report.append("")
-        report.append("=" * 60)
-        
-        # Save report
-        report_text = '\n'.join(report)
-        with open(self.experiment_dir / 'final_report.txt', 'w') as f:
-            f.write(report_text)
-        
-        # Also print to console
-        print(report_text)
-    
-    def _update_nash_gap(self, actions: Dict[int, np.ndarray], system_state: Dict[str, Any]):
-        """
-        Update Nash gap metric based on current actions.
-        This measures how far agents are from Nash equilibrium.
-        """
-        # Simplified Nash gap calculation
-        # In practice, this would require computing best responses
-        
-        uc_id = 0
-        consumer_ids = [aid for aid in actions.keys() if aid != uc_id]
-        
-        if len(consumer_ids) < 2:
-            return
-        
-        # Calculate action variance among consumers as proxy for Nash gap
-        consumer_actions = []
-        for cid in consumer_ids:
-            if cid in actions:
-                consumer_actions.append(actions[cid])
-        
-        if consumer_actions:
-            action_variance = np.var(consumer_actions, axis=0).mean()
-            # Normalize by number of consumers
-            nash_gap = action_variance * len(consumer_ids)
-            
-            self.convergence_history['nash_gap'].append(nash_gap)
-            self.step_metrics['nash_gap'].append(nash_gap)
-    
-    def _update_nash_metrics(self, rewards: Dict[int, float], actions: Dict[int, np.ndarray], 
-                           system_state: Dict[str, Any]):
-        """Update Nash equilibrium tracking metrics."""
-        # This is a placeholder implementation
-        # In practice, would compute actual equilibrium distance
-        
-        if self.current_step % 10 == 0:  # Calculate every 10 steps
-            # Mock equilibrium distance calculation
-            equilibrium_distance = np.random.exponential(0.1)
-            self.nash_tracking['equilibrium_distance'].append(equilibrium_distance)
+	"""
+	Monitor for tracking Stackelberg game metrics and convergence.
+	
+	Tracks:
+	- Nash gap between UC and consumer utilities
+	- Policy convergence metrics
+	- System performance (losses, voltage, carbon)
+	- Agent behavior patterns
+	"""
+	
+	def __init__(self, 
+				 log_dir: str = "logs/stackelberg",
+				 experiment_name: Optional[str] = None,
+				 config: Optional[Dict[str, Any]] = None):
+		"""
+		Initialize monitor.
+		
+		Args:
+			log_dir: Directory for saving logs
+			experiment_name: Name of experiment
+			config: Configuration dictionary
+		"""
+		self.config = config or {}
+		self.logger = logging.getLogger('StackelbergMonitor')
+		
+		# Create log directory
+		self.log_dir = log_dir
+		os.makedirs(log_dir, exist_ok=True)
+		
+		# Experiment naming
+		if experiment_name is None:
+			timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+			experiment_name = f"stackelberg_exp_{timestamp}"
+		self.experiment_name = experiment_name
+		
+		# Create experiment directory
+		self.exp_dir = os.path.join(log_dir, experiment_name)
+		os.makedirs(self.exp_dir, exist_ok=True)
+		
+		# Metrics to track
+		self.metrics = defaultdict(list)
+		self.episode_metrics = defaultdict(list)
+		self.convergence_metrics = defaultdict(list)
+		
+		# Tracking configuration
+		self.track_convergence = config.get('track_convergence', True)
+		self.track_nash_gap = config.get('track_nash_gap', True)
+		self.track_carbon = config.get('track_carbon', True)
+		self.save_interval = config.get('save_interval', 100)
+		self.plot_interval = config.get('plot_interval', 50)
+		
+		# Episode tracking
+		self.current_episode = 0
+		self.total_steps = 0
+		
+		# Action and reward buffers
+		self.action_buffer = defaultdict(list)
+		self.reward_buffer = defaultdict(list)
+		
+		# Nash equilibrium tracking
+		self.nash_gaps = []
+		self.uc_utilities = []
+		self.consumer_utilities = []
+		
+		# Convergence tracking
+		self.policy_distances = defaultdict(list)
+		self.value_changes = defaultdict(list)
+		
+		# System metrics
+		self.system_metrics = {
+			'voltage_violations': [],
+			'power_losses': [],
+			'carbon_emissions': [],
+			'der_curtailment': [],
+			'dr_participation': []
+		}
+		
+		# Save configuration
+		self.save_config()
+		
+	def save_config(self):
+		"""Save monitor configuration."""
+		config_path = os.path.join(self.exp_dir, "monitor_config.json")
+		with open(config_path, 'w') as f:
+			json.dump(self.config, f, indent=2)
+	
+	def log_step(self, 
+				 step: int,
+				 observations: Dict[int, np.ndarray],
+				 actions: Dict[int, np.ndarray],
+				 rewards: Dict[int, float],
+				 infos: Dict[int, Dict[str, Any]]):
+		"""
+		Log data from one environment step.
+		
+		Args:
+			step: Current step number
+			observations: Agent observations
+			actions: Agent actions
+			rewards: Agent rewards
+			infos: Additional information
+		"""
+		self.total_steps += 1
+		
+		# Store actions and rewards
+		for agent_id, action in actions.items():
+			self.action_buffer[agent_id].append(action.copy())
+		
+		for agent_id, reward in rewards.items():
+			self.reward_buffer[agent_id].append(reward)
+		
+		# Extract system metrics from infos
+		uc_info = infos.get(0, {})
+		if 'voltage_violations' in uc_info:
+			self.system_metrics['voltage_violations'].append(
+				uc_info['voltage_violations']
+			)
+		if 'power_loss_ratio' in uc_info:
+			self.system_metrics['power_losses'].append(
+				uc_info['power_loss_ratio']
+			)
+		if 'carbon_intensity' in uc_info and 'total_load' in uc_info:
+			carbon_emission = uc_info['carbon_intensity'] * uc_info['total_load']
+			self.system_metrics['carbon_emissions'].append(carbon_emission)
+		
+		# Log Nash gap if tracking
+		if self.track_nash_gap and len(rewards) > 1:
+			self._log_nash_gap(rewards)
+		
+		# Log at intervals
+		if self.total_steps % self.save_interval == 0:
+			self.save_metrics()
+		
+		if self.total_steps % self.plot_interval == 0:
+			self.plot_metrics()
+	
+	def log_episode(self, 
+					episode: int,
+					episode_rewards: Dict[int, float],
+					episode_info: Optional[Dict[str, Any]] = None):
+		"""
+		Log episode-level metrics.
+		
+		Args:
+			episode: Episode number
+			episode_rewards: Total rewards for each agent
+			episode_info: Additional episode information
+		"""
+		self.current_episode = episode
+		
+		# Store episode rewards
+		for agent_id, total_reward in episode_rewards.items():
+			self.episode_metrics[f'agent_{agent_id}_reward'].append(total_reward)
+		
+		# Calculate and store Nash gap
+		if self.track_nash_gap:
+			uc_reward = episode_rewards.get(0, 0)
+			consumer_rewards = [r for aid, r in episode_rewards.items() if aid > 0]
+			if consumer_rewards:
+				avg_consumer_reward = np.mean(consumer_rewards)
+				nash_gap = abs(uc_reward - avg_consumer_reward)
+				self.episode_metrics['nash_gap'].append(nash_gap)
+		
+		# Store system metrics averages
+		for metric_name, values in self.system_metrics.items():
+			if values:
+				self.episode_metrics[f'avg_{metric_name}'].append(np.mean(values))
+		
+		# Clear buffers
+		self.action_buffer.clear()
+		self.reward_buffer.clear()
+		for metric_list in self.system_metrics.values():
+			metric_list.clear()
+		
+		# Log episode info
+		if episode_info:
+			for key, value in episode_info.items():
+				self.episode_metrics[f'episode_{key}'].append(value)
+		
+		self.logger.info(
+			f"Episode {episode}: "
+			f"UC reward={episode_rewards.get(0, 0):.2f}, "
+			f"Avg consumer reward={np.mean(consumer_rewards):.2f}, "
+			f"Nash gap={nash_gap:.2f}"
+		)
+	
+	def log_convergence(self,
+						agent_id: int,
+						policy_distance: float,
+						value_change: float):
+		"""
+		Log convergence metrics for an agent.
+		
+		Args:
+			agent_id: Agent ID
+			policy_distance: Distance between old and new policy
+			value_change: Change in value function
+		"""
+		if not self.track_convergence:
+			return
+		
+		self.policy_distances[agent_id].append(policy_distance)
+		self.value_changes[agent_id].append(value_change)
+		
+		# Check convergence
+		if len(self.policy_distances[agent_id]) > 10:
+			recent_distances = self.policy_distances[agent_id][-10:]
+			if all(d < 0.01 for d in recent_distances):
+				self.logger.info(f"Agent {agent_id} policy converged")
+	
+	def _log_nash_gap(self, rewards: Dict[int, float]):
+		"""Calculate and log Nash gap."""
+		uc_reward = rewards.get(0, 0)
+		consumer_rewards = [r for aid, r in rewards.items() if aid > 0]
+		
+		if consumer_rewards:
+			avg_consumer_reward = np.mean(consumer_rewards)
+			nash_gap = abs(uc_reward - avg_consumer_reward)
+			self.nash_gaps.append(nash_gap)
+			self.uc_utilities.append(uc_reward)
+			self.consumer_utilities.append(avg_consumer_reward)
+	
+	def get_summary_statistics(self) -> Dict[str, Any]:
+		"""Get summary statistics for current experiment."""
+		summary = {
+			'experiment_name': self.experiment_name,
+			'total_episodes': self.current_episode,
+			'total_steps': self.total_steps,
+			'current_metrics': {}
+		}
+		
+		# Add recent metrics
+		for metric_name, values in self.episode_metrics.items():
+			if values:
+				summary['current_metrics'][metric_name] = {
+					'mean': np.mean(values[-10:]),
+					'std': np.std(values[-10:]),
+					'min': np.min(values[-10:]),
+					'max': np.max(values[-10:])
+				}
+		
+		# Add convergence info
+		if self.track_convergence:
+			converged_agents = []
+			for agent_id, distances in self.policy_distances.items():
+				if len(distances) > 10:
+					recent = distances[-10:]
+					if all(d < 0.01 for d in recent):
+						converged_agents.append(agent_id)
+			summary['converged_agents'] = converged_agents
+		
+		return summary
+	
+	def save_metrics(self):
+		"""Save all metrics to files."""
+		# Save episode metrics
+		if self.episode_metrics:
+			df_episodes = pd.DataFrame(self.episode_metrics)
+			df_episodes.to_csv(
+				os.path.join(self.exp_dir, "episode_metrics.csv"),
+				index=False
+			)
+		
+		# Save convergence metrics
+		if self.track_convergence and self.policy_distances:
+			convergence_data = {
+				f'agent_{aid}_policy_dist': dists 
+				for aid, dists in self.policy_distances.items()
+			}
+			convergence_data.update({
+				f'agent_{aid}_value_change': changes
+				for aid, changes in self.value_changes.items()
+			})
+			df_convergence = pd.DataFrame(
+				dict([(k, pd.Series(v)) for k, v in convergence_data.items()])
+			)
+			df_convergence.to_csv(
+				os.path.join(self.exp_dir, "convergence_metrics.csv"),
+				index=False
+			)
+		
+		# Save Nash gap data
+		if self.track_nash_gap and self.nash_gaps:
+			nash_data = {
+				'nash_gap': self.nash_gaps,
+				'uc_utility': self.uc_utilities,
+				'avg_consumer_utility': self.consumer_utilities
+			}
+			df_nash = pd.DataFrame(
+				dict([(k, pd.Series(v)) for k, v in nash_data.items()])
+			)
+			df_nash.to_csv(
+				os.path.join(self.exp_dir, "nash_gap_metrics.csv"),
+				index=False
+			)
+		
+		# Save summary
+		summary = self.get_summary_statistics()
+		with open(os.path.join(self.exp_dir, "summary.json"), 'w') as f:
+			json.dump(summary, f, indent=2)
+		
+		self.logger.info(f"Metrics saved to {self.exp_dir}")
+	
+	def plot_metrics(self):
+		"""Plot metrics (requires matplotlib)."""
+		try:
+			import matplotlib.pyplot as plt
+			import matplotlib.gridspec as gridspec
+			
+			# Create figure
+			fig = plt.figure(figsize=(15, 10))
+			gs = gridspec.GridSpec(3, 2, figure=fig)
+			
+			# Plot 1: Episode rewards
+			ax1 = fig.add_subplot(gs[0, 0])
+			if 'agent_0_reward' in self.episode_metrics:
+				episodes = range(len(self.episode_metrics['agent_0_reward']))
+				ax1.plot(episodes, self.episode_metrics['agent_0_reward'], 
+						label='UC', linewidth=2)
+				
+				# Plot average consumer reward
+				consumer_rewards = []
+				for i in range(len(episodes)):
+					rewards = []
+					for key in self.episode_metrics:
+						if key.startswith('agent_') and key.endswith('_reward'):
+							agent_id = int(key.split('_')[1])
+							if agent_id > 0:
+								rewards.append(self.episode_metrics[key][i])
+					if rewards:
+						consumer_rewards.append(np.mean(rewards))
+				
+				if consumer_rewards:
+					ax1.plot(episodes, consumer_rewards, 
+							label='Avg Consumer', linewidth=2)
+				
+				ax1.set_xlabel('Episode')
+				ax1.set_ylabel('Reward')
+				ax1.set_title('Agent Rewards')
+				ax1.legend()
+				ax1.grid(True, alpha=0.3)
+			
+			# Plot 2: Nash gap
+			ax2 = fig.add_subplot(gs[0, 1])
+			if 'nash_gap' in self.episode_metrics:
+				episodes = range(len(self.episode_metrics['nash_gap']))
+				ax2.plot(episodes, self.episode_metrics['nash_gap'], 
+						'r-', linewidth=2)
+				ax2.set_xlabel('Episode')
+				ax2.set_ylabel('Nash Gap')
+				ax2.set_title('Stackelberg-Nash Gap')
+				ax2.grid(True, alpha=0.3)
+			
+			# Plot 3: System metrics
+			ax3 = fig.add_subplot(gs[1, 0])
+			if 'avg_voltage_violations' in self.episode_metrics:
+				episodes = range(len(self.episode_metrics['avg_voltage_violations']))
+				ax3.plot(episodes, self.episode_metrics['avg_voltage_violations'], 
+						'b-', label='Voltage Violations')
+				ax3_twin = ax3.twinx()
+				if 'avg_power_losses' in self.episode_metrics:
+					ax3_twin.plot(episodes, self.episode_metrics['avg_power_losses'], 
+								'g-', label='Power Losses')
+				ax3.set_xlabel('Episode')
+				ax3.set_ylabel('Voltage Violations', color='b')
+				ax3_twin.set_ylabel('Power Loss Ratio', color='g')
+				ax3.set_title('System Performance')
+				ax3.grid(True, alpha=0.3)
+			
+			# Plot 4: Carbon emissions
+			ax4 = fig.add_subplot(gs[1, 1])
+			if 'avg_carbon_emissions' in self.episode_metrics:
+				episodes = range(len(self.episode_metrics['avg_carbon_emissions']))
+				ax4.plot(episodes, self.episode_metrics['avg_carbon_emissions'], 
+						'k-', linewidth=2)
+				ax4.set_xlabel('Episode')
+				ax4.set_ylabel('Carbon Emissions (kg CO2)')
+				ax4.set_title('Carbon Emissions')
+				ax4.grid(True, alpha=0.3)
+			
+			# Plot 5: Policy convergence
+			ax5 = fig.add_subplot(gs[2, :])
+			if self.policy_distances:
+				for agent_id, distances in self.policy_distances.items():
+					if distances:
+						steps = range(len(distances))
+						ax5.semilogy(steps, distances, 
+									label=f'Agent {agent_id}', alpha=0.7)
+				ax5.set_xlabel('Update Steps')
+				ax5.set_ylabel('Policy Distance (log scale)')
+				ax5.set_title('Policy Convergence')
+				ax5.legend()
+				ax5.grid(True, alpha=0.3)
+			
+			# Save figure
+			plt.tight_layout()
+			plt.savefig(
+				os.path.join(self.exp_dir, "metrics_plot.png"),
+				dpi=300, bbox_inches='tight'
+			)
+			plt.close()
+			
+			self.logger.info("Metrics plotted")
+			
+		except ImportError:
+			self.logger.warning("Matplotlib not available for plotting")
+	
+	def save_monitoring_data(self):
+		"""Save all monitoring data."""
+		self.save_metrics()
+		self.plot_metrics()
+		
+		# Save final summary
+		summary = self.get_summary_statistics()
+		summary['timestamp'] = datetime.now().isoformat()
+		
+		with open(os.path.join(self.exp_dir, "final_summary.json"), 'w') as f:
+			json.dump(summary, f, indent=2)
+		
+		self.logger.info(f"All monitoring data saved to {self.exp_dir}")
+	
+	def close(self):
+		"""Clean up and save final data."""
+		self.save_monitoring_data()

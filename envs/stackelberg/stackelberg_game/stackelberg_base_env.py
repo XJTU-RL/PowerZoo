@@ -52,16 +52,15 @@ class StackelbergBaseEnv:
                 - ...
         """
         self.config = config
+        self.seed = config.get('seed', None)
         self.system_name = config['system_name']
         self.dss_file = config['dss_file']
         self.max_episode_steps = config.get('max_episode_steps', 24)
         
-        # System paths
-        self.dss_folder_path = os.path.join(
-            config.get('base_path', 'envs/powerzoo/systems'),
-            self.system_name
-        )
-        
+        base_path = config.get('base_path', 'envs/powerzoo/systems')
+        self.dss_folder_path = os.path.join(base_path, self.system_name)
+        config['dss_file_abs_path'] = os.path.abspath(os.path.join(self.dss_folder_path, self.dss_file))
+
         # Agent configuration
         self.n_uc_agents = 1  # Single UC agent
         self.n_consumer_agents = self._get_consumer_count(config)
@@ -137,13 +136,9 @@ class StackelbergBaseEnv:
         return consumer_counts.get(self.system_name, 10)
     
     def _init_circuit(self, config: Dict[str, Any]):
-        """Initialize the power system circuit."""
+        """Initialize circuit from DSS file."""
         self.circuit = Circuits(
-            os.path.join(self.dss_folder_path, self.dss_file),
-            RB_act_num=(
-                config.get('reg_act_num', 33),
-                config.get('bat_act_num', 33)
-            ),
+            dss_file=config['dss_file_abs_path'],
             dss_act=config.get('dss_act', False)
         )
         
@@ -155,19 +150,21 @@ class StackelbergBaseEnv:
         self.topology = self.circuit.topology
         
     def _init_load_profile(self, config: Dict[str, Any]):
-        """Initialize load profiles for the system."""
+        """Initialize load profile."""
+        abs_path = config['dss_file_abs_path']
+        assert os.path.exists(abs_path), f"DSS file not found at: {abs_path}"
+        with open(abs_path, 'r') as f:
+            dss_content = f.read()
+
         self.load_profile = LoadProfile(
             self.max_episode_steps,
             self.dss_folder_path,
-            self.dss_file,
-            config.get('use_load_noise', True),
+            dss_content,
+            dss_path=abs_path,
+            use_noise=config.get('use_load_noise', True),
             worker_idx=config.get('worker_idx', None)
         )
-        
-        self.num_profiles = self.load_profile.gen_loadprofile(
-            use_noise=config.get('use_load_noise', True),
-            scale=config.get('scale', 1.0)
-        )
+        self.all_load_profiles = self.load_profile.get_loadprofile(0)
         
     def _init_agents(self):
         """Initialize agent structures."""
@@ -202,6 +199,13 @@ class StackelbergBaseEnv:
         for i, load_name in enumerate(all_loads):
             agent_id = (i % self.n_consumer_agents) + 1  # Start from 1
             self.load_to_agent[load_name] = agent_id
+            self.agent_to_loads[agent_id].append(load_name)
+    
+    def _build_agent_to_loads(self):
+        """Build reverse mapping from agents to loads."""
+        self.agent_to_loads.clear()
+        
+        for load_name, agent_id in self.load_to_agent.items():
             self.agent_to_loads[agent_id].append(load_name)
     
     def _init_action_spaces(self):
@@ -296,7 +300,7 @@ class StackelbergBaseEnv:
         
         # Choose load profile
         if load_profile_idx is None:
-            load_profile_idx = np.random.randint(0, self.num_profiles)
+            load_profile_idx = np.random.randint(0, self.load_profile.num_profiles)
         self.load_profile.choose_loadprofile(load_profile_idx, 
                                            self.config.get('use_load_noise', True))
         self.all_load_profiles = self.load_profile.get_loadprofile(load_profile_idx)

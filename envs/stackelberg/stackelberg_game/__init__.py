@@ -7,14 +7,13 @@ including the base environment, asynchronous wrapper, and monitoring system.
 """
 
 from .stackelberg_base_env import StackelbergBaseEnv
-from .async_wrapper import AsyncMultiAgentWrapper, AsyncMultiAgentWrapperV2
+from .async_wrapper import AsyncMultiAgentWrapper
 from .stackelberg_monitor import StackelbergMonitor
 from .load_aggregator import IntelligentLoadAggregator
 
 __all__ = [
     'StackelbergBaseEnv',
-    'AsyncMultiAgentWrapper', 
-    'AsyncMultiAgentWrapperV2',
+    'AsyncMultiAgentWrapper',
     'StackelbergMonitor',
     'IntelligentLoadAggregator'
 ]

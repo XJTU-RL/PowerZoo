@@ -505,15 +505,6 @@ class SN_MAPPO(MAPPO):
         self.agent_type = checkpoint.get('agent_type', self.agent_type)
         self.policy_changes = checkpoint.get('policy_changes', [])
     
-    def _extract_leader_signals(self, obs_batch):
-        """Extract UC signals from consumer observations."""
-        # UC signals are typically in the first few dimensions of consumer obs
-        # This depends on the specific observation space design
-        if hasattr(self, 'leader_signal_indices'):
-            return obs_batch[:, :, self.leader_signal_indices]
-        else:
-            # Default: assume first 3 dimensions are UC signals
-            return obs_batch[:, :, :3]
     
     def _adjust_advantages_for_leader(self, leader_signals, actions_batch, adv_targ):
         """Adjust consumer advantages based on UC signals."""

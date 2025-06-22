@@ -1,0 +1,62 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 这个文件描述代码可修改范围
+
+开发一个基于Stackelberg博弈理论的PowerZoo模拟环境及相关算法。具体要求如下：
+
+1. 环境开发：
+   - 主环境文件: [stackelberg_powerzoo_env.py](mdc:envs/stackelberg/stackelberg_powerzoo_env.py)
+   - 基础环境文件： [stackelberg_base_env.py](mdc:envs/stackelberg/stackelberg_game/stackelberg_base_env.py)
+   - 保持这两个核心环境文件唯一性 
+
+2. 代码修改ackelberg/目录及其子目录下的文件
+   - 其他目录文件保持原状
+
+3. 开发目标：
+   - 实现Stackelberg博弈环境的核心功能
+   - 开发配套算法支持环境运行
+   - 确保环境具备可扩展性和稳定性
+
+我需要你修改当前环境以适配y算法同目录下的其他算法。具体要求如下：
+1. 保持sn_mappo算法的现有功能不变，该文件位于algorithms/actors/sn_mappo.py
+2. 不允许对同级算法进行修改
+3. 修改范围仅限于环境适配部分，不得改动算法本身的实现细节
+4. 所有修改必须经过严格测试验证，确保不会引入新的兼容性问题
+5. 修改后的环境应能同时支持sn_mappo.py和其他同级算法的正常运行
+* 参数文件管理要求：
+  - 仅修改configs/envs_cfgs文件夹下的以下三个YAML文件：
+    - stackelberg_13bus.yaml
+    - stackelberg_34bus.yaml  
+    - stackelberg_123bus.yaml
+  - 允许对上述文件进行参数优化调整
+  - 新增参数文件必须存放在同一目录下，命名需遵循"stackelberg_*bus.yaml"格式
+
+* 示例文件管理规范：
+  - 保持examples文件夹下仅保留一个示例文件
+  - 示例文件功能需满足：
+    - 展示stackelberg环境基本用法
+    - 代码行数不超过300行
+    - 不包含非必要功能模块
+
+* 代码修改限制：
+  - 严格禁止修改/envs目录下非stackelberg环境的任何代码文件
+  - 如需使用其他环境代码，必须：
+    1. 完整复制到/envs/stackelberg目录下
+    2. 或通过import方式引用
+
+* 节点系统文件操作规范：
+  - 允许使用/node_systems/下所有标准节点文件
+  - 新增.dss文件要求：
+    - 文件名需明确描述其用途
+    - 必须附带同名markdown说明文档
+    - 说明文档需包含：
+      - 文件用途
+      - 修改记录
+      - 兼容性说明
+  - 严禁删除或修改现有任何.dss文件
+
+
+

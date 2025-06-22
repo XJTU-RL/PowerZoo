@@ -149,7 +149,7 @@ class LoadProfile:
             then generate new files (annotated _daily) with daily loadshapes.
         '''
         def find_load_name(fname, names):
-            file_path = os.path.join(self.dss_folder_path, fname)
+            file_path = os.path.join(self.dss_folder_path, fname) if not os.path.isabs(fname) else fname
             assert os.path.exists(file_path), file_path + ' not found'
             
             needs_load_daily, daily_mode = False, False
