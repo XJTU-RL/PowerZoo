@@ -12,6 +12,7 @@
 """
 """Algorithm registry."""
 from algorithms.actors.happo import HAPPO
+from algorithms.actors.dan_happo import DAN_HAPPO
 from algorithms.actors.hatrpo import HATRPO
 from algorithms.actors.haa2c import HAA2C
 from algorithms.actors.haddpg import HADDPG

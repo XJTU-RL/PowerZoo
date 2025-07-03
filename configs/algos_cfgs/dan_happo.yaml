@@ -1,0 +1,63 @@
+# DAN-HAPPO Algorithm Configuration
+# Dynamic Agent Network with Heterogeneous-Agent Proximal Policy Optimization
+
+# Base HAPPO parameters
+data_chunk_length: 10
+episode_length: 25
+n_rollout_threads: 32
+n_eval_rollout_threads: 1
+num_env_steps: 10000000
+ppo_epoch: 15
+num_mini_batch: 1
+use_value_active_masks: True
+use_eval: True
+eval_interval: 25
+log_interval: 5
+save_interval: 1
+use_linear_lr_decay: False
+
+# Policy network parameters
+hidden_size: 64
+layer_N: 1
+use_ReLU: True
+use_orthogonal_init: True
+use_feature_normalization: True
+gain: 0.01
+
+# Learning parameters
+lr: 5e-4
+critic_lr: 5e-4
+opti_eps: 1e-5
+weight_decay: 0
+
+# PPO specific
+use_clipped_value_loss: True
+clip_param: 0.2
+entropy_coef: 0.01
+value_loss_coef: 1
+use_max_grad_norm: True
+max_grad_norm: 10.0
+use_gae: True
+gamma: 0.99
+gae_lambda: 0.95
+use_proper_time_limits: False
+use_huber_loss: True
+huber_delta: 10.0
+
+# DAN specific parameters
+use_dan: True
+dan_hidden_dim: 64
+dan_num_heads: 4
+dan_dropout: 0.1
+use_layer_norm: True
+env_obs_ratio: 0.7
+use_neighbor_obs: True
+max_neighbors: 5
+dan_lr: 3e-4
+dan_weight_decay: 1e-5
+dan_grad_clip: 1.0
+
+# Training parameters
+use_wandb: False
+use_render: False
+model_dir: "./results"

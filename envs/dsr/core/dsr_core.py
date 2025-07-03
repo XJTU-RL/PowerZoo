@@ -145,7 +145,7 @@ class DSRCoreEnv:
                 'enabled': enabled,
                 'original_enabled': enabled  # 保存原始状态
             }
-            
+            # 检查
             if self.circuit.dss.ActiveCircuit.Lines.Next == 0:
                 break
     
