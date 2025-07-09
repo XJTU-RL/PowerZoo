@@ -27,7 +27,7 @@ except ImportError:
     UTILS_AVAILABLE = False
 
 try:
-    from envs.dsr.dsr_monitor import DSRMonitor
+    from envs.power_envs.dsr.dsr_monitor import DSRMonitor
     MONITOR_AVAILABLE = True
 except ImportError:
     MONITOR_AVAILABLE = False

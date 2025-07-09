@@ -13,8 +13,8 @@ from collections import deque, defaultdict
 from copy import deepcopy
 import logging
 
-from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
-from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
+from envs.power_envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.power_envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
 
 
 class AsyncMultiAgentWrapper:

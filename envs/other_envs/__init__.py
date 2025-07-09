@@ -1,0 +1,1 @@
+"""Other multi-agent environments (will be deprecated in future versions)."""

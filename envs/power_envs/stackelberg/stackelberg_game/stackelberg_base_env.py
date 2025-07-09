@@ -24,9 +24,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import json
 
-from envs.powerzoo.powerzoo.circuit import Circuits
-from envs.powerzoo.powerzoo.loadprofile import LoadProfile
-from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
+from envs.power_envs.powerzoo.powerzoo.circuit import Circuits
+from envs.power_envs.powerzoo.powerzoo.loadprofile import LoadProfile
+from envs.power_envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
 
 
 class StackelbergBaseEnv:

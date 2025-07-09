@@ -10,8 +10,8 @@ import numpy as np
 from gym.spaces import Discrete, Box
 from typing import List, Dict, Any, Tuple, Optional
 
-from envs.dsr.core.dsr_core import DSRCoreEnv
-from envs.dsr.core.config import DSRConfig, DEFAULT_DSR_CONFIG
+from envs.power_envs.dsr.core.dsr_core import DSRCoreEnv
+from envs.power_envs.dsr.core.config import DSRConfig, DEFAULT_DSR_CONFIG
 
 
 class DSREnv:

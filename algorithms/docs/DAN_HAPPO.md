@@ -213,16 +213,3 @@ logging.basicConfig(level=logging.DEBUG)
 1. Original HAPPO paper: [Heterogeneous-Agent Proximal Policy Optimization](https://arxiv.org/abs/2109.11251)
 2. Attention mechanism: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
 3. Multi-agent coordination: [Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments](https://arxiv.org/abs/1706.02275)
-
-## Citation
-
-If you use this implementation in your research, please cite:
-
-```bibtex
-@misc{dan_happo_2024,
-  title={DAN-HAPPO: Dynamic Agent Network with Heterogeneous-Agent Proximal Policy Optimization for Power System Restoration},
-  author={Xiaodong Zheng},
-  year={2024},
-  note={Implementation based on PowerZoo framework}
-}
-```

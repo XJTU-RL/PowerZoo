@@ -6,9 +6,9 @@ This package implements a bi-level non-cooperative Stackelberg-Nash game framewo
 for demand response in power distribution networks.
 """
 
-from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
-from envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper, AsyncMultiAgentWrapperV2
-from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
+from envs.power_envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.power_envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper, AsyncMultiAgentWrapperV2
+from envs.power_envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
 
 __all__ = [
     'StackelbergBaseEnv',

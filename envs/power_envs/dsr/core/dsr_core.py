@@ -12,13 +12,13 @@ import random
 import os
 
 try:
-    from envs.powerzoo.powerzoo.circuit import Circuits
-    from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+    from envs.power_envs.powerzoo.powerzoo.circuit import Circuits
+    from envs.power_envs.powerzoo.powerzoo.loadprofile import LoadProfile
     POWERZOO_AVAILABLE = True
 except ImportError as e:
     POWERZOO_AVAILABLE = False
     print(f"PowerZoo components not available: {e}")
-from envs.dsr.core.config import DSRConfig
+from envs.power_envs.dsr.core.config import DSRConfig
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)

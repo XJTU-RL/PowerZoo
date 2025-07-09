@@ -10,7 +10,7 @@ DSR (Distribution System Restoration) Environment
 - 电压约束优化
 """
 
-from envs.dsr.dsr_env import DSREnv
-from envs.dsr.core.config import DSRConfig
+from envs.power_envs.dsr.dsr_env import DSREnv
+from envs.power_envs.dsr.core.config import DSRConfig
 
 __all__ = ['DSREnv', 'DSRConfig']

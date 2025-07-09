@@ -11,8 +11,8 @@ import yaml
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
-from envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper
+from envs.power_envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
+from envs.power_envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapper
 
 
 def load_stackelberg_config(env_name: str, config_path: Optional[str] = None) -> Dict[str, Any]:

@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import imageio
 import glob
-from envs.powerzoo.powerzoo.env_register import make_env, remove_parallel_dss
+from envs.power_envs.powerzoo.powerzoo.env_register import make_env, remove_parallel_dss
 
 import argparse
 import random

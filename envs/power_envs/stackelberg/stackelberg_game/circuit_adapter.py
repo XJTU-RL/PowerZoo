@@ -8,7 +8,7 @@ while maintaining independence of the Stackelberg game environment.
 
 import numpy as np
 from typing import Dict, List, Optional, Any, Tuple
-from envs.powerzoo.powerzoo.circuit import Circuits
+from envs.power_envs.powerzoo.powerzoo.circuit import Circuits
 
 
 class StackelbergCircuitAdapter:

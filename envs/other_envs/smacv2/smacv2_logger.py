@@ -1,4 +1,4 @@
-from envs.smac.smac_logger import SMACLogger
+from envs.other_envs.smac.smac_logger import SMACLogger
 
 
 class SMACv2Logger(SMACLogger):
