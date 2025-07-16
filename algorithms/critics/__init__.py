@@ -29,6 +29,7 @@ CRITIC_REGISTRY = {
     "hatrpo": VCritic,
     "haa2c": VCritic,
     "mappo": VCritic,
+    "shom": VCritic,  # SHOM 使用相同的 V-Critic
     "haddpg": ContinuousQCritic,
     "hatd3": TwinContinuousQCritic,
     "hasac": SoftTwinContinuousQCritic,

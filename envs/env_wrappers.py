@@ -311,7 +311,7 @@ class ShareSubprocVecEnv(ShareVecEnv):
             np.stack(rews),
             np.stack(dones),
             infos,
-            np.stack(available_actions),
+            list(available_actions),  # 保持为列表格式
         )
 
     def reset(self):
@@ -319,7 +319,12 @@ class ShareSubprocVecEnv(ShareVecEnv):
             remote.send(("reset", None))
         results = [remote.recv() for remote in self.remotes]
         obs, share_obs, available_actions = zip(*results)
-        return np.stack(obs), np.stack(share_obs), np.stack(available_actions)
+        obs = np.stack(obs)
+        share_obs = np.stack(share_obs)
+        # available_actions 是不同长度的列表，不能直接 stack
+        # 保持为列表格式
+        available_actions = list(available_actions)
+        return obs, share_obs, available_actions
 
     def reset_task(self):
         for remote in self.remotes:
@@ -364,9 +369,14 @@ class ShareDummyVecEnv(ShareVecEnv):
 
     def step_wait(self):
         results = [env.step(a) for (a, env) in zip(self.actions, self.envs)]
-        obs, share_obs, rews, dones, infos, available_actions = map(
-            np.array, zip(*results)
-        )
+        obs, share_obs, rews, dones, infos, available_actions = zip(*results)
+        obs = np.array(obs)
+        share_obs = np.array(share_obs)
+        rews = np.array(rews)
+        dones = np.array(dones)
+        infos = np.array(infos)
+        # available_actions 是不同长度的列表，保持为列表格式
+        available_actions = list(available_actions)
 
         for i, done in enumerate(dones):
             if "bool" in done.__class__.__name__:  # done is a bool
@@ -397,7 +407,12 @@ class ShareDummyVecEnv(ShareVecEnv):
         results = [env.reset() for env in self.envs]
         #print("reset_result=================================",results)#打印reset的结果
                
-        obs, share_obs, available_actions = map(np.array, zip(*results))#TODO:问题2：动作空间序列长度相同
+        obs, share_obs, available_actions = zip(*results)
+        obs = np.array(obs)
+        share_obs = np.array(share_obs)
+        # available_actions是不同长度的列表，不能直接转换为numpy数组
+        # 保持为列表格式
+        available_actions = list(available_actions)
 
         return obs, share_obs, available_actions
         

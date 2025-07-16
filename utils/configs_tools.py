@@ -77,6 +77,9 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     """Init directory for saving results."""
     task = get_task_name(env, env_args)
     hms_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    # 使用绝对路径
+    if not os.path.isabs(logger_path):
+        logger_path = os.path.abspath(logger_path)
     results_path = os.path.join(
         logger_path,
         env,
@@ -85,6 +88,7 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
         exp_name,
         "-".join(["seed-{:0>5}".format(seed), hms_time]),
     )
+    os.makedirs(results_path, exist_ok=True)
     log_path = os.path.join(results_path, "logs")
     os.makedirs(log_path, exist_ok=True)
     from tensorboardX import SummaryWriter
@@ -92,7 +96,8 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     writter = SummaryWriter(log_path)
     models_path = os.path.join(results_path, "models")
     os.makedirs(models_path, exist_ok=True)
-    return results_path, log_path, models_path, writter
+    # 返回绝对路径
+    return os.path.abspath(results_path), os.path.abspath(log_path), os.path.abspath(models_path), writter
 
 
 def is_json_serializable(value):

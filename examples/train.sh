@@ -1,1 +1,1 @@
-python train.py --algo shom --env powerzoo --exp_name test
+python examples/train.py --algo shom --env powerzoo --exp_name test

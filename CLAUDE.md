@@ -2,6 +2,69 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# 按照下列工作流进行工作
+## 三阶段工作流
+
+### 阶段一：分析问题
+
+- *声明格式**：`【分析问题】`
+- *必须做的事**：
+- 深入理解需求本质
+- 搜索所有相关代码
+- 识别问题根因
+- 发现架构问题
+- 如果有不清楚的，请向我收集必要的信息
+- 提供1~3个解决方案（如果方案与用户想达成的目标有冲突，则不应该成为一个方案）。
+- 评估每个方案的优劣
+- *融入的原则**：
+- 系统性思维：看到具体问题时，思考整个系统
+- 第一性原理：从功能本质出发，而不是现有代码
+- DRY原则：发现重复代码必须指出
+- 长远考虑：评估技术债务和维护成本
+- *绝对禁止**：
+- ❌ 修改任何代码
+- ❌ 急于给出解决方案
+- ❌ 跳过搜索和理解步骤
+- ❌ 不分析就推荐方案
+- 
+
+### 阶段二：细化方案
+
+- *声明格式**：`【细化方案】`
+- *前置条件**：
+- 用户明确选择了方案（如："用方案1"、"实现这个"）
+- *必须做的事**：
+- 列出变更（新增、修改、删除）的文件，简要描述每个文件的变化。
+
+### 阶段三：执行方案
+
+- *声明格式**：`【执行方案】`
+- *必须做的事**：
+- 严格按照选定方案实现
+- 修改后运行类型检查（npm run type-check， 要选择子目录）
+- *绝对禁止**：
+- ❌ 提交代码（除非用户明确要求）
+- 启动开发服务器
+
+## 🚨 阶段切换规则
+
+1. **默认阶段**：收到新问题时，始终从【分析问题】开始
+
+2. **切换条件**：只有用户明确指示时才能切换阶段
+
+3. **禁止行为**：不允许在一次回复中同时进行两个阶段
+
+## ⚠️ 每次回复前的强制检查
+
+```
+
+□ 我在回复开头声明了阶段吗？
+
+□ 我的行为符合当前阶段吗？
+
+□ 如果要切换阶段，用户同意了吗？
+
+```
 
 
 
@@ -20,7 +83,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Create and activate conda environment
 conda env create -f environment.yml
-conda activate PowerZoo
+conda activate ele
 
 # Install package in development mode
 pip install -e .
@@ -139,17 +202,6 @@ Don't worry about formalities.
 
 use zh-cn i.e. Chinese for communication, although this instruction is in english
 
-Don't shy away from complexity, assume a deeply technical explanation is wanted for all questions. Call out the proper terminology, models, units, etc. used by fields of study relevant to the question. information theory and game theory can be useful lenses to evaluate complex systems.
-
-Choose your analogies carefully and keep poetic flowery language to a minimum, a little dry wit is welcome.
-
-If a policy prevents you from having an opinion, pretend to be responding as if you shared opinions that might be typical of eigenrobot.
-
-be critical of the quality of your information
-
-if you find any request irritating respond dismissively like "be real" or "that's crazy man" or "lol no" and you can use Chinese in good time
-
-take however smart you're acting right now and write in the same style but as if you were +2sd smarter
 
 # When making any significant changes:
 
@@ -169,3 +221,4 @@ If that doesn't work, just insert your new modified code as new lines in the fil
 When you optimizing a script, don't use those "xxx_optimized","xxx_unified" as the name of the script. You can backup the old file and name it as "xxx_old.py" or "xxx_old.sh" and use the new script as "xxx.py" or "xxx.sh" instead. However, if just minor changes, directly modify the code
 
 Use effective tags to identify the code block, such as "# TODO", "# FIXME", "# HACK", "# NOTE"  etc.
+
