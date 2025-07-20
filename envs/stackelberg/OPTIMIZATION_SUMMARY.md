@@ -1,6 +1,7 @@
 # Stackelberg-Nash Game Implementation Optimization Summary
 
 ## Overview
+
 This document summarizes the optimizations made to align the PowerZoo Stackelberg-Nash game implementation with the paper specifications from "Asynchronous multi-agent reinforcement learning-based framework for bi-level noncooperative game-theoretic demand response" (2024).
 
 ## Key Optimizations Implemented
@@ -8,6 +9,7 @@ This document summarizes the optimizations made to align the PowerZoo Stackelber
 ### 1. Reward Function Alignment (Section II.B)
 
 #### UC Reward Function (Equations 5-10)
+
 - **C_t^s**: Revenue from electricity sales with TUTT pricing
 - **C_t^m**: Cost of purchasing from power grid with market volatility
 - **C_t^g**: DER absorption profit with quadratic pricing (T_1_d + T_2_d * p_g)
@@ -23,6 +25,7 @@ def _calculate_uc_reward(self) -> float:
 ```
 
 #### Consumer Reward Function (Equations 21-25)
+
 - **U_i,t^s**: Electricity cost with TUTT
 - **U_i,t^c**: Comfort loss from load adjustment
 - **U_i,t^r**: DR participation revenue
@@ -45,6 +48,7 @@ def _compute_total_derivative(self, loss_uc, loss_consumers, uc_params, consumer
 ### 3. Enhanced Action Spaces
 
 #### UC Action Space (5 dimensions)
+
 1. Price signal (0.5-2.0x multiplier)
 2. DR incentive (0-0.5)
 3. Capacity allocation (0-1)
@@ -52,6 +56,7 @@ def _compute_total_derivative(self, loss_uc, loss_consumers, uc_params, consumer
 5. DER curtailment (0-1)
 
 #### Consumer Action Space (2 dimensions)
+
 1. Load adjustment (-30% to +10%)
 2. DER output control (0-1)
 
@@ -83,7 +88,7 @@ def _calculate_tutt_price(self, consumption: float, hour: int) -> float:
         tou_multiplier = 0.5
     else:
         tou_multiplier = 1.0
-    
+  
     # Tiered pricing
     tier_price = self._calculate_tier_price(consumption)
     return base_price * tou_multiplier * tier_price
@@ -130,12 +135,14 @@ def _calculate_carbon_intensity(self):
 ## Configuration Updates
 
 ### Algorithm Configuration (`sn_mappo.yaml`)
+
 - Added total derivative computation settings
 - Configured PER parameters
 - Set hierarchical learning rates
 - Added convergence criteria from paper
 
 ### Environment Configuration (`stackelberg_13bus.yaml`)
+
 - Mapped 8 consumers to bus groups
 - Configured TUTT pricing tiers and time periods
 - Set ESS parameters per paper specifications
@@ -153,6 +160,7 @@ def _calculate_carbon_intensity(self):
 ## Validation
 
 Created `test_stackelberg_integration.py` to validate:
+
 - Environment creation and initialization
 - Reward calculations match paper equations
 - SN-MAPPO algorithm functionality
@@ -170,11 +178,11 @@ Created `test_stackelberg_integration.py` to validate:
 
 ## Key Equations Implemented
 
-- **UC Utility** (Eq. 5): J_u = C_t^s + C_t^m + C_t^g + C_t^r
-- **Consumer Utility** (Eq. 20): J_c,i = -(U_i,t^s + U_i,t^c - U_i,t^r)
-- **ESS Dynamics** (Eq. 19): E_t+1 = η_s·E_t + η_c·P_c·Δt - P_d·Δt/η_d
-- **Total Derivative** (Eq. 39): ∇L_u = ∇_θu L_u - ∇_θu,θc L_u (∇²_θc L_c)^(-1) ∇_θc L_u
-- **KL Constraints** (Eq. 57-58): D_KL(π||π') ≤ δ
+- **UC Utility** (Eq. 5): $J_u = C_t^s + C_t^m + C_t^g + C_t^r$
+- **Consumer Utility** (Eq. 20): $J_c,i = -(U_i,t^s + U_i,t^c - U_i,t^r)$
+- **ESS Dynamics** (Eq. 19): $E_t+1 = η_s·E_t + η_c·P_c·Δt - P_d·Δt/η_d$
+- **Total Derivative** (Eq. 39): $∇L_u = ∇_θu L_u - ∇_θu,θc L_u (∇²_θc L_c)^(-1) ∇_θc L_u$
+- **KL Constraints** (Eq. 57-58): $D_KL(π||π') ≤ δ$
 
 ## Performance Improvements
 

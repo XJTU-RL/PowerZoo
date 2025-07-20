@@ -80,9 +80,16 @@ class OnPolicyBaseRunner:
         self.env_args = env_args
 
         # 获取模型参数
-        self.hidden_sizes = algo_args["model"]["hidden_sizes"]
-        self.rnn_hidden_size = self.hidden_sizes[-1]
-        self.recurrent_n = algo_args["model"]["recurrent_n"]
+        if args["algo"] == "sn_mappo":
+            # sn_mappo算法有不同的模型参数结构
+            self.hidden_sizes = algo_args.get("leader_policy", {}).get("actor_hidden_sizes", [256, 128, 64])
+            self.rnn_hidden_size = self.hidden_sizes[-1]
+            # recurrent_n 可能在 sn_mappo 中不存在，需要提供一个默认值或从特定配置中获取
+            self.recurrent_n = algo_args.get("recurrent_n", 1) # 假设默认值为1
+        else:
+            self.hidden_sizes = algo_args["model"]["hidden_sizes"]
+            self.rnn_hidden_size = self.hidden_sizes[-1]
+            self.recurrent_n = algo_args["model"]["recurrent_n"]
         # 获取算法参数
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")

@@ -4,13 +4,39 @@
 
 ## 文件说明
 
+- `train_stackelberg.py`: **（新增）** 专用于Stackelberg博弈环境的训练脚本。
 - `train.py` - 通用训练脚本
 - `train_dsr_aggregation.py` - DSR负荷聚合训练脚本
 - `run_dsr_aggregation.sh` - DSR聚合训练的灵活运行脚本
 - `main.py` - 主入口脚本
 - `auto_train.py` - 自动训练脚本
 
-## DSR负荷聚合训练
+## 1. Stackelberg 博弈环境训练 (新增)
+
+这是为Stackelberg博弈环境设计的专用训练入口，请使用 `train_stackelberg.py` 脚本。
+
+### 快速开始
+
+使用以下命令启动 `sn_mappo` 算法在Stackelberg环境中的训练。
+
+```bash
+# 训练13节点系统 (默认)
+python examples/train_stackelberg.py --bus 13 --exp_name "my_13bus_exp"
+
+# 训练34节点系统
+python examples/train_stackelberg.py --bus 34 --exp_name "my_34bus_exp"
+
+# 训练123节点系统
+python examples/train_stackelberg.py --bus 123 --exp_name "my_123bus_exp"
+```
+
+### 参数说明
+
+- `--bus <13|34|123>`: **(必需)** 选择电力系统的节点数。
+- `--exp_name <string>`: **(必需)** 为你的实验指定一个唯一的名称，用于日志和模型保存。
+- `--load_config <path>`: (可选) 加载一个指定的配置文件来代替默认的 `yaml` 配置。
+
+## 2. DSR负荷聚合训练
 
 ### 快速开始
 
