@@ -423,3 +423,6 @@ newplot/
 newplot/logs/
 experiment/
 newplot/
+
+# YoYo AI version control directory
+.yoyo/

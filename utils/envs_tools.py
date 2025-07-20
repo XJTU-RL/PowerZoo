@@ -49,28 +49,28 @@ def get_shape_from_act_space(act_space):
 def make_train_env(env_name, seed, n_threads, env_args):
     """Make env for training."""
     if env_name == "dexhands":
-        from envs.dexhands.dexhands_env import DexHandsEnv
+        from envs.other_envs.dexhands.dexhands_env import DexHandsEnv
 
         return DexHandsEnv({"n_threads": n_threads, **env_args})
 
     def get_env_fn(rank):
         def init_env():
             if env_name == "smac":
-                from envs.smac.StarCraft2_Env import StarCraft2Env
+                from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
 
                 env = StarCraft2Env(env_args)
             elif env_name == "smacv2":
-                from envs.smacv2.smacv2_env import SMACv2Env
+                from envs.other_envs.smacv2.smacv2_env import SMACv2Env
 
                 env = SMACv2Env(env_args)
             elif env_name == "mamujoco":
-                from envs.mamujoco.multiagent_mujoco.mujoco_multi import (
+                from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import (
                     MujocoMulti,
                 )
 
                 env = MujocoMulti(env_args=env_args)
             elif env_name == "pettingzoo_mpe":
-                from envs.pettingzoo_mpe.pettingzoo_mpe_env import (
+                from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import (
                     PettingZooMPEEnv,
                 )
 
@@ -82,25 +82,25 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 ], "only cooperative scenarios in MPE are supported"
                 env = PettingZooMPEEnv(env_args)
             elif env_name == "gym":
-                from envs.gym.gym_env import GYMEnv
+                from envs.other_envs.gym.gym_env import GYMEnv
 
                 env = GYMEnv(env_args)
             elif env_name == "football":
-                from envs.football.football_env import FootballEnv
+                from envs.other_envs.football.football_env import FootballEnv
 
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerZooEnv   
+                from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv   
                 
                 env = PowerZooEnv(env_args,rank) 
                 
             elif env_name == "dsr":
-                from envs.dsr.dsr_env import DSREnv
+                from envs.power_envs.dsr.dsr_env import DSREnv
                 
                 env = DSREnv(env_args, rank)
                 
             elif env_name == "lag":
-                from envs.lag.lag_env import LAGEnv
+                from envs.other_envs.lag.lag_env import LAGEnv
 
                 env = LAGEnv(env_args)
             else:
@@ -125,41 +125,41 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
     def get_env_fn(rank):
         def init_env():
             if env_name == "smac":
-                from envs.smac.StarCraft2_Env import StarCraft2Env
+                from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
 
                 env = StarCraft2Env(env_args)
             elif env_name == "smacv2":
-                from envs.smacv2.smacv2_env import SMACv2Env
+                from envs.other_envs.smacv2.smacv2_env import SMACv2Env
 
                 env = SMACv2Env(env_args)
             elif env_name == "mamujoco":
-                from envs.mamujoco.multiagent_mujoco.mujoco_multi import (
+                from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import (
                     MujocoMulti,
                 )
 
                 env = MujocoMulti(env_args=env_args)
             elif env_name == "pettingzoo_mpe":
-                from envs.pettingzoo_mpe.pettingzoo_mpe_env import (
+                from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import (
                     PettingZooMPEEnv,
                 )
 
                 env = PettingZooMPEEnv(env_args)
             elif env_name == "gym":
-                from envs.gym.gym_env import GYMEnv
+                from envs.other_envs.gym.gym_env import GYMEnv
 
                 env = GYMEnv(env_args)
             elif env_name == "football":
-                from envs.football.football_env import FootballEnv
+                from envs.other_envs.football.football_env import FootballEnv
 
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
                 env = PowerZooEnv(env_args,rank+train_threads)
             elif env_name == "dsr":
-                from envs.dsr.dsr_env import DSREnv
+                from envs.power_envs.dsr.dsr_env import DSREnv
                 env = DSREnv(env_args, rank+train_threads)
             elif env_name == "lag":
-                from envs.lag.lag_env import LAGEnv
+                from envs.other_envs.lag.lag_env import LAGEnv
 
                 env = LAGEnv(env_args)
             else:
@@ -183,7 +183,7 @@ def make_render_env(env_name, seed, env_args):
     manual_delay = True  # manually delay the rendering by time.sleep()
     env_num = 1  # number of parallel envs
     if env_name == "smac":
-        from envs.smac.StarCraft2_Env import StarCraft2Env
+        from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
 
         env = StarCraft2Env(args=env_args)
         manual_render = (
@@ -193,35 +193,35 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "smacv2":
-        from envs.smacv2.smacv2_env import SMACv2Env
+        from envs.other_envs.smacv2.smacv2_env import SMACv2Env
 
         env = SMACv2Env(args=env_args)
         manual_render = False
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "mamujoco":
-        from envs.mamujoco.multiagent_mujoco.mujoco_multi import MujocoMulti
+        from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import MujocoMulti
 
         env = MujocoMulti(env_args=env_args)
         env.seed(seed * 60000)
     elif env_name == "pettingzoo_mpe":
-        from envs.pettingzoo_mpe.pettingzoo_mpe_env import PettingZooMPEEnv
+        from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import PettingZooMPEEnv
 
         env = PettingZooMPEEnv({**env_args, "render_mode": "human"})
         env.seed(seed * 60000)
     elif env_name == "gym":
-        from envs.gym.gym_env import GYMEnv
+        from envs.other_envs.gym.gym_env import GYMEnv
 
         env = GYMEnv(env_args)
         env.seed(seed * 60000)
     elif env_name == "football":
-        from envs.football.football_env import FootballEnv
+        from envs.other_envs.football.football_env import FootballEnv
 
         env = FootballEnv(env_args)
         manual_render = False  # football renders automatically
         env.seed(seed * 60000)
     elif env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
-        from envs.powerzoo.powerzoo_env import PowerZooEnv
+        from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
 
         env = PowerZooEnv(env_args,rank=4)
         manual_render = False  
@@ -231,7 +231,7 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "dsr":
-        from envs.dsr.dsr_env import DSREnv
+        from envs.power_envs.dsr.dsr_env import DSREnv
 
         env = DSREnv(env_args, rank=4)
         manual_render = False  
@@ -240,7 +240,7 @@ def make_render_env(env_name, seed, env_args):
         env.seed(seed * 60000)
         
     elif env_name == "dexhands":
-        from envs.dexhands.dexhands_env import DexHandsEnv
+        from envs.other_envs.dexhands.dexhands_env import DexHandsEnv
 
         env = DexHandsEnv({"n_threads": 64, **env_args})
         manual_render = False  # dexhands renders automatically
@@ -250,7 +250,7 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env_num = 64
     elif env_name == "lag":
-        from envs.lag.lag_env import LAGEnv
+        from envs.other_envs.lag.lag_env import LAGEnv
 
         env = LAGEnv(env_args)
         env.seed(seed * 60000)
@@ -275,7 +275,7 @@ def set_seed(args):
 def get_num_agents(env, env_args, envs):
     """Get the number of agents in the environment."""
     if env == "smac":
-        from envs.smac.smac_maps import get_map_params
+        from envs.other_envs.smac.smac_maps import get_map_params
 
         return get_map_params(env_args["map_name"])["n_agents"]
     elif env == "smacv2":

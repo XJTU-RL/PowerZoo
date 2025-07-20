@@ -28,7 +28,7 @@ train:
   # 是否考虑在episode结束时截断
   use_proper_time_limits: True
   # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
-  model_dir: ～
+  model_dir: ~
 eval:
   # 是否使用评估
   use_eval: True

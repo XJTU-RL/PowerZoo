@@ -371,9 +371,12 @@ class OnPolicyBaseRunner:
             #     ].copy()
             #TODO:解决了动作空间存储的问题
             if self.actor_buffer[agent_id].available_actions is not None:
-                self.actor_buffer[agent_id].available_actions[0] = np.array(available_actions[
-                    :, agent_id
-                ]).tolist().copy()
+                # available_actions 现在是一个列表，每个元素对应一个环境
+                # 对于每个环境，提取第 agent_id 个智能体的可用动作
+                agent_available_actions = []
+                for env_idx in range(len(available_actions)):
+                    agent_available_actions.append(available_actions[env_idx][agent_id])
+                self.actor_buffer[agent_id].available_actions[0] = np.array(agent_available_actions)
 
 
 
@@ -536,6 +539,15 @@ class OnPolicyBaseRunner:
             )
         #print("self.actor_buffer[agent_id].insert(obs)",obs)
         for agent_id in range(self.num_agents):
+            # 提取当前智能体的可用动作
+            if available_actions[0] is not None:
+                agent_available_actions = []
+                for env_idx in range(len(available_actions)):
+                    agent_available_actions.append(available_actions[env_idx][agent_id])
+                agent_available_actions = np.array(agent_available_actions)
+            else:
+                agent_available_actions = None
+                
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
                 rnn_states[:, agent_id],
@@ -543,9 +555,7 @@ class OnPolicyBaseRunner:
                 action_log_probs[:, agent_id],
                 masks[:, agent_id],
                 active_masks[:, agent_id],
-                available_actions[:, agent_id]
-                if available_actions[0] is not None
-                else None,
+                agent_available_actions,
             )
         # 创建一个空列表用于存储所有 'S' 对应的值
         #TODO:设置S矩阵的筛选条件
@@ -636,18 +646,20 @@ class OnPolicyBaseRunner:
             #print("eval_available_actions: eval_available_actions) 
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
-                test=eval_available_actions[:, agent_id].copy()
-                test1 = np.vstack([np.array(item, dtype=np.float32) for item in test])
+                # 提取当前智能体的可用动作
+                if eval_available_actions[0] is not None:
+                    agent_available_actions = []
+                    for env_idx in range(len(eval_available_actions)):
+                        agent_available_actions.append(eval_available_actions[env_idx][agent_id])
+                    agent_available_actions = np.array(agent_available_actions)
+                else:
+                    agent_available_actions = None
+                    
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
                     eval_masks[:, agent_id],
-                    # eval_available_actions[:, agent_id]
-                    # if eval_available_actions[0] is not None
-                    # else None,
-                    test1 
-                    if test1[0] is not None
-                    else None,
+                    agent_available_actions,
                     deterministic=True,
                 )
                 eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)

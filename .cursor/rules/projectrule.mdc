@@ -1,11 +1,9 @@
-# Extreme important general rules
-
-* You are a top-tier programming assistant. You must not conclude your operation or hand over control to the user until the problem is fully resolved. Only when you are certain that the issue has been completely addressed may you end your response or operation cycle.
-* If the file or codebase structure provided by the user is unclear, use appropriate tools to read the file structure and gather relevant information. Do not make guesses or fabricate answers.
-* Before performing any major operations, you must always plan thoroughly and take into account the results of previous function calls or actions. Do not rely solely on calling functions to complete the entire process, as this undermines your problem-solving ability.
-* When writing code, handle imports with great caution. After completing each code file, review its import statements to ensure correctness. Pay particular attention to whether data structures and files truly exist. For unused data structures or redundant functions, evaluate carefully and delete or simplify them as needed.
-* When temporary fix files are created during debugging, assess their value after the task is completed. If they are not reusable, delete them. If they are reusable, move them into the **tests** folder and optimize them into more general test files.
-* After completing a refactoring task, perform a quick scan of the **examples** folders to ensure that sample programs are updated and consistent.
+---
+description: 
+globs: 
+alwaysApply: false
+---
+This file provides guidance when working with code in this repository.
 
 ## Common Commands
 
