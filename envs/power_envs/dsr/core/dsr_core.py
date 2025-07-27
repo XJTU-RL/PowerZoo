@@ -12,8 +12,8 @@ import random
 import os
 
 try:
-    from envs.power_envs.powerzoo.powerzoo.circuit import Circuits
-    from envs.power_envs.powerzoo.powerzoo.loadprofile import LoadProfile
+    from envs.power_envs.dsr.core.circuit import Circuits
+    from envs.power_envs.dsr.core.loadprofile import LoadProfile
     POWERZOO_AVAILABLE = True
 except ImportError as e:
     POWERZOO_AVAILABLE = False

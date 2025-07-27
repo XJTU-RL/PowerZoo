@@ -124,7 +124,19 @@ _ENV_INFO = {
         'soc_w': 0.0/33,
         'dis_w': 10.0/33,
     },
-
+    '34Bus_pv': {
+        'system_name': '34Bus',
+        'dss_file': 'ieee34Mod1_daily.dss',
+        'max_episode_steps': 24,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'power_w': 10.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 10.0/33,
+        'pv': True,
+    },
     '34Bus_cbat': {
         'system_name': '34Bus',
         'dss_file': 'ieee34Mod1_daily.dss',
