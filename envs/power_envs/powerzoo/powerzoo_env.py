@@ -80,16 +80,6 @@ class PowerZooEnv:
         self.env_name=args['env_name']#便于实现多线程
         
         agents_names = self.cap_names+self.reg_names+self.bat_names
-        #print(self.agents_names)
-        #排序函数
-        # 使用sorted函数进行排序，根据自定义排序函数排序，这里是把名字和顺序结合起来了
-        # update_orders=list(range(0,self.n_agents))
-        # sorted_pairs = sorted(zip(agents_names, update_orders), key=lambda x: self.custom_sort(x[0]))
-
-        # # 分离排序后的元组对以获取排序后的列表,得到想要的更新顺序
-        # self.agents_names, self.update_orders = zip(*sorted_pairs)
-        # print("agents_names: ",self.agents_names)
-        # print("update_orders:",self.update_orders)
         self.env.use_render=args['use_render']
         self.env.useS=args['useS']
         self.env.record_node = args['record_node']

@@ -19,9 +19,6 @@
   - 提供绘图功能，可视化电力系统的网络状态。
   - 支持随机动作采样和虚拟动作生成。
 """
-# 
-# SPDX-License-Identifier: MIT
-
 import os
 import gym
 import numpy as np

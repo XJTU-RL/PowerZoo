@@ -89,7 +89,7 @@ python train_dan_happo.py \
     --env_name DSR \
     --algorithm_name dan_happo \
     --experiment_name test_run \
-    --case_path ./cases/13Bus/IEEE13Nodeckt.dss \
+    --case_path ./node_systems/13Bus/IEEE13Nodeckt.dss \
     --num_agents 4 \
     --episode_length 200 \
     --n_rollout_threads 8 \

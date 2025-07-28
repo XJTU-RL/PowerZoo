@@ -1,32 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-@File      : loadprofile.py
-@Time      : 2025-04-08 17:51
-@Author    : Xiaodong Zheng
-@Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 该 Python 文件定义了 `LoadProfile` 类，用于处理电力系统中的负荷曲线数据。
-- 关键组件及职责：
-  - `LoadProfile` 类：负责加载和处理负荷曲线数据。
-    - `__init__`：初始化类的属性，包括步长、文件夹路径、文件列表等。
-    - `create_file_with_daily`：创建带有每日负荷曲线的新文件。
-    - `add_redirect_and_mode_at_main_daily_dss`：在主每日 dss 文件中添加重定向和设置每日模式。
-    - `find_load_file_from`：从主 dss 文件中查找负荷文件。
-    - `find_load_names`：查找带有每日负荷曲线的负荷名称。
-    - `gen_loadprofile`：生成负荷曲线数据并保存到文件。
-    - `choose_loadprofile`：选择指定索引的负荷曲线文件。
-    - `get_loadprofile`：获取指定索引的负荷曲线数据。
-- 工作流程：
-  1. 初始化 `LoadProfile` 类，设置参数。
-  2. 查找负荷名称和文件。
-  3. 生成负荷曲线数据。
-  4. 选择和获取负荷曲线数据。
-- 依赖库：
-  - `numpy`：用于数值计算。
-  - `pandas`：用于数据处理和分析。
-  - `os`：用于文件和目录操作。
-  - `pathlib`：用于路径操作。
-  - `fnmatch`：用于文件名匹配。
-"""
+
 import numpy as np
 import pandas as pd
 import os
@@ -211,11 +184,7 @@ class LoadProfile:
                 df['mul'] = df['mul'] + noise_load
         except:
             print(r'put load shapes files under ./loadshape')
-        
-        # Since we've concatenated all loadshape file together,
-        # the first load uses the top steps*days data points
-        # the second load uses the second chunk and so on.
-        
+            
         # compute totoal number of episodes
         episodes = len(df) // ( self.steps * len(self.LOAD_NAMES) )
         

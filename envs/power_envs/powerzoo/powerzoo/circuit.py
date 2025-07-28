@@ -544,11 +544,13 @@ class Circuits():
 
         Returns: None
         '''
-        for type in ['Load','Capacitor']:
+        for type in ['Load','Capacitor','PVSystem']:
             if type == 'Load':
                 dssObj = self.dss.ActiveCircuit.Loads
-            else:
+            elif type=='Capacitor':
                 dssObj = self.dss.ActiveCircuit.Capacitors
+            elif type == 'PVSystem':
+                dssObj = self.dss.ActiveCircuit.PVSystems
             if dssObj.First == 0: break # no such kind of object
             while True:
                 objname = self.dss.ActiveCircuit.CktElements.Name
@@ -563,10 +565,14 @@ class Circuits():
                 if type == 'Load':
                     fea = [dssObj.kV, dssObj.kW, dssObj.kvar]
                     self.add_loads(objname, bus, phases, fea)
-                else:
+                elif type == 'Capacitor':
                     fea = [dssObj.States[0], dssObj.kV, dssObj.kvar]
                     self.add_capacitors(objname, bus, phases, fea)
+                elif type == 'PVSystem':
+                    fea = [dssObj.PF, dssObj.IrradianceNow, dssObj.Irradiance, dssObj.Name, dssObj.Pmpp, dssObj.kW,dssObj.kvar,dssObj.kVArated]
+                    self.add_pvsystems(objname, bus, phases, fea)
                 if dssObj.Next ==0: break
+                
     
     def _gen_bat_obj(self):
         '''
@@ -790,18 +796,7 @@ class Circuits():
         S=S1.get()
         mingandu_vector = np.sum(S, axis=1)
         node_sensity = dict(zip(temp_order, mingandu_vector))
-
-        # 我认为应该减少step中insert进actorbuffer中的数据量，因此应该在这里就把和智能体相关的节点都拿出来
-        # 如果出现三相的智能体应该如何处理？还是说我不应该关注有载调压器，只应该关注电源和电容这种能提供无功补偿的节点，
-        # 这样处理吧，多相的把他们的敏感度矩阵相加进行处理
-        #print(S)8500*3*8500*3算下来将近有6亿个参数
-        #因为智能体更新是多个每个episode确定一次更新顺序吗？不可能每个step都更新
-        #有两个问题：
-        # 1是并行环境的问题，这个倒是问题不大，每个环境都会有一个敏感度矩阵，
-        # 2是收集完step后才会更新
-
-        # 20240310
-        # 已经解决所有问题 -ysx
+        
         return node_sensity
 
 
@@ -1057,12 +1052,6 @@ class Circuits():
         # get power in [kw, kvar]
         return self.dss.ActiveCircuit.TotalPower
     
-    ########## object addition functions called by  ############
-    ###           _gen_reg_obj()
-    ###           _gen_trans_obj()
-    ###           _gen_line_obj()
-    ###           _gen_load_cap_obj()
-    ###           _gen_bat_obj()
     def add_lines(self, linename, buses, mats):
         self.lines[linename] = Line(linename, buses, mats)
     
@@ -1085,7 +1074,14 @@ class Circuits():
             self.bus_obj[bus] = [loadname]
         else:
             self.bus_obj[bus].append(loadname)
-
+            
+    def add_pvsystems(self, pvname, bus, phases, feature):
+        self.pvs[pvname] = PVSystem(self.dss, pvname, bus, phases, feature)
+        if bus not in self.bus_obj:
+            self.bus_obj[bus] = [pvname]
+        else:
+            self.bus_obj[bus].append(pvname)
+            
     def add_batteries(self, batname, bus, phases, feature):
         self.batteries[batname] = Battery(self.dss, batname, bus, phases, feature, \
                                           bat_act_num = self.bat_act_num)
@@ -1093,8 +1089,6 @@ class Circuits():
             self.bus_obj[bus] = [batname]
         else:
             self.bus_obj[bus].append(batname)
-   
-    ######### object addition functions end  ############
  
     
 ############# Edge Objects #############
@@ -1210,7 +1204,74 @@ class Capacitor(Node):
             if dssCap.Next==0: break
         return diff
         # should re-solve self.dss later
+        
+class PVSystem(Node):#可以先建立一个最简单的光伏系统,opendss中的一切元件的一切属性都可以被获取，可以通过一种特定的方式
+    '''
+    此处用以获得光伏系统的参数，包括有功、无功、当前的辐照度(光伏的随机性)，光伏设备所在的节点，以及光伏设备最大的有功输出量
+    '''
+    def __init__(self, dss, pvname, bus1, phases, feature,pv_act_num=np.inf):
+        super().__init__(pvname, bus1, phases)
+        self.dss = dss             # the circuit's dss simulator object
+        self.pf = feature[0]  # 功率因数
+        self.kW = feature[5]  # 实际功率 (kW)
+        #to calculate the max active power for the pv system
+        self.pmpp = feature[4]  # 最大功率点 (kW)
+        self.kvar = feature[6]  # 无功功率 (kvar)
+        self.irradiance = feature[2]  # 最大辐照度
+        #here the max active power is calculated
+        #self.pdc=self.pmpp*self.irradianceNow#实际可以发出的最大功率
+        self.pv_act_num=pv_act_num#控制光伏有功输出大小的量
+        self.pctpmpp =1
+        self.max_output=100
+        self.bus=bus1
+        self.phases=phases
 
+    def __repr__(self):
+        return f'PV kW: {self.kW!r},\
+               irradiance: {self.irradiance!r},\
+               phases:{self.phases!r}'#TODO:S矩阵修改2
+               
+    def state_projection(self, nkw):
+        '''
+        Project to the valid state#把光伏输出限制在可靠的区间范围内。
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]正值是放电，负值是充电
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        Returns:
+            the valid discharge kw
+        '''
+        if self.pv_act_num == np.inf:#倾向于少放少充，把储能电池的充电放电功率限制在一个可靠的区间内。
+            kw = max( 0, min( 1.0, nkw) )*self.pmpp#此处就是把光伏有功的输出控制在[0,1]
+            return kw
+
+    def step_before_solve(self, nkw):#单独的设置并没有在powerzoo中调用，powerzoo都是整体调用的
+        '''
+        Set the state of this battery在每一次solve之前,设置储能电池的值,类似地,可以在此设置光伏、风力发电机
+        ( Run this function before each solve() )
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        
+        Returns: None
+        '''
+        
+        kw = self.state_projection(nkw)
+
+        ## change kw in dss
+        diff = abs(self.kw - kw) # record state difference
+        dsspv = self.dss.ActiveCircuit.PVSystems
+        if dsspv.First == 0: return # no such object 
+        while True:
+            if self.name.endswith(dsspv.Name):
+                dsspv.kW = kw
+                dsspv.kvar = (kw / self.pf) * math.sqrt(1 - self.pf ** 2)
+                break
+            if dsspv.Next==0: break
+        return diff
+        
+        ## run solve() afterward
 class Battery(Node):
     def __init__(self, dss, batname, bus1, phases, feature, bat_act_num=33):
         super().__init__(batname, bus1, phases)
