@@ -70,13 +70,14 @@ def main():
             "smacv2",
             "lag",
             "powerzoo",
+            "powerzoo_llm",
             "dsr",
         ],
-        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag, powerzoo, dsr.",
+        help="选择环境: smac, mamujoco, pettingzoo_mpe, gym, football, dexhands, smacv2, lag, powerzoo,powerzoo_llm, dsr.",
     )
-    # 添加实验名称参数，默认为"installtest"
+    # 添加实验名称参数，默认为"test"
     parser.add_argument(
-        "--exp_name", type=str, default="installtest", help="Experiment name."
+        "--exp_name", type=str, default="test", help="Experiment name."
     )
     # 添加加载配置文件参数，默认为空字符串
     parser.add_argument(

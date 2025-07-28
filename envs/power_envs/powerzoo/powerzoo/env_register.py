@@ -127,6 +127,8 @@ _ENV_INFO = {
     '34Bus_pv': {
         'system_name': '34Bus',
         'dss_file': 'ieee34Mod1_daily.dss',
+        'irrad_dss': 'irrad_up_down.dss',
+        'for_LLM': False,
         'max_episode_steps': 24,
         'reg_act_num': 33,
         'bat_act_num': 33,

@@ -248,7 +248,7 @@ New Generator.batt1 bus1=890.1.2.3 kV=4.16 kW=0 pf=0.95 conn=Delta Model=1
 New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 pf=0.95 conn=Delta Model=1
 
 ! add PV data (irradiation and temperature)
-redirect pv_data.dss
+redirect PV_definition.dss
 ! 定义光伏发电机
 New PVSystem.PV834 phases=3 bus1=trafo_pv kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 PF=1 %cutin=0.1 %cutout=0.1  effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp 
 New PVSystem.PV890 phases=3 bus1=trafo_pv1 kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 PF=1 %cutin=0.1 %cutout=0.1  effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp !default for inverter is unity PF

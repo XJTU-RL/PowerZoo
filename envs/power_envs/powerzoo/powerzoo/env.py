@@ -248,14 +248,16 @@ class Env(gym.Env):
         self.obs = dict()
         self.dss_folder_path = os.path.join(folder_path, info['system_name'])
         self.dss_file = info['dss_file']
-        self.source_bus = info['source_bus']
-        self.node_size = info['node_size']
-        self.shift = info['shift']
-        self.show_node_labels = info['show_node_labels']
-        self.scale = info['scale'] if 'scale' in info else 1.0
+        self.source_bus = info.get('source_bus', 'sourcebus')
+        self.node_size = info.get('node_size', 300)
+        self.shift = info.get('shift', 50)
+        self.show_node_labels = info.get('show_node_labels', False)
+        self.scale = info.get('scale', 1.0)
         self.wrap_observation = True
         self.observe_load = False
-        self.use_load_noise=info['load_noise']
+        self.LLM = info.get('for_LLM', False) # 是否为LLM环境
+        self.irrad_dss = info.get('irrad_dss', None)
+        self.use_load_noise=info.get('load_noise',False)
         
         #添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
@@ -266,7 +268,9 @@ class Env(gym.Env):
                  self.dss_folder_path,
                  self.dss_file,
                  self.use_load_noise,
-                 worker_idx = info['worker_idx'] if 'worker_idx' in info else None)
+                 worker_idx = info['worker_idx'] if 'worker_idx' in info else None,
+                 irrad_dss=self.irrad_dss
+                 )
 
         self.num_profiles = self.load_profile.gen_loadprofile(use_noise=self.use_load_noise,scale=self.scale)
         # choose a dummy load profile for the initialization of the circuit
@@ -559,19 +563,12 @@ class Env(gym.Env):
             'regulator_ctrl':sum(regdiff),
             'discharge_ctrl':sum(dis_errs)
         })
-        # self.obs['power_loss_kw']= self.circuit.total_loss()[0]
-        # self.obs['power_loss_kvar']= self.circuit.total_loss()[1]
-        # # 电路的总功率，并将结果存储在self.obs字典中
-        # self.obs['total_power_kw']= self.circuit.total_power()[0]
-        # self.obs['total_power_kvar']= self.circuit.total_power()[1]
         
         info['power_loss_kw']= self.circuit.total_loss()[0]
         info['power_loss_kvar']= self.circuit.total_loss()[1]
         info['total_power_kw']= self.circuit.total_power()[0]
         info['total_power_kvar']= self.circuit.total_power()[1]
         
-        
-
         ### 可选：计算无功电压敏感度矩阵 ###
         if self.useS:
             Y = self.circuit.get_Y_matrix_acc()  # 获取 Y 矩阵

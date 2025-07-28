@@ -4,23 +4,6 @@
 @Time      : 2025-04-08 17:51
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 此 Python 文件旨在实现一个电力系统仿真环境 `PowerZooEnv`，用于多智能体强化学习实验。
-- 关键库：使用 `gym` 进行环境管理，`numpy` 进行数值计算，`imageio` 与 `matplotlib.pyplot` 用于可能的图像操作。
-- 关键函数：
-  - `seeding`：设置随机种子，保证结果可复现。
-- 关键类：
-  - `PowerZooEnv`：
-    - 初始化时创建环境，确定智能体数量和名称，设置动作和观测空间。
-    - `step`：执行动作，返回局部观测、全局状态、奖励、终止信息等。
-    - `reset`：重置环境，返回初始观测和状态。
-    - `get_avail_actions`：获取所有智能体可用动作。
-    - `get_avail_agent_actions`：获取单个智能体可用动作。
-    - `render`：预留渲染功能。
-    - `close`：关闭环境，移除并行 DSS。
-    - `seed`：设置环境随机种子。
-    - `unwrap`：处理观测数据。
-    - `get_env_action_space`：拆分动作空间给各智能体。
-    - `repeat`：复制观测空间。
 """
 import copy
 import gym
@@ -67,8 +50,7 @@ class PowerZooEnv:
         self.env = make_env(args['env_name'], worker_idx=rank)#args
         self.env.seed(args['seed'] + 0)
         #智能体数量是电容、有载调压器、电池数量之和
-        CRB_num = self.env.cap_num+self.env.reg_num+self.env.bat_num
-        agents = [i for i in range(0,CRB_num)]
+        agents = [i for i in range(0,self.env.cap_num+self.env.reg_num+self.env.bat_num)]
         self.agents=agents
         self.n_agents = len(agents)
         #排序顺序
@@ -165,25 +147,3 @@ class PowerZooEnv:
     def repeat(self, a):
         return [a for _ in range(self.n_agents)]
     
-    # def custom_sort(self, item):#brc
-    # # 根据元素名称中是否包含'reg'或'cap'进行排序,函数功能：把cap放在最前面按从小到大的顺序，把reg放中间，把bat放最后
-    #     if 'Capacitor' in item:
-    #        return (2, item)
-    #     elif 'Regulator' in item:
-    #        return (1, item)
-    #     else:#bat
-    #        return (0, item)
-    # # 自定义排序函数
-    # def custom_sort(item):
-    #     # 将'Capacitor.cap1'放在第一个位置
-    #     if item == 'Capacitor.cap1':
-    #         return (-1, item)
-    #     else:
-    #         # 其他元素按默认规则排序
-    #         if 'reg' in item:
-    #             return (0, item)
-    #         elif 'cap' in item:
-    #             return (2, item)
-    #         else:#bat
-    #             return (1, item)
-    # 自定义排序函数

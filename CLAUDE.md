@@ -45,7 +45,7 @@ This branch is dedicated to developing the Stackelberg game-theoretic environmen
 - *声明格式**：`【执行方案】`
 - *必须做的事**：
 - 严格按照选定方案实现
-- 修改后运行类型检查（npm run type-check， 要选择子目录）
+- 修改后运行类型检查
 - *绝对禁止**：
 - ❌ 提交代码（除非用户明确要求）
 - 启动开发服务器

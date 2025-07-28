@@ -1,0 +1,96 @@
+// IEEE 34 Node Test Feeder with PV - Duty Mode with Expanded Temperature Data
+// 基于原始 ieee34Mod1_duty.dss 文件，使用扩展的温度数据
+
+Clear
+New Circuit.IEEE34
+~ BasekV=24.9 pu=1.05 phases=3 bus1=sourcebus
+~ Angle=30                                                         ! advance angle 30 deg so result agree with published angle
+
+!SUB TRANSFORMER DEFINITION
+! Define 2-winding transformer
+New Transformer.Sub Buses=[sourcebus, 800] Conns=[delta, wye] KVs=[69, 24.9] KVAs=[25000, 25000] XHL=8
+~ wdg=1 %R=0.5 XHT=4
+~ wdg=2 %R=0.5 XLT=4
+
+! Import line definitions
+Redirect IEEELineCodes.dss
+
+! FEEDER 1-PHASE VOLTAGE REGULATORS
+! Define low-impedance 2-winding transformer
+New Transformer.Reg1 phases=1 bank=reg1 XHL=0.01 kVAs=[1666 1666] Buses=[814.1 850.1] kVs=[2.4  2.4] %LoadLoss=0.01
+New Transformer.Reg2 phases=1 bank=reg1 XHL=0.01 kVAs=[1666 1666] Buses=[814.2 850.2] kVs=[2.4  2.4] %LoadLoss=0.01
+New Transformer.Reg3 phases=1 bank=reg1 XHL=0.01 kVAs=[1666 1666] Buses=[814.3 850.3] kVs=[2.4  2.4] %LoadLoss=0.01
+
+! POINT LOADS
+New Load.S860 Bus1=860 Phases=3 Conn=Wye Model=1 kV=24.9 kW=60 kvar=48 daily=ld1 Vminpu=.88
+New Load.S840 Bus1=840 Phases=3 Conn=Wye Model=4 kV=24.9 kW=27 kvar=21 daily=ld2 Vminpu=.88
+New Load.S844 Bus1=844 Phases=1 Conn=Wye Model=1 kV=24.9 kW=405 kvar=315 daily=ld3 Vminpu=.88
+New Load.S848 Bus1=848 Phases=3 Conn=Delta Model=1 kV=24.9 kW=60 kvar=48 daily=ld4 Vminpu=.88
+New Load.S830a Bus1=830.1 Phases=1 Conn=Wye Model=2 kV=24.9 kW=10 kvar=5 daily=ld5 Vminpu=.88
+New Load.S830b Bus1=830.2 Phases=1 Conn=Wye Model=1 kV=24.9 kW=10 kvar=5 daily=ld6 Vminpu=.88
+New Load.S830c Bus1=830.3 Phases=1 Conn=Wye Model=2 kV=24.9 kW=25 kvar=10 daily=ld7 Vminpu=.88
+
+! DISTRIBUTED LOADS
+New Load.D890 Bus1=890 Phases=3 Conn=Delta Model=1 kV=4.16 kW=150 kvar=75 daily=ld8 Vminpu=.88
+New Load.D820a Bus1=820.1 Phases=1 Conn=Wye Model=2 kV=2.4 kW=135 kvar=105 daily=ld9 Vminpu=.88
+New Load.D820b Bus1=820.2 Phases=1 Conn=Wye Model=1 kV=2.4 kW=135 kvar=105 daily=ld10 Vminpu=.88
+New Load.D816 Bus1=816 Phases=3 Conn=Delta Model=2 kV=24.9 kW=100 kvar=50 daily=ld11 Vminpu=.88
+
+! CAPACITORS
+New Capacitor.C844 Bus1=844 phases=1 kVAR=300 kV=2.4
+New Capacitor.C848 Bus1=848 phases=3 kVAR=450 kV=24.9
+
+! BATTERIES
+New Storage.Batt1 Bus1=890 phases=3 kV=4.16 kWrated=100 kWhrated=300 %stored=50 %EffCharge=90 %EffDischarge=90
+~ daily=battery_schedule
+
+! PV SYSTEMS with Expanded Temperature Data
+! 使用扩展的温度数据（8640个点，10秒间隔）
+New PVSystem.PV1 Bus1=890 phases=3 kV=4.16 Pmpp=250 irradiance=MyIrrad temperature=MyTemp_Expanded
+New PVSystem.PV2 Bus1=848 phases=3 kV=24.9 Pmpp=150 irradiance=MyIrrad temperature=MyTemp_Expanded
+
+! LOAD SHAPES - 使用duty模式的负荷曲线
+New Loadshape.ld1 npts=8640 sinterval=10 mult=(file=./loadshape/load1_duty.csv)
+New Loadshape.ld2 npts=8640 sinterval=10 mult=(file=./loadshape/load2_duty.csv)
+New Loadshape.ld3 npts=8640 sinterval=10 mult=(file=./loadshape/load3_duty.csv)
+New Loadshape.ld4 npts=8640 sinterval=10 mult=(file=./loadshape/load4_duty.csv)
+New Loadshape.ld5 npts=8640 sinterval=10 mult=(file=./loadshape/load5_duty.csv)
+New Loadshape.ld6 npts=8640 sinterval=10 mult=(file=./loadshape/load6_duty.csv)
+New Loadshape.ld7 npts=8640 sinterval=10 mult=(file=./loadshape/load7_duty.csv)
+New Loadshape.ld8 npts=8640 sinterval=10 mult=(file=./loadshape/load8_duty.csv)
+New Loadshape.ld9 npts=8640 sinterval=10 mult=(file=./loadshape/load9_duty.csv)
+New Loadshape.ld10 npts=8640 sinterval=10 mult=(file=./loadshape/load10_duty.csv)
+New Loadshape.ld11 npts=8640 sinterval=10 mult=(file=./loadshape/load11_duty.csv)
+
+! BATTERY SCHEDULE
+New Loadshape.battery_schedule npts=8640 sinterval=10 mult=(file=./loadshape/battery_duty.csv)
+
+! 光伏辐照度数据（保持原有的360个点）
+New Loadshape.MyIrrad npts=360 sinterval=10 mult=(file=./loadshape/17to18/test/019.csv)
+
+! 扩展的温度数据（8640个点，10秒间隔，24小时）
+! 方案1：简单重复
+! New Tshape.MyTemp_Method1 npts=8640 interval=10s temp=(file=./temperature_method1.csv)
+
+! 方案2：线性插值
+! New Tshape.MyTemp_Method2 npts=8640 interval=10s temp=(file=./temperature_method2.csv)
+
+! 方案3：真实波动（推荐）
+New Tshape.MyTemp_Expanded npts=8640 interval=10s temp=(file=./temperature_method3.csv)
+
+! 原始24小时温度数据（作为对比）
+New Tshape.MyTemp_Original npts=24 interval=1 temp=[25, 25, 25, 25, 25, 25, 25, 25, 35, 40, 45, 50, 60, 60, 55, 40, 35, 30, 25, 25, 25, 25, 25, 25]
+
+! FEEDER DEFINITION
+Redirect ieee34Mod1.dss
+
+! 设置仿真模式为duty，8640个时间步，每步10秒，总共24小时
+Set mode=duty number=8640 hour=0 stepsize=10 sec=0
+
+! 求解
+Solve
+
+! 显示结果
+Show Voltages LN Nodes
+Show Currents Elements
+Show Powers kVA Elements

@@ -27,6 +27,7 @@ LOGGER_REGISTRY = {
     "smacv2": SMACv2Logger,
     "lag": LAGLogger,
     "powerzoo": PowerZooLogger,
+    "powerzoo_llm": PowerZooLogger,
     "dsr": DSRLogger,
     "stackelberg": StackelbergBaseEnv,
     "stackelberg_powerzoo": StackelbergPowerZooEnv,
