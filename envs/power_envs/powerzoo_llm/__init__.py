@@ -64,18 +64,15 @@ __all__ = [
 ]
 
 # 环境配置常量
-DEFAULT_OPTIMIZATION_LEVEL = "standard"
-SUPPORTED_OPTIMIZATION_LEVELS = ["minimal", "standard", "high", "maximum"]
 SUPPORTED_SYSTEMS = ["13Bus", "34Bus", "123Bus", "8500Node"]
 
 # 快速创建环境的便捷函数
-def create_env(env_name="13Bus", optimization_level=DEFAULT_OPTIMIZATION_LEVEL, **kwargs):
+def create_env(env_name="13Bus", **kwargs):
     """
     快速创建PowerZoo环境
     
     Args:
         env_name: 环境名称，支持 13Bus, 34Bus, 123Bus, 8500Node
-        optimization_level: 优化级别，支持 minimal, standard, high, maximum
         **kwargs: 其他环境参数
         
     Returns:
@@ -86,7 +83,6 @@ def create_env(env_name="13Bus", optimization_level=DEFAULT_OPTIMIZATION_LEVEL, 
     
     config = Namespace(
         env_name=env_name,
-        optimization_level=optimization_level,
         **kwargs
     )
     

@@ -53,6 +53,8 @@ _ENV_INFO = {
         'max_episode_steps': 24,            # 每个仿真episode的最大步数
         'reg_act_num': 33,                  # 可用的调节动作数量
         'bat_act_num': 33,                  # 可用的电池动作数量
+        'pv_control': False,                # 默认禁用PV控制
+        'pv_act_num': float('inf'),         # 连续PV控制
         'power_w': 10.0,                   # 与功率相关的奖励权重
         'cap_w': 1.0/33,                   # 与电容相关的奖励权重
         'reg_w': 1.0/33,                   # 与调节动作相关的奖励权重
@@ -120,6 +122,8 @@ _ENV_INFO = {
         'max_episode_steps': 360,
         'reg_act_num': 33,
         'bat_act_num': 33,
+        'pv_control': False,                # 默认禁用PV控制
+        'pv_act_num': float('inf'),         # 连续PV控制
         'power_w': 10.0,
         'cap_w': 1.0/33,
         'reg_w': 1.0/33,
@@ -134,11 +138,32 @@ _ENV_INFO = {
         'max_episode_steps': 360,
         'reg_act_num': 33,
         'bat_act_num': 33,
+        'pv_control': True,                 # 启用PV控制
+        'pv_act_num': float('inf'),         # 连续PV控制
         'power_w': 10.0,
         'cap_w': 1.0/33,
         'reg_w': 1.0/33,
         'soc_w': 0.0/33,
         'dis_w': 10.0/33,
+        'pv_w': 2.0/33,                    # PV控制奖励权重
+    },
+    
+    '34Bus_pv_discrete': {
+        'system_name': '34Bus',
+        'dss_file': 'ieee34Mod1_duty.dss',
+        'irrad_dss': 'irrad_up_down.dss',
+        'for_LLM': False,
+        'max_episode_steps': 360,
+        'reg_act_num': 33,
+        'bat_act_num': 33,
+        'pv_control': True,                 # 启用PV控制
+        'pv_act_num': 21,                   # 离散PV控制 (21个等级)
+        'power_w': 10.0,
+        'cap_w': 1.0/33,
+        'reg_w': 1.0/33,
+        'soc_w': 0.0/33,
+        'dis_w': 10.0/33,
+        'pv_w': 2.0/33,                    # PV控制奖励权重
     },
 
     '34Bus_cbat': {
@@ -325,14 +350,13 @@ def get_info_and_folder(env_name):
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 
-def make_env(env_name, dss_act=False, worker_idx=None, optimization_level="standard"):
-    """创建环境实例，支持优化级别配置
+def make_env(env_name, dss_act=False, worker_idx=None):
+    """创建环境实例
     
     Args:
         env_name: 环境名称
         dss_act: 是否使用DSS控制器
         worker_idx: 工作进程索引
-        optimization_level: 优化级别
         
     Returns:
         Env实例
@@ -340,7 +364,7 @@ def make_env(env_name, dss_act=False, worker_idx=None, optimization_level="stand
     base_info, folder_path = get_info_and_folder(env_name)
 
     if worker_idx is None:
-        return Env(folder_path, base_info, dss_act, optimization_level=optimization_level)
+        return Env(folder_path, base_info, dss_act)
     else:
         base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
         assert os.path.exists(base_file), base_file + ' does not exist'
@@ -355,7 +379,7 @@ def make_env(env_name, dss_act=False, worker_idx=None, optimization_level="stand
         info = base_info.copy()
         info['dss_file'] = info['dss_file'][:-4] + '_' + str(worker_idx) + '.dss'
         info['worker_idx'] = worker_idx
-        return Env(folder_path, info, dss_act, optimization_level=optimization_level)
+        return Env(folder_path, info, dss_act)
         
 def remove_parallel_dss(env_name, num_workers):
     """删除特定worker_idx的临时DSS文件"""

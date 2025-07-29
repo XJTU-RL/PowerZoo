@@ -41,166 +41,118 @@ def performance_monitor(func):
             raise
     return wrapper
 
-
-def FFT_selection(vio_nodes, dist_matrix, k=10):
-    '''
-    Farthest first traversal to select batteries from the violated nodes.
-    和choose_batteries函数配合选择电池位置
-    Arguments:
-        vio_nondes (list): bus names with puVoltage<0.95
-        dist_matrix (np.array): the pairwise distance matrix of the violated nodes
-        k (int): number of batteries
-
-    Returns:
-        list of the names of the chosen nodes
-    '''
-    assert k>1, 'invalid k'
-    if len(vio_nodes)<=1: return vio_nodes
-
-    # for >=2 number of violated nodes
-    # random initial point
-    chosen = [ np.random.randint(len(vio_nodes)) ]
-    
-    # construct dist_map and the second point
-    dist_map = dict()
-    max_dist = p = 0
-    for i in range(len(vio_nodes)):
-        if i != chosen[-1]:
-            dist = dist_matrix[i,chosen[-1]]
-            dist_map[i] = dist
-            if dist > max_dist:
-                max_dist = dist
-                p = i
-    del dist_map[p]
-    chosen.append(p)
-    
-    for kk in range(2, k):
-        if len(dist_map)==0: break
-            
-        # update 'dist_map', 'p'
-        max_dist = p = 0
-        for pt, val in dist_map.items():
-            dist = min( val, dist_matrix[pt,chosen[-1]])
-            if dist < val:
-                dist_map[pt] = dist
-            if dist > max_dist:
-                max_dist = dist
-                p = pt
-        del dist_map[p]
-        chosen.append(p)
-    return [vio_nodes[c] for c in chosen]
-
-def choose_batteries(env, k=10, on_plot=True, node_bound='minimum'):
-    '''
-    Choose battery locations
-    
-    Arguments:
-        env (obj): the environment object
-        k (int): number of battery to allocate
-        on_plot (bool): allocate battery on the nodes shown in the pos
-        node_bound (str): Determine to plot max/min node voltage for nodes with more than one phase
-
-    Returns:
-        list of the names of the chosen nodes
-    '''
-    assert node_bound in ['minimum','maximum'], 'invalid node_bound'
-    
-    graph = nx.Graph()
-    graph.add_edges_from(list(env.lines.values()) + list(env.transformers.values()))
-    lens = dict( nx.shortest_path_length(graph) )
-
-    if node_bound == 'minimum':
-        nv = {bus: min(volts) for bus, volts in env.obs['bus_voltages'].items()}
-    else:
-        nv = {bus: max(volts) for bus, volts in env.obs['bus_voltages'].items()}
-    
-    if on_plot: 
-        _, pos = env.plot_graph(show_voltages=False)
-        nv = {bus:volts for bus, volts in nv.items() if bus in pos}
-
-    vio_nodes = [bus for bus, vol in nv.items() if vol<0.95]
-    dist = np.zeros((len(vio_nodes), len(vio_nodes)))
-    for i, b1 in enumerate(vio_nodes):
-        for j, b2 in enumerate(vio_nodes):
-            dist[i,j] = lens[b1][b2]
-        
-    choice = FFT_selection(vio_nodes, dist, k)
-    return choice
-
-
-def get_basekv(env, buses):
-    #buses = ['l3160098', 'l3312692', 'l3091052', 'l3065696', 'l3235247', 'l3066804', 'l3251854', 'l2785537', 'l2839331', 'm1069509']
-    ans = []
-    for busname in buses:
-        env.circuit.dss.Circuits.SetActiveBus(busname)
-        ans.append( env.circuit.dss.Circuits.Buses.kVBase )
-    print(ans)
-    
-
-
 #### action space class ####
 class ActionSpace:
-    '''Action Space Wrapper for Capacitors, Regulators, and Batteries
+    '''电容器、调压器、电池和光伏系统的动作空间封装
 
-    Attributes:
-        cap_num, reg_num, bat_num (int): number of capacitors, regulators, and batteries.
-        reg_act_num, bat_act_num: number of actions for regulators and batteries.
-        space (gym.spaces): the space object from gym
+    属性:
+        cap_num, reg_num, bat_num, pv_num (int): 电容器、调压器、电池和光伏系统的数量
+        reg_act_num, bat_act_num, pv_act_num: 调压器、电池和光伏系统的动作数量
+        space (gym.spaces): 来自gym的空间对象
+        pv_control_enabled (bool): 是否启用光伏控制
 
-    Note:
-        space is MultiDiscrete if using the discrete battery;
-        otherwise, space is a tuple of MultiDiscrete and Box
+    注意:
+        当所有系统都使用离散动作时,space为MultiDiscrete类型;
+        否则,space为MultiDiscrete和Box的元组,用于连续动作
     '''
-    def __init__(self, CRB_num: Tuple[int, int, int], RB_act_num: Tuple[int, int], optimization_level: str = "standard"):
-        self.cap_num, self.reg_num, self.bat_num = CRB_num
-        self.reg_act_num, self.bat_act_num = RB_act_num
-        self.optimization_level = optimization_level
+    def __init__(self, CRBP_num: Tuple[int, int, int, int], RBP_act_num: Tuple[int, int, int], pv_control_enabled: bool = False):
+        self.cap_num, self.reg_num, self.bat_num, self.pv_num = CRBP_num
+        self.reg_act_num, self.bat_act_num, self.pv_act_num = RBP_act_num
+        self.pv_control_enabled = pv_control_enabled
         
-        # 缓存空间对象避免重复创建（优化功能）
+        # 缓存空间对象避免重复创建
         self._space = None
         self._initialize_space()
     
     def _initialize_space(self):
-        """初始化动作空间"""
-        if self.bat_act_num < float('inf'):
-            # discrete battery，把电容器，电源，调压器的动作拼接起来
-            self._space = gym.spaces.MultiDiscrete(
-                [2] * self.cap_num + # 电容器动作 
-                [self.reg_act_num] * self.reg_num + # 调压器动作
-                [self.bat_act_num] * self.bat_num # 电池动作
-            )
+        """初始化动作空间 - 支持CRBP架构"""
+        discrete_actions = ([2] * self.cap_num +  # 电容器动作 (0/1)
+                          [self.reg_act_num] * self.reg_num)  # 调压器动作 (tap position)
+        
+        continuous_actions = []
+        continuous_shape = 0
+        
+        # 处理电池动作空间
+        if self.bat_num > 0:
+            if self.bat_act_num < float('inf'):
+                discrete_actions.extend([self.bat_act_num] * self.bat_num)  # 离散电池动作
+            else:
+                continuous_shape += self.bat_num  # 连续电池动作
+        
+        # 处理光伏动作空间（如果启用）
+        if self.pv_control_enabled and self.pv_num > 0:
+            if self.pv_act_num < float('inf'):
+                discrete_actions.extend([self.pv_act_num] * self.pv_num)  # 离散PV动作
+            else:
+                continuous_shape += self.pv_num * 2  # 连续PV动作 (有功功率 + 功率因数)
+        
+        # 构建最终动作空间
+        if continuous_shape > 0:
+            # 混合动作空间：离散 + 连续
+            discrete_space = gym.spaces.MultiDiscrete(discrete_actions) if discrete_actions else None
+            continuous_space = gym.spaces.Box(low=-1, high=1, shape=(continuous_shape,), dtype=np.float32)
+            
+            if discrete_space is not None:
+                self._space = gym.spaces.Tuple((discrete_space, continuous_space))
+            else:
+                self._space = continuous_space
         else:
-            # continuous battery
-            self._space = gym.spaces.Tuple((
-                gym.spaces.MultiDiscrete([2] * self.cap_num + [self.reg_act_num] * self.reg_num),
-                gym.spaces.Box(low=-1, high=1, shape=(self.bat_num,))
-            ))
+            # 纯离散动作空间
+            self._space = gym.spaces.MultiDiscrete(discrete_actions)
     
     @property
     def space(self):
         return self._space
 
     def sample(self):
-        """优化的采样方法"""
+        """优化的采样方法 - 支持CRBP混合动作空间"""
         ss = self._space.sample()
-        if self.bat_act_num == np.inf:
-            return np.concatenate(ss)
+        
+        # 处理混合动作空间的情况
+        if isinstance(self._space, gym.spaces.Tuple):
+            if len(ss) == 2:  # 离散 + 连续
+                return np.concatenate([ss[0], ss[1]])
+            else:
+                return np.concatenate(ss)
+        
         return ss
 
     def seed(self, seed: int):
         self._space.seed(seed)
 
     def dim(self) -> int:
-        """返回动作空间维度"""
-        if self.bat_act_num == np.inf:
-            return self._space[0].shape[0] + self._space[1].shape[0]
-        return self._space.shape[0]
+        """返回动作空间维度 - 支持CRBP混合动作空间"""
+        if isinstance(self._space, gym.spaces.Tuple):
+            total_dim = 0
+            for subspace in self._space.spaces:
+                if hasattr(subspace, 'shape'):
+                    total_dim += subspace.shape[0] if subspace.shape else subspace.n
+                elif hasattr(subspace, 'nvec'):
+                    total_dim += len(subspace.nvec)
+                else:
+                    total_dim += subspace.n
+            return total_dim
+        elif hasattr(self._space, 'nvec'):
+            return len(self._space.nvec)
+        else:
+            return self._space.shape[0] if self._space.shape else self._space.n
 
-    def CRB_num(self) -> Tuple[int, int, int]:
-        return self.cap_num, self.reg_num, self.bat_num
+    def CRBP_num(self) -> Tuple[int, int, int, int]:
+        """返回各设备数量"""
+        return self.cap_num, self.reg_num, self.bat_num, self.pv_num
 
-    def RB_act_num(self) -> Tuple[int, int]:
-        return self.reg_act_num, self.bat_act_num
+    def RBP_act_num(self) -> Tuple[int, int, int]:
+        """返回调压器、电池、光伏动作数量"""
+        return self.reg_act_num, self.bat_act_num, self.pv_act_num
+    
+    def get_action_dims(self) -> Dict[str, int]:
+        """返回各设备类型的动作维度"""
+        return {
+            'capacitor': self.cap_num,
+            'regulator': self.reg_num, 
+            'battery': self.bat_num,
+            'pv': self.pv_num if self.pv_control_enabled else 0
+        }
 
 #### environment class ####
 class Env(gym.Env):
@@ -249,13 +201,11 @@ class Env(gym.Env):
         lines (dict): Dict of edges with components in circuit
         transformers (dict): Dictionary of transformers in system
     """  
-    def __init__(self, folder_path: str, info: Dict[str, Any], dss_act: bool = False, 
-                 optimization_level: str = "standard"):
+    def __init__(self, folder_path: str, info: Dict[str, Any], dss_act: bool = False):
         super().__init__()
         
         # 基础配置
         self.obs = {}
-        self.optimization_level = optimization_level
         self.dss_folder_path = os.path.join(folder_path, info['system_name'])
         self.dss_file = info['dss_file']
         self.source_bus = info.get('source_bus', 'sourcebus')
@@ -267,9 +217,6 @@ class Env(gym.Env):
         self.observe_load = False
         self.LLM = info.get('for_LLM', False) # 是否为LLM环境
         self.irrad_dss = info.get('irrad_dss', None)
-        
-        # 性能缓存（优化功能）
-        self._performance_cache = {} if optimization_level in ["high", "maximum"] else None
         
         #TODO:添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
@@ -293,6 +240,10 @@ class Env(gym.Env):
         assert self.horizon>=1, 'invalid horizon'
         assert self.reg_act_num>=2 and self.bat_act_num>=2, 'invalid act nums'
         
+        # 添加PV控制配置
+        self.pv_control_enabled = info.get('pv_control', False)
+        self.pv_act_num = info.get('pv_act_num', float('inf'))  # 默认连续控制
+        
         self.circuit = Circuits(os.path.join(self.dss_folder_path, self.dss_file),
                                 RB_act_num=(self.reg_act_num, self.bat_act_num),
                                 dss_act=dss_act)
@@ -300,27 +251,31 @@ class Env(gym.Env):
         self.cap_names = list(self.circuit.capacitors.keys())
         self.reg_names = list(self.circuit.regulators.keys())
         self.bat_names = list(self.circuit.batteries.keys())
+        self.pv_names = list(self.circuit.pvs.keys()) if hasattr(self.circuit, 'pvs') else []
+        
         self.cap_num = len(self.cap_names)
         self.reg_num = len(self.reg_names)
         self.bat_num = len(self.bat_names)
-        assert self.cap_num>=0 and self.reg_num>=0 and self.bat_num>=0 and \
-               self.cap_num + self.reg_num + self.bat_num>=1,'invalid CRB_num'
+        self.pv_num = len(self.pv_names)
+        
+        assert self.cap_num>=0 and self.reg_num>=0 and self.bat_num>=0 and self.pv_num>=0 and \
+               self.cap_num + self.reg_num + self.bat_num + self.pv_num>=1,'invalid CRBP_num'
         
         self.topology = self.build_graph()
         self.reward_func = self.MyReward(self, info)
         self.t = 0
         
         # create action space and observation space
-        self.ActionSpace = ActionSpace( (self.cap_num, self.reg_num, self.bat_num),
-                                        (self.reg_act_num, self.bat_act_num),
-                                        optimization_level=optimization_level )
+        self.ActionSpace = ActionSpace( (self.cap_num, self.reg_num, self.bat_num, self.pv_num),
+                                        (self.reg_act_num, self.bat_act_num, self.pv_act_num),
+                                        pv_control_enabled=self.pv_control_enabled )
         self.action_space = self.ActionSpace.space
         self.reset_obs_space()
         self.useS=False
         self.use_render=False
         self.Y=self.circuit.get_Y_matrix()
         self.agents_bus=self.circuit.get_agent_bus_dict()
-        #TODO:S修改，在此添加条件判断
+
     def reset_obs_space(self, wrap_observation=True, observe_load=False):
         '''
         reset the observation space based on the option of wrapping and load.
@@ -342,23 +297,36 @@ class Env(gym.Env):
             low, high = low+[0]*self.cap_num, high+[1]*self.cap_num # add cap bound
             low, high = low+[0]*self.reg_num, high+[self.reg_act_num]*self.reg_num # add reg bound
             low, high = low+[0,-1]*self.bat_num, high+[1,1]*self.bat_num # add bat bound
+            
+            # 添加PV状态边界（如果启用PV控制）
+            if self.pv_control_enabled and self.pv_num > 0:
+                low, high = low+[0.0,-1.0]*self.pv_num, high+[1.0,1.0]*self.pv_num  # PV有功功率 + 功率因数
+            
             if observe_load: low, high = low+[0.0]*nload, high+[1.0]*nload # add load bound
             low, high = np.array(low, dtype=np.float32), np.array(high, dtype=np.float32)
             self.observation_space = gym.spaces.Box(low, high) 
         else:
             bat_dict = {bat: gym.spaces.Box(np.array([0,-1]), np.array([1,1]), dtype=np.float32) 
                         for bat in self.obs['bat_statuses'].keys()}
+            
             obs_dict = {
                 'bus_voltages': gym.spaces.Box(0.8, 1.2, shape=(nnode,)),
                 'cap_statuses': gym.spaces.MultiDiscrete([2]*self.cap_num),
-                'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.cap_num),
+                'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.reg_num),  # 修复错误：reg_num
                 'bat_statuses': gym.spaces.Dict(bat_dict)
             }
+            
+            # 添加PV状态空间（如果启用PV控制）
+            if self.pv_control_enabled and self.pv_num > 0:
+                pv_dict = {pv: gym.spaces.Box(np.array([0.0,-1.0]), np.array([1.0,1.0]), dtype=np.float32) 
+                          for pv in self.pv_names}
+                obs_dict['pv_statuses'] = gym.spaces.Dict(pv_dict)
+            
             if observe_load: obs_dict['load_profile_t'] = gym.spaces.Box(0.0, 1.0, shape=(nload,))
             self.observation_space = gym.spaces.Dict(obs_dict)
 
     class MyReward:
-        """Reward definition class（集成优化功能）
+        """Reward definition class
         
         Attributes:
             env (obj): Inherits all attributes of environment 
@@ -370,34 +338,37 @@ class Env(gym.Env):
             self.reg_w = info.get('reg_w', 0.1)
             self.soc_w = info.get('soc_w', 0.5)
             self.dis_w = info.get('dis_w', 0.1)
+            self.pv_w = info.get('pv_w', 1.0)  # PV控制奖励权重
             
-            # 缓存上一次的计算结果（优化功能）
-            self._last_power_loss = None
-            self._last_voltages = None
+            # 约束感知奖励参数 - 为HAPPO训练优化
+            self.voltage_penalty_scale = info.get('voltage_penalty_scale', 1.0)  # 电压约束惩罚系数
+            self.constraint_aware = info.get('constraint_aware', True)  # 是否启用约束感知
+            self.voltage_target_range = info.get('voltage_target_range', (0.95, 1.05))  # 理想电压范围
+            self.progressive_penalty = info.get('progressive_penalty', True)  # 渐进式惩罚
 
         @performance_monitor
         def powerloss_reward(self) -> float:
-            """功率损耗奖励（带缓存）"""
+            """功率损耗奖励"""
             current_loss = self.env.obs.get('power_loss', 0)
-            if self._last_power_loss == current_loss:
-                return -current_loss * self.power_w
-            
-            self._last_power_loss = current_loss
             ratio = max(0.0, min(1.0, current_loss))
             return -ratio * self.power_w
 
         def ctrl_reward(self, capdiff: List[float], regdiff: List[float], 
-                       soc_err: List[float], discharge_err: List[float]) -> float:
-            """控制动作奖励"""
+                       soc_err: List[float], discharge_err: List[float],
+                       pv_diff: List[float] = None) -> float:
+            """控制动作奖励 - 支持PV控制"""
+            pv_diff = pv_diff or []
+            
             cost = (self.cap_w * sum(capdiff) + 
                     self.reg_w * sum(regdiff) + 
                     (0.0 if self.env.t != self.env.horizon else self.soc_w * sum(soc_err)) + 
-                    self.dis_w * sum(discharge_err))
+                    self.dis_w * sum(discharge_err) +
+                    self.pv_w * sum(pv_diff))  # 添加PV控制成本
             return -cost
 
         @performance_monitor
         def voltage_reward(self, record_node: bool = False) -> Tuple[float, List[str]]:
-            """电压奖励（优化版）"""
+            """电压奖励"""
             violated_nodes = []
             total_violation = 0.0
             
@@ -424,27 +395,149 @@ class Env(gym.Env):
         
         def composite_reward(self, cd: List[float], rd: List[float], 
                             soc: List[float], dis: List[float], 
+                            pv_diff: List[float] = None,
                             full: bool = True, record_node: bool = False) -> Tuple[float, Dict[str, Any]]:
-            """综合奖励计算"""
+            """综合奖励计算 - 约束感知版本"""
             p = self.powerloss_reward()
             v, vio_nodes = self.voltage_reward(record_node)
-            t = self.ctrl_reward(cd, rd, soc, dis)
+            t = self.ctrl_reward(cd, rd, soc, dis, pv_diff or [])
             
-            summ = t + v  # 只包含控制和电压奖励
+            # 约束感知奖励计算
+            if self.constraint_aware:
+                # 增强电压约束奖励
+                v_enhanced = self.enhanced_voltage_reward(vio_nodes)
+                # 功率平衡奖励
+                power_balance_reward = self.power_balance_reward()
+                # PV优化奖励
+                pv_optimization_reward = self.pv_optimization_reward()
+                
+                summ = (t + v_enhanced + p * 0.1 + 
+                       power_balance_reward + pv_optimization_reward)
+            else:
+                summ = t + v  # 原始奖励结构
             
             info = {} if not record_node else {'violated_nodes': vio_nodes}
             if full:
                 info.update({
                     'power_loss_ratio': -p / self.power_w,
                     'vol_reward': v,
-                    'ctrl_reward': t
+                    'ctrl_reward': t,
+                    'total_reward': summ
                 })
+                
+                if self.constraint_aware:
+                    info.update({
+                        'voltage_violations': len(vio_nodes),
+                        'voltage_compliance_rate': self._calculate_voltage_compliance(),
+                        'power_balance_score': power_balance_reward,
+                        'pv_utilization_score': pv_optimization_reward
+                    })
             
             return summ, info
+        
+        def enhanced_voltage_reward(self, vio_nodes: List[str]) -> float:
+            """增强电压约束奖励 - 约束感知版本"""
+            bus_voltages = self.env.obs.get('bus_voltages', {})
+            total_penalty = 0.0
+            total_nodes = 0
+            
+            v_min, v_max = self.voltage_target_range
+            
+            for name, voltages in bus_voltages.items():
+                if not voltages:
+                    continue
+                    
+                for v in voltages:
+                    total_nodes += 1
+                    
+                    if self.progressive_penalty:
+                        # 渐进式惩罚: 越远离正常范围惩罚越大
+                        if v > v_max:
+                            violation_degree = (v - v_max) / (1.2 - v_max)  # 归一化违约程度
+                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 50
+                        elif v < v_min:
+                            violation_degree = (v_min - v) / (v_min - 0.8)
+                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 50
+                        else:
+                            # 在合理范围内给予奖励
+                            penalty = -0.1  # 小奖励
+                    else:
+                        # 简单的二元惩罚
+                        if v > v_max or v < v_min:
+                            penalty = self.voltage_penalty_scale * 10
+                        else:
+                            penalty = -0.1
+                    
+                    total_penalty += penalty
+            
+            # 平均化惩罚
+            avg_penalty = total_penalty / max(total_nodes, 1)
+            return -avg_penalty
+        
+        def power_balance_reward(self) -> float:
+            """功率平衡奖励 - 鼓励系统功率平衡"""
+            power_loss_ratio = abs(self.env.obs.get('power_loss', 0))
+            
+            # 功率损耗越低奖励越大
+            if power_loss_ratio < 0.02:  # <2%损耗
+                return 5.0
+            elif power_loss_ratio < 0.05:  # <5%损耗
+                return 2.0
+            elif power_loss_ratio < 0.10:  # <10%损耗
+                return 0.0
+            else:
+                return -power_loss_ratio * 20  # 高损耗惩罚
+        
+        def pv_optimization_reward(self) -> float:
+            """光伏优化奖励 - 鼓励合理使用PV系统"""
+            if not (self.env.pv_control_enabled and self.env.pv_num > 0):
+                return 0.0
+            
+            pv_statuses = self.env.obs.get('pv_statuses', {})
+            if not pv_statuses:
+                return 0.0
+            
+            total_reward = 0.0
+            for pv_name, status in pv_statuses.items():
+                if len(status) >= 2:
+                    p_ratio, pf = status[0], status[1]
+                    
+                    # 鼓励高功率输出（在高辐照时）
+                    power_reward = p_ratio * 2.0
+                    
+                    # 鼓励合理的功率因数（接近单位功率因数）
+                    pf_penalty = abs(pf - 1.0) * 1.0
+                    
+                    # 鼓励电压支撑（当系统电压低时）
+                    voltage_support_reward = 0.0
+                    bus_voltages = self.env.obs.get('bus_voltages', {})
+                    avg_voltage = np.mean([np.mean(v) for v in bus_voltages.values() if v])
+                    if avg_voltage < 0.98 and pf > 0.95:  # 低电压时发出无功
+                        voltage_support_reward = 1.0
+                    
+                    total_reward += power_reward - pf_penalty + voltage_support_reward
+            
+            return total_reward / max(self.env.pv_num, 1)
+        
+        def _calculate_voltage_compliance(self) -> float:
+            """计算电压合格率"""
+            bus_voltages = self.env.obs.get('bus_voltages', {})
+            total_measurements = 0
+            compliant_measurements = 0
+            
+            v_min, v_max = self.voltage_target_range
+            
+            for voltages in bus_voltages.values():
+                for v in voltages:
+                    total_measurements += 1
+                    if v_min <= v <= v_max:
+                        compliant_measurements += 1
+            
+            return compliant_measurements / max(total_measurements, 1)
 
     @performance_monitor
     def step(self, action: np.ndarray) -> Tuple[Any, float, bool, Dict[str, Any]]:
-        """优化的环境步进
+        """环境步进
         
         Args:
             action: Integer array of actions for capacitors, regulators and batteries
@@ -478,9 +571,48 @@ class Env(gym.Env):
 
         ### battery control
         if self.bat_num>0:
-            states = action[action_idx:]
-            self.circuit.set_all_batteries_before_solve(states)
-            self.str_action += 'Bat Status:'+str(states)
+            if isinstance(self.action_space, gym.spaces.Tuple) and self.bat_act_num == float('inf'):
+                # 连续电池控制 - 从连续动作部分获取
+                continuous_start = len(action) - (self.bat_num + (self.pv_num * 2 if self.pv_control_enabled else 0))
+                bat_actions = action[continuous_start:continuous_start + self.bat_num]
+            else:
+                # 离散电池控制
+                bat_actions = action[action_idx:action_idx+self.bat_num]
+                action_idx += self.bat_num
+            
+            self.circuit.set_all_batteries_before_solve(bat_actions)
+            self.str_action += 'Bat Status:'+str(bat_actions)
+        
+        ### PV control (如果启用)
+        if self.pv_control_enabled and self.pv_num > 0:
+            if isinstance(self.action_space, gym.spaces.Tuple) and self.pv_act_num == float('inf'):
+                # 连续PV控制 - 从连续动作部分获取
+                continuous_start = len(action) - (self.pv_num * 2)
+                pv_actions = action[continuous_start:]
+                # 将PV动作重新整形为 [pv_num, 2] 格式 (有功功率, 功率因数)
+                pv_actions = pv_actions.reshape(self.pv_num, 2)
+            else:
+                # 离散PV控制
+                pv_actions = action[action_idx:action_idx+self.pv_num]
+                action_idx += self.pv_num
+            
+            # 设置PV系统控制
+            if hasattr(self.circuit, 'set_all_pvs_before_solve'):
+                self.circuit.set_all_pvs_before_solve(pv_actions)
+            else:
+                # 如果circuit类没有PV控制方法，我们手动控制
+                for i, pv_name in enumerate(self.pv_names):
+                    if pv_name in self.circuit.pvs:
+                        pv = self.circuit.pvs[pv_name]
+                        if isinstance(pv_actions, np.ndarray) and pv_actions.ndim == 2:
+                            # 连续控制：[有功功率比例, 功率因数]
+                            p_ratio, pf = pv_actions[i]
+                            pv.step_before_solve([p_ratio, pf])
+                        else:
+                            # 离散控制
+                            pv.step_before_solve([pv_actions[i]])
+                            
+            self.str_action += 'PV Status:'+str(pv_actions)
 
         # DSS求解（添加错误处理）
         try:
@@ -509,6 +641,25 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
+        
+        # 更新PV状态（如果启用PV控制）
+        if self.pv_control_enabled and self.pv_num > 0:
+            pv_statuses = {}
+            for pv_name in self.pv_names:
+                if pv_name in self.circuit.pvs:
+                    pv = self.circuit.pvs[pv_name]
+                    # 获取PV系统状态: [有功功率比例, 功率因数]
+                    if hasattr(pv, 'get_status'):
+                        pv_statuses[pv_name] = pv.get_status()
+                    else:
+                        # 如果没有get_status方法，使用默认值
+                        pv_statuses[pv_name] = [0.5, 1.0]  # 默认50%功率，单位功率因数
+                else:
+                    pv_statuses[pv_name] = [0.0, 1.0]  # PV系统不存在时的默认值
+            self.obs['pv_statuses'] = pv_statuses
+        else:
+            self.obs['pv_statuses'] = {}
+            
         self.obs['power_loss'] = - self.circuit.total_loss()[0]/self.circuit.total_power()[0]
         self.obs['time'] = self.t
         if self.observe_load:
@@ -516,8 +667,21 @@ class Env(gym.Env):
 
         done = (self.t == self.horizon)
 
+        # 计算PV控制差异（如果启用）
+        pv_diffs = []
+        if self.pv_control_enabled and len(pv_action_tuples) > 0:
+            for pv_name, (target_p, target_pf) in pv_action_tuples:
+                try:
+                    current_p = self.circuit.pvsystems[pv_name].pmpp
+                    current_pf = self.circuit.pvsystems[pv_name].pf
+                    pv_diff_p = abs(target_p - current_p)
+                    pv_diff_pf = abs(target_pf - current_pf)
+                    pv_diffs.append((pv_diff_p, pv_diff_pf))
+                except:
+                    pv_diffs.append((0.0, 0.0))
+
         reward, info = self.reward_func.composite_reward(capdiff, regdiff,\
-                                                         soc_errs, dis_errs)
+                                                         soc_errs, dis_errs, pv_diffs)
         # avoid dividing by zero
         info.update( {'av_cap_err': sum(capdiff)/(self.cap_num+1e-10),
                       'av_reg_err': sum(regdiff)/(self.reg_num+1e-10),
@@ -566,7 +730,7 @@ class Env(gym.Env):
 
     @performance_monitor
     def reset(self, load_profile_idx: int = 0, irrad_train: int = 19, hours: str = '14to15/test'):
-        """优化的环境重置
+        """环境重置
         
         Args:
             load_profile_idx: ID number for load profile
@@ -619,6 +783,23 @@ class Env(gym.Env):
         ### status of battery
         bat_statuses = {name:[bat.soc, -1*bat.actual_power()/bat.max_kw] for name, bat in self.circuit.batteries.items()}
         self.obs['bat_statuses'] = bat_statuses
+        
+        ### status of PV systems (如果启用PV控制)
+        if self.pv_control_enabled and self.pv_num > 0:
+            pv_statuses = {}
+            for pv_name in self.pv_names:
+                if pv_name in self.circuit.pvs:
+                    pv = self.circuit.pvs[pv_name]
+                    # 初始化PV状态: [有功功率比例, 功率因数]
+                    if hasattr(pv, 'get_status'):
+                        pv_statuses[pv_name] = pv.get_status()
+                    else:
+                        pv_statuses[pv_name] = [0.5, 1.0]  # 初始值: 50%功率, 单位功率因数
+                else:
+                    pv_statuses[pv_name] = [0.0, 1.0]  # PV系统不存在时的默认值
+            self.obs['pv_statuses'] = pv_statuses
+        else:
+            self.obs['pv_statuses'] = {}
 
         ### total power loss
         self.obs['power_loss'] = -self.circuit.total_loss()[0]/self.circuit.total_power()[0]
@@ -673,8 +854,11 @@ class Env(gym.Env):
 
         done = (self.t == self.horizon)
 
+        # 为dss_step方法添加空的PV差异列表（因为dss_step不处理PV控制）
+        pv_diffs = []
+
         reward, info = self.reward_func.composite_reward(capdiff, regdiff,\
-                                                         soc_errs, dis_errs)
+                                                         soc_errs, dis_errs, pv_diffs)
         # avoid dividing by zero
         info.update( {'av_cap_err': sum(capdiff)/(self.cap_num+1e-10),
                       'av_reg_err': sum(regdiff)/(self.reg_num+1e-10),
@@ -689,7 +873,7 @@ class Env(gym.Env):
             return self.obs, reward, done, info
 
     def wrap_obs(self, obs):
-        """ Wrap the observation dictionary (i.e., self.obs) to a numpy array
+        """ Wrap the observation dictionary (i.e., self.obs) to a numpy array - 支持CRBP架构
         
         Attribute:
             obs: the observation dictionary generated at self.reset() and self.step()
@@ -699,6 +883,11 @@ class Env(gym.Env):
         
         """
         key_obs = ['bus_voltages', 'cap_statuses', 'reg_statuses', 'bat_statuses']
+        
+        # 添加PV状态（如果启用PV控制）
+        if self.pv_control_enabled and self.pv_num > 0:
+            key_obs.append('pv_statuses')
+            
         if self.observe_load: key_obs.append('load_profile_t')
 
         mod_obs = []
@@ -708,7 +897,7 @@ class Env(gym.Env):
             #    for values in obs[var_dict].values():
             #        mod_obs.append(min(values))
             if var_dict in \
-                ['bus_voltages','cap_statuses','reg_statuses', 'bat_statuses', 'load_profile_t']:
+                ['bus_voltages','cap_statuses','reg_statuses', 'bat_statuses', 'pv_statuses', 'load_profile_t']:
                 mod_obs = mod_obs + list(obs[var_dict].values())
             elif var_dict == 'power_loss_ratio':
                 mod_obs.append(obs['power_loss_ratio'])
@@ -735,7 +924,7 @@ class Env(gym.Env):
 
     @performance_monitor
     def build_graph(self):
-        """构建网络图（优化版）
+        """构建网络图
         
         Returns:
             Graph: Network graph
@@ -923,28 +1112,6 @@ class Env(gym.Env):
             basekW[load[5:]] = self.circuit.loads[load].feature[1]
         return basekW
     
-    # === 优化级别配置方法 ===
-    def set_optimization_level(self, level: str):
-        """设置优化级别
-        
-        Args:
-            level: 优化级别 ("minimal", "standard", "high", "maximum")
-        """
-        valid_levels = ["minimal", "standard", "high", "maximum"]
-        if level not in valid_levels:
-            raise ValueError(f"Invalid optimization level: {level}. Must be one of {valid_levels}")
-        
-        self.optimization_level = level
-        
-        # 根据优化级别调整缓存设置
-        if level in ["high", "maximum"]:
-            if self._performance_cache is None:
-                self._performance_cache = {}
-        else:
-            self._performance_cache = None
-        
-        logger.info(f"优化级别设置为: {level}")
-
 
 # 日志信息
-logger.info("PowerZoo环境类已成功集成优化功能")
+logger.info("PowerZoo环境类初始化完成")

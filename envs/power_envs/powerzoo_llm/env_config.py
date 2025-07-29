@@ -78,8 +78,7 @@ class PowerZooMultiAgentWrapper:
         # 创建基础环境
         self.env = PowerZooEnvWrapper.create_base_env(
             config=config,
-            env_name=config.env_name,
-            optimization_level="standard"
+            env_name=config.env_name
         )
         
         # 设置基本属性

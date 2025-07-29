@@ -1,0 +1,142 @@
+# HAPPO Algorithm Configuration for PowerZoo CRBP Environment
+# Constraint-Aware Training Configuration for Power System Multi-Agent Control
+
+# Algorithm Configuration
+algo_name: "happo"
+seed: 12345
+cuda: True
+cuda_deterministic: True
+n_training_threads: 8
+n_rollout_threads: 32
+n_eval_rollout_threads: 8
+
+# Environment Configuration  
+env_name: "PowerZoo"
+env_args:
+  env_name: "34Bus_pv"          # Use 34Bus with PV control enabled
+  seed: 12345
+  use_render: False
+  useS: False
+  record_node: False
+
+# Training Hyperparameters - Optimized for Power System Convergence
+experiment:
+  # Training Duration - Extended for Complex Power System Learning
+  num_env_steps: 2000000         # 2M steps total (约833小时的24步episode训练)
+  episode_length: 24             # 24 hours operation cycle
+  
+  # Evaluation Settings
+  eval_interval: 50000           # Evaluate every 50K steps
+  save_interval: 100000          # Save model every 100K steps  
+  use_eval: True
+  eval_episodes: 32              # 32 episodes for robust evaluation
+  
+  # Model Architecture - Enhanced for Mixed Action Spaces
+  hidden_size: 256               # Larger networks for complex power systems
+  layer_N: 3                     # Deeper networks for better function approximation
+  activation_id: 1               # ReLU activation
+  use_orthogonal_init: True      # Better initialization for power system control
+  gain: 0.01                     # Conservative gain for stability
+  
+  # PPO Core Parameters - Tuned for Power System Stability
+  ppo_epoch: 15                  # More epochs for better policy updates
+  num_mini_batch: 4              # Balanced batch processing
+  lr: 0.0003                     # Conservative learning rate
+  critic_lr: 0.0005              # Slightly higher critic learning rate
+  opti_eps: 0.00001             # Optimizer epsilon
+  weight_decay: 0.0001          # L2 regularization
+  
+  # Policy Update Parameters
+  clip_param: 0.2                # PPO clipping parameter
+  max_grad_norm: 5.0             # Gradient clipping for stability
+  
+  # Experience Collection
+  n_rollout_threads: 32          # Parallel environment collection
+  buffer_size: 2000              # Experience buffer size
+  
+  # Exploration Strategy - Critical for Power System Constraints  
+  entropy_coef: 0.01             # Moderate exploration
+  entropy_schedule: "linear"     # Linear entropy decay
+  final_entropy_coef: 0.001      # Final entropy coefficient
+  
+  # Value Function Learning
+  use_value_active_masks: True   # Handle agent masking
+  use_policy_active_masks: True  # Handle policy masking
+  value_loss_coef: 1.0          # Value function loss weight
+  
+  # Advanced Features for Power System Control
+  use_gae: True                  # Generalized Advantage Estimation
+  gamma: 0.99                    # Discount factor
+  gae_lambda: 0.95               # GAE lambda parameter
+  use_proper_time_limits: True   # Handle episode termination correctly
+  
+  # Constraint-Aware Training Features
+  use_feature_normalization: True    # Normalize observations
+  use_reward_normalization: False    # Keep original reward scale for interpretability
+  use_popart: False                  # PopArt normalization
+  
+  # Mixed Action Space Handling
+  use_recurrent_policy: False        # Use feedforward policy
+  use_centralized_V: True           # Centralized value function
+  use_single_network: False         # Separate actor-critic networks
+
+# Power System Specific Training Configuration
+power_system:
+  # Constraint Penalties - Enhanced for Better Convergence
+  voltage_violation_penalty: 100.0    # Strong penalty for voltage violations
+  power_loss_weight: 10.0            # Weight for power loss minimization
+  control_cost_weight: 0.1           # Small penalty for control actions
+  
+  # Training Phases - Curriculum Learning
+  curriculum_learning: True
+  phases:
+    - name: "basic_control"
+      steps: 500000
+      voltage_penalty_scale: 0.5     # Start with moderate constraint
+      exploration_bonus: 0.02
+    
+    - name: "intermediate_control"  
+      steps: 1000000
+      voltage_penalty_scale: 1.0     # Full constraint enforcement
+      exploration_bonus: 0.01
+      
+    - name: "advanced_control"
+      steps: 500000
+      voltage_penalty_scale: 1.5     # Strict constraint for fine-tuning
+      exploration_bonus: 0.005
+  
+  # Convergence Criteria
+  convergence:
+    voltage_compliance_threshold: 0.95  # 95% of time steps must satisfy voltage constraints
+    power_loss_improvement: 0.15        # 15% power loss reduction target
+    policy_stability_window: 100000     # Steps to check policy stability
+    reward_std_threshold: 0.1           # Standard deviation threshold for convergence
+
+# Logging and Monitoring
+log:
+  log_interval: 10000              # Log every 10K steps
+  use_tensorboard: True           # Enable TensorBoard logging
+  use_wandb: False               # Weights & Biases integration
+  save_gifs: False               # Don't save GIFs (too large for power systems)
+  
+  # Power System Specific Metrics
+  track_voltage_violations: True  # Track voltage constraint violations
+  track_power_losses: True       # Track power losses over time
+  track_control_costs: True      # Track control action costs
+  track_pv_utilization: True     # Track PV system utilization
+  
+# Model Save Configuration  
+save:
+  save_dir: "./results/happo_powerzoo_pv"
+  experiment_name: "happo_34bus_pv_constraint_aware"
+  
+# Resume Training (if needed)
+resume:
+  use_resume: False
+  resume_path: ""
+  
+# Debug and Visualization
+debug:
+  use_render: False              # No rendering during training
+  render_episodes: False         # No episode rendering
+  ifi: 0.1                      # Interface interval

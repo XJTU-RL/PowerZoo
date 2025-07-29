@@ -22,15 +22,13 @@ class PowerZooEnvWrapper:
     """PowerZooEnv 的简化包装器"""
     
     @staticmethod
-    def create_base_env(config, env_name: str = "13Bus", scenario=None, 
-                       optimization_level: str = "standard", **kwargs):
+    def create_base_env(config, env_name: str = "13Bus", scenario=None, **kwargs):
         """创建基础环境（不包装）
         
         Args:
             config: 配置对象
             env_name: 环境名称
             scenario: 场景参数
-            optimization_level: 优化级别 ("minimal", "standard", "high", "maximum")
             **kwargs: 其他参数
             
         Returns:
@@ -38,7 +36,7 @@ class PowerZooEnvWrapper:
         """
         from envs.power_envs.powerzoo_llm.env_register import get_info_and_folder
         
-        logger.info(f"创建PowerZoo环境: {env_name}, 优化级别: {optimization_level}")
+        logger.info(f"创建PowerZoo环境: {env_name}")
         
         # 获取环境信息
         base_info, folder_path = get_info_and_folder(env_name)
@@ -78,19 +76,17 @@ class PowerZooEnvWrapper:
         # 获取rank参数，默认为0
         rank = kwargs.get('rank', 0)
         env = make_env(env_name, env_info, str(folder_path), 
-                      kwargs.get('dss_act', False), worker_idx=rank, 
-                      optimization_level=optimization_level)
+                      kwargs.get('dss_act', False), worker_idx=rank)
         powerzoo_env = PowerZooEnv(env=env, config=config, rank=rank)
         
         logger.info(f"PowerZoo环境创建成功: {env_name}")
         return powerzoo_env
 
-def make_env(env_name, base_info, folder_path, dss_act=False, worker_idx=None, 
-             optimization_level="standard"):
+def make_env(env_name, base_info, folder_path, dss_act=False, worker_idx=None):
     """创建环境实例"""
     
     if worker_idx is None:
-        return Env(folder_path, base_info, dss_act, optimization_level=optimization_level)
+        return Env(folder_path, base_info, dss_act)
     else:
         base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
         assert os.path.exists(base_file), base_file + ' does not exist'
@@ -113,7 +109,7 @@ def make_env(env_name, base_info, folder_path, dss_act=False, worker_idx=None,
         info = base_info.copy()
         info['dss_file'] = info['dss_file'][:-4] + '_' + str(worker_idx) + '.dss'
         info['worker_idx'] = worker_idx
-        return Env(folder_path, info, dss_act, optimization_level=optimization_level)
+        return Env(folder_path, info, dss_act)
 
 def _create_loadshape_file(folder_path, system_name, worker_idx):
     """创建对应worker_idx的loadshape文件"""
@@ -154,15 +150,15 @@ def _create_pv_data_file(folder_path, system_name, worker_idx):
 # === 向后兼容性别名和工厂函数 ===
 
 def create_optimized_env(config, env_name: str = "13Bus", **kwargs):
-    """创建优化环境的便捷函数"""
+    """创建优化环境的便捷函数（向后兼容）"""
     return PowerZooEnvWrapper.create_base_env(
-        config, env_name, optimization_level="high", **kwargs
+        config, env_name, **kwargs
     )
 
 def create_standard_env(config, env_name: str = "13Bus", **kwargs):
-    """创建标准环境的便捷函数"""
+    """创建标准环境的便捷函数（向后兼容）"""
     return PowerZooEnvWrapper.create_base_env(
-        config, env_name, optimization_level="standard", **kwargs
+        config, env_name, **kwargs
     )
 
 # 别名支持
