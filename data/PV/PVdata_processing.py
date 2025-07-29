@@ -178,19 +178,30 @@ class MIDCtoOpenDSSConverter:
         df.to_csv(full_csv_path, index=False)
         logger.info(f"保存完整数据到: {full_csv_path}")
         
-        # 2. 保存辐照度时序文件（OpenDSS Duty）
-        irrad_csv_path = output_path / f"{base_name}_irradiance_timeseries.csv"
-        irrad_data = df[['hour', 'irradiance_pu']].copy()
-        irrad_data.columns = ['Hour', 'Mult']
-        irrad_data.to_csv(irrad_csv_path, index=False)
+        # 2. 保存辐照度时序文件（OpenDSS Duty）- 无表头格式
+        irrad_csv_path = output_path / f"{base_name}_irradiance.csv"
+        irrad_data = df['irradiance_pu'].copy()
+        # 保存为无表头的单列数据
+        irrad_data.to_csv(irrad_csv_path, index=False, header=False)
         logger.info(f"保存辐照度数据到: {irrad_csv_path}")
         
-        # 3. 保存温度时序文件（OpenDSS TDuty）
-        temp_csv_path = output_path / f"{base_name}_temperature_timeseries.csv"
-        temp_data = df[['hour', 'temperature_c']].copy()
-        temp_data.columns = ['Hour', 'Temp']
-        temp_data.to_csv(temp_csv_path, index=False)
+        # 3. 保存温度时序文件（OpenDSS TDuty）- 无表头格式
+        temp_csv_path = output_path / f"{base_name}_temperature.csv"
+        temp_data = df['temperature_c'].copy()
+        # 保存为无表头的单列数据
+        temp_data.to_csv(temp_csv_path, index=False, header=False)
         logger.info(f"保存温度数据到: {temp_csv_path}")
+        
+        # 4. 保存带表头的完整时序文件（用于分析）
+        irrad_analysis_path = output_path / f"{base_name}_irradiance_timeseries.csv"
+        irrad_data_full = df[['hour', 'irradiance_pu']].copy()
+        irrad_data_full.columns = ['Hour', 'Mult']
+        irrad_data_full.to_csv(irrad_analysis_path, index=False)
+        
+        temp_analysis_path = output_path / f"{base_name}_temperature_timeseries.csv"
+        temp_data_full = df[['hour', 'temperature_c']].copy()
+        temp_data_full.columns = ['Hour', 'Temp']
+        temp_data_full.to_csv(temp_analysis_path, index=False)
         
         # 4. 生成OpenDSS命令文件
         dss_cmd_path = output_path / f"{base_name}_opendss_commands.dss"
@@ -198,9 +209,9 @@ class MIDCtoOpenDSSConverter:
             f.write("! OpenDSS PV System Commands\n")
             f.write(f"! Generated from {base_name} data\n\n")
             
-            # 定义LoadShape
-            f.write(f"New LoadShape.MyIrrad npts={len(df)} interval=1 mult=(file={irrad_csv_path.name})\n")
-            f.write(f"New LoadShape.MyTemp npts={len(df)} interval=1 mult=(file={temp_csv_path.name})\n\n")
+            # 定义LoadShape - 使用无表头的CSV文件
+            f.write(f"New LoadShape.MyIrrad npts={len(df)} sinterval=60 mult=(file={irrad_csv_path.name})\n")
+            f.write(f"New TShape.MyTemp npts={len(df)} sinterval=60 temp=(file={temp_csv_path.name})\n\n")
             
             # 定义效率曲线
             f.write("New XYCurve.Myeff npts=4 xarray=[.1 .2 .4 1.0] yarray=[.86 .9 .93 .97]\n")

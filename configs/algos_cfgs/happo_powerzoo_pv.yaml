@@ -3,9 +3,52 @@
 
 # Algorithm Configuration
 algo_name: "happo"
-seed: 12345
-cuda: True
-cuda_deterministic: True
+# Basic Configuration
+seed:
+  # 是否使用指定的种子
+  seed_specify: True
+  # 种子
+  seed: 12345
+
+# Device Configuration
+device:
+  # 是否使用CUDA
+  cuda: True
+  # 是否设置CUDA确定性
+  cuda_deterministic: True
+  # arg to torch.set_num_threads
+  torch_threads: 4
+
+# Training Configuration
+train:
+  # 训练数据的并行环境数量
+  n_rollout_threads: 1
+  # 总训练步数
+  num_env_steps: 2000000
+  # 每个环境每次训练数据的收集步数
+  episode_length: 24
+  # 日志间隔
+  log_interval: 10000
+  # 评估间隔
+  eval_interval: 50000
+  # 是否使用ValueNorm
+  use_valuenorm: True
+  # 是否使用线性学习率衰减
+  use_linear_lr_decay: False
+  # 是否考虑在episode结束时截断
+  use_proper_time_limits: True
+  # 模型目录
+  model_dir: null
+
+# Evaluation Configuration
+eval:
+  # 是否使用评估
+  use_eval: True
+  # 评估并行环境数量
+  n_eval_rollout_threads: 8
+  # 每次评估使用的episode数量
+  eval_episodes: 10
+
 n_training_threads: 8
 n_rollout_threads: 32
 n_eval_rollout_threads: 8
@@ -37,7 +80,87 @@ experiment:
   activation_id: 1               # ReLU activation
   use_orthogonal_init: True      # Better initialization for power system control
   gain: 0.01                     # Conservative gain for stability
-  
+
+# Model Configuration
+model:
+  # 网络参数
+  # mlp模块在网络中的隐藏层大小
+  hidden_sizes: [256, 256, 256]  # Larger networks for complex power systems
+  # 激活函数，选择sigmoid、tanh、relu、leaky_relu、selu
+  activation_func: relu
+  # 是否使用特征归一化
+  use_feature_normalization: True
+  # 网络参数初始化方法，选择xavier_uniform_、orthogonal_等
+  initialization_method: orthogonal_
+  # 输出层增益
+  gain: 0.01
+  # 循环参数
+  # 是否使用简单的循环网络策略（训练数据不分块）
+  use_naive_recurrent_policy: False
+  # 是否使用循环网络策略（训练数据分块）
+  use_recurrent_policy: False
+  # 循环层数量
+  recurrent_n: 1
+  # 数据分块长度；仅当use_recurrent_policy为True时有用；episode_length必须是data_chunk_length的倍数
+  data_chunk_length: 10
+  # 优化器参数
+  # 演员学习率
+  lr: 0.0003
+  # 评论家学习率
+  critic_lr: 0.0005
+  # Adam中的eps
+  opti_eps: 0.00001
+  # Adam中的权重衰减
+  weight_decay: 0.0001
+  # 标准差系数
+  std_x_coef: 1
+  # 标准差系数
+  std_y_coef: 0.5
+
+# Algorithm Configuration
+algo:
+  # ppo参数
+  # 演员更新轮数
+  ppo_epoch: 15
+  # 评论家更新轮
+  critic_epoch: 15
+  # 是否使用裁剪值损失
+  use_clipped_value_loss: True
+  # 裁剪参数
+  clip_param: 0.2
+  # 每个epoch的演员更新批次
+  actor_num_mini_batch: 4
+  # 每个epoch的评论家更新批次
+  critic_num_mini_batch: 4
+  # 熵系数
+  entropy_coef: 0.01
+  # 值损失系数
+  value_loss_coef: 1.0
+  # 是否裁剪梯度
+  use_max_grad_norm: True
+  # 最大梯度范数
+  max_grad_norm: 5.0
+  # 是否使用Generalized Advantage Estimation (GAE)
+  use_gae: True
+  # GAE的gamma
+  gamma: 0.99
+  # GAE的lambda
+  gae_lambda: 0.95
+  # 是否使用Huber损失
+  use_huber_loss: True
+  # 是否使用策略激活掩码
+  use_policy_active_masks: True
+  # Huber损失的delta
+  huber_delta: 10.0
+  # 概率聚合方法，选择prod、mean
+  action_aggregation: prod
+  # 是否共享参数
+  share_param: False
+  # 是否使用固定优化顺序
+  fixed_order: False
+  # 是否使用sentivity 规定的优化顺序
+  sentivity_order: True
+    
   # PPO Core Parameters - Tuned for Power System Stability
   ppo_epoch: 15                  # More epochs for better policy updates
   num_mini_batch: 4              # Balanced batch processing
@@ -113,7 +236,9 @@ power_system:
     reward_std_threshold: 0.1           # Standard deviation threshold for convergence
 
 # Logging and Monitoring
-log:
+logger:
+  # 日志目录
+  log_dir: "./results"
   log_interval: 10000              # Log every 10K steps
   use_tensorboard: True           # Enable TensorBoard logging
   use_wandb: False               # Weights & Biases integration
@@ -140,3 +265,10 @@ debug:
   use_render: False              # No rendering during training
   render_episodes: False         # No episode rendering
   ifi: 0.1                      # Interface interval
+
+# Render Configuration
+render:
+  # whether to use render
+  use_render: False
+  # number of episodes to render
+  render_episodes: 10

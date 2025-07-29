@@ -70,6 +70,10 @@ def get_task_name(env, env_args):
         task = f"{env_args['scenario']}-{env_args['task']}"
     elif env == "powerzoo": 
         task = env_args["env_name"]
+    elif env == "powerzoo_llm":
+        task = env_args["env_name"]
+    else:
+        task = "unknown"
     return task
 
 

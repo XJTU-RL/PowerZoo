@@ -1106,7 +1106,7 @@ def main():
     Main function to run the IEEE 34-node daily simulation
     """
     # DSS file path
-    dss_file = "/home/zhengxiaodong/exps/DeepVVC-agent/lmc_core/node_systems/34Bus/ieee34Mod1_daily.dss"
+    dss_file = "/home/zhengxiaodong/exps/PowerZoo/envs/powerzoo_llm/node_systems_with_pv/34Bus/ieee34Mod1_daily.dss"
     
     if not os.path.exists(dss_file):
         print(f"Error: DSS file not found: {dss_file}")

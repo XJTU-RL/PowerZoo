@@ -93,7 +93,7 @@ dss_simulations/
 ## 脚本配置
 
 ### 主要参数
-- **DSS文件路径**: `/home/zhengxiaodong/exps/DeepVVC-agent/lmc_core/node_systems/34BUS_with_PV/ieee34Mod1_duty.dss`
+- **DSS文件路径**: `/home/zhengxiaodong/exps/PowerZoo/envs/powerzoo_llm/node_systems_with_pv/34Bus/ieee34Mod1_duty.dss`
 - **仿真时长**: 24小时
 - **时间步长**: 10秒
 - **总时间步**: 8640步

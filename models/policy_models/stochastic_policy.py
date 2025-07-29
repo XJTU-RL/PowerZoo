@@ -68,7 +68,6 @@ class StochasticPolicy(nn.Module):
             action_log_probs: (torch.Tensor) log probabilities of taken actions.
             rnn_states: (torch.Tensor) updated RNN hidden states.
         """
-        #available_actions=None#TODO:问题2异秩问题的暂时解法
         
         obs = check(obs).to(**self.tpdv)
         rnn_states = check(rnn_states).to(**self.tpdv)

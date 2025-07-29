@@ -9,7 +9,7 @@ from .env import Env, ActionSpace
 from .powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
 
 # 电路和负载管理
-from .circuit import Circuits
+from .circuit_system import Circuits
 from .loadprofile import LoadProfile
 
 # 环境注册和工具

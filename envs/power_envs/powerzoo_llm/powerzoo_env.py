@@ -208,11 +208,14 @@ class PowerZooEnv:
         self._last_obs = wrapped_obs
         self._last_actions = actions
         
+        # 为兼容性处理dones
+        dones = [done] * self.n_agents if self.discrete else [[done]] * self.n_agents
+        
         return (
             wrapped_obs,  # local_obs  
             wrapped_obs,  # global_state 
             [[rew]],      # rewards
-            self._unwrap_space_data(done),  # dones
+            dones,        # dones
             [info],       # infos
             self.get_avail_actions()  # available_actions
         )
@@ -361,8 +364,6 @@ class PowerZooEnv:
 # 保持与powerzoo_env_optimized.py的兼容性
 OptimizedPowerZooEnv = PowerZooEnv
 
-# 日志信息
-logger.info("PowerZoo多智能体环境类已成功集成优化功能")
 
 
 

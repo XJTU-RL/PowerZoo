@@ -43,7 +43,7 @@ def check_environment():
 	required_files = [
 		project_root / "configs" / "algos_cfgs" / "happo_powerzoo_pv.yaml",
 		project_root / "envs" / "power_envs" / "powerzoo_llm" / "env.py",
-		project_root / "examples" / "train.py"
+		project_root / "examples" / "scripts" / "train.py"
 	]
 	
 	for file_path in required_files:

@@ -20,10 +20,12 @@
 """Train an algorithm."""
 import argparse
 import json
+import yaml
 import sys 
 import os
-# 将当前文件所在目录的上级目录添加到系统路径中
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 将项目根目录添加到系统路径中
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
 
 from utils.configs_tools import get_defaults_yaml_args, update_args
 
@@ -105,18 +107,34 @@ def main():
     args = vars(args)  # 将args 转换为字典
     # 如果加载配置文件参数不为空，则从配置文件中加载配置
     if args["load_config"] != "":  # 从现有配置文件加载配置
-        with open(args["load_config"], encoding="utf-8") as file:
-            all_config = json.load(file)
-        args["algo"] = all_config["main_args"]["algo"]
-        args["env"] = all_config["main_args"]["env"]
-        algo_args = all_config["algo_args"]
-        env_args = all_config["env_args"]
+        config_file = args["load_config"]
+        if config_file.endswith('.yaml') or config_file.endswith('.yml'):
+            # 加载YAML配置文件
+            with open(config_file, encoding="utf-8") as file:
+                all_config = yaml.load(file, Loader=yaml.FullLoader)
+            # 从YAML配置中提取算法名称
+            if 'algo_name' in all_config:
+                args["algo"] = all_config['algo_name']
+            # 构建algo_args字典，排除特定的顶级键且只包含字典类型的值
+            exclude_keys = {'algo_name', 'env_name', 'env_args'}
+            algo_args = {k: v for k, v in all_config.items() 
+                        if k not in exclude_keys and isinstance(v, dict)}
+            # 从YAML配置中获取环境参数
+            env_args = all_config.get('env_args', {})
+        else:
+            # 加载JSON配置文件（保持向后兼容）
+            with open(config_file, encoding="utf-8") as file:
+                all_config = json.load(file)
+            args["algo"] = all_config["main_args"]["algo"]
+            args["env"] = all_config["main_args"]["env"]
+            algo_args = all_config["algo_args"]
+            env_args = all_config["env_args"]
     else:  # 从相应的yaml文件加载配置
         # 从yaml文件中加载配置
         algo_args, env_args = get_defaults_yaml_args(args["algo"], args["env"])
     # 更新参数
     update_args(unparsed_dict, algo_args, env_args)  # update args from command line
-    for section, params in algo_args.items():
+    for params in algo_args.values():
         print(params)
     # 开始训练
     from runners import RUNNER_REGISTRY

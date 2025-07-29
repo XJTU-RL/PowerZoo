@@ -370,8 +370,11 @@ class ShareDummyVecEnv(ShareVecEnv):
     def step_wait(self):
         results = [env.step(a) for (a, env) in zip(self.actions, self.envs)]
         obs, share_obs, rews, dones, infos, available_actions = zip(*results)
-        obs = np.array(obs)
-        share_obs = np.array(share_obs)
+        
+        # Convert to lists first to handle potential shape mismatches during reset
+        obs = list(obs)
+        share_obs = list(share_obs)
+        
         rews = np.array(rews)
         dones = np.array(dones)
         infos = np.array(infos)
@@ -399,6 +402,11 @@ class ShareDummyVecEnv(ShareVecEnv):
                         available_actions[i]
                     )
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
+        
+        # Convert back to numpy arrays after all resets are done
+        obs = np.array(obs)
+        share_obs = np.array(share_obs)
+        
         self.actions = None
 
         return obs, share_obs, rews, dones, infos, available_actions

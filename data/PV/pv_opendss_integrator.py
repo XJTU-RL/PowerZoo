@@ -103,10 +103,25 @@ class PVOpenDSSIntegrator:
         
         npts = len(irrad_df)
         print(f"数据点数: {npts}")
-        print(f"辐照度范围: {irrad_df['Mult'].min():.6f} - {irrad_df['Mult'].max():.6f}")
-        print(f"温度范围: {temp_df['Temp'].min():.1f} - {temp_df['Temp'].max():.1f} °C")
         
-        # 为每个worker复制文件到OpenDSS目录
+        # 检查数据格式并提取数值列
+        if 'Mult' in irrad_df.columns:
+            irrad_values = irrad_df['Mult']
+            print(f"辐照度范围: {irrad_values.min():.6f} - {irrad_values.max():.6f}")
+        else:
+            # 假设只有一列数据
+            irrad_values = irrad_df.iloc[:, 0]
+            print(f"辐照度范围: {irrad_values.min():.6f} - {irrad_values.max():.6f}")
+            
+        if 'Temp' in temp_df.columns:
+            temp_values = temp_df['Temp']
+            print(f"温度范围: {temp_values.min():.1f} - {temp_values.max():.1f} °C")
+        else:
+            # 假设只有一列数据
+            temp_values = temp_df.iloc[:, 0]
+            print(f"温度范围: {temp_values.min():.1f} - {temp_values.max():.1f} °C")
+        
+        # 为每个worker复制和转换文件到OpenDSS目录
         target_files = []
         for worker_idx in range(self.max_workers):
             worker_str = f"{worker_idx:03d}"
@@ -118,8 +133,9 @@ class PVOpenDSSIntegrator:
             irrad_dest.parent.mkdir(parents=True, exist_ok=True)
             temp_dest.parent.mkdir(parents=True, exist_ok=True)
             
-            shutil.copy2(irrad_source, irrad_dest)
-            shutil.copy2(temp_source, temp_dest)
+            # 保存为无表头的单列数据
+            irrad_values.to_csv(irrad_dest, index=False, header=False)
+            temp_values.to_csv(temp_dest, index=False, header=False)
             
             target_files.append((irrad_dest, temp_dest))
         
@@ -296,9 +312,9 @@ Solve
 
 def main():
     parser = argparse.ArgumentParser(description='PV数据与OpenDSS集成工具')
-    parser.add_argument('--pv-data-dir', default='/home/zhengxiaodong/exps/DeepVVC-agent/data/PV',
+    parser.add_argument('--pv-data-dir', default='/home/zhengxiaodong/exps/PowerZoo/data/PV',
                        help='PV数据目录路径')
-    parser.add_argument('--dss-project-dir', default='/home/zhengxiaodong/exps/PowerZoo/node_systems/34BUS',
+    parser.add_argument('--dss-project-dir', default='/home/zhengxiaodong/exps/PowerZoo/envs/power_envs/powerzoo_llm/node_systems_with_pv/34Bus',
                        help='OpenDSS项目目录路径')
     parser.add_argument('--date', help='指定日期 (YYYY-MM-DD格式)')
     parser.add_argument('--max-workers', type=int, default=1, help='最大worker数量')

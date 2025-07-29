@@ -103,6 +103,16 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from envs.other_envs.lag.lag_env import LAGEnv
 
                 env = LAGEnv(env_args)
+            elif env_name == "powerzoo_llm":
+                # Use PowerZooEnv for powerzoo_llm environment
+                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo_llm.env_register import make_env
+                
+                # Create base environment using make_env
+                base_env = make_env(env_args['env_name'], worker_idx=rank)
+                
+                # Create PowerZooEnv wrapper with base environment and config
+                env = PowerZooEnv(base_env, env_args, rank)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -155,6 +165,11 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
             elif env_name == "powerzoo":
                 from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
                 env = PowerZooEnv(env_args,rank+train_threads)
+            elif env_name == "powerzoo_llm":
+                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo_llm.env_register import make_env
+                base_env = make_env(env_args['env_name'], env_args.get('dss_act', False), rank+train_threads)
+                env = PowerZooEnv(base_env, env_args, rank+train_threads)
             elif env_name == "dsr":
                 from envs.power_envs.dsr.dsr_env import DSREnv
                 env = DSREnv(env_args, rank+train_threads)
@@ -293,6 +308,10 @@ def get_num_agents(env, env_args, envs):
     elif env == "lag":
         return envs.n_agents
     elif env == "powerzoo":
+        return envs.n_agents
+    elif env == "PowerZoo":
+        return envs.n_agents
+    elif env == "powerzoo_llm":
         return envs.n_agents
     elif env == "dsr":
         return envs.n_agents

@@ -2,7 +2,7 @@
 import os
 import gym
 import numpy as np
-from envs.power_envs.powerzoo_llm.circuit import Circuits
+from envs.power_envs.powerzoo_llm.circuit_system import Circuits
 from envs.power_envs.powerzoo_llm.loadprofile import LoadProfile
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -74,15 +74,15 @@ class ActionSpace:
         
         # 处理电池动作空间
         if self.bat_num > 0:
-            if self.bat_act_num < float('inf'):
-                discrete_actions.extend([self.bat_act_num] * self.bat_num)  # 离散电池动作
+            if isinstance(self.bat_act_num, (int, float)) and self.bat_act_num < float('inf'):
+                discrete_actions.extend([int(self.bat_act_num)] * self.bat_num)  # 离散电池动作
             else:
                 continuous_shape += self.bat_num  # 连续电池动作
         
         # 处理光伏动作空间（如果启用）
         if self.pv_control_enabled and self.pv_num > 0:
-            if self.pv_act_num < float('inf'):
-                discrete_actions.extend([self.pv_act_num] * self.pv_num)  # 离散PV动作
+            if isinstance(self.pv_act_num, (int, float)) and self.pv_act_num < float('inf'):
+                discrete_actions.extend([int(self.pv_act_num)] * self.pv_num)  # 离散PV动作
             else:
                 continuous_shape += self.pv_num * 2  # 连续PV动作 (有功功率 + 功率因数)
         
@@ -218,7 +218,7 @@ class Env(gym.Env):
         self.LLM = info.get('for_LLM', False) # 是否为LLM环境
         self.irrad_dss = info.get('irrad_dss', None)
         
-        #TODO:添加了智能体节点与智能体名称的对应关系
+        #NOTE: 添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
         
         # generate load profile files
@@ -273,27 +273,25 @@ class Env(gym.Env):
         self.reset_obs_space()
         self.useS=False
         self.use_render=False
-        self.Y=self.circuit.get_Y_matrix()
         self.agents_bus=self.circuit.get_agent_bus_dict()
 
     def reset_obs_space(self, wrap_observation=True, observe_load=False):
         '''
-        reset the observation space based on the option of wrapping and load.
+        根据包装和负载选项重置观测空间。
         
-        instead of setting directly from the attribute (e.g., Env.wrap_observation)
-        it is suggested to set wrap_observation and observe_load through this function
+        建议通过此函数设置 wrap_observation 和 observe_load,
+        而不是直接设置属性(例如 Env.wrap_observation)。
         
         '''
         self.wrap_observation = wrap_observation
         self.observe_load = observe_load
         
         self.reset(load_profile_idx=0)
-        #nnode = len(self.obs['bus_voltages'])
-        nnode = len(np.hstack( list(self.obs['bus_voltages'].values()) ))
+        node_num = len(np.hstack( list(self.obs['bus_voltages'].values()) )) # 节点数量
         if observe_load: nload = len(self.obs['load_profile_t'])
         
         if self.wrap_observation:
-            low, high = [0.8]*nnode, [1.2]*nnode  # add voltage bound
+            low, high = [0.8]*node_num, [1.2]*node_num  # add voltage bound
             low, high = low+[0]*self.cap_num, high+[1]*self.cap_num # add cap bound
             low, high = low+[0]*self.reg_num, high+[self.reg_act_num]*self.reg_num # add reg bound
             low, high = low+[0,-1]*self.bat_num, high+[1,1]*self.bat_num # add bat bound
@@ -310,7 +308,7 @@ class Env(gym.Env):
                         for bat in self.obs['bat_statuses'].keys()}
             
             obs_dict = {
-                'bus_voltages': gym.spaces.Box(0.8, 1.2, shape=(nnode,)),
+                'bus_voltages': gym.spaces.Box(0.8, 1.2, shape=(node_num,)),
                 'cap_statuses': gym.spaces.MultiDiscrete([2]*self.cap_num),
                 'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.reg_num),  # 修复错误：reg_num
                 'bat_statuses': gym.spaces.Dict(bat_dict)
@@ -350,6 +348,12 @@ class Env(gym.Env):
         def powerloss_reward(self) -> float:
             """功率损耗奖励"""
             current_loss = self.env.obs.get('power_loss', 0)
+            # Handle both scalar and array types
+            if hasattr(current_loss, '__len__'):
+                # If it's an array, take the first element or sum
+                current_loss = float(current_loss[0]) if len(current_loss) > 0 else 0.0
+            else:
+                current_loss = float(current_loss)
             ratio = max(0.0, min(1.0, current_loss))
             return -ratio * self.power_w
 
@@ -478,6 +482,13 @@ class Env(gym.Env):
             """功率平衡奖励 - 鼓励系统功率平衡"""
             power_loss_ratio = abs(self.env.obs.get('power_loss', 0))
             
+            # Handle both scalar and array types
+            if hasattr(power_loss_ratio, '__len__'):
+                # If it's an array, take the first element
+                power_loss_ratio = float(power_loss_ratio[0]) if len(power_loss_ratio) > 0 else 0.0
+            else:
+                power_loss_ratio = float(power_loss_ratio)
+            
             # 功率损耗越低奖励越大
             if power_loss_ratio < 0.02:  # <2%损耗
                 return 5.0
@@ -551,7 +562,6 @@ class Env(gym.Env):
         ### capacitor control
         if self.cap_num>0:
             statuses = action[action_idx:action_idx+self.cap_num]
-            #print("self.cap_num.statues=",statuses)#TODO:打印电容数量
             capdiff = self.circuit.set_all_capacitor_statuses(statuses)
             cap_statuses = {cap:status for cap, status in \
                             zip(self.circuit.capacitors.keys(), statuses)}
@@ -571,7 +581,7 @@ class Env(gym.Env):
 
         ### battery control
         if self.bat_num>0:
-            if isinstance(self.action_space, gym.spaces.Tuple) and self.bat_act_num == float('inf'):
+            if isinstance(self.action_space, gym.spaces.Tuple) and isinstance(self.bat_act_num, (int, float)) and self.bat_act_num == float('inf'):
                 # 连续电池控制 - 从连续动作部分获取
                 continuous_start = len(action) - (self.bat_num + (self.pv_num * 2 if self.pv_control_enabled else 0))
                 bat_actions = action[continuous_start:continuous_start + self.bat_num]
@@ -585,32 +595,19 @@ class Env(gym.Env):
         
         ### PV control (如果启用)
         if self.pv_control_enabled and self.pv_num > 0:
-            if isinstance(self.action_space, gym.spaces.Tuple) and self.pv_act_num == float('inf'):
+            if isinstance(self.action_space, gym.spaces.Tuple) and isinstance(self.pv_act_num, (int, float)) and self.pv_act_num == float('inf'):
                 # 连续PV控制 - 从连续动作部分获取
                 continuous_start = len(action) - (self.pv_num * 2)
                 pv_actions = action[continuous_start:]
                 # 将PV动作重新整形为 [pv_num, 2] 格式 (有功功率, 功率因数)
-                pv_actions = pv_actions.reshape(self.pv_num, 2)
+                pv_actions = np.array(pv_actions).reshape(self.pv_num, 2)
             else:
                 # 离散PV控制
                 pv_actions = action[action_idx:action_idx+self.pv_num]
                 action_idx += self.pv_num
             
             # 设置PV系统控制
-            if hasattr(self.circuit, 'set_all_pvs_before_solve'):
-                self.circuit.set_all_pvs_before_solve(pv_actions)
-            else:
-                # 如果circuit类没有PV控制方法，我们手动控制
-                for i, pv_name in enumerate(self.pv_names):
-                    if pv_name in self.circuit.pvs:
-                        pv = self.circuit.pvs[pv_name]
-                        if isinstance(pv_actions, np.ndarray) and pv_actions.ndim == 2:
-                            # 连续控制：[有功功率比例, 功率因数]
-                            p_ratio, pf = pv_actions[i]
-                            pv.step_before_solve([p_ratio, pf])
-                        else:
-                            # 离散控制
-                            pv.step_before_solve([pv_actions[i]])
+            self.circuit.set_all_pvs_before_solve(pv_actions)
                             
             self.str_action += 'PV Status:'+str(pv_actions)
 
@@ -669,16 +666,10 @@ class Env(gym.Env):
 
         # 计算PV控制差异（如果启用）
         pv_diffs = []
-        if self.pv_control_enabled and len(pv_action_tuples) > 0:
-            for pv_name, (target_p, target_pf) in pv_action_tuples:
-                try:
-                    current_p = self.circuit.pvsystems[pv_name].pmpp
-                    current_pf = self.circuit.pvsystems[pv_name].pf
-                    pv_diff_p = abs(target_p - current_p)
-                    pv_diff_pf = abs(target_pf - current_pf)
-                    pv_diffs.append((pv_diff_p, pv_diff_pf))
-                except:
-                    pv_diffs.append((0.0, 0.0))
+        if self.pv_control_enabled and self.pv_num > 0:
+            # PV diffs are already calculated by the circuit, just pass empty list for now
+            # In the future, this can be enhanced to track actual PV control differences
+            pass
 
         reward, info = self.reward_func.composite_reward(capdiff, regdiff,\
                                                          soc_errs, dis_errs, pv_diffs)
@@ -1100,7 +1091,7 @@ class Env(gym.Env):
     def dummy_action(self):
         return [1]*self.cap_num + \
                [self.reg_act_num]*self.reg_num + \
-               [0.0 if self.bat_act_num==np.inf else self.bat_act_num//2]*self.bat_num
+               [0.0 if isinstance(self.bat_act_num, (int, float)) and self.bat_act_num==np.inf else int(self.bat_act_num)//2]*self.bat_num
         
     def load_base_kW(self):
         '''

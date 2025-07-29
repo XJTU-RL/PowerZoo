@@ -374,12 +374,48 @@ def make_env(env_name, dss_act=False, worker_idx=None):
             for line in fin:
                 if line.strip() == 'redirect loadshape.dss':
                     fout.write('redirect loadshape_' + str(worker_idx) + '.dss\n')
+                elif line.strip() == 'redirect pv_data.dss':
+                    fout.write('redirect pv_data_' + str(worker_idx) + '.dss\n')
                 else:
                     fout.write(line)
+        
+        # 创建worker特定的loadshape和pv_data文件
+        _create_loadshape_file(folder_path, base_info['system_name'], worker_idx)
+        _create_pv_data_file(folder_path, base_info['system_name'], worker_idx)
         info = base_info.copy()
         info['dss_file'] = info['dss_file'][:-4] + '_' + str(worker_idx) + '.dss'
         info['worker_idx'] = worker_idx
         return Env(folder_path, info, dss_act)
+
+def _create_loadshape_file(folder_path, system_name, worker_idx):
+    """创建对应worker_idx的loadshape文件"""
+    base_loadshape_file = os.path.join(folder_path, system_name, 'loadshape.dss')
+    target_loadshape_file = os.path.join(folder_path, system_name, f'loadshape_{worker_idx}.dss')
+    
+    if os.path.exists(base_loadshape_file):
+        with open(base_loadshape_file, 'r') as fin:
+            with open(target_loadshape_file, 'w') as fout:
+                for line in fin:
+                    # 将路径中的 000 替换为对应的 worker_idx 格式
+                    if './loadshape/000/' in line:
+                        new_line = line.replace('./loadshape/000/', f'./loadshape/{worker_idx:03d}/')
+                        fout.write(new_line)
+                    else:
+                        fout.write(line)
+
+def _create_pv_data_file(folder_path, system_name, worker_idx):
+    """创建对应worker_idx的PV数据文件"""
+    base_pv_data_file = os.path.join(folder_path, system_name, 'pv_data.dss')
+    target_pv_data_file = os.path.join(folder_path, system_name, f'pv_data_{worker_idx}.dss')
+    
+    if os.path.exists(base_pv_data_file):
+        with open(base_pv_data_file, 'r') as fin:
+            with open(target_pv_data_file, 'w') as fout:
+                for line in fin:
+                    # 将路径中的 000 替换为对应的 worker_idx 格式
+                    new_line = line.replace('./irradiation/000/', f'./irradiation/{worker_idx:03d}/')
+                    new_line = new_line.replace('./temperature/000/', f'./temperature/{worker_idx:03d}/')
+                    fout.write(new_line)
         
 def remove_parallel_dss(env_name, num_workers):
     """删除特定worker_idx的临时DSS文件"""
