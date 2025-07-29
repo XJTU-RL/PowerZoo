@@ -13,7 +13,7 @@ from .circuit_system import Circuits
 from .loadprofile import LoadProfile
 
 # 环境注册和工具
-from .env_register import make_env, remove_parallel_dss
+from .env_register import make_base_env, remove_parallel_dss
 from .env_wrapper import PowerZooEnvWrapper
 
 # 配置类
@@ -22,11 +22,9 @@ from .powerzoo_config import (
     OpenDSSConstraints,
     OpenDSSMetrics,
     PowerZooEnvConfig,
-    PowerZooEnvConfig,  # 向后兼容别名
     OpenDSSExpertRules,
     OpenDSSStateAnalyzer,
     PowerZooActionSelector,
-    PowerZooActionSelector  # 向后兼容别名
 )
 
 # 版本信息
@@ -47,7 +45,7 @@ __all__ = [
     "LoadProfile",
     
     # 工具函数
-    "make_env",
+    "make_base_env",
     "remove_parallel_dss",
     "PowerZooEnvWrapper",
     
@@ -106,7 +104,7 @@ def create_marl_env(env_name="13Bus", num_env=1, use_s=False, seed=0, **kwargs):
     from argparse import Namespace
     
     # 创建基础环境
-    base_env = make_env(env_name)
+    base_env = make_base_env(env_name)
     
     # 创建配置
     config = Namespace(
@@ -131,12 +129,12 @@ def get_env_info(env_name):
     Returns:
         dict: 环境配置信息
     """
-    from .env_register import ENV_LIST
+    from .env_register import _ENV_INFO
     
-    if env_name not in ENV_LIST:
+    if env_name not in _ENV_INFO:
         raise ValueError(f"不支持的环境: {env_name}. 支持的环境: {list(ENV_LIST.keys())}")
     
-    return ENV_LIST[env_name]
+    return _ENV_INFO[env_name]
 
 
 # 日志配置

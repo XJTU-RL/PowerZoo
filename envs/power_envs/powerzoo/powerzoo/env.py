@@ -789,8 +789,9 @@ class Env(gym.Env):
             bus1 = buses[0].split('.', 1)[0].lower()
             bus2 = buses[1].split('.', 1)[0].lower()
             self.transformers[transformer_name] = (bus1, bus2)
-
+        # 合并变压器和线路的边
         self.edges = [frozenset(edge) for _, edge in self.transformers.items()] + [frozenset(edge) for _, edge in self.lines.items()]
+        # 检查是否有重复的边
         if len(self.edges) != len(set(self.edges)):
             print('There are ' + str(len(self.edges)) + ' edges and ' + str(len(set(self.edges))) + ' unique edges. Overlapping transformer edges')
 

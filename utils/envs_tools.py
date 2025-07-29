@@ -94,6 +94,16 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
                 env = PowerZooEnv(env_args,rank) 
                 
+            elif env_name == "powerzoo_llm":
+                # Use PowerZooEnv for powerzoo_llm environment
+                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo_llm.env_register import make_base_env
+                
+                # Create base environment using make_base_env
+                base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), worker_idx=rank)
+                # Create PowerZooEnv wrapper with base environment and config
+                env = PowerZooEnv(base_env, env_args, rank)
+                
             elif env_name == "dsr":
                 from envs.power_envs.dsr.dsr_env import DSREnv
                 
@@ -103,16 +113,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from envs.other_envs.lag.lag_env import LAGEnv
 
                 env = LAGEnv(env_args)
-            elif env_name == "powerzoo_llm":
-                # Use PowerZooEnv for powerzoo_llm environment
-                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
-                from envs.power_envs.powerzoo_llm.env_register import make_env
-                
-                # Create base environment using make_env
-                base_env = make_env(env_args['env_name'], worker_idx=rank)
-                
-                # Create PowerZooEnv wrapper with base environment and config
-                env = PowerZooEnv(base_env, env_args, rank)
+
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -120,14 +121,14 @@ def make_train_env(env_name, seed, n_threads, env_args):
             return env
 
         return init_env
-    print("make_train_env=",n_threads)
+    print("train env的数量是=",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
         return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])#get_env_fn(i)返回值是单个的环境
 
 
-def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
+def make_eval_env(env_name, seed, n_threads, env_args):
     """Make env for evaluation."""
     if env_name == "dexhands":  # dexhands does not support running multiple instances
         raise NotImplementedError
@@ -146,7 +147,6 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
                 from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import (
                     MujocoMulti,
                 )
-
                 env = MujocoMulti(env_args=env_args)
             elif env_name == "pettingzoo_mpe":
                 from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import (
@@ -164,15 +164,17 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
                 env = FootballEnv(env_args)
             elif env_name == "powerzoo":
                 from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
-                env = PowerZooEnv(env_args,rank+train_threads)
+                env = PowerZooEnv(env_args,rank)
+                
             elif env_name == "powerzoo_llm":
                 from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
-                from envs.power_envs.powerzoo_llm.env_register import make_env
-                base_env = make_env(env_args['env_name'], env_args.get('dss_act', False), rank+train_threads)
-                env = PowerZooEnv(base_env, env_args, rank+train_threads)
+                from envs.power_envs.powerzoo_llm.env_register import make_base_env
+                base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), rank)
+                env = PowerZooEnv(base_env, env_args, rank)
+                
             elif env_name == "dsr":
                 from envs.power_envs.dsr.dsr_env import DSREnv
-                env = DSREnv(env_args, rank+train_threads)
+                env = DSREnv(env_args, rank)
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -184,7 +186,7 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
             return env
 
         return init_env
-    print("make_eval_env=",n_threads)
+    print("eval env 的数量是 =",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
@@ -245,6 +247,17 @@ def make_render_env(env_name, seed, env_args):
         )
         manual_delay = False
         env.seed(seed * 60000)
+    elif env_name == "powerzoo_llm": #powerzoo_llm环境渲染支持
+        from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
+        from envs.power_envs.powerzoo_llm.env_register import make_base_env
+        
+        base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), worker_idx=4)
+        env = PowerZooEnv(base_env, env_args, rank=4)
+        manual_render = False  
+        manual_expand_dims = False
+        manual_delay = False
+        env.seed(seed * 60000)
+        
     elif env_name == "dsr":
         from envs.power_envs.dsr.dsr_env import DSREnv
 

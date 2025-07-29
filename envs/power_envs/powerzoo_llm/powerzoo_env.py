@@ -4,23 +4,6 @@
 @Time      : 2025-04-08 17:51
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 此 Python 文件旨在实现一个电力系统仿真环境 `PowerZooEnv`，用于多智能体强化学习实验。
-- 关键库：使用 `gym` 进行环境管理，`numpy` 进行数值计算，`imageio` 与 `matplotlib.pyplot` 用于可能的图像操作。
-- 关键函数：
-  - `seeding`：设置随机种子，保证结果可复现。
-- 关键类：
-  - `PowerZooEnv`：
-    - 初始化时创建环境，确定智能体数量和名称，设置动作和观测空间。
-    - `step`：执行动作，返回局部观测、全局状态、奖励、终止信息等。
-    - `reset`：重置环境，返回初始观测和状态。
-    - `get_avail_actions`：获取所有智能体可用动作。
-    - `get_avail_agent_actions`：获取单个智能体可用动作。
-    - `render`：预留渲染功能。
-    - `close`：关闭环境，移除并行 DSS。
-    - `seed`：设置环境随机种子。
-    - `unwrap`：处理观测数据。
-    - `get_env_action_space`：拆分动作空间给各智能体。
-    - `repeat`：复制观测空间。
 """
 import copy
 import gym
@@ -31,10 +14,10 @@ import imageio
 import glob
 import torch
 try:
-    from envs.power_envs.powerzoo_llm.env_register import make_env, remove_parallel_dss
+    from envs.power_envs.powerzoo_llm.env_register import make_base_env, remove_parallel_dss
 except ImportError:
     # 相对导入用于测试
-    from .env_register import make_env, remove_parallel_dss
+    from .env_register import make_base_env, remove_parallel_dss
 from typing import Dict, List, Any, Optional, Tuple, Union
 from functools import lru_cache
 import logging
@@ -46,13 +29,29 @@ import sys, os
 import multiprocessing as mp
 
 try:
-    from .utils import get_logger
+    from .utils import get_logger, log_training_step, setup_training_logger
 except ImportError:
     def get_logger(name):
         logging.basicConfig(level=logging.INFO)
         return logging.getLogger(name)
+    
+    def log_training_step(*args, **kwargs):
+        pass
+    
+    def setup_training_logger(name):
+        return get_logger(name)
 
 logger = get_logger(__name__)
+
+# 添加训练日志记录器（如果需要详细的训练日志）
+_training_logger = None
+
+def get_training_logger():
+    """获取训练专用日志记录器"""
+    global _training_logger
+    if _training_logger is None:
+        _training_logger = setup_training_logger("powerzoo_training")
+    return _training_logger
 
 
 def seeding(seed: int) -> None:
@@ -96,7 +95,16 @@ class PowerZooEnv:
         self._last_obs = None
         self._last_actions = None
         
+        # 训练统计信息
+        self._episode_count = 0
+        self._total_steps = 0
+        self._training_logger = get_training_logger()
+        
         logger.info(f"PowerZoo环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
+        self._training_logger.train_info(
+            f"环境初始化 | 智能体数: {self.n_agents} | 环境数: {self.num_env} | "
+            f"电容器: {self.cap_num} | 调压器: {self.reg_num} | 电池: {self.bat_num}"
+        )
     
     def _setup_core_config(self) -> None:
         """设置核心配置"""
@@ -208,6 +216,35 @@ class PowerZooEnv:
         self._last_obs = wrapped_obs
         self._last_actions = actions
         
+        # 更新训练统计并记录步骤信息
+        self._total_steps += 1
+        current_step = getattr(self.env, 't', 0)
+        
+        # 记录详细的训练步骤信息
+        action_summary = self._format_actions_summary(processed_actions)
+        simplified_info = {
+            'reward': rew,
+            'power_loss': info.get('power_loss_ratio', 0),
+            'voltage_reward': info.get('vol_reward', 0),
+            'ctrl_reward': info.get('ctrl_reward', 0)
+        }
+        
+        self._training_logger.train_info(
+            f"Episode {self._episode_count:4d} | Step {current_step:3d} | "
+            f"Actions: {action_summary} | Reward: {rew:8.4f} | Done: {done}"
+        )
+        
+        # 记录奖励分解信息（如果可用）
+        if 'vol_reward' in info and 'ctrl_reward' in info:
+            reward_components = {
+                'total': rew,
+                'voltage': info.get('vol_reward', 0),
+                'control': info.get('ctrl_reward', 0),
+                'power_loss': info.get('power_loss_ratio', 0)
+            }
+            reward_str = " | ".join([f"{k}: {v:6.3f}" for k, v in reward_components.items()])
+            self._training_logger.reward_debug(f"Reward Components: {reward_str}")
+        
         # 为兼容性处理dones
         dones = [done] * self.n_agents if self.discrete else [[done]] * self.n_agents
         
@@ -243,6 +280,15 @@ class PowerZooEnv:
             
             # 更新缓存
             self._last_obs = wrapped_obs
+            
+            # 更新回合统计
+            self._episode_count += 1
+            
+            # 记录环境重置信息
+            self._training_logger.train_info(
+                f"环境重置 | Episode {self._episode_count:4d} | "
+                f"LoadProfile: {load_profile_idx} | 总步数: {self._total_steps}"
+            )
             
             return wrapped_obs, state_obs, self.get_avail_actions()
             
@@ -294,7 +340,7 @@ class PowerZooEnv:
             # 已经是正确形状
             pass
         else:
-            logger.warning(f"动作形状异常: {actions.shape}, 尝试重塑")
+            logger.debug(f"动作形状异常: {actions.shape}, 尝试重塑")
             actions = actions.reshape(-1)[:self.n_agents]
         
         return actions
@@ -339,6 +385,16 @@ class PowerZooEnv:
     def _unwrap_space(self, space) -> List:
         """展开空间为智能体列表"""
         return [space for _ in range(self.n_agents)]
+    
+    def _format_actions_summary(self, actions: np.ndarray) -> str:
+        """格式化动作摘要用于日志记录"""
+        if len(actions) <= 6:
+            return str(actions.tolist())
+        else:
+            # 对于长动作向量，只显示前几个和后几个
+            start = actions[:3].tolist()
+            end = actions[-3:].tolist()
+            return f"[{start}...{end}]({len(actions)})"
     
     def get_env_action_space(self, env_action_space) -> List[Discrete]:
         """兼容原版动作空间方法"""

@@ -119,7 +119,7 @@ _ENV_INFO = {
         'dss_file': 'ieee34Mod1_duty.dss',
         'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
-        'max_episode_steps': 360,
+        'max_episode_steps': 360,           # 匹配loadshape数据点数
         'reg_act_num': 33,
         'bat_act_num': 33,
         'pv_control': False,                # 默认禁用PV控制
@@ -135,7 +135,7 @@ _ENV_INFO = {
         'dss_file': 'ieee34Mod1_duty.dss',
         'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
-        'max_episode_steps': 360,
+        'max_episode_steps': 360,           # 匹配loadshape数据点数和配置文件episode_length
         'reg_act_num': 33,
         'bat_act_num': 33,
         'pv_control': True,                 # 启用PV控制
@@ -153,7 +153,7 @@ _ENV_INFO = {
         'dss_file': 'ieee34Mod1_duty.dss',
         'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
-        'max_episode_steps': 360,
+        'max_episode_steps': 1440,
         'reg_act_num': 33,
         'bat_act_num': 33,
         'pv_control': True,                 # 启用PV控制
@@ -350,7 +350,7 @@ def get_info_and_folder(env_name):
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 
-def make_env(env_name, dss_act=False, worker_idx=None):
+def make_base_env(env_name, dss_act=False, worker_idx=None):
     """创建环境实例
     
     Args:
@@ -393,6 +393,17 @@ def _create_loadshape_file(folder_path, system_name, worker_idx):
     target_loadshape_file = os.path.join(folder_path, system_name, f'loadshape_{worker_idx}.dss')
     
     if os.path.exists(base_loadshape_file):
+        # 确保对应的loadshape数据目录存在
+        loadshape_data_dir = os.path.join(folder_path, system_name, 'loadshape', f'{worker_idx:03d}')
+        base_data_dir = os.path.join(folder_path, system_name, 'loadshape', '000')
+        
+        # 如果目标数据目录不存在，则从000目录复制
+        if not os.path.exists(loadshape_data_dir) and os.path.exists(base_data_dir):
+            import shutil
+            os.makedirs(os.path.dirname(loadshape_data_dir), exist_ok=True)
+            shutil.copytree(base_data_dir, loadshape_data_dir)
+            print(f"创建loadshape数据目录: {loadshape_data_dir}")
+        
         with open(base_loadshape_file, 'r') as fin:
             with open(target_loadshape_file, 'w') as fout:
                 for line in fin:
@@ -409,6 +420,25 @@ def _create_pv_data_file(folder_path, system_name, worker_idx):
     target_pv_data_file = os.path.join(folder_path, system_name, f'pv_data_{worker_idx}.dss')
     
     if os.path.exists(base_pv_data_file):
+        # 确保对应的irradiation和temperature数据目录存在
+        irrad_data_dir = os.path.join(folder_path, system_name, 'irradiation', f'{worker_idx:03d}')
+        temp_data_dir = os.path.join(folder_path, system_name, 'temperature', f'{worker_idx:03d}')
+        base_irrad_dir = os.path.join(folder_path, system_name, 'irradiation', '000')
+        base_temp_dir = os.path.join(folder_path, system_name, 'temperature', '000')
+        
+        # 如果目标数据目录不存在，则从000目录复制
+        if not os.path.exists(irrad_data_dir) and os.path.exists(base_irrad_dir):
+            import shutil
+            os.makedirs(os.path.dirname(irrad_data_dir), exist_ok=True)
+            shutil.copytree(base_irrad_dir, irrad_data_dir)
+            print(f"创建irradiation数据目录: {irrad_data_dir}")
+            
+        if not os.path.exists(temp_data_dir) and os.path.exists(base_temp_dir):
+            import shutil
+            os.makedirs(os.path.dirname(temp_data_dir), exist_ok=True)
+            shutil.copytree(base_temp_dir, temp_data_dir)
+            print(f"创建temperature数据目录: {temp_data_dir}")
+        
         with open(base_pv_data_file, 'r') as fin:
             with open(target_pv_data_file, 'w') as fout:
                 for line in fin:

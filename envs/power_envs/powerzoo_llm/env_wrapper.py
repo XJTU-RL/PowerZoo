@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PowerZooEnv 包装器，提供更简单的初始化接口
+PowerZooEnv 包装器，提供更简单的初始化接口, 在多智能体算法汇总并没有使用该wrapper
 集成优化功能并保持向后兼容性
 """
 import os
@@ -52,7 +52,7 @@ class PowerZooEnvWrapper:
             action_space_config = config.action_space_config
         elif isinstance(config, dict):
             source_bus = config.get('source_bus', '650')
-            max_episode_steps = config.get('max_episode_steps', 96)
+            max_episode_steps = config.get('max_episode_steps', 360)
             action_space_config = config.get('action_space_config', {})
         else:
             # 默认值
@@ -75,14 +75,14 @@ class PowerZooEnvWrapper:
         # 创建环境
         # 获取rank参数，默认为0
         rank = kwargs.get('rank', 0)
-        env = make_env(env_name, env_info, str(folder_path), 
+        env = make_base_env(env_name, env_info, str(folder_path), 
                       kwargs.get('dss_act', False), worker_idx=rank)
         powerzoo_env = PowerZooEnv(env=env, config=config, rank=rank)
         
         logger.info(f"PowerZoo环境创建成功: {env_name}")
         return powerzoo_env
 
-def make_env(env_name, base_info, folder_path, dss_act=False, worker_idx=None):
+def make_base_env(env_name, base_info, folder_path, dss_act=False, worker_idx=None):
     """创建环境实例"""
     
     if worker_idx is None:

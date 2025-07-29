@@ -26,7 +26,7 @@ train:
   # 总训练步数
   num_env_steps: 2000000
   # 每个环境每次训练数据的收集步数
-  episode_length: 24
+  episode_length: 360
   # 日志间隔
   log_interval: 10000
   # 评估间隔
@@ -45,47 +45,15 @@ eval:
   # 是否使用评估
   use_eval: True
   # 评估并行环境数量
-  n_eval_rollout_threads: 8
+  n_eval_rollout_threads: 2
   # 每次评估使用的episode数量
   eval_episodes: 10
-
-n_training_threads: 8
-n_rollout_threads: 32
-n_eval_rollout_threads: 8
-
-# Environment Configuration  
-env_name: "PowerZoo"
-env_args:
-  env_name: "34Bus_pv"          # Use 34Bus with PV control enabled
-  seed: 12345
-  use_render: False
-  useS: False
-  record_node: False
-
-# Training Hyperparameters - Optimized for Power System Convergence
-experiment:
-  # Training Duration - Extended for Complex Power System Learning
-  num_env_steps: 2000000         # 2M steps total (约833小时的24步episode训练)
-  episode_length: 24             # 24 hours operation cycle
-  
-  # Evaluation Settings
-  eval_interval: 50000           # Evaluate every 50K steps
-  save_interval: 100000          # Save model every 100K steps  
-  use_eval: True
-  eval_episodes: 32              # 32 episodes for robust evaluation
-  
-  # Model Architecture - Enhanced for Mixed Action Spaces
-  hidden_size: 256               # Larger networks for complex power systems
-  layer_N: 3                     # Deeper networks for better function approximation
-  activation_id: 1               # ReLU activation
-  use_orthogonal_init: True      # Better initialization for power system control
-  gain: 0.01                     # Conservative gain for stability
 
 # Model Configuration
 model:
   # 网络参数
   # mlp模块在网络中的隐藏层大小
-  hidden_sizes: [256, 256, 256]  # Larger networks for complex power systems
+  hidden_sizes: [128, 128]  # Larger networks for complex power systems
   # 激活函数，选择sigmoid、tanh、relu、leaky_relu、selu
   activation_func: relu
   # 是否使用特征归一化
@@ -111,15 +79,12 @@ model:
   # Adam中的eps
   opti_eps: 0.00001
   # Adam中的权重衰减
-  weight_decay: 0.0001
+  weight_decay: 0.0
   # 标准差系数
   std_x_coef: 1
   # 标准差系数
   std_y_coef: 0.5
-
-# Algorithm Configuration
 algo:
-  # ppo参数
   # 演员更新轮数
   ppo_epoch: 15
   # 评论家更新轮
@@ -159,49 +124,36 @@ algo:
   # 是否使用固定优化顺序
   fixed_order: False
   # 是否使用sentivity 规定的优化顺序
-  sentivity_order: True
-    
-  # PPO Core Parameters - Tuned for Power System Stability
-  ppo_epoch: 15                  # More epochs for better policy updates
-  num_mini_batch: 4              # Balanced batch processing
-  lr: 0.0003                     # Conservative learning rate
-  critic_lr: 0.0005              # Slightly higher critic learning rate
-  opti_eps: 0.00001             # Optimizer epsilon
-  weight_decay: 0.0001          # L2 regularization
+  sentivity_order: False
+      
+# Environment Configuration  
+env_args:
+  env_name: 34Bus_pv # choose from 13Bus 34Bus 123Bus 8500Node, 34Bus_pv for PV control
+  #random seed
+  seed: 123456 # 环境的seed
+  #maximum number of steps
+  num_steps: 24
+  #number of parallel processes
+  num_workers: None
+  use_plot: False
+  do_testing: False
+  #running mode, random, parallele, episodic or dss
+  mode: single
+  #whether to use S
+  useS: False
+  # whether to order S from big to small
+  # big2small参数仅用于SHOM算法
+  big2small: False
+  # whether to convey the information of the voltage node
+  use_render: False
+  record_node: False # 添加一个记录节点信息的开关
+  dss_act: False # 是否使用opendss的自动求解，如果打开则算法控制失效
   
-  # Policy Update Parameters
-  clip_param: 0.2                # PPO clipping parameter
-  max_grad_norm: 5.0             # Gradient clipping for stability
-  
-  # Experience Collection
-  n_rollout_threads: 32          # Parallel environment collection
-  buffer_size: 2000              # Experience buffer size
-  
-  # Exploration Strategy - Critical for Power System Constraints  
-  entropy_coef: 0.01             # Moderate exploration
-  entropy_schedule: "linear"     # Linear entropy decay
-  final_entropy_coef: 0.001      # Final entropy coefficient
-  
-  # Value Function Learning
-  use_value_active_masks: True   # Handle agent masking
-  use_policy_active_masks: True  # Handle policy masking
-  value_loss_coef: 1.0          # Value function loss weight
-  
-  # Advanced Features for Power System Control
-  use_gae: True                  # Generalized Advantage Estimation
-  gamma: 0.99                    # Discount factor
-  gae_lambda: 0.95               # GAE lambda parameter
-  use_proper_time_limits: True   # Handle episode termination correctly
-  
-  # Constraint-Aware Training Features
-  use_feature_normalization: True    # Normalize observations
-  use_reward_normalization: False    # Keep original reward scale for interpretability
-  use_popart: False                  # PopArt normalization
-  
-  # Mixed Action Space Handling
-  use_recurrent_policy: False        # Use feedforward policy
-  use_centralized_V: True           # Centralized value function
-  use_single_network: False         # Separate actor-critic networks
+  # LLM增强功能配置
+  llm_enhanced: True
+  use_natural_language_obs: False
+  use_action_explanation: False
+
 
 # Power System Specific Training Configuration
 power_system:

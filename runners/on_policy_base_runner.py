@@ -97,7 +97,7 @@ class OnPolicyBaseRunner:
         # 如果是shom算法才加载这些参数
         if args["algo"] == "shom":
             self.ordered = algo_args["algo"]["ordered"]
-             # 是否使用无功电压矩阵
+            # 是否使用无功电压矩阵
             self.useS = env_args.get("useS", False)
             # 是否使用无功电压值从大到小的顺序更新智能体
             self.big2small = env_args.get("big2small", False)
@@ -125,7 +125,7 @@ class OnPolicyBaseRunner:
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
         )
 
-        # set the config of env
+        # set the config of env 设置环境参数
         if self.algo_args["render"]["use_render"]:  # make envs for rendering 使用环境进行渲染而非训练
             (
                 self.envs,
@@ -148,7 +148,6 @@ class OnPolicyBaseRunner:
                     algo_args["seed"]["seed"],
                     algo_args["eval"]["n_eval_rollout_threads"],
                     env_args,
-                    algo_args["train"]["n_rollout_threads"],
                 )
                 if algo_args["eval"]["use_eval"]
                 else None

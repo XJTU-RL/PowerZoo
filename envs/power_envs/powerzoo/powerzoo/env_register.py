@@ -9,7 +9,7 @@
   - `_SYS_INFO`：以系统名称为键，存储电力系统的固定信息，如源节点、节点大小等。
   - `_ENV_INFO`：以环境名称为键，存储环境所需的必要信息，如系统名称、DSS 文件等，并更新系统信息。
   - `get_info_and_folder`：根据环境名称获取环境信息和系统文件夹路径，支持缩放比例设置。
-  - `make_env`：根据环境名称创建仿真环境，支持多线程工作模式。
+  - `make_base_env`：根据环境名称创建仿真环境，支持多线程工作模式。
   - `remove_parallel_dss`：移除并行运行时生成的 DSS 文件。
 - 工作流程：通过字典存储系统和环境信息，在创建环境时，根据环境名称获取相应信息，若为多线程模式则复制并修改 DSS 文件，最后创建环境实例。
 """
@@ -406,7 +406,7 @@ def get_info_and_folder(env_name):
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 
-def make_env(env_name, dss_act=False, worker_idx=None):
+def make_base_env(env_name, dss_act=False, worker_idx=None):
     base_info, folder_path = get_info_and_folder(env_name)
 
     if worker_idx is None:

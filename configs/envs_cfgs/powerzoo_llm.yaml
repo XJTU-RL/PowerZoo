@@ -16,7 +16,7 @@ mode: single
 useS: False
 # whether to order S from big to small
 # big2small参数仅用于SHOM算法
-# big2small: False
+big2small: False
 # whether to convey the information of the voltage node
 use_render: False
 record_node: False # 添加一个记录节点信息的开关

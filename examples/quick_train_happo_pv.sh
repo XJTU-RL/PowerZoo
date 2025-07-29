@@ -19,8 +19,7 @@ python examples/scripts/train.py \
   --algo happo \
   --env powerzoo_llm \
   --exp_name "happo_34bus_pv_$(date +%Y%m%d_%H%M%S)" \
-  --load_config configs/algos_cfgs/happo_powerzoo_pv.yaml \
-  --n_rollout_threads 1 \
+  --load_config configs/exp_cfgs/happo_powerzoo_pv.yaml \
   --cuda True \
   --cuda_deterministic True \
   2>&1 | tee "results/happo_powerzoo_pv/training_$(date +%Y%m%d_%H%M%S).log"

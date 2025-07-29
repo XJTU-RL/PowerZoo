@@ -116,7 +116,7 @@ def main():
             if 'algo_name' in all_config:
                 args["algo"] = all_config['algo_name']
             # 构建algo_args字典，排除特定的顶级键且只包含字典类型的值
-            exclude_keys = {'algo_name', 'env_name', 'env_args'}
+            exclude_keys = {'algo_name', 'env_name', 'env_args','power_system'}
             algo_args = {k: v for k, v in all_config.items() 
                         if k not in exclude_keys and isinstance(v, dict)}
             # 从YAML配置中获取环境参数

@@ -13,7 +13,7 @@ from .powerzoo_logger import PowerZooLogger
 from .powerzoo.env import Env
 from .powerzoo.circuit import Circuits
 from .powerzoo.loadprofile import LoadProfile
-from .powerzoo.env_register import make_env, remove_parallel_dss
+from .powerzoo.env_register import make_base_env, remove_parallel_dss
 
 __all__ = [
     'PowerZooEnv',
@@ -21,7 +21,7 @@ __all__ = [
     'Env',
     'Circuits',
     'LoadProfile',
-    'make_env',
+    'make_base_env',
     'remove_parallel_dss'
 ]
 

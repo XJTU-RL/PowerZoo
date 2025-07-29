@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import imageio
 import glob
-from envs.power_envs.powerzoo.powerzoo.env_register import make_env, remove_parallel_dss
+from envs.power_envs.powerzoo.powerzoo.env_register import make_base_env, remove_parallel_dss
 
 import argparse
 import random
@@ -47,7 +47,7 @@ class PowerZooEnv:
     def __init__(self, args,rank=None):#TODO: ranks是线程数 
         
         self.args = copy.deepcopy(args)
-        self.env = make_env(args['env_name'], worker_idx=rank)#args
+        self.env = make_base_env(args['env_name'], worker_idx=rank)#args
         self.env.seed(args['seed'] + 0)
         #智能体数量是电容、有载调压器、电池、PV数量之和（根据PV是否启用）
         pv_count = self.env.pv_num if (hasattr(self.env, 'pv_control_enabled') and self.env.pv_control_enabled) else 0

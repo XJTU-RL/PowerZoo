@@ -22,7 +22,7 @@ def test_environment_import():
 	print("🔍 测试环境模块导入...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		print("✅ env_register导入成功")
 		
 		from envs.power_envs.powerzoo_llm.env import Env
@@ -42,11 +42,11 @@ def test_basic_env_creation():
 	print("\n🔍 测试基础环境创建...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		
 		# 测试不带worker_idx的环境创建
 		print("  测试无worker_idx环境...")
-		env = make_env('34Bus_pv')
+		env = make_base_env('34Bus_pv')
 		print(f"✅ 基础环境创建成功: {type(env)}")
 		
 		# 简单测试环境属性
@@ -66,12 +66,12 @@ def test_worker_env_creation():
 	print("\n🔍 测试worker环境创建...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		
 		# 测试带worker_idx的环境创建
 		for worker_idx in [0, 1, 5]:
 			print(f"  测试worker {worker_idx}...")
-			env = make_env('34Bus_pv', worker_idx=worker_idx)
+			env = make_base_env('34Bus_pv', worker_idx=worker_idx)
 			print(f"✅ Worker {worker_idx} 环境创建成功")
 		
 		return True
@@ -85,11 +85,11 @@ def test_powerzoo_env_wrapper():
 	print("\n🔍 测试PowerZooEnv包装器...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
 		
 		# 创建基础环境
-		base_env = make_env('34Bus_pv', worker_idx=0)
+		base_env = make_base_env('34Bus_pv', worker_idx=0)
 		
 		# 创建包装器环境
 		env_args = {
@@ -117,11 +117,11 @@ def test_environment_reset():
 	print("\n🔍 测试环境重置...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
 		
 		# 创建环境
-		base_env = make_env('34Bus_pv', worker_idx=0)
+		base_env = make_base_env('34Bus_pv', worker_idx=0)
 		env_args = {
 			'env_name': '34Bus_pv',
 			'observe_actions': True,
@@ -146,12 +146,12 @@ def test_environment_step():
 	print("\n🔍 测试环境step...")
 	
 	try:
-		from envs.power_envs.powerzoo_llm.env_register import make_env
+		from envs.power_envs.powerzoo_llm.env_register import make_base_env
 		from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
 		import numpy as np
 		
 		# 创建环境
-		base_env = make_env('34Bus_pv', worker_idx=0)
+		base_env = make_base_env('34Bus_pv', worker_idx=0)
 		env_args = {
 			'env_name': '34Bus_pv',
 			'observe_actions': True,

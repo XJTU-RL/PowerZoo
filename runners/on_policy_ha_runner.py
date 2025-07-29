@@ -29,6 +29,8 @@ from runners.on_policy_base_runner import OnPolicyBaseRunner
 class OnPolicyHARunner(OnPolicyBaseRunner):
     """Runner for on-policy HA algorithms."""
 
+
+
     def train(self):
         """Train the model."""
         actor_train_infos = []
@@ -80,50 +82,29 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         #print(self.get_ordered_agents_pairs)#初始编号信息，在此对各类信息进行汇总
         #print(self.get_agents_bus)
         
-           new_dict = {}
-        # 遍历第一个字典
-           for key, value in self.get_agents_bus.items():
-               total_value = 0
-            # 遍历第一个字典中的值
-               for item in value:
-            # 如果值在第二个字典中，则累加对应的值
-                   if item in result:
-                      total_value += result[item]
-                  # 构建新的字典
-               new_dict[key] = total_value
+        # 只有当 get_agents_bus 存在时才进行智能体排序
+        if hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None:
+            new_dict = {}
+            # 遍历第一个字典
+            for key, value in self.get_agents_bus.items():
+                total_value = 0
+                # 遍历第一个字典中的值
+                for item in value:
+                    # 如果值在第二个字典中，则累加对应的值
+                    if item in result:
+                        total_value += result[item]
+                # 构建新的字典
+                new_dict[key] = total_value
 
-        #print(new_dict)
-           sorted_keys = sorted(self.get_ordered_agents_pairs, key=lambda x: new_dict[x])
-        # 提取排序后的字典1中的值作为数组
-           sorted_values = [self.get_ordered_agents_pairs[key] for key in sorted_keys]
-        #print(sorted_values)
-           reversed_array=sorted_values[::-1]
-        #print(reversed_array)
-        
-        if self.ordered:
-            # 说明：
-            # 分四种顺序：
-            # 1. 敏感度顺序排序，有big2small和small2big两种
-            # 2. 固定顺序,第一种是所有更新使用一个固定顺序，第二种是每一轮更新都产生一个随机顺序
-            # agent_order = list(range(self.num_agents)) #TODO:固定顺序,原始代码
-            
-            if hasattr(self, 'useS') and self.useS:
-               if hasattr(self, 'big2small') and self.big2small:# 从大到小按照S排序
-                  agent_order=sorted_values
-                  print("big2small_S_sorted_order: ",agent_order)
-               else: # 小到大按照S排序
-                  agent_order=reversed_array
-                  print("small2big_S_sorted_order: ",agent_order)
-            else: # 所有的顺序是一样的，随机固定顺序
-                agent_order = list(range(self.num_agents))
-                print("fixed_sorted_agent_order: ",agent_order)
-        else: # 每轮更新都纯随机顺序，没有任何规则引导
-            agent_order = list(torch.randperm(self.num_agents).numpy()) #TODO:随机顺序
-            print("random_sorted_agent_order: ",agent_order)
+            # 计算智能体排序
+            agent_order = self._get_agent_order(new_dict)
+            print(f"{self._get_order_type()}_order: {agent_order}")
+        else:
+            # 当不使用智能体排序时，使用默认顺序
+            agent_order = list(range(self.num_agents))
+            print(f"default_order: {agent_order}")
         for agent_id in agent_order:
-            self.actor_buffer[agent_id].update_factor(
-                factor
-            )  # current actor save factor
+            self.actor_buffer[agent_id].update_factor(factor)  # current actor save factor
 
             # the following reshaping combines the first two dimensions (i.e. episode_length and n_rollout_threads) to form a batch
             available_actions = (
@@ -201,4 +182,45 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
 
         return actor_train_infos, critic_train_info
 
-
+    def _get_agent_order(self, new_dict):
+        """计算智能体排序顺序。
+        
+        Args:
+            new_dict: 包含智能体敏感度信息的字典
+            
+        Returns:
+            list: 智能体排序列表
+        """
+        if self.ordered:
+            if hasattr(self, 'useS') and self.useS:
+                # 按敏感度排序
+                sorted_keys = sorted(self.get_ordered_agents_pairs, key=lambda x: new_dict[x])
+                sorted_values = [self.get_ordered_agents_pairs[key] for key in sorted_keys]
+                
+                if hasattr(self, 'big2small') and self.big2small:
+                    return sorted_values  # 从大到小按照S排序
+                else:
+                    return sorted_values[::-1]  # 从小到大按照S排序
+            else:
+                # 固定顺序
+                return list(range(self.num_agents))
+        else:
+            # 随机顺序
+            return list(torch.randperm(self.num_agents).numpy())
+    
+    def _get_order_type(self):
+        """获取排序类型描述。
+        
+        Returns:
+            str: 排序类型描述
+        """
+        if self.ordered:
+            if hasattr(self, 'useS') and self.useS:
+                if hasattr(self, 'big2small') and self.big2small:
+                    return "按敏感度从大到小排序"  # 根据敏感度值降序排列智能体
+                else:
+                    return "按敏感度从小到大排序"  # 根据敏感度值升序排列智能体
+            else:
+                return "固定顺序排序"  # 使用预定义的固定智能体顺序
+        else:
+            return "随机顺序排序"  # 随机打乱智能体顺序
