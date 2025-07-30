@@ -12,9 +12,18 @@ import pandas as pd
 import re
 
 import dss as opendss
+import logging
 
 from .components.edge_components import Line, Transformer, Regulator
 from .components.node_components import Load, Capacitor, PVSystem, Battery
+
+# 获取日志记录器
+try:
+    from ..utils import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 
 class Circuits:
@@ -213,20 +222,29 @@ class Circuits:
 		cap2st = dict()
 		for i, cap in enumerate(self.capacitors.keys()):
 			capa = self.capacitors[cap]
+			old_status = capa.status
 			diff[i] = abs(capa.status - statuses[i])
 			capa.status = statuses[i]
 			cap2st[capa.name[10:]] = statuses[i]
+			
+			# log capacitor status change
+			if diff[i] > 0:
+				logger.debug(f"电容器状态变化: {cap} | {old_status} -> {statuses[i]} | Diff: {diff[i]}")
 		
 		# set dss object
 		if change_dss:
 			dssCap = self.dss.ActiveCircuit.Capacitors
 			if dssCap.First == 0: 
-				return  # no such object 
+				logger.debug("未找到电容器DSS对象")
+				return diff  # no such object 
 			while True:
 				if dssCap.Name in cap2st:
 					dssCap.States = [cap2st[dssCap.Name]]
+					logger.debug(f"DSS电容器状态设置: {dssCap.Name} -> {cap2st[dssCap.Name]}")
 				if dssCap.Next == 0: 
 					break
+		
+		logger.debug(f"电容器状态设置完成 - 总变化: {np.sum(diff)}")
 		return diff
 
 	def get_all_regulator_tapnums(self):
@@ -276,23 +294,32 @@ class Circuits:
 		trans2tap = dict()
 		for i, reg in enumerate(self.regulators.keys()):
 			regu = self.regulators[reg]
+			old_tap = regu.tap
 			diff[i] = abs((regu.tap - taps[i]) / step)
 			regu.tap = taps[i]
 			# remove 'Regulator.' from the head of the name
 			trans2tap[reg[10:]] = (taps[i], tapnums[i])
+			
+			# log regulator tap change
+			if diff[i] > 0:
+				logger.debug(f"调压器抽头变化: {reg} | {old_tap:.3f} -> {taps[i]:.3f} | Diff: {diff[i]:.3f}")
 
 		# set dss
 		if change_dss:
 			dssTrans = self.dss.ActiveCircuit.Transformers
 			if dssTrans.First == 0: 
-				return  # no such kind of object
+				logger.debug("未找到变压器DSS对象")
+				return diff  # no such kind of object
 			while True:
 				if dssTrans.Name in trans2tap:
 					tap, tapnum = trans2tap[dssTrans.Name]
 					dssTrans.NumTaps = tapnum
 					dssTrans.Tap = tap
+					logger.debug(f"DSS调压器设置: {dssTrans.Name} | Tap: {tap:.3f} | TapNum: {tapnum}")
 				if dssTrans.Next == 0: 
 					break 
+		
+		logger.debug(f"调压器抽头设置完成 - 总变化: {np.sum(diff):.3f}")
 		return diff
 
 	def set_all_batteries_before_solve(self, nkws_or_states, change_dss=True):
@@ -319,9 +346,14 @@ class Circuits:
 		bat2kwkvar = dict()
 		for i, bat in enumerate(self.batteries.keys()):
 			batt = self.batteries[bat]
+			old_kw = getattr(batt, 'kw', 0)
 			kw = batt.state_projection(nkws_or_states[i])  # projection
 			kvar = kw / batt.pf
 			bat2kwkvar[batt.name[8:]] = (kw, kvar)  # remove the header 'Battery.'
+			
+			# log battery state change
+			if abs(old_kw - kw) > 0.001:  # 阈值避免微小变化的日志
+				logger.debug(f"电池状态变化: {bat} | {old_kw:.3f}kW -> {kw:.3f}kW | kvar: {kvar:.3f}")
 	   
 		# change kw in dss
 		if change_dss:

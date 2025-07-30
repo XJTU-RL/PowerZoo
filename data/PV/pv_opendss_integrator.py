@@ -314,7 +314,7 @@ def main():
     parser = argparse.ArgumentParser(description='PV数据与OpenDSS集成工具')
     parser.add_argument('--pv-data-dir', default='/home/zhengxiaodong/exps/PowerZoo/data/PV',
                        help='PV数据目录路径')
-    parser.add_argument('--dss-project-dir', default='/home/zhengxiaodong/exps/PowerZoo/envs/power_envs/powerzoo_llm/node_systems_with_pv/34Bus',
+    parser.add_argument('--dss-project-dir', default='/home/zhengxiaodong/exps/PowerZoo/node_systems/34Bus_PV',
                        help='OpenDSS项目目录路径')
     parser.add_argument('--date', help='指定日期 (YYYY-MM-DD格式)')
     parser.add_argument('--max-workers', type=int, default=1, help='最大worker数量')

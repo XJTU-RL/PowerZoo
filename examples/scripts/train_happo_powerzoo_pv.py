@@ -52,7 +52,7 @@ def check_environment():
 		print(f"✅ {file_path.name}")
 	
 	# 检查DSS文件
-	dss_file = project_root / "envs" / "power_envs" / "powerzoo_llm" / "node_systems_with_pv" / "34Bus" / "ieee34Mod1_duty.dss"
+	dss_file = project_root / "node_systems" / "34Bus_PV" / "ieee34Mod1_duty.dss"
 	if not dss_file.exists():
 		print(f"⚠️  DSS文件不存在: {dss_file}")
 	else:

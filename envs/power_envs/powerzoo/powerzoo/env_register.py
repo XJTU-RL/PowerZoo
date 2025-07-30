@@ -402,7 +402,21 @@ def get_info_and_folder(env_name):
         base_info['soc_w'] = base_info['soc_w'] * (scale**2)
 
     # get folder path
-    folder_path = os.path.join(os.path.dirname(os.path.abspath(inspect.getsourcefile(Env))), '..', 'systems')
+    # 1. 获取Env类所在文件的绝对路径
+    env_file_path = inspect.getsourcefile(Env)
+    env_abs_path = os.path.abspath(env_file_path)
+    env_dir = os.path.dirname(env_abs_path)
+    
+    # 2. 从Env类所在目录向上找到项目根目录(PowerZoo)并进入node_systems目录
+    # 向上遍历直到找到PowerZoo目录
+    current_dir = env_dir
+    while current_dir != '/' and os.path.basename(current_dir) != 'PowerZoo':
+        current_dir = os.path.dirname(current_dir)
+    
+    # 3. 拼接node_systems路径
+    folder_path = os.path.join(current_dir, 'node_systems')
+    
+    # 4. 规范化路径,移除路径中的'..'等相对路径符号
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 

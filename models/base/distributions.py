@@ -33,7 +33,6 @@ class FixedNormal(torch.distributions.Normal):
     def mode(self):
         return self.mean
 
-
 class Categorical(nn.Module):
     """A linear layer followed by a Categorical distribution."""
 
@@ -46,12 +45,20 @@ class Categorical(nn.Module):
         def init_(m):
             return init(m, init_method, lambda x: nn.init.constant_(x, 0), gain)
 
+        # 创建一个线性层,将输入维度映射到输出维度(动作空间维度)
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
 
     def forward(self, x, available_actions=None):
+        # 通过线性层得到logits
         x = self.linear(x)
+        
+        # 如果提供了available_actions掩码,将不可用动作的logits设为极小值
+        # available_actions是一个二值tensor,1表示该动作可用,0表示不可用
         if available_actions is not None:
             x[available_actions == 0] = -1e10
+            
+        # 返回一个Categorical分布,用于采样离散动作
+        # logits会被用来计算各个动作的概率
         return FixedCategorical(logits=x)
 
 

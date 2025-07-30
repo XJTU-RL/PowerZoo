@@ -18,3 +18,10 @@ big2small: False
 # whether to convey the information of the voltage node
 use_render: False
 record_node: False # 添加一个记录节点信息的开关
+
+# 系统参数记录配置
+enable_system_logging: True  # 是否启用系统参数记录
+system_log_dir: "./logs/system_params"  # 系统日志存储目录
+log_buffer_size: 5000  # 内存缓冲区大小
+log_save_interval: 50  # 数据保存间隔(steps)
+enable_realtime_log: True  # 是否启用实时日志输出

@@ -158,3 +158,66 @@ def log_device_actions(logger: logging.Logger, device_type: str,
     logger.action_debug(
         f"{device_type} | {device_name} | {old_state} -> {new_state} | Diff: {diff:.3f}"
     )
+
+
+def log_training_summary(logger: logging.Logger, episode: int, total_reward: float, 
+                        episode_length: int, final_info: dict):
+    """
+    记录训练回合总结信息
+    
+    Args:
+        logger: 日志记录器
+        episode: 回合编号
+        total_reward: 总奖励
+        episode_length: 回合长度
+        final_info: 最终信息字典
+    """
+    avg_reward = total_reward / max(episode_length, 1)
+    
+    summary_items = [
+        f"Episode {episode:4d} 完成",
+        f"总奖励: {total_reward:8.4f}",
+        f"平均奖励: {avg_reward:6.4f}",
+        f"回合长度: {episode_length:3d}"
+    ]
+    
+    # 添加关键性能指标
+    if 'power_loss_ratio' in final_info:
+        summary_items.append(f"功率损耗: {final_info['power_loss_ratio']:.4f}")
+    if 'voltage_violations' in final_info:
+        summary_items.append(f"电压违规: {final_info['voltage_violations']}")
+    if 'voltage_compliance_rate' in final_info:
+        summary_items.append(f"电压合格率: {final_info['voltage_compliance_rate']:.3f}")
+    
+    logger.train_info(" | ".join(summary_items))
+
+
+def create_training_debug_logger(env_name: str = "powerzoo") -> logging.Logger:
+    """
+    创建专门用于训练调试的日志记录器
+    
+    Args:
+        env_name: 环境名称
+        
+    Returns:
+        调试日志记录器
+    """
+    debug_logger = get_logger(f"{env_name}_debug", level=logging.DEBUG)
+    
+    # 添加特殊的调试方法
+    def system_state(state_dict: dict):
+        """记录系统状态"""
+        state_str = " | ".join([f"{k}: {v}" for k, v in state_dict.items()])
+        debug_logger.debug(f"系统状态: {state_str}")
+    
+    def convergence_check(converged: bool, iterations: int = None):
+        """记录收敛性检查"""
+        status = "收敛" if converged else "未收敛"
+        iter_info = f" ({iterations}次迭代)" if iterations else ""
+        debug_logger.debug(f"求解状态: {status}{iter_info}")
+    
+    # 绑定调试方法
+    debug_logger.system_state = system_state
+    debug_logger.convergence_check = convergence_check
+    
+    return debug_logger

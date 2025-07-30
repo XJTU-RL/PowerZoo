@@ -6,7 +6,16 @@
 
 import math
 import numpy as np
+import logging
 from .base import Node
+
+# 获取日志记录器
+try:
+    from ...utils import get_logger
+    logger = get_logger(__name__)
+except ImportError:
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 
 class Load(Node):
@@ -43,14 +52,18 @@ class Capacitor(Node):
 		返回值:
 			状态变化的绝对值(整数)
 		'''
+		old_status = self.status
 		diff = abs(self.status - status)  # record state difference
+		
 		dssCap = self.dss.ActiveCircuit.Capacitors
 		if dssCap.First == 0: 
-			return  # no such object 
+			logger.warning(f"未找到电容器DSS对象: {self.name}")
+			return diff  # no such object 
 		while True:
 			if self.name.endswith(dssCap.Name):
 				self.status = status
 				dssCap.States = [self.status]
+				logger.debug(f"电容器状态设置: {self.name} | {old_status} -> {status} | Diff: {diff}")
 				break
 			if dssCap.Next == 0: 
 				break

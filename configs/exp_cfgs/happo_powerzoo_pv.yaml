@@ -22,7 +22,7 @@ device:
 # Training Configuration
 train:
   # 训练数据的并行环境数量
-  n_rollout_threads: 1
+  n_rollout_threads: 2
   # 总训练步数
   num_env_steps: 2000000
   # 每个环境每次训练数据的收集步数
@@ -64,13 +64,13 @@ model:
   gain: 0.01
   # 循环参数
   # 是否使用简单的循环网络策略（训练数据不分块）
-  use_naive_recurrent_policy: False
-  # 是否使用循环网络策略（训练数据分块）
-  use_recurrent_policy: False
+  use_naive_recurrent_policy: True
+  # 是否使用循环网络策略（训练数据分块）是否动作带记忆
+  use_recurrent_policy: True
   # 循环层数量
   recurrent_n: 1
   # 数据分块长度；仅当use_recurrent_policy为True时有用；episode_length必须是data_chunk_length的倍数
-  data_chunk_length: 10
+  data_chunk_length: 60
   # 优化器参数
   # 演员学习率
   lr: 0.0003
@@ -153,6 +153,13 @@ env_args:
   llm_enhanced: True
   use_natural_language_obs: False
   use_action_explanation: False
+
+  # 系统参数记录配置 (新增)
+  enable_system_logging: True  # 启用系统参数记录
+  system_log_dir: "./logs/system_params"  # 系统日志目录
+  log_buffer_size: 5000  # 缓冲区大小
+  log_save_interval: 50  # 保存间隔 (步数)
+  enable_realtime_log: True  # 启用实时日志
 
 
 # Power System Specific Training Configuration

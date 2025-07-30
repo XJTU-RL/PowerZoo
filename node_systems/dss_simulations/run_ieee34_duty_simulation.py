@@ -695,7 +695,7 @@ Simulation Parameters:
 def main():
     """Main function"""
     # DSS file path
-    dss_file = "/home/zhengxiaodong/exps/PowerZoo/envs/powerzoo_llm/node_systems_with_pv/34Bus/ieee34Mod1_duty.dss"
+    dss_file = "/home/zhengxiaodong/exps/PowerZoo/node_systems/34Bus_PV/ieee34Mod1_duty.dss"
     
     try:
         # Create simulation instance

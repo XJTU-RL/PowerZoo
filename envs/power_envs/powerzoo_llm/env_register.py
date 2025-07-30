@@ -321,13 +321,10 @@ for env in _ENV_INFO.keys():
 
 ####################### functions ########################
 
+
 def get_data_root():
-    # 从当前文件目录向上一级查找配置
-    config_path = Path(__file__).parent / 'env_config.yml'
-    if not config_path.exists():
-        return Path(__file__).resolve().parent / 'node_systems_with_pv'
-    with open(config_path, 'r') as f:
-        return Path(yaml.safe_load(f)['data_root'])
+    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent  # 项目根目录位置
+    return ROOT_DIR / 'node_systems'
 
 def get_info_and_folder(env_name):
     # check env scale and env name
@@ -351,7 +348,7 @@ def get_info_and_folder(env_name):
     return base_info, folder_path
 
 def make_base_env(env_name, dss_act=False, worker_idx=None):
-    """创建环境实例
+    """创建环境实例，同时创建对应的数据
     
     Args:
         env_name: 环境名称

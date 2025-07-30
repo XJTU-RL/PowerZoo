@@ -13,6 +13,7 @@ import numpy as np
 import imageio
 import glob
 import torch
+import time
 try:
     from envs.power_envs.powerzoo_llm.env_register import make_base_env, remove_parallel_dss
 except ImportError:
@@ -30,6 +31,7 @@ import multiprocessing as mp
 
 try:
     from .utils import get_logger, log_training_step, setup_training_logger
+    from .system_logger import get_system_logger, SystemLogger
 except ImportError:
     def get_logger(name):
         logging.basicConfig(level=logging.INFO)
@@ -40,6 +42,18 @@ except ImportError:
     
     def setup_training_logger(name):
         return get_logger(name)
+    
+    # 系统记录器备用实现
+    class SystemLogger:
+        def __init__(self, **kwargs):
+            pass
+        def log_system_state(self, *args, **kwargs):
+            pass
+        def close(self):
+            pass
+    
+    def get_system_logger(**kwargs):
+        return SystemLogger()
 
 logger = get_logger(__name__)
 
@@ -100,10 +114,24 @@ class PowerZooEnv:
         self._total_steps = 0
         self._training_logger = get_training_logger()
         
+        # 初始化系统参数记录器
+        self._enable_system_logging = getattr(config, 'enable_system_logging', True)
+        if self._enable_system_logging:
+            log_dir = getattr(config, 'system_log_dir', f"./logs/system_params/rank_{rank if rank is not None else 0}")
+            self._system_logger = get_system_logger(
+                log_dir=log_dir,
+                buffer_size=getattr(config, 'log_buffer_size', 5000),
+                save_interval=getattr(config, 'log_save_interval', 50),
+                enable_realtime_log=getattr(config, 'enable_realtime_log', True)
+            )
+        else:
+            self._system_logger = None
+        
         logger.info(f"PowerZoo环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
         self._training_logger.train_info(
             f"环境初始化 | 智能体数: {self.n_agents} | 环境数: {self.num_env} | "
-            f"电容器: {self.cap_num} | 调压器: {self.reg_num} | 电池: {self.bat_num}"
+            f"电容器: {self.cap_num} | 调压器: {self.reg_num} | 电池: {self.bat_num} | "
+            f"系统记录: {'启用' if self._enable_system_logging else '禁用'}"
         )
     
     def _setup_core_config(self) -> None:
@@ -194,13 +222,16 @@ class PowerZooEnv:
         # 动作预处理
         processed_actions = self._preprocess_actions(actions)
         
-        # 执行步进
+        # 执行步进（记录计算时间）
+        step_start_time = time.time()
         try:
             if self.discrete:
                 obs, rew, done, info = self.env.step(processed_actions.flatten())
             else:
                 obs, rew, done, info = self.env.step(processed_actions[0])
+            step_computation_time = time.time() - step_start_time
         except Exception as e:
+            step_computation_time = time.time() - step_start_time
             logger.error(f"环境步进失败: {e}")
             # 返回安全的默认值
             return self._get_safe_step_result()
@@ -244,6 +275,30 @@ class PowerZooEnv:
             }
             reward_str = " | ".join([f"{k}: {v:6.3f}" for k, v in reward_components.items()])
             self._training_logger.reward_debug(f"Reward Components: {reward_str}")
+        
+        # 系统参数记录
+        if self._enable_system_logging and self._system_logger:
+            try:
+                # 增强info字典，添加系统状态信息
+                enhanced_info = info.copy()
+                enhanced_info.update({
+                    'dss_convergence': getattr(self.env, 'converged', True),
+                    'active_powers': getattr(self.env, 'active_powers', {}),
+                    'reactive_powers': getattr(self.env, 'reactive_powers', {}),
+                    'load_distribution': getattr(self.env, 'load_distribution', {}),
+                    'voltage_violations': self._calculate_voltage_violations(),
+                })
+                
+                # 记录系统状态
+                self._system_logger.log_system_state(
+                    env=self.env,
+                    actions=processed_actions,
+                    reward=rew,
+                    info=enhanced_info,
+                    computation_time=step_computation_time
+                )
+            except Exception as e:
+                logger.debug(f"系统参数记录失败: {e}")
         
         # 为兼容性处理dones
         dones = [done] * self.n_agents if self.discrete else [[done]] * self.n_agents
@@ -310,6 +365,11 @@ class PowerZooEnv:
     def close(self) -> None:
         """关闭环境"""
         try:
+            # 关闭系统记录器
+            if self._enable_system_logging and self._system_logger:
+                self._system_logger.close()
+                logger.info("系统记录器已关闭")
+            
             remove_parallel_dss(self.env_name, self.rank)
             logger.info("环境已关闭")
         except Exception as e:
@@ -395,6 +455,26 @@ class PowerZooEnv:
             start = actions[:3].tolist()
             end = actions[-3:].tolist()
             return f"[{start}...{end}]({len(actions)})"
+    
+    def _calculate_voltage_violations(self) -> List[str]:
+        """计算电压违规"""
+        violations = []
+        voltage_limits = {'min': 0.95, 'max': 1.05}
+        
+        try:
+            if hasattr(self.env, 'obs') and 'bus_voltages' in self.env.obs:
+                for bus_name, voltages in self.env.obs['bus_voltages'].items():
+                    if isinstance(voltages, (list, np.ndarray)):
+                        for i, v in enumerate(voltages):
+                            if v < voltage_limits['min'] or v > voltage_limits['max']:
+                                violations.append(f"{bus_name}_{i}")
+                    else:
+                        if voltages < voltage_limits['min'] or voltages > voltage_limits['max']:
+                            violations.append(bus_name)
+        except Exception as e:
+            logger.debug(f"计算电压违规时出错: {e}")
+        
+        return violations
     
     def get_env_action_space(self, env_action_space) -> List[Discrete]:
         """兼容原版动作空间方法"""

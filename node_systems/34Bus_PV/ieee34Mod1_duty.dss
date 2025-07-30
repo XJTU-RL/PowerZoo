@@ -249,23 +249,40 @@ New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 pf=0.95 conn=Delta Model=1
 
 ! add PV data (irradiation and temperature)
 redirect pv_data.dss
-! 定义光伏发电机
-New PVSystem.PV834 phases=3 bus1=trafo_pv kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 PF=1 %cutin=0.1 %cutout=0.1  effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp 
-New PVSystem.PV890 phases=3 bus1=trafo_pv1 kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 PF=1 %cutin=0.1 %cutout=0.1  effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp !default for inverter is unity PF
-New PVSystem.PV864 phases=3 bus1=trafo_pv2 kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 PF=1 %cutin=0.1 %cutout=0.1  effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp 
+! 定义光伏发电机 - 优化版本适用于MARL控制
+! PV834: 接入834节点 (24.9kV级别)
+New PVSystem.PV834 phases=3 bus1=trafo_pv kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 
+~ PF=0.95 %cutin=0.05 %cutout=0.02
+~ effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp
 
-! 定义变压器
-New Transformer.pv_up834  phases=3 xhl=5.750000  
-~ wdg=1 bus=trafo_pv kV=0.48 kVA=750.000000 conn=wye
-~ wdg=2 bus=834 kV=24.9 kVA=750.000000 conn=wye
+! PV890: 接入890节点 (4.16kV级别)
+New PVSystem.PV890 phases=3 bus1=trafo_pv1 kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 
+~ PF=0.95 %cutin=0.05 %cutout=0.02
+~ effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp
 
-New Transformer.pv_up890  phases=3 xhl=5.750000  
-~ wdg=1 bus=trafo_pv1 kV=0.48 kVA=750.000000 conn=wye
-~ wdg=2 bus=890 kV=4.16 kVA=750.000000 conn=wye
+! PV864: 接入864节点 (24.9kV级别)
+New PVSystem.PV864 phases=3 bus1=trafo_pv2 kV=0.48  kVA=200  irrad=1.077  Pmpp=180 temperature=25 
+~ PF=0.95 %cutin=0.05 %cutout=0.02
+~ effcurve=Myeff  P-TCurve=MyPvsT Duty=MyIrrad  TDuty=MyTemp 
 
-New Transformer.pv_up864  phases=3 xhl=5.750000  
-~ wdg=1 bus=trafo_pv2 kV=0.48 kVA=750.000000 conn=wye
-~ wdg=2 bus=864 kV=24.9 kVA=750.000000 conn=wye
+! 定义PV升压变压器 - 优化设计
+! 变压器容量优化为300kVA (1.5倍裕度，适合MARL控制)
+New Transformer.pv_up834  phases=3 xhl=4.500000  
+~ wdg=1 bus=trafo_pv kV=0.48 kVA=300.000000 conn=wye %r=0.5
+~ wdg=2 bus=834 kV=24.9 kVA=300.000000 conn=wye %r=0.5
+
+New Transformer.pv_up890  phases=3 xhl=4.500000  
+~ wdg=1 bus=trafo_pv1 kV=0.48 kVA=300.000000 conn=wye %r=0.5
+~ wdg=2 bus=890 kV=4.16 kVA=300.000000 conn=wye %r=0.5
+
+New Transformer.pv_up864  phases=3 xhl=4.500000  
+~ wdg=1 bus=trafo_pv2 kV=0.48 kVA=300.000000 conn=wye %r=0.5
+~ wdg=2 bus=864 kV=24.9 kVA=300.000000 conn=wye %r=0.5
+
+! 添加PV系统监测点和控制参数
+! 这些参数可以由MARL算法动态调整
+Set ControlMode=Static  ! 静态控制模式，适合RL控制
+Set MaxIterations=15  ! 最大迭代次数
 
 ! let the DSS estimate voltage bases automatically
 Set VoltageBases = "69, 24.9, 4.16, .48"

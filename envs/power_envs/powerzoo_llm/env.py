@@ -15,11 +15,17 @@ import time
 from copy import deepcopy 
 
 try:
-    from envs.power_envs.powezoo_llm.utils import get_logger
+    from envs.power_envs.powerzoo_llm.utils import get_logger, log_reward_components, log_device_actions
 except ImportError:
     def get_logger(name):
         logging.basicConfig(level=logging.INFO)
         return logging.getLogger(name)
+    
+    def log_reward_components(*args, **kwargs):
+        pass
+    
+    def log_device_actions(*args, **kwargs):
+        pass
 
 logger = get_logger(__name__)
 
@@ -417,8 +423,28 @@ class Env(gym.Env):
                 
                 summ = (t + v_enhanced + p * 0.1 + 
                        power_balance_reward + pv_optimization_reward)
+                
+                # 记录约束感知奖励详情
+                constraint_components = {
+                    'power_loss': p,
+                    'voltage_enhanced': v_enhanced,
+                    'control': t,
+                    'power_balance': power_balance_reward,
+                    'pv_optimization': pv_optimization_reward,
+                    'total_constraint_aware': summ
+                }
+                log_reward_components(logger, constraint_components)
             else:
                 summ = t + v  # 原始奖励结构
+                
+                # 记录基础奖励详情
+                basic_components = {
+                    'power_loss': p,
+                    'voltage': v,
+                    'control': t,
+                    'total': summ
+                }
+                log_reward_components(logger, basic_components)
             
             info = {} if not record_node else {'violated_nodes': vio_nodes}
             if full:
@@ -567,16 +593,28 @@ class Env(gym.Env):
                             zip(self.circuit.capacitors.keys(), statuses)}
             action_idx += self.cap_num
             self.str_action += 'Cap Status:'+str(statuses)
+            
+            # 记录电容器动作详情
+            for i, (cap_name, status) in enumerate(cap_statuses.items()):
+                old_status = getattr(self.circuit.capacitors[cap_name], 'status', 0)
+                log_device_actions(logger, "Capacitor", cap_name, old_status, status, capdiff[i])
         else: capdiff, cap_statuses = [], dict()
 
         ### regulator control
         if self.reg_num>0:
             tapnums = action[action_idx:action_idx+self.reg_num]
+            # 获取旧的抽头值用于日志记录
+            old_tapnums = [self.circuit.regulators[reg].tap for reg in self.reg_names]
             regdiff = self.circuit.set_all_regulator_tappings(tapnums)
             reg_statuses = {reg:self.circuit.regulators[reg].tap \
                             for reg in self.reg_names}
             action_idx += self.reg_num
             self.str_action += 'Reg Tap Status:'+str(tapnums)
+            
+            # 记录调压器动作详情
+            for i, reg_name in enumerate(self.reg_names):
+                new_tap = reg_statuses[reg_name]
+                log_device_actions(logger, "Regulator", reg_name, old_tapnums[i], new_tap, regdiff[i])
         else: regdiff, reg_statuses = [], dict()
 
         ### battery control
@@ -590,8 +628,29 @@ class Env(gym.Env):
                 bat_actions = action[action_idx:action_idx+self.bat_num]
                 action_idx += self.bat_num
             
+            # 获取旧的电池状态用于日志记录
+            old_bat_states = {}
+            for bat_name in self.bat_names:
+                if bat_name in self.circuit.batteries:
+                    bat = self.circuit.batteries[bat_name]
+                    if hasattr(bat, 'kw'):
+                        old_bat_states[bat_name] = bat.kw
+                    elif hasattr(bat, 'state'):
+                        old_bat_states[bat_name] = bat.state
+                    else:
+                        old_bat_states[bat_name] = 0
+            
             self.circuit.set_all_batteries_before_solve(bat_actions)
             self.str_action += 'Bat Status:'+str(bat_actions)
+            
+            # 记录电池动作详情
+            for i, bat_name in enumerate(self.bat_names):
+                if bat_name in self.circuit.batteries:
+                    bat = self.circuit.batteries[bat_name]
+                    new_state = getattr(bat, 'kw', getattr(bat, 'state', 0))
+                    old_state = old_bat_states.get(bat_name, 0)
+                    diff = abs(new_state - old_state) if isinstance(new_state, (int, float)) else 0
+                    log_device_actions(logger, "Battery", bat_name, old_state, new_state, diff)
         
         ### PV control (如果启用)
         if self.pv_control_enabled and self.pv_num > 0:
@@ -613,7 +672,16 @@ class Env(gym.Env):
 
         # DSS求解（添加错误处理）
         try:
+            logger.debug(f"开始DSS求解 - 时步: {self.t}")
             self.circuit.dss.ActiveCircuit.Solution.Solve()
+            
+            # 检查求解状态
+            converged = self.circuit.dss.ActiveCircuit.Solution.Converged
+            if not converged:
+                logger.warning(f"DSS求解未收敛 - 时步: {self.t}")
+            else:
+                logger.debug(f"DSS求解成功收敛 - 时步: {self.t}")
+                
         except Exception as e:
             logger.error(f"DSS求解失败: {e}")
             # 返回安全的默认结果
@@ -627,12 +695,22 @@ class Env(gym.Env):
 
         ### update time step
         self.t += 1 
+        logger.debug(f"环境步骤完成 - 时步: {self.t}")
  
         ### Update obs ###
         bus_voltages = dict()
+        voltage_violations = 0
         for bus_name in self.all_bus_names:
             bus_voltages[bus_name] = self.circuit.bus_voltage(bus_name)
             bus_voltages[bus_name] = [bus_voltages[bus_name][i] for i in range(len(bus_voltages[bus_name])) if i%2==0]
+            
+            # 统计电压违规情况
+            for v in bus_voltages[bus_name]:
+                if v < 0.95 or v > 1.05:
+                    voltage_violations += 1
+        
+        if voltage_violations > 0:
+            logger.warning(f"电压违规节点数: {voltage_violations} - 时步: {self.t}")
         
         self.obs['bus_voltages'] = bus_voltages
         self.obs['cap_statuses'] = cap_statuses
