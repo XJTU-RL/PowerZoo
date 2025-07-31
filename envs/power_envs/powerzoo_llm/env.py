@@ -111,17 +111,32 @@ class ActionSpace:
         return self._space
 
     def sample(self):
-        """优化的采样方法 - 支持CRBP混合动作空间"""
+        """优化的采样方法 - 支持CRBP混合动作空间 - HAPPO兼容"""
         ss = self._space.sample()
         
         # 处理混合动作空间的情况
         if isinstance(self._space, gym.spaces.Tuple):
+            # 确保返回一致的形状 - 关键修复
             if len(ss) == 2:  # 离散 + 连续
-                return np.concatenate([ss[0], ss[1]])
+                discrete_part = ss[0].astype(np.int32) if hasattr(ss[0], 'astype') else np.array(ss[0], dtype=np.int32)
+                continuous_part = ss[1].astype(np.float32) if hasattr(ss[1], 'astype') else np.array(ss[1], dtype=np.float32)
+                # 返回固定形状的数组，确保并行环境一致性
+                return np.concatenate([discrete_part, continuous_part]).astype(np.float32)
             else:
-                return np.concatenate(ss)
+                # 处理其他Tuple情况，确保形状一致性
+                combined = []
+                for sub_sample in ss:
+                    if hasattr(sub_sample, 'flatten'):
+                        combined.extend(sub_sample.flatten())
+                    else:
+                        combined.append(sub_sample)
+                return np.array(combined, dtype=np.float32)
         
-        return ss
+        # 确保返回标准numpy数组
+        if hasattr(ss, 'astype'):
+            return ss.astype(np.float32)
+        else:
+            return np.array(ss, dtype=np.float32)
 
     def seed(self, seed: int):
         self._space.seed(seed)
@@ -222,8 +237,6 @@ class Env(gym.Env):
         self.wrap_observation = True
         self.observe_load = False
         self.LLM = info.get('for_LLM', False) # 是否为LLM环境
-        self.irrad_dss = info.get('irrad_dss', None)
-        
         #NOTE: 添加了智能体节点与智能体名称的对应关系
         self.agents_bus=dict()
         
@@ -233,13 +246,15 @@ class Env(gym.Env):
                  self.dss_folder_path,
                  self.dss_file,
                  worker_idx = info['worker_idx'] if 'worker_idx' in info else None,
-                 irrad_dss=irrad_dss if self.LLM else None)
+                 pv_data_source=info.get('pv_data_source'),
+                 temperature_data_source=info.get('temperature_data_source'))
 
-        self.num_profiles = self.load_profile.gen_loadprofile(scale=self.scale)
-        # choose a dummy load profile for the initialization of the circuit
-        self.load_profile.choose_loadprofile(0)#在这里得到loadprofile的路径
+        # 生成负载数据
+        self.num_profiles = self.load_profile.generate_load_profiles(scale=self.scale)
+        # 选择一个虚拟负载曲线用于电路初始化
+        self.load_profile.select_load_profile(0)#在这里得到loadprofile的路径
         
-        # problem horizon is the length of load profile
+        # 问题的时间范围等于负载曲线的长度
         self.horizon = info['max_episode_steps']
         self.reg_act_num = info['reg_act_num']
         self.bat_act_num = info['bat_act_num']
@@ -814,16 +829,21 @@ class Env(gym.Env):
  
         ### choose load profile
         try:
-            self.load_profile.choose_loadprofile(load_profile_idx)
-            self.all_load_profiles = self.load_profile.get_loadprofile(load_profile_idx)
+            self.load_profile.select_load_profile(load_profile_idx)
+            self.all_load_profiles = self.load_profile.get_load_profile_data(load_profile_idx)
         except Exception as e:
             logger.error(f"负载配置文件选择失败: {e}")
             return self._get_safe_reset_result()
             
         if self.LLM:#在此处引入光伏的可变性。
             try:
-                logger.info(f"设置光伏参数: irrad_train={irrad_train}")
-                self.load_profile.choose_irrad_profile(style=irrad_train,hours=hours)
+                logger.info(f"设置光伏参数: irrad_train={irrad_train}, episode_idx={load_profile_idx}")
+                # 优先使用新的统一方法
+                pv_success = self.load_profile.select_pv_temperature_profile(load_profile_idx)
+                if not pv_success:
+                    # 如果新方法失败，回退到原来的方法
+                    logger.warning("使用原始光伏配置方法")
+                    self.load_profile.select_irradiance_profile(style=irrad_train,hours=hours)
             except Exception as e:
                 logger.warning(f"光伏配置失败: {e}")
                 
@@ -1023,13 +1043,7 @@ class Env(gym.Env):
             print('There are ' + str(len(self.edges)) + ' edges and ' + str(len(set(self.edges))) + ' unique edges. Overlapping transformer edges')
 
         self.circuit.topology.add_edges_from(self.edges)
-        # print(len(self.circuit.topology.nodes))
-        # print(self.circuit.topology.nodes)
-        # print(len(self.circuit.topology.edges))
-        # print(self.circuit.topology.edges)
-
-        # self.adj_mat = nx.adjacency_matrix(self.circuit.topology)
-        # print(self.adj_mat.todense())
+        
         return self.circuit.topology
 
     def plot_graph(self, node_bound='minimum', 

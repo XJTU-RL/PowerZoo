@@ -1,0 +1,21 @@
+{
+  "session_id": "20250731_090613",
+  "total_logged_steps": 1,
+  "total_episodes": 0,
+  "device_usage": {
+    "cap_Capacitor.c844": 0,
+    "cap_Capacitor.c848": 1,
+    "bat_Battery.batt1": 1,
+    "bat_Battery.batt2": 1
+  },
+  "performance_summary": {
+    "avg_log_time": 0.00024771690368652344,
+    "max_log_time": 0.00024771690368652344,
+    "total_log_operations": 1
+  },
+  "reward_summary": {
+    "avg_total_reward": -1241.1141289806244,
+    "avg_voltage_reward": -2.6790367991707766,
+    "avg_control_reward": -2.545454545454544
+  }
+}

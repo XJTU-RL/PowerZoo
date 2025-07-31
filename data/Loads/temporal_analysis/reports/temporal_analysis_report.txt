@@ -1,0 +1,63 @@
+================================================================================
+COMPREHENSIVE TEMPORAL LOAD ANALYSIS REPORT
+================================================================================
+
+ANALYSIS METADATA
+----------------------------------------
+Analysis Date: 2025-07-30T17:46:26.162917
+Data Label: LoadShape1_minute_level - LoadShape1 Data
+Data Points: 525,600
+Date Range: Starting 2023-01-01
+
+OVERALL STATISTICS
+----------------------------------------
+Mean Load: 0.61 MW
+Peak Load: 1.00 MW
+Minimum Load: 0.39 MW
+Standard Deviation: 0.12 MW
+Load Factor: 0.612
+Coefficient of Variation: 0.196
+Skewness: -0.038
+Kurtosis: -0.768
+
+DAILY ANALYSIS INSIGHTS
+----------------------------------------
+• Daily peak typically occurs at 19:00 with 0.74 MW average load
+• Daily valley typically occurs at 02:00 with 0.44 MW average load
+• Daily load factor is 0.826, indicating high utilization
+• Hour 18:00 shows highest variability (σ=0.10), hour 02:00 shows lowest (σ=0.03)
+• Peak hours typically occur around 18:00, valley hours around 02:00
+• Daily load swing: 0.30 MW (69.9% of valley load)
+
+MONTHLY ANALYSIS INSIGHTS
+----------------------------------------
+• December shows highest average load (0.69 MW)
+• May shows lowest average load (0.56 MW)
+• Seasonal load variation: 0.13 MW (22.6% difference)
+• August is most variable (σ=0.04), September is most stable (σ=0.03)
+• Best load factor in September (0.758), worst in March (0.663)
+• Summer average: 0.59 MW, Winter average: 0.67 MW (Winter dominant by 0.08 MW)
+
+OVERALL SYSTEM INSIGHTS
+----------------------------------------
+• System shows moderate utilization with load factor of 0.612
+• Load variability is moderate (CV = 0.196)
+• Peak demand is 1.63x the average load, indicating moderate peak stress
+• Load distribution shows negative skew (-0.038) and light tails (kurtosis = -0.768)
+• Operational range spans 0.61 MW from 0.39 MW to 1.00 MW
+
+OUTPUT FILES GENERATED
+----------------------------------------
+• Comprehensive Analysis: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/comprehensive_analysis.png
+• Daily Load Profile: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/daily_analysis/daily_load_profile.png
+• Daily Patterns Heatmap: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/daily_analysis/daily_load_heatmap.png
+• Daily Box Plot: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/daily_analysis/daily_box_plot.png
+• Daily Polar Plot: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/daily_analysis/daily_polar_plot.png
+• Monthly Trends: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/monthly_analysis/monthly_trends.png
+• Seasonal Patterns: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/monthly_analysis/seasonal_patterns.png
+• Monthly Statistics: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/monthly_analysis/monthly_statistics.png
+• Monthly Box Plot: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/monthly_analysis/monthly_box_plot.png
+• JSON Results: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/reports/temporal_analysis_results.json
+• Daily Patterns CSV: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/reports/daily_patterns.csv
+• Monthly Patterns CSV: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/reports/monthly_patterns.csv
+• Analysis Log: /home/zhengxiaodong/exps/PowerZoo/data/Loads/temporal_analysis/reports/analysis_log.log

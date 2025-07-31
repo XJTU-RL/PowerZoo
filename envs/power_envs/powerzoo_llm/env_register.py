@@ -27,6 +27,12 @@ _SYS_INFO = {
         'shift': 80,
         'show_node_labels': True
     },
+    '34Bus_PV': {
+        'source_bus': 'sourcebus',
+        'node_size': 500,
+        'shift': 80,
+        'show_node_labels': True
+    },
 
     '123Bus': {
         'source_bus': '150',
@@ -117,7 +123,6 @@ _ENV_INFO = {
     '34Bus': {
         'system_name': '34Bus',
         'dss_file': 'ieee34Mod1_duty.dss',
-        'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
         'max_episode_steps': 360,           # 匹配loadshape数据点数
         'reg_act_num': 33,
@@ -131,9 +136,8 @@ _ENV_INFO = {
         'dis_w': 10.0/33,
     },
     '34Bus_pv': {
-        'system_name': '34Bus',
+        'system_name': '34Bus_PV',
         'dss_file': 'ieee34Mod1_duty.dss',
-        'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
         'max_episode_steps': 360,           # 匹配loadshape数据点数和配置文件episode_length
         'reg_act_num': 33,
@@ -149,11 +153,10 @@ _ENV_INFO = {
     },
     
     '34Bus_pv_discrete': {
-        'system_name': '34Bus',
+        'system_name': '34Bus_PV',
         'dss_file': 'ieee34Mod1_duty.dss',
-        'irrad_dss': 'irrad_up_down.dss',
         'for_LLM': False,
-        'max_episode_steps': 1440,
+        'max_episode_steps': 360,
         'reg_act_num': 33,
         'bat_act_num': 33,
         'pv_control': True,                 # 启用PV控制

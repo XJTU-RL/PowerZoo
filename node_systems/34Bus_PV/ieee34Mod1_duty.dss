@@ -247,7 +247,8 @@ Load.d846_848rb.vminpu=.85
 New Generator.batt1 bus1=890.1.2.3 kV=4.16 kW=0 pf=0.95 conn=Delta Model=1
 New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 pf=0.95 conn=Delta Model=1
 
-! add PV data (irradiation and temperature)
+! add PV data (irradiation and temperature) - 动态加载
+! 注意: 在训练过程中，此文件会被动态替换为episode特定的配置
 redirect pv_data.dss
 ! 定义光伏发电机 - 优化版本适用于MARL控制
 ! PV834: 接入834节点 (24.9kV级别)
@@ -288,5 +289,5 @@ Set MaxIterations=15  ! 最大迭代次数
 Set VoltageBases = "69, 24.9, 4.16, .48"
 CalcVoltageBases
 BusCoords IEEE34_BusXY.csv
-Set mode=duty number=1440 hour=0 stepsize=60 sec=0 
+Set mode=duty number=360 hour=0 stepsize=60 sec=0 
 Set SampleEnergyMeters=Yes

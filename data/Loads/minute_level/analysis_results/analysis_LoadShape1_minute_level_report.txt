@@ -1,0 +1,36 @@
+Load Data Analysis Report
+==================================================
+
+1. Basic Information
+--------------------
+Data File: /home/zhengxiaodong/exps/PowerZoo/data/Loads/minute_level/LoadShape1_minute_level.csv
+Data Type: minutely
+Data Points: 525,599
+
+2. Statistical Characteristics
+--------------------
+Mean: 0.61 MW
+Std Dev: 0.12 MW
+Maximum: 1.00 MW
+Minimum: 0.39 MW
+Median: 0.63 MW
+
+3. Peak-Valley Characteristics
+--------------------
+Peak Load: 1.00 MW
+Valley Load: 0.39 MW
+Peak-Valley Ratio: 2.56
+Load Factor: 0.61
+
+4. Variability Analysis
+--------------------
+Coefficient of Variation: 0.196
+Range-Mean Ratio: 0.996
+
+5. Time Patterns
+--------------------
+Peak Hour: 19:00
+Valley Hour: 2:00
+Weekday Average: 0.60 MW
+Weekend Average: 0.63 MW
+Weekday/Weekend Ratio: 0.96

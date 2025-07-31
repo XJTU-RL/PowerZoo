@@ -1,0 +1,16 @@
+buffer_size: 5000
+compression_level: 6
+created_at: '2025-07-31T11:13:12.708270'
+log_structure:
+  statistics:
+  - episode_summary
+  - device_usage
+  - reward_analysis
+  timeseries:
+  - voltages
+  - powers
+  - devices
+  - rewards
+  - performance
+save_interval: 50
+session_id: '20250731_111312'

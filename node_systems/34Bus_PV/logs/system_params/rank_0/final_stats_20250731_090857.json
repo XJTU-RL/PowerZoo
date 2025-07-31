@@ -1,0 +1,16 @@
+{
+  "session_id": "20250731_090857",
+  "total_logged_steps": 0,
+  "total_episodes": 0,
+  "device_usage": {},
+  "performance_summary": {
+    "avg_log_time": 0,
+    "max_log_time": 0,
+    "total_log_operations": 0
+  },
+  "reward_summary": {
+    "avg_total_reward": 0,
+    "avg_voltage_reward": 0,
+    "avg_control_reward": 0
+  }
+}

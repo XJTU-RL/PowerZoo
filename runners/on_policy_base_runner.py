@@ -410,10 +410,60 @@ class OnPolicyBaseRunner:
             action_collector.append(_t2n(action))
             action_log_prob_collector.append(_t2n(action_log_prob))
             rnn_state_collector.append(_t2n(rnn_state))
+        
+        # 修复动作和动作对数概率形状不一致问题 - 确保所有智能体具有相同形状
+        def normalize_array_shapes(collectors):
+            """统一处理数组形状不一致问题"""
+            if len(collectors) == 0:
+                return collectors
+                
+            # 获取所有数组的形状信息
+            shapes = [arr.shape for arr in collectors]
+            
+            # 检查是否所有形状一致
+            if all(shape == shapes[0] for shape in shapes):
+                return collectors
+            
+            # 找到最大的维度
+            max_dim = max(shape[-1] if len(shape) >= 2 else 1 for shape in shapes)
+            
+            # 对形状不一致的数组进行填充或重塑
+            normalized_arrays = []
+            for arr in collectors:
+                if len(arr.shape) == 1 or arr.shape[-1] < max_dim:
+                    # 如果数组是1维或最后一维小于最大维度，进行填充
+                    if len(arr.shape) == 1:
+                        # 1维数组，扩展为 (n_threads, 1)
+                        arr = arr.reshape(-1, 1)
+                    
+                    # 在最后一维进行零填充
+                    pad_width = [(0, 0) for _ in range(len(arr.shape))]
+                    pad_width[-1] = (0, max_dim - arr.shape[-1])
+                    arr = np.pad(arr, pad_width, mode='constant', constant_values=0)
+                
+                normalized_arrays.append(arr)
+            
+            return normalized_arrays
+        
+        # 统一处理动作和动作对数概率形状
+        action_collector = normalize_array_shapes(action_collector)
+        action_log_prob_collector = normalize_array_shapes(action_log_prob_collector)
+        
         # (n_agents, n_threads, dim) -> (n_threads, n_agents, dim)
-        actions = np.array(action_collector).transpose(1, 0, 2)
-        action_log_probs = np.array(action_log_prob_collector).transpose(1, 0, 2)
-        rnn_states = np.array(rnn_state_collector).transpose(1, 0, 2, 3)
+        try:
+            actions = np.array(action_collector).transpose(1, 0, 2)
+            action_log_probs = np.array(action_log_prob_collector).transpose(1, 0, 2)
+            rnn_states = np.array(rnn_state_collector).transpose(1, 0, 2, 3)
+        except ValueError as e:
+            # 如果仍然失败，提供详细的调试信息
+            print(f"错误详情: {e}")
+            print(f"智能体数量: {self.num_agents}")
+            print(f"动作收集器长度: {len(action_collector)}")
+            for i, action in enumerate(action_collector):
+                print(f"智能体 {i} 动作形状: {action.shape}")
+            for i, action_log_prob in enumerate(action_log_prob_collector):
+                print(f"智能体 {i} 动作对数概率形状: {action_log_prob.shape}")
+            raise
 
         # collect values, rnn_states_critic from 1 critic
         if self.state_type == "EP":
