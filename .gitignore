@@ -424,6 +424,13 @@ newplot/logs/
 experiment/
 newplot/
 data/PV/*.csv
+data/PV/*.png
+data/Load/*.png
+node_systems/*.csv
+!node_systems/**/LoadShape1.csv
+!node_systems/**/LoadShape2.csv
+!node_systems/**/LoadShape3.csv
+
 
 
 # YoYo AI version control directory
