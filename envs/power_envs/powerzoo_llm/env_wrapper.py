@@ -121,6 +121,7 @@ def _create_loadshape_file(folder_path, system_name, worker_idx):
             with open(target_loadshape_file, 'w') as fout:
                 for line in fin:
                     # 将路径中的 000 替换为对应的 worker_idx 格式
+                    # 修复：数据文件实际在不同的worker目录中（000, 001, 002...）
                     if './loadshape/000/' in line:
                         new_line = line.replace('./loadshape/000/', f'./loadshape/{worker_idx:03d}/')
                         fout.write(new_line)

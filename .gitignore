@@ -431,7 +431,7 @@ node_systems/*.csv
 !node_systems/**/LoadShape2.csv
 !node_systems/**/LoadShape3.csv
 node_systems/34Bus_PV/logs/
-
+logs/
 
 # YoYo AI version control directory
 .yoyo/

@@ -335,7 +335,7 @@ def get_num_agents(env, env_args, envs):
 #         return envs.update_orders
 def get_ordered_agents_pairs(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env == "powerzoo":
+    if env in ["powerzoo", "powerzoo_llm"]:
        if env_args.get("useS", False):
            return envs.ordered_agents_pairs
        else:
@@ -343,8 +343,10 @@ def get_ordered_agents_pairs(env, env_args, envs):
 
 def get_agents_bus(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env == "powerzoo":
+    if env in ["powerzoo", "powerzoo_llm"]:
        if env_args.get("useS", False):
            return envs.agents_bus
        else:
            return None
+    else:
+        return None

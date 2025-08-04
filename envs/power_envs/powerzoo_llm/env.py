@@ -111,32 +111,22 @@ class ActionSpace:
         return self._space
 
     def sample(self):
-        """优化的采样方法 - 支持CRBP混合动作空间 - HAPPO兼容"""
+        """HAPPO兼容的采样方法 - 保持动作语义正确性"""
         ss = self._space.sample()
         
-        # 处理混合动作空间的情况
+        # 处理混合动作空间：保持语义分离，而非强制转换
         if isinstance(self._space, gym.spaces.Tuple):
-            # 确保返回一致的形状 - 关键修复
             if len(ss) == 2:  # 离散 + 连续
-                discrete_part = ss[0].astype(np.int32) if hasattr(ss[0], 'astype') else np.array(ss[0], dtype=np.int32)
-                continuous_part = ss[1].astype(np.float32) if hasattr(ss[1], 'astype') else np.array(ss[1], dtype=np.float32)
-                # 返回固定形状的数组，确保并行环境一致性
-                return np.concatenate([discrete_part, continuous_part]).astype(np.float32)
+                discrete_part = ss[0]  # 保持离散动作为整数
+                continuous_part = ss[1].astype(np.float32)  # 连续动作保持浮点数
+                # 返回混合动作列表：[离散动作数组, 连续动作数组]
+                return [discrete_part, continuous_part]
             else:
-                # 处理其他Tuple情况，确保形状一致性
-                combined = []
-                for sub_sample in ss:
-                    if hasattr(sub_sample, 'flatten'):
-                        combined.extend(sub_sample.flatten())
-                    else:
-                        combined.append(sub_sample)
-                return np.array(combined, dtype=np.float32)
+                # 处理其他Tuple情况，保持原始结构
+                return list(ss)
         
-        # 确保返回标准numpy数组
-        if hasattr(ss, 'astype'):
-            return ss.astype(np.float32)
-        else:
-            return np.array(ss, dtype=np.float32)
+        # 纯离散或纯连续动作空间
+        return ss
 
     def seed(self, seed: int):
         self._space.seed(seed)
@@ -624,7 +614,7 @@ class Env(gym.Env):
             reg_statuses = {reg:self.circuit.regulators[reg].tap \
                             for reg in self.reg_names}
             action_idx += self.reg_num
-            self.str_action += 'Reg Tap Status:'+str(tapnums)
+            self.str_action += '调压器抽头状态'+str(tapnums)
             
             # 记录调压器动作详情
             for i, reg_name in enumerate(self.reg_names):

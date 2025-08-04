@@ -110,16 +110,31 @@ class Circuits:
 
 		返回值: 无
 		'''
-		self.dss.Text.Command = "compile " + self.dss_file
-		self.dss.Text.Command = "Set Maxiterations=50"
-		self.dss.Text.Command = "Set Maxcontroliter=100"
+		# 保存当前工作目录
+		current_dir = os.getcwd()
 		
-		if disable:
-			self.dss.Text.Command = 'vsource.source.enabled=no'
-			self.dss.Text.Command = 'batchedit load..* enabled=no'
-		else:
-			self.dss.Text.Command = 'vsource.source.enabled=yes'
-			self.dss.Text.Command = 'batchedit load..* enabled=yes' 
+		# 获取DSS文件的目录并切换到该目录
+		dss_dir = os.path.dirname(os.path.abspath(self.dss_file))
+		dss_filename = os.path.basename(self.dss_file)
+		
+		try:
+			# 切换到DSS文件所在目录，确保相对路径正确
+			os.chdir(dss_dir)
+			
+			# 使用相对文件名编译
+			self.dss.Text.Command = "compile " + dss_filename
+			self.dss.Text.Command = "Set Maxiterations=50"
+			self.dss.Text.Command = "Set Maxcontroliter=100"
+			
+			if disable:
+				self.dss.Text.Command = 'vsource.source.enabled=no'
+				self.dss.Text.Command = 'batchedit load..* enabled=no'
+			else:
+				self.dss.Text.Command = 'vsource.source.enabled=yes'
+				self.dss.Text.Command = 'batchedit load..* enabled=yes'
+		finally:
+			# 恢复原工作目录
+			os.chdir(current_dir) 
 		
 		if not self.dss_act:
 			self.dss.Text.Command = "Set ControlMode = off"
@@ -214,7 +229,7 @@ class Circuits:
 		返回值:
 			状态变化的绝对值
 		'''
-		assert len(statuses) > 0 and len(statuses) == len(self.capacitors), 'inconsistent statuses'
+		assert len(statuses) > 0 and len(statuses) == len(self.capacitors), '电容器状态数量与电容器数量不一致'
 		statuses = np.array(statuses, dtype=int)
 
 		# set capacitor objects

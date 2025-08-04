@@ -186,7 +186,8 @@ class PowerZooEnv:
     def _setup_sensitivity_mapping(self) -> None:
         """设置敏感性矩阵相关映射"""
         update_orders = list(range(self.n_agents))
-        self.ordered_agents_pairs = dict(zip(self._agent_names, update_orders))
+        # 修复属性名称不匹配问题：设置带下划线的私有属性
+        self._ordered_agents_pairs = dict(zip(self._agent_names, update_orders))
         self.agents_bus = self.env.agents_bus
     
     def _setup_spaces(self) -> None:
@@ -249,19 +250,8 @@ class PowerZooEnv:
         # 执行步进（记录计算时间）
         step_start_time = time.time()
         try:
-            # 处理混合动作空间的情况
-            if self.pv_control_enabled and self.pv_num > 0:
-                # 混合动作空间：直接传递列表给底层环境
-                obs, rew, done, info = self.env.step(processed_actions)
-            elif self.discrete:
-                # 纯离散动作空间：展平后传递
-                if isinstance(processed_actions, np.ndarray):
-                    obs, rew, done, info = self.env.step(processed_actions.flatten())
-                else:
-                    obs, rew, done, info = self.env.step(processed_actions)
-            else:
-                # 连续动作空间：传递第一个环境的动作
-                obs, rew, done, info = self.env.step(processed_actions[0])
+            # 底层env.step()始终期望一个扁平的numpy数组
+            obs, rew, done, info = self.env.step(processed_actions)
             step_computation_time = time.time() - step_start_time
         except Exception as e:
             step_computation_time = time.time() - step_start_time
@@ -423,47 +413,304 @@ class PowerZooEnv:
         """兼容原unwrap方法"""
         return self._unwrap_space_data(data)
     
-    def _preprocess_actions(self, actions: np.ndarray) -> np.ndarray:
-        """预处理混合动作数组（支持离散+连续动作）"""
-        if isinstance(actions, (list, tuple)):
-            # 混合动作不能直接转换为numpy数组，需要保持原始结构
-            if self.pv_control_enabled and self.pv_num > 0:
-                # 对于混合动作空间，保持列表结构
-                processed_actions = list(actions)
-            else:
-                # 纯离散动作，可以转换为numpy数组
-                processed_actions = np.array(actions)
+    def _preprocess_actions(self, actions) -> np.ndarray:
+        """
+        预处理动作，确保输出为底层环境期望的扁平numpy数组格式
+        
+        处理多种动作输入格式：
+        1. 3D numpy数组: (env_num, n_agents, act_dim) 
+        2. 2D numpy数组: (n_agents, act_dim) - HAPPO标准格式
+        3. 按智能体分解的列表: [agent0_action, agent1_action, ...]
+        4. 混合动作格式: [discrete_actions, continuous_actions]
+        
+        Args:
+            actions: 输入动作，可能的格式多样
+            
+        Returns:
+            扁平的numpy数组，供底层env.step()使用
+        """
+        
+        # 步骤1: 输入格式标准化
+        if isinstance(actions, np.ndarray):
+            if actions.ndim == 3:
+                # (env_num, n_agents, act_dim) -> 取第一个环境
+                actions = actions[0]
+            # 如果已经是1D数组且长度正确，直接返回
+            if actions.ndim == 1:
+                expected_len = (self.cap_num + self.reg_num + self.bat_num + 
+                              (self.pv_num * 2 if self.pv_control_enabled else 0))
+                if len(actions) == expected_len:
+                    return actions
+        elif isinstance(actions, list) and len(actions) == 1 and isinstance(actions[0], (list, np.ndarray)):
+            # [[agent_actions]] -> [agent_actions] 
+            actions = actions[0]
+        
+        # 步骤2: 转换为扁平数组
+        if self.pv_control_enabled and self.pv_num > 0:
+            return self._process_mixed_actions_to_flat(actions)
         else:
-            processed_actions = actions
+            # 纯离散动作空间
+            return self._process_discrete_actions_to_flat(actions)
+    
+    def _process_mixed_actions_to_flat(self, actions) -> np.ndarray:
+        """
+        将混合动作转换为扁平numpy数组
         
-        # 处理三维动作 (env_num, n_agents, act_dim)
-        if isinstance(processed_actions, np.ndarray) and processed_actions.ndim == 3:
-            processed_actions = processed_actions[0]  # 取第一个环境的动作
-        elif isinstance(processed_actions, list) and len(processed_actions) > 0:
-            # 检查是否为嵌套列表结构 [[agent0_actions], [agent1_actions], ...]
-            if isinstance(processed_actions[0], (list, np.ndarray)) and len(processed_actions) == 1:
-                processed_actions = processed_actions[0]  # 展开一层
+        底层env.step()期望的格式：
+        - 离散设备动作在前（电容器、调压器、电池）
+        - 连续PV动作在后（如果启用）
+        """
+        flat_actions = []
         
-        # 确保动作数量正确
-        if isinstance(processed_actions, (list, tuple)):
-            if len(processed_actions) != self.n_agents:
-                logger.warning(f"动作数量不匹配: 期望{self.n_agents}, 实际{len(processed_actions)}")
-                # 截断或填充到正确长度
-                if len(processed_actions) > self.n_agents:
-                    processed_actions = processed_actions[:self.n_agents]
-                else:
-                    # 填充默认动作
-                    while len(processed_actions) < self.n_agents:
-                        processed_actions.append(0)  # 默认动作
-        elif isinstance(processed_actions, np.ndarray):
-            if processed_actions.ndim == 1 and len(processed_actions) == self.n_agents:
-                # 已经是正确形状
-                pass
+        # 情况1: 动作已按智能体分解
+        if isinstance(actions, (list, np.ndarray)) and len(actions) == self.n_agents:
+            if isinstance(actions, np.ndarray) and actions.ndim == 2:
+                # 2D数组 (n_agents, act_dim)
+                discrete_count = self.cap_num + self.reg_num + self.bat_num
+                
+                # 提取离散动作
+                for i in range(discrete_count):
+                    flat_actions.append(int(actions[i].flatten()[0]))
+                
+                # 提取连续PV动作
+                for i in range(self.pv_num):
+                    agent_idx = discrete_count + i
+                    if agent_idx < len(actions):
+                        pv_action = actions[agent_idx].flatten()
+                        # 每个PV有2个动作：有功功率和功率因数
+                        if len(pv_action) >= 2:
+                            flat_actions.extend(pv_action[:2])
+                        else:
+                            flat_actions.extend([pv_action[0], 1.0])  # 默认功率因数1.0
             else:
-                logger.debug(f"动作形状异常: {processed_actions.shape}, 尝试重塑")
-                processed_actions = processed_actions.reshape(-1)[:self.n_agents]
+                # 列表格式或1D数组
+                discrete_count = self.cap_num + self.reg_num + self.bat_num
+                
+                # 提取离散动作
+                for i in range(discrete_count):
+                    if i < len(actions):
+                        flat_actions.append(int(actions[i]))
+                    else:
+                        flat_actions.append(0)
+                
+                # 提取连续PV动作
+                for i in range(discrete_count, len(actions)):
+                    pv_action = actions[i]
+                    if isinstance(pv_action, (list, np.ndarray)):
+                        flat_actions.extend(pv_action[:2])
+                    else:
+                        flat_actions.extend([float(pv_action), 1.0])
         
-        return processed_actions
+        # 情况2: 分组格式 [离散动作, 连续动作]
+        elif isinstance(actions, (list, tuple)) and len(actions) == 2:
+            discrete_actions, continuous_actions = actions
+            
+            # 添加离散动作
+            discrete_actions = np.asarray(discrete_actions).flatten()
+            expected_discrete = self.cap_num + self.reg_num + self.bat_num
+            for i in range(expected_discrete):
+                if i < len(discrete_actions):
+                    flat_actions.append(int(discrete_actions[i]))
+                else:
+                    flat_actions.append(0)
+            
+            # 添加连续动作
+            continuous_actions = np.asarray(continuous_actions).flatten()
+            flat_actions.extend(continuous_actions)
+        
+        else:
+            # 未知格式，返回默认动作
+            logger.warning(f"未知动作格式: {type(actions)}")
+            flat_actions = self._get_default_flat_actions()
+        
+        return np.array(flat_actions)
+    
+    def _process_discrete_actions_to_flat(self, actions) -> np.ndarray:
+        """
+        将纯离散动作转换为扁平numpy数组
+        """
+        if isinstance(actions, np.ndarray):
+            # 如果是2D数组，扁平化
+            if actions.ndim == 2:
+                flat_actions = []
+                for i in range(min(len(actions), self.n_agents)):
+                    flat_actions.append(int(actions[i].flatten()[0]))
+                # 填充剩余的
+                while len(flat_actions) < self.n_agents:
+                    flat_actions.append(0)
+                return np.array(flat_actions)
+            else:
+                # 1D数组，直接返回
+                return actions.flatten()[:self.n_agents].astype(int)
+        elif isinstance(actions, (list, tuple)):
+            # 列表格式
+            flat_actions = []
+            for i in range(self.n_agents):
+                if i < len(actions):
+                    flat_actions.append(int(actions[i]))
+                else:
+                    flat_actions.append(0)
+            return np.array(flat_actions)
+        else:
+            logger.warning(f"未知离散动作格式: {type(actions)}")
+            return np.zeros(self.n_agents, dtype=int)
+    
+    def _get_default_flat_actions(self) -> List[float]:
+        """获取默认扁平动作列表"""
+        flat_actions = []
+        
+        # 电容器默认动作
+        flat_actions.extend([0] * self.cap_num)
+        
+        # 调压器默认动作
+        flat_actions.extend([0] * self.reg_num)
+        
+        # 电池默认动作
+        if self.bat_num > 0:
+            if isinstance(self.bat_act_num, (int, float)) and self.bat_act_num == float('inf'):
+                # 连续电池控制
+                flat_actions.extend([0.0] * self.bat_num)
+            else:
+                # 离散电池控制
+                flat_actions.extend([0] * self.bat_num)
+        
+        # PV默认动作（如果启用）
+        if self.pv_control_enabled and self.pv_num > 0:
+            # 每个PV系统2个动作：有功功率0.0，功率因数1.0
+            for _ in range(self.pv_num):
+                flat_actions.extend([0.0, 1.0])
+        
+        return flat_actions
+
+    def _process_mixed_actions(self, actions) -> List:
+        """
+        处理混合动作空间（离散 + 连续）
+        
+        支持的输入格式：
+        1. 已分解的智能体动作列表: [agent0_action, agent1_action, ...]
+        2. 2D numpy数组: (n_agents, act_dim) 
+        3. 分组格式: [discrete_actions, continuous_actions]
+        """
+        
+        # 格式1: 动作已按智能体分解 (修复核心bug: 支持numpy.ndarray)
+        if isinstance(actions, (list, np.ndarray)) and len(actions) == self.n_agents:
+            # 对于numpy数组，需要转换为列表格式供混合动作空间使用
+            if isinstance(actions, np.ndarray):
+                # 分解2D数组为智能体级动作
+                agent_actions = []
+                discrete_count = self.cap_num + self.reg_num + self.bat_num
+                
+                # 处理离散设备动作
+                for i in range(discrete_count):
+                    if actions.ndim == 2:
+                        # 二维数组：取每个智能体的动作
+                        agent_actions.append(int(actions[i].flatten()[0]))
+                    else:
+                        # 一维数组：直接取值
+                        agent_actions.append(int(actions[i]))
+                
+                # 处理连续PV系统动作
+                for i in range(self.pv_num):
+                    agent_idx = discrete_count + i
+                    if agent_idx < len(actions):
+                        if actions.ndim == 2:
+                            # 二维数组：每个PV智能体可能有多维动作
+                            pv_action = actions[agent_idx].flatten()
+                            # 确保PV动作为2维（有功功率 + 功率因数）
+                            if len(pv_action) >= 2:
+                                agent_actions.append(pv_action[:2])
+                            else:
+                                agent_actions.append(np.array([pv_action[0], 0.0]))
+                        else:
+                            # 一维数组：假设是标量，扩展为2维
+                            action_val = actions[agent_idx]
+                            if isinstance(action_val, np.ndarray):
+                                if len(action_val) >= 2:
+                                    agent_actions.append(action_val[:2])
+                                else:
+                                    agent_actions.append(np.array([action_val[0], 0.0]))
+                            else:
+                                agent_actions.append(np.array([float(action_val), 0.0]))
+                    else:
+                        # 默认PV动作
+                        agent_actions.append(np.array([0.0, 0.0]))
+                
+                return agent_actions
+            else:
+                # 列表格式，直接返回
+                return actions
+        
+        # 格式2: 分组格式 [离散动作, 连续动作]
+        elif isinstance(actions, (list, tuple)) and len(actions) == 2:
+            discrete_actions, continuous_actions = actions
+            agent_actions = []
+            
+            # 处理离散设备（电容器、调压器、电池）
+            discrete_actions = np.asarray(discrete_actions).flatten()
+            for i in range(self.cap_num + self.reg_num + self.bat_num):
+                if i < len(discrete_actions):
+                    agent_actions.append(int(discrete_actions[i]))
+                else:
+                    agent_actions.append(0)  # 默认动作
+            
+            # 处理连续设备（PV系统）
+            continuous_actions = np.asarray(continuous_actions).flatten()
+            for i in range(self.pv_num):
+                # 每个PV系统2个连续动作（有功功率 + 功率因数）
+                start_idx = i * 2
+                end_idx = start_idx + 2
+                if end_idx <= len(continuous_actions):
+                    pv_action = continuous_actions[start_idx:end_idx]
+                    agent_actions.append(pv_action)
+                else:
+                    # 不够的情况，用默认值填充
+                    agent_actions.append(np.array([0.0, 0.0]))
+            
+            return agent_actions
+        
+        # 格式3: 其他异常格式，记录并返回默认动作
+        else:
+            logger.warning(f"混合动作格式异常: type={type(actions)}, "
+                         f"length={len(actions) if hasattr(actions, '__len__') else 'N/A'}, "
+                         f"expected_agents={self.n_agents}")
+            logger.debug(f"动作内容: {actions}")
+            return self._get_default_actions()
+    
+    def _process_discrete_actions(self, actions) -> np.ndarray:
+        """
+        处理纯离散动作空间
+        
+        支持的输入格式：
+        1. numpy数组: 直接展平并截取
+        2. 列表/元组: 转换为numpy数组
+        """
+        if isinstance(actions, np.ndarray):
+            # numpy数组：展平并截取到智能体数量
+            return actions.flatten()[:self.n_agents]
+        elif isinstance(actions, (list, tuple)):
+            # 列表/元组：转换为数组格式
+            actions_array = np.asarray(actions).flatten()
+            return actions_array[:self.n_agents]
+        else:
+            # 异常格式：记录错误并返回默认动作
+            logger.warning(f"纯离散动作格式异常: type={type(actions)}")
+            default_actions = np.zeros(self.n_agents, dtype=int)
+            return default_actions
+    
+    def _get_default_actions(self):
+        """获取默认动作（错误恢复用）"""
+        default_actions = []
+        
+        # 电容器和调压器默认动作（离散）
+        for i in range(self.cap_num + self.reg_num + self.bat_num):
+            default_actions.append(0)
+        
+        # PV系统默认动作（连续）
+        if self.pv_control_enabled:
+            for i in range(self.pv_num):
+                default_actions.append(np.array([0.0, 0.0]))  # [有功功率, 功率因数]
+        
+        return default_actions
     
     def _clear_caches(self) -> None:
         """清理缓存"""
@@ -479,8 +726,8 @@ class PowerZooEnv:
         safe_obs = [np.zeros(obs_dim) for _ in range(self.n_agents)]
         
         return (
-            safe_obs,                                              # local_obs
-            safe_obs,                                              # global_state
+            safe_obs,                                             # local_obs
+            safe_obs,                                             # global_state
             [[0.0]],                                              # rewards
             np.array([True] * self.n_agents, dtype=bool),         # dones (numpy array)
             [{"error": True, "safe_mode": True}],                 # infos
@@ -517,46 +764,60 @@ class PowerZooEnv:
     
     def _get_env_action_space(self, env_action_space) -> List[Union[Discrete, Box]]:
         """分解环境动作空间给各智能体 - HAPPO异构智能体兼容"""
+        agent_spaces = []
+        
         if hasattr(env_action_space, 'nvec'):
-            # 标准的MultiDiscrete空间
+            # 纯离散动作空间
             return [Discrete(n) for n in env_action_space.nvec]
         elif isinstance(env_action_space, gym.spaces.Tuple):
-            # 混合动作空间（离散 + 连续），处理PV系统的情况
-            agent_spaces = []
+            # 混合动作空间（离散 + 连续）
+            discrete_space = env_action_space.spaces[0]
+            continuous_space = env_action_space.spaces[1] if len(env_action_space.spaces) > 1 else None
             
-            # 处理离散部分 - 电容器和调压器
-            if len(env_action_space.spaces) >= 1 and hasattr(env_action_space.spaces[0], 'nvec'):
-                discrete_nvec = env_action_space.spaces[0].nvec
-                agent_spaces.extend([Discrete(n) for n in discrete_nvec])
+            # 为离散设备创建离散动作空间
+            if hasattr(discrete_space, 'nvec'):
+                for n in discrete_space.nvec:
+                    agent_spaces.append(Discrete(n))
             
-            # 处理连续部分（为PV或其他连续控制设备创建Box空间）
-            if len(env_action_space.spaces) >= 2:
-                continuous_space = env_action_space.spaces[1]
-                if hasattr(continuous_space, 'shape') and continuous_space.shape:
-                    continuous_dim = continuous_space.shape[0]
-                    # 为PV系统分配连续动作空间
-                    if self.pv_control_enabled and self.pv_num > 0:
-                        # 每个PV系统可能有2个连续动作维度（有功功率和功率因数）
-                        pv_continuous_dims = continuous_dim
-                        if self.pv_num * 2 == pv_continuous_dims:
-                            # 每个PV系统2个连续动作 - 创建标准化的Box空间
-                            for _ in range(self.pv_num):
-                                agent_spaces.append(Box(
-                                    low=-1.0, high=1.0, shape=(2,), dtype=np.float32
-                                ))
-                        else:
-                            # 总的连续动作分配给所有PV系统
-                            dims_per_pv = max(1, pv_continuous_dims // self.pv_num)
-                            for _ in range(self.pv_num):
-                                agent_spaces.append(Box(
-                                    low=-1.0, high=1.0, shape=(dims_per_pv,), dtype=np.float32
-                                ))
+            # 为连续设备（PV系统）创建连续动作空间
+            if continuous_space is not None and self.pv_control_enabled and self.pv_num > 0:
+                continuous_dim = continuous_space.shape[0]
+                
+                # 假设每个PV系统有2个连续动作（有功功率 + 功率因数）
+                expected_pv_dims = self.pv_num * 2
+                if continuous_dim == expected_pv_dims:
+                    # 每个PV系统独立的Box空间
+                    for _ in range(self.pv_num):
+                        agent_spaces.append(Box(
+                            low=continuous_space.low[:2],
+                            high=continuous_space.high[:2], 
+                            shape=(2,), 
+                            dtype=np.float32
+                        ))
+                else:
+                    # 分配剩余维度给PV系统
+                    dims_per_pv = max(1, continuous_dim // self.pv_num)
+                    for i in range(self.pv_num):
+                        start_idx = i * dims_per_pv
+                        end_idx = min(start_idx + dims_per_pv, continuous_dim)
+                        dim_size = end_idx - start_idx
+                        agent_spaces.append(Box(
+                            low=continuous_space.low[start_idx:end_idx],
+                            high=continuous_space.high[start_idx:end_idx],
+                            shape=(dim_size,),
+                            dtype=np.float32
+                        ))
             
             return agent_spaces
         else:
-            # 简化处理：假设所有智能体动作空间相同
-            default_action_dim = 2  # 默认二元动作
-            return [Discrete(default_action_dim) for _ in range(self.n_agents)]
+            # 默认：所有智能体使用相同的动作空间
+            if isinstance(env_action_space, Discrete):
+                return [env_action_space for _ in range(self.n_agents)]
+            elif isinstance(env_action_space, Box):
+                return [env_action_space for _ in range(self.n_agents)]
+            else:
+                # 最后的后备方案
+                return [Discrete(2) for _ in range(self.n_agents)]
     
     def _repeat_space(self, space) -> List:
         """复制空间给每个智能体"""
@@ -582,12 +843,12 @@ class PowerZooEnv:
                 # 对于长动作向量，只显示前几个和后几个
                 start_actions = []
                 end_actions = []
-                for i, action in enumerate(actions[:3]):
+                for action in actions[:3]:
                     if isinstance(action, np.ndarray):
                         start_actions.append(f"[{', '.join([f'{x:.3f}' for x in action])}]")
                     else:
                         start_actions.append(str(action))
-                for i, action in enumerate(actions[-3:]):
+                for action in actions[-3:]:
                     if isinstance(action, np.ndarray):
                         end_actions.append(f"[{', '.join([f'{x:.3f}' for x in action])}]")
                     else:
@@ -629,17 +890,17 @@ class PowerZooEnv:
         """验证HAPPO算法兼容性 - 确保异质智能体支持"""
         try:
             # 检查动作空间一致性
-            action_space_types = set()
-            action_space_shapes = set()
+            action_space_types = list()
+            action_space_shapes = list()
             
             for i, space in enumerate(self.action_space):
                 space_type = type(space).__name__
-                action_space_types.add(space_type)
+                action_space_types.append(space_type)
                 
                 if hasattr(space, 'shape'):
-                    action_space_shapes.add(space.shape)
+                    action_space_shapes.append(space.shape)
                 elif hasattr(space, 'n'):
-                    action_space_shapes.add((space.n,))
+                    action_space_shapes.append((space.n,))
                     
             # HAPPO支持异构智能体，但需要确保接口一致
             logger.info(f"HAPPO兼容性检查 - 动作空间类型: {action_space_types}, 形状: {action_space_shapes}")

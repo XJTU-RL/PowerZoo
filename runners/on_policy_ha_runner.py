@@ -29,7 +29,24 @@ from runners.on_policy_base_runner import OnPolicyBaseRunner
 class OnPolicyHARunner(OnPolicyBaseRunner):
     """Runner for on-policy HA algorithms."""
 
-
+    def _get_buffer_attribute(self, agent_id, attr_name):
+        """获取buffer属性，兼容异构和同构buffer
+        
+        Args:
+            agent_id: 智能体ID
+            attr_name: 属性名称（如'actions', 'available_actions'等）
+            
+        Returns:
+            对应的属性值
+        """
+        buffer = self.actor_buffer[agent_id]
+        attr = getattr(buffer, attr_name, None)
+        
+        # 如果属性是字典（异构buffer），返回对应agent_id的值
+        if isinstance(attr, dict) and agent_id in attr:
+            return attr[agent_id]
+        # 否则直接返回（同构buffer）
+        return attr
 
     def train(self):
         """Train the model."""
@@ -68,19 +85,16 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         if hasattr(self, 'useS') and self.useS:
            result = {}
            for step_data in self.critic_buffer.infos.values():
-        # 遍历每个步骤中的字典
+            # 遍历每个步骤中的字典
                for item in step_data:
-            # 遍历字典中的键值对
+                # 遍历字典中的键值对
                    for key, value in item.items():
-                # 分割键名，获取标签后面的数字
+                    # 分割键名，获取标签后面的数字
                        label, _ = key.split('.')
                     # 将标签后面的数字加入结果字典中
                        full_label = f"{label}.{_}"
                     # 将标签后面的数字加入结果字典中
                        result[full_label] = result.get(full_label, 0) + value
-        #print(result)
-        #print(self.get_ordered_agents_pairs)#初始编号信息，在此对各类信息进行汇总
-        #print(self.get_agents_bus)
         
         # 只有当 get_agents_bus 存在时才进行智能体排序
         if hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None:
@@ -103,36 +117,63 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             # 当不使用智能体排序时，使用默认顺序
             agent_order = list(range(self.num_agents))
             print(f"default_order: {agent_order}")
+        
+        # 最终验证agent_order的有效性
+        if not isinstance(agent_order, list) or len(agent_order) != self.num_agents:
+            print(f"错误：agent_order格式无效: {agent_order}，使用默认顺序")
+            agent_order = list(range(self.num_agents))
+        
+        # 验证所有元素都是有效的整数索引
+        for i, agent_id in enumerate(agent_order):
+            if not isinstance(agent_id, (int, np.integer)) or agent_id < 0 or agent_id >= self.num_agents:
+                print(f"错误：检测到无效的agent_id: {agent_id} (位置 {i})，使用默认顺序")
+                agent_order = list(range(self.num_agents))
+                break
+        
         for agent_id in agent_order:
             self.actor_buffer[agent_id].update_factor(factor)  # current actor save factor
 
             # the following reshaping combines the first two dimensions (i.e. episode_length and n_rollout_threads) to form a batch
-            available_actions = (
-                None
-                if self.actor_buffer[agent_id].available_actions is None
-                else self.actor_buffer[agent_id]
-                .available_actions[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].available_actions.shape[2:])
-            )
+            # 处理异构buffer的兼容性
+            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
+                # 检查是否为异构buffer（字典结构）
+                if isinstance(self.actor_buffer[agent_id].available_actions, dict):
+                    # 异构buffer：available_actions[agent_id]是一个数组
+                    if agent_id in self.actor_buffer[agent_id].available_actions and self.actor_buffer[agent_id].available_actions[agent_id] is not None:
+                        available_actions = self.actor_buffer[agent_id].available_actions[agent_id][:-1].reshape(
+                            -1, *self.actor_buffer[agent_id].available_actions[agent_id].shape[2:]
+                        )
+                    else:
+                        available_actions = None
+                else:
+                    # 同构buffer：直接处理
+                    available_actions = self.actor_buffer[agent_id].available_actions[:-1].reshape(
+                        -1, *self.actor_buffer[agent_id].available_actions.shape[2:]
+                    )
+            else:
+                available_actions = None
 
             # compute action log probs for the actor before update.
+            # 获取actions数据（兼容异构buffer）
+            actions_data = self._get_buffer_attribute(agent_id, 'actions')
+            
             old_actions_logprob, _, _ = self.actor[agent_id].evaluate_actions(
-                self.actor_buffer[agent_id]
-                .obs[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].obs.shape[2:]),
-                self.actor_buffer[agent_id]
-                .rnn_states[0:1]
-                .reshape(-1, *self.actor_buffer[agent_id].rnn_states.shape[2:]),
-                self.actor_buffer[agent_id].actions.reshape(
-                    -1, *self.actor_buffer[agent_id].actions.shape[2:]
+                self.actor_buffer[agent_id].obs[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].obs.shape[2:]
                 ),
-                self.actor_buffer[agent_id]
-                .masks[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].masks.shape[2:]),
+                self.actor_buffer[agent_id].rnn_states[0:1].reshape(
+                    -1, *self.actor_buffer[agent_id].rnn_states.shape[2:]
+                ),
+                actions_data.reshape(
+                    -1, *actions_data.shape[2:]
+                ),
+                self.actor_buffer[agent_id].masks[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].masks.shape[2:]
+                ),
                 available_actions,
-                self.actor_buffer[agent_id]
-                .active_masks[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].active_masks.shape[2:]),
+                self.actor_buffer[agent_id].active_masks[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].active_masks.shape[2:]
+                ),
             )
 
             # update actor
@@ -147,22 +188,22 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
 
             # compute action log probs for updated agent
             new_actions_logprob, _, _ = self.actor[agent_id].evaluate_actions(
-                self.actor_buffer[agent_id]
-                .obs[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].obs.shape[2:]),
-                self.actor_buffer[agent_id]
-                .rnn_states[0:1]
-                .reshape(-1, *self.actor_buffer[agent_id].rnn_states.shape[2:]),
-                self.actor_buffer[agent_id].actions.reshape(
-                    -1, *self.actor_buffer[agent_id].actions.shape[2:]
+                self.actor_buffer[agent_id].obs[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].obs.shape[2:]
                 ),
-                self.actor_buffer[agent_id]
-                .masks[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].masks.shape[2:]),
+                self.actor_buffer[agent_id].rnn_states[0:1].reshape(
+                    -1, *self.actor_buffer[agent_id].rnn_states.shape[2:]
+                ),
+                actions_data.reshape(
+                    -1, *actions_data.shape[2:]
+                ),
+                self.actor_buffer[agent_id].masks[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].masks.shape[2:]
+                ),
                 available_actions,
-                self.actor_buffer[agent_id]
-                .active_masks[:-1]
-                .reshape(-1, *self.actor_buffer[agent_id].active_masks.shape[2:]),
+                self.actor_buffer[agent_id].active_masks[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].active_masks.shape[2:]
+                ),
             )
 
             # update factor for next agent
@@ -193,14 +234,37 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         """
         if self.ordered:
             if hasattr(self, 'useS') and self.useS:
-                # 按敏感度排序
-                sorted_keys = sorted(self.get_ordered_agents_pairs, key=lambda x: new_dict[x])
-                sorted_values = [self.get_ordered_agents_pairs[key] for key in sorted_keys]
-                
-                if hasattr(self, 'big2small') and self.big2small:
-                    return sorted_values  # 从大到小按照S排序
+                # 防御性编程：检查get_ordered_agents_pairs是否存在且有效
+                # 注意：self.get_ordered_agents_pairs 是从 get_ordered_agents_pairs 函数返回的值
+                if (hasattr(self, 'get_ordered_agents_pairs') and 
+                    self.get_ordered_agents_pairs is not None and 
+                    isinstance(self.get_ordered_agents_pairs, dict)):
+                    
+                    try:
+                        # 按敏感度排序
+                        sorted_keys = sorted(self.get_ordered_agents_pairs.keys(), key=lambda x: new_dict.get(x, 0))
+                        sorted_values = [self.get_ordered_agents_pairs[key] for key in sorted_keys]
+                        
+                        # 验证所有agent_id都是整数
+                        validated_values = []
+                        for agent_id in sorted_values:
+                            if isinstance(agent_id, int) and 0 <= agent_id < self.num_agents:
+                                validated_values.append(agent_id)
+                            else:
+                                print(f"警告：检测到无效的agent_id: {agent_id}，跳过并使用默认顺序")
+                                return list(range(self.num_agents))
+                        
+                        if hasattr(self, 'big2small') and self.big2small:
+                            return validated_values  # 从大到小按照S排序
+                        else:
+                            return validated_values[::-1]  # 从小到大按照S排序
+                            
+                    except (KeyError, TypeError, AttributeError) as e:
+                        print(f"警告：智能体排序过程中出现错误: {e}，使用默认顺序")
+                        return list(range(self.num_agents))
                 else:
-                    return sorted_values[::-1]  # 从小到大按照S排序
+                    print("警告：get_ordered_agents_pairs不可用，使用默认顺序")
+                    return list(range(self.num_agents))
             else:
                 # 固定顺序
                 return list(range(self.num_agents))
