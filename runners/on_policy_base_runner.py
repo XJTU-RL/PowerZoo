@@ -375,26 +375,13 @@ class OnPolicyBaseRunner:
             #     self.actor_buffer[agent_id].available_actions[0] = available_actions[
             #         :, agent_id
             #     ].copy()
-            #TODO:解决了动作空间存储的问题 - 修复异构buffer维度不匹配问题
-            if hasattr(self.actor_buffer[agent_id], 'available_actions'):
-                # 检查是否为异构buffer（字典结构）
-                if isinstance(self.actor_buffer[agent_id].available_actions, dict):
-                    # 异构buffer：available_actions[agent_id]是一个数组
-                    if agent_id in self.actor_buffer[agent_id].available_actions:
-                        if self.actor_buffer[agent_id].available_actions[agent_id] is not None:
-                            # available_actions 现在是一个列表，每个元素对应一个环境
-                            # 对于每个环境，提取第 agent_id 个智能体的可用动作
-                            agent_available_actions = []
-                            for env_idx in range(len(available_actions)):
-                                agent_available_actions.append(available_actions[env_idx][agent_id])
-                            # 正确赋值到异构buffer的字典结构中
-                            self.actor_buffer[agent_id].available_actions[agent_id][0] = np.array(agent_available_actions)
-                elif self.actor_buffer[agent_id].available_actions is not None:
-                    # 同构buffer：直接处理
-                    agent_available_actions = []
-                    for env_idx in range(len(available_actions)):
-                        agent_available_actions.append(available_actions[env_idx][agent_id])
-                    self.actor_buffer[agent_id].available_actions[0] = np.array(agent_available_actions)
+            # 处理available_actions（兼容新版单智能体buffer）
+            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
+                # 提取当前智能体的可用动作
+                agent_available_actions = []
+                for env_idx in range(len(available_actions)):
+                    agent_available_actions.append(available_actions[env_idx][agent_id])
+                self.actor_buffer[agent_id].available_actions[0] = np.array(agent_available_actions)
 
 
 
@@ -483,31 +470,10 @@ class OnPolicyBaseRunner:
         
         # 流式处理每个智能体的数据，避免中间字典存储
         for agent_id in range(self.num_agents):
-            # 获取智能体可用动作
+            # 获取智能体可用动作（兼容新版单智能体buffer）
             available_actions = None
-            if hasattr(self.actor_buffer[agent_id], 'available_actions'):
-                if self.actor_buffer[agent_id].available_actions is not None:
-                    # 处理异构buffer的字典结构：available_actions[agent_id][step]
-                    if isinstance(self.actor_buffer[agent_id].available_actions, dict):
-                        if agent_id in self.actor_buffer[agent_id].available_actions:
-                            agent_avail = self.actor_buffer[agent_id].available_actions[agent_id]
-                            if agent_avail is not None:
-                                # 维度检查：确保step不越界
-                                if step >= agent_avail.shape[0]:
-                                    # 调用调试方法打印详细信息
-                                    if hasattr(self.actor_buffer[agent_id], 'debug_available_actions_info'):
-                                        self.actor_buffer[agent_id].debug_available_actions_info()
-                                    raise IndexError(
-                                        f"智能体 {agent_id} 的 available_actions 访问越界。"
-                                        f"尝试访问 step={step}，但数组第一维大小只有 {agent_avail.shape[0]}。"
-                                        f"期望的维度应该是 (episode_length+1={self.algo_args['train']['episode_length']+1}, "
-                                        f"n_rollout_threads={self.algo_args['train']['n_rollout_threads']}, action_space_n)。"
-                                        f"实际维度: {agent_avail.shape}"
-                                    )
-                                available_actions = agent_avail[step]
-                    else:
-                        # 兼容原有的数组结构
-                        available_actions = self.actor_buffer[agent_id].available_actions[step]
+            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
+                available_actions = self.actor_buffer[agent_id].available_actions[step]
             
             # 直接调用actor获取动作
             action, action_log_prob, rnn_state = self.actor[agent_id].get_actions(

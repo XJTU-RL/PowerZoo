@@ -42,10 +42,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         buffer = self.actor_buffer[agent_id]
         attr = getattr(buffer, attr_name, None)
         
-        # 如果属性是字典（异构buffer），返回对应agent_id的值
-        if isinstance(attr, dict) and agent_id in attr:
-            return attr[agent_id]
-        # 否则直接返回（同构buffer）
+        # 新版异构buffer已经简化为单智能体版本，直接返回属性
         return attr
 
     def train(self):
@@ -134,22 +131,11 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             self.actor_buffer[agent_id].update_factor(factor)  # current actor save factor
 
             # the following reshaping combines the first two dimensions (i.e. episode_length and n_rollout_threads) to form a batch
-            # 处理异构buffer的兼容性
+            # 获取available_actions
             if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
-                # 检查是否为异构buffer（字典结构）
-                if isinstance(self.actor_buffer[agent_id].available_actions, dict):
-                    # 异构buffer：available_actions[agent_id]是一个数组
-                    if agent_id in self.actor_buffer[agent_id].available_actions and self.actor_buffer[agent_id].available_actions[agent_id] is not None:
-                        available_actions = self.actor_buffer[agent_id].available_actions[agent_id][:-1].reshape(
-                            -1, *self.actor_buffer[agent_id].available_actions[agent_id].shape[2:]
-                        )
-                    else:
-                        available_actions = None
-                else:
-                    # 同构buffer：直接处理
-                    available_actions = self.actor_buffer[agent_id].available_actions[:-1].reshape(
-                        -1, *self.actor_buffer[agent_id].available_actions.shape[2:]
-                    )
+                available_actions = self.actor_buffer[agent_id].available_actions[:-1].reshape(
+                    -1, *self.actor_buffer[agent_id].available_actions.shape[2:] #将前两个维度合并，形成一个batch
+                )
             else:
                 available_actions = None
 

@@ -96,10 +96,10 @@ class ActionSpace:
         if continuous_shape > 0:
             # 混合动作空间：离散 + 连续
             discrete_space = gym.spaces.MultiDiscrete(discrete_actions) if discrete_actions else None
-            continuous_space = gym.spaces.Box(low=-1, high=1, shape=(continuous_shape,), dtype=np.float32)
+            continuous_space = gym.spaces.Box(low=-1, high=1, shape=(continuous_shape,), dtype=np.float32) #PV的两个控制量都是(-1,1)
             
             if discrete_space is not None:
-                self._space = gym.spaces.Tuple((discrete_space, continuous_space))
+                self._space = gym.spaces.Tuple((discrete_space, continuous_space))#(discrete * num_crb, continuous * num_pv)
             else:
                 self._space = continuous_space
         else:
@@ -111,7 +111,7 @@ class ActionSpace:
         return self._space
 
     def sample(self):
-        """HAPPO兼容的采样方法 - 保持动作语义正确性"""
+        """HAPPO兼容的采样方法"""
         ss = self._space.sample()
         
         # 处理混合动作空间：保持语义分离，而非强制转换
@@ -321,7 +321,7 @@ class Env(gym.Env):
             obs_dict = {
                 'bus_voltages': gym.spaces.Box(0.8, 1.2, shape=(node_num,)),
                 'cap_statuses': gym.spaces.MultiDiscrete([2]*self.cap_num),
-                'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.reg_num),  # 修复错误：reg_num
+                'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.reg_num), 
                 'bat_statuses': gym.spaces.Dict(bat_dict)
             }
             

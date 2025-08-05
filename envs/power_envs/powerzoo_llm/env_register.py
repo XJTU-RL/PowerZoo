@@ -143,7 +143,7 @@ _ENV_INFO = {
         'reg_act_num': 33,
         'bat_act_num': 33,
         'pv_control': True,                 # 启用PV控制
-        'pv_act_num': float('inf'),         # 连续PV控制
+        'pv_act_num': float('inf'),         # 启用连续PV控制，如果是离散则填入整数值
         'power_w': 10.0,
         'cap_w': 1.0/33,
         'reg_w': 1.0/33,

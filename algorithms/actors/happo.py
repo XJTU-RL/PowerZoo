@@ -71,7 +71,8 @@ class HAPPO(OnPolicyBase):
         factor_batch = check(factor_batch).to(**self.tpdv)
 
         # 重塑以在一次前向传递中对所有步骤进行评估
-        action_log_probs, dist_entropy, _ = self.evaluate_actions(#dist_entropy表示动作的熵，训练完成后，这个值也趋近于0，表示智能体的动作逐渐趋于稳定
+        #dist_entropy表示动作的熵，训练完成后，这个值也趋近于0，表示智能体的动作逐渐趋于稳定
+        action_log_probs, dist_entropy, _ = self.evaluate_actions(
             obs_batch,
             rnn_states_batch,
             actions_batch,
