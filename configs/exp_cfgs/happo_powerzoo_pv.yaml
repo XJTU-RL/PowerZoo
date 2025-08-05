@@ -134,7 +134,7 @@ env_args:
   #random seed
   seed: 123456 # 环境的seed
   #maximum number of steps
-  num_steps: 24
+  num_steps: 360
   #number of parallel processes
   num_workers: None
   use_plot: False

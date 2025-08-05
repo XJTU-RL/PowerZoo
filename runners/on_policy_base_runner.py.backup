@@ -464,27 +464,25 @@ class OnPolicyBaseRunner:
         """
         n_threads = self.algo_args["train"]["n_rollout_threads"]
         
-        # 动态计算真实的最大动作维度
+        # 动态计算真实的最大动作维度，而非使用固定值
         max_action_dim = 1  # 最小默认值
         
         # 正确获取每个智能体的实际动作维度
         agent_action_dims = []
         for agent_id in range(self.num_agents):
-            # 直接从环境动作空间获取准确信息
-            action_space = self.envs.action_space[agent_id]
-            
-            if hasattr(action_space, 'shape') and len(action_space.shape) > 0:
-                # Box空间（连续动作）
-                agent_dim = action_space.shape[0]
-            elif hasattr(action_space, 'n'):
-                # Discrete空间
-                agent_dim = 1
+            if hasattr(self.actor_buffer[agent_id], 'action_dim'):
+                # 从buffer获取实际动作维度
+                agent_dim = self.actor_buffer[agent_id].action_dim
+            elif hasattr(self.actor_buffer[agent_id], 'action_shape'):
+                # 从action_shape推断维度
+                agent_dim = self.actor_buffer[agent_id].action_shape[0] if self.actor_buffer[agent_id].action_shape else 1
             else:
-                # 尝试从buffer获取
-                if hasattr(self.actor_buffer[agent_id], 'action_dim'):
-                    agent_dim = self.actor_buffer[agent_id].action_dim
-                elif hasattr(self.actor_buffer[agent_id], 'action_shape'):
-                    agent_dim = self.actor_buffer[agent_id].action_shape[0] if self.actor_buffer[agent_id].action_shape else 1
+                # 从环境动作空间推断
+                action_space = self.envs.action_space[agent_id]
+                if hasattr(action_space, 'shape') and len(action_space.shape) > 0:
+                    agent_dim = action_space.shape[0]
+                elif hasattr(action_space, 'n'):
+                    agent_dim = 1  # 离散动作空间
                 else:
                     agent_dim = 1  # 默认
             
@@ -493,8 +491,7 @@ class OnPolicyBaseRunner:
         
         # 使用实际计算出的最大维度进行预分配
         actions = np.zeros((n_threads, self.num_agents, max_action_dim), dtype=np.float32)
-        # action_log_probs 是标量，不是向量！每个动作只有一个对数概率值
-        action_log_probs = np.zeros((n_threads, self.num_agents, 1), dtype=np.float32)
+        action_log_probs = np.zeros((n_threads, self.num_agents, max_action_dim), dtype=np.float32)
         rnn_states = np.zeros(
             (n_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), 
             dtype=np.float32
@@ -518,14 +515,6 @@ class OnPolicyBaseRunner:
             # 转换张量为numpy数组
             action_np = _t2n(action)
             log_prob_np = _t2n(action_log_prob)
-            
-            # 调试输出：检查PV智能体的动作维度
-            if agent_id >= 9 and step == 0:  # 假设PV智能体是9-12
-                print(f"[DEBUG] Agent {agent_id} (PV):")
-                print(f"  - action tensor shape: {action.shape}")
-                print(f"  - action_np shape: {action_np.shape}")
-                print(f"  - expected dim: {agent_action_dims[agent_id]}")
-                print(f"  - action values: {action_np.flatten()}")
             rnn_state_np = _t2n(rnn_state)
             
             # 智能维度适配：确保正确的形状而不截断
@@ -548,14 +537,14 @@ class OnPolicyBaseRunner:
                     # 如果输出维度超过期望，截断并警告
                     print(f"截断智能体{agent_id}的动作从{action_np.shape[-1]}维到{current_agent_action_dim}维")
                     action_np = action_np[:, :current_agent_action_dim]
-                    # 注意：log_prob_np 不需要截断，它应该始终是标量
+                    log_prob_np = log_prob_np[:, :current_agent_action_dim]
             
             # 填充动作数据，保持完整维度（移除截断逻辑）
             actual_action_dim = min(action_np.shape[-1], max_action_dim)  # 仅用于防止数组越界
+            actual_log_prob_dim = min(log_prob_np.shape[-1], max_action_dim)
             
             actions[:, agent_id, :actual_action_dim] = action_np[:, :actual_action_dim]
-            # action_log_probs 应该是 (n_threads, 1) 形状
-            action_log_probs[:, agent_id, :] = log_prob_np.reshape(-1, 1)
+            action_log_probs[:, agent_id, :actual_log_prob_dim] = log_prob_np[:, :actual_log_prob_dim]
             rnn_states[:, agent_id] = rnn_state_np
         
         # 调试输出（可选，用于验证修复效果）
@@ -563,13 +552,6 @@ class OnPolicyBaseRunner:
             print(f"异构环境动作维度分布：{dict(zip(range(self.num_agents), agent_action_dims))}")
             print(f"最大动作维度：{max_action_dim}")
             print(f"输出actions形状：{actions.shape}")
-            
-            # 更详细的调试信息
-            print("\n[DEBUG] 各智能体动作详情:")
-            for agent_id in range(self.num_agents):
-                agent_actions = actions[:, agent_id, :]
-                non_zero_dims = np.sum(np.abs(agent_actions[0]) > 1e-8)
-                print(f"  Agent {agent_id}: shape={agent_actions.shape}, 非零维度={non_zero_dims}, 值={agent_actions[0][:agent_action_dims[agent_id]]}")
         
         return (
             self._collect_critic_values(step), 
@@ -760,7 +742,7 @@ class OnPolicyBaseRunner:
                     for info in infos
                 ]
             )
-
+        #print("self.actor_buffer[agent_id].insert(obs)",obs)
         for agent_id in range(self.num_agents):
             # 提取当前智能体的可用动作
             if available_actions[0] is not None:

@@ -25,7 +25,12 @@ class FixedNormal(torch.distributions.Normal):
     """Modify standard PyTorch Normal."""
 
     def log_probs(self, actions):
-        return super().log_prob(actions)
+        # 对于多维连续动作，返回联合对数概率（各维度之和）
+        log_probs = super().log_prob(actions)
+        if log_probs.dim() > 1:
+            # 将各维度的对数概率相加，得到联合对数概率
+            return log_probs.sum(dim=-1, keepdim=True)
+        return log_probs
 
     def entropy(self):
         return super().entropy().sum(-1)
