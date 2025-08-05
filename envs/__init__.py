@@ -10,6 +10,7 @@ from envs.other_envs.dexhands.dexhands_logger import DexHandsLogger
 from envs.other_envs.lag.lag_logger import LAGLogger
 # Power system environments
 from envs.power_envs.powerzoo.powerzoo_logger import PowerZooLogger
+from envs.power_envs.powerzoo_llm.powerzoo_llm_logger import PowerZooLLMLogger
 from envs.power_envs.dsr.dsr_logger import DSRLogger
 from envs.power_envs.stackelberg.stackelberg_game.stackelberg_base_env import StackelbergBaseEnv
 from envs.power_envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
@@ -27,7 +28,7 @@ LOGGER_REGISTRY = {
     "smacv2": SMACv2Logger,
     "lag": LAGLogger,
     "powerzoo": PowerZooLogger,
-    "powerzoo_llm": PowerZooLogger,
+    "powerzoo_llm": PowerZooLLMLogger,
     "dsr": DSRLogger,
     "stackelberg": StackelbergBaseEnv,
     "stackelberg_powerzoo": StackelbergPowerZooEnv,

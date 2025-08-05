@@ -7,6 +7,7 @@
 @Description: 此 Python 文件实现了同策略算法的基础运行器 `OnPolicyBaseRunner`，用于训练和评估智能体策略。
 """
 """Base runner for on-policy algorithms."""
+import os
 import time
 import numpy as np
 import torch
@@ -354,6 +355,22 @@ class OnPolicyBaseRunner:
                     self.prep_rollout()
                     self.eval()
                 self.save()
+            
+            # 更频繁的模型保存（每save_interval个episode保存一次）
+            save_interval = self.algo_args["train"].get("save_interval", 10)
+            if episode % save_interval == 0 and episode > 0:
+                self.save(episode=episode)
+                print(f"Episode {episode}: 检查点已保存到 {self.save_dir}/checkpoint_episode_{episode}")
+                
+            # 检查是否是最佳模型
+            if hasattr(self.logger, 'done_episodes_rewards') and len(self.logger.done_episodes_rewards) > 0:
+                current_avg_reward = np.mean(self.logger.done_episodes_rewards)
+                if not hasattr(self, 'best_reward'):
+                    self.best_reward = float('-inf')
+                    
+                if current_avg_reward > self.best_reward:
+                    self.best_reward = current_avg_reward
+                    self.save(episode=episode, is_best=True)
 
             self.after_update()
 
@@ -1029,23 +1046,82 @@ class OnPolicyBaseRunner:
             self.actor[agent_id].prep_training()
         self.critic.prep_training()
 
-    def save(self):
-        """Save model parameters."""
+    def save(self, episode=None, is_best=False):
+        """Save model parameters.
+        
+        Args:
+            episode: 当前的episode数，用于创建检查点
+            is_best: 是否是最佳模型
+        """
+        # 创建保存路径
+        if episode is not None:
+            # 创建检查点目录
+            checkpoint_dir = os.path.join(self.save_dir, f"checkpoint_episode_{episode}")
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            save_path = checkpoint_dir
+        else:
+            save_path = self.save_dir
+            
+        # 保存actor模型
         for agent_id in range(self.num_agents):
             policy_actor = self.actor[agent_id].actor
             torch.save(
                 policy_actor.state_dict(),
-                str(self.save_dir) + "/actor_agent" + str(agent_id) + ".pt",
+                os.path.join(save_path, f"actor_agent{agent_id}.pt"),
             )
+            
+        # 保存critic模型
         policy_critic = self.critic.critic
         torch.save(
-            policy_critic.state_dict(), str(self.save_dir) + "/critic_agent" + ".pt"
+            policy_critic.state_dict(), 
+            os.path.join(save_path, "critic_agent.pt")
         )
+        
+        # 保存value normalizer
         if self.value_normalizer is not None:
             torch.save(
                 self.value_normalizer.state_dict(),
-                str(self.save_dir) + "/value_normalizer" + ".pt",
+                os.path.join(save_path, "value_normalizer.pt"),
             )
+            
+        # 保存训练状态信息
+        training_state = {
+            'episode': episode if episode is not None else 0,
+            'total_num_steps': getattr(self, 'total_num_steps', 0),
+            'best_reward': getattr(self, 'best_reward', float('-inf')),
+        }
+        torch.save(
+            training_state,
+            os.path.join(save_path, "training_state.pt")
+        )
+        
+        # 如果是最佳模型，额外保存一份
+        if is_best:
+            best_dir = os.path.join(self.save_dir, "best_model")
+            os.makedirs(best_dir, exist_ok=True)
+            
+            # 复制所有模型文件到best_model目录
+            import shutil
+            for agent_id in range(self.num_agents):
+                shutil.copy2(
+                    os.path.join(save_path, f"actor_agent{agent_id}.pt"),
+                    os.path.join(best_dir, f"actor_agent{agent_id}.pt")
+                )
+            shutil.copy2(
+                os.path.join(save_path, "critic_agent.pt"),
+                os.path.join(best_dir, "critic_agent.pt")
+            )
+            if self.value_normalizer is not None:
+                shutil.copy2(
+                    os.path.join(save_path, "value_normalizer.pt"),
+                    os.path.join(best_dir, "value_normalizer.pt")
+                )
+            shutil.copy2(
+                os.path.join(save_path, "training_state.pt"),
+                os.path.join(best_dir, "training_state.pt")
+            )
+            
+            print(f"新的最佳模型已保存！Episode: {episode}, Reward: {self.best_reward:.4f}")
 
     def restore(self):
         """恢复模型参数。"""

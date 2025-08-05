@@ -30,7 +30,9 @@ train:
   # 日志间隔
   log_interval: 10000
   # 评估间隔
-  eval_interval: 50000
+  eval_interval: 500
+  # 模型保存间隔（每多少个episode保存一次模型）
+  save_interval: 10
   # 是否使用ValueNorm
   use_valuenorm: True
   # 是否使用线性学习率衰减

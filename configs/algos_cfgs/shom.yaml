@@ -17,6 +17,8 @@ train:
   num_env_steps: 24000
   # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
   episode_length: 24
+    # 模型保存间隔（每多少个episode保存一次模型）
+  save_interval: 10
   # 日志间隔，default is 5
   log_interval: 1
   # 评估间隔，default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果

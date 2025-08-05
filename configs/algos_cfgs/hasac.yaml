@@ -16,6 +16,8 @@ train:
   n_rollout_threads: 2
   # number of total steps
   num_env_steps: 216000
+    # 模型保存间隔（每多少个episode保存一次模型）
+  save_interval: 10
   # number of warmup steps
   warmup_steps: 1200
   # number of steps per train

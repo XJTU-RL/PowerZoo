@@ -206,6 +206,9 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
 
         # update critic
         critic_train_info = self.critic.train(self.critic_buffer, self.value_normalizer)
+        
+        # 添加详细的tensorboard日志记录
+        self._log_training_metrics(actor_train_infos, critic_train_info, advantages, factor)
 
         return actor_train_infos, critic_train_info
 
@@ -274,3 +277,140 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                 return "固定顺序排序"  # 使用预定义的固定智能体顺序
         else:
             return "随机顺序排序"  # 随机打乱智能体顺序
+    
+    def _log_training_metrics(self, actor_train_infos, critic_train_info, advantages, factor):
+        """记录详细的训练指标到tensorboard
+        
+        Args:
+            actor_train_infos: 各智能体的actor训练信息列表
+            critic_train_info: critic训练信息
+            advantages: 优势函数值
+            factor: 更新因子
+        """
+        try:
+            # 获取当前总步数
+            total_steps = self.total_num_steps if hasattr(self, 'total_num_steps') else 0
+            
+            # 1. 记录每个智能体的详细指标
+            for agent_id, info in enumerate(actor_train_infos):
+                agent_prefix = f"agent_{agent_id}"
+                
+                # Actor损失相关
+                if 'policy_loss' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/policy_loss", info['policy_loss'], total_steps)
+                if 'dist_entropy' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/entropy", info['dist_entropy'], total_steps)
+                if 'actor_grad_norm' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/actor_grad_norm", info['actor_grad_norm'], total_steps)
+                if 'ratio' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/importance_ratio", info['ratio'], total_steps)
+                if 'approx_kl' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/approx_kl", info['approx_kl'], total_steps)
+                if 'clipfrac' in info:
+                    self.writter.add_scalar(f"{agent_prefix}/clip_fraction", info['clipfrac'], total_steps)
+                
+                # 动作分布统计
+                buffer = self.actor_buffer[agent_id]
+                if hasattr(buffer, 'actions'):
+                    actions = self._get_buffer_attribute(agent_id, 'actions')
+                    if actions is not None:
+                        # 记录动作分布
+                        if hasattr(buffer, 'action_type'):
+                            if buffer.action_type == 'discrete':
+                                # 离散动作：记录动作频率
+                                action_counts = np.bincount(actions.flatten().astype(int))
+                                for action_idx, count in enumerate(action_counts):
+                                    self.writter.add_scalar(
+                                        f"{agent_prefix}/action_freq/action_{action_idx}", 
+                                        count / len(actions.flatten()), 
+                                        total_steps
+                                    )
+                            elif buffer.action_type == 'continuous':
+                                # 连续动作：记录均值和标准差
+                                self.writter.add_scalar(
+                                    f"{agent_prefix}/action_mean", 
+                                    np.mean(actions), 
+                                    total_steps
+                                )
+                                self.writter.add_scalar(
+                                    f"{agent_prefix}/action_std", 
+                                    np.std(actions), 
+                                    total_steps
+                                )
+                                # 对于PV智能体，记录两个控制维度
+                                if actions.shape[-1] == 2:
+                                    self.writter.add_scalar(
+                                        f"{agent_prefix}/pv_active_power", 
+                                        np.mean(actions[..., 0]), 
+                                        total_steps
+                                    )
+                                    self.writter.add_scalar(
+                                        f"{agent_prefix}/pv_power_factor", 
+                                        np.mean(actions[..., 1]), 
+                                        total_steps
+                                    )
+            
+            # 2. 记录Critic相关指标
+            if 'value_loss' in critic_train_info:
+                self.writter.add_scalar("critic/value_loss", critic_train_info['value_loss'], total_steps)
+            if 'critic_grad_norm' in critic_train_info:
+                self.writter.add_scalar("critic/grad_norm", critic_train_info['critic_grad_norm'], total_steps)
+            
+            # 3. 记录优势函数统计
+            self.writter.add_scalar("training/advantages_mean", np.mean(advantages), total_steps)
+            self.writter.add_scalar("training/advantages_std", np.std(advantages), total_steps)
+            self.writter.add_scalar("training/advantages_max", np.max(advantages), total_steps)
+            self.writter.add_scalar("training/advantages_min", np.min(advantages), total_steps)
+            
+            # 4. 记录更新因子
+            self.writter.add_scalar("training/factor_mean", np.mean(factor), total_steps)
+            self.writter.add_scalar("training/factor_std", np.std(factor), total_steps)
+            
+            # 5. 记录价值函数预测质量
+            if hasattr(self.critic_buffer, 'value_preds') and hasattr(self.critic_buffer, 'returns'):
+                value_preds = self.critic_buffer.value_preds[:-1]
+                returns = self.critic_buffer.returns[:-1]
+                # 计算解释方差
+                if self.value_normalizer is not None:
+                    value_preds_denorm = self.value_normalizer.denormalize(value_preds)
+                else:
+                    value_preds_denorm = value_preds
+                
+                var_y = np.var(returns)
+                explained_var = np.nan if var_y == 0 else 1 - np.var(returns - value_preds_denorm) / var_y
+                self.writter.add_scalar("critic/explained_variance", explained_var, total_steps)
+                self.writter.add_scalar("critic/value_pred_mean", np.mean(value_preds), total_steps)
+                self.writter.add_scalar("critic/returns_mean", np.mean(returns), total_steps)
+            
+            # 6. 环境相关指标（如果有system_logger）
+            if hasattr(self, 'system_logger') and self.system_logger is not None:
+                realtime_metrics = self.system_logger.get_realtime_metrics()
+                if realtime_metrics:
+                    self.writter.add_scalar("env/recent_avg_reward", realtime_metrics.get('recent_avg_reward', 0), total_steps)
+                    self.writter.add_scalar("env/voltage_violations", realtime_metrics.get('recent_voltage_violations', 0), total_steps)
+                    self.writter.add_scalar("env/computation_time", realtime_metrics.get('recent_avg_computation_time', 0), total_steps)
+            
+            # 7. 记录学习率（如果可用）
+            for agent_id in range(self.num_agents):
+                if hasattr(self.actor[agent_id], 'optimizer'):
+                    for param_group in self.actor[agent_id].optimizer.param_groups:
+                        self.writter.add_scalar(f"agent_{agent_id}/learning_rate", param_group['lr'], total_steps)
+                        break
+            
+            if hasattr(self.critic, 'optimizer'):
+                for param_group in self.critic.optimizer.param_groups:
+                    self.writter.add_scalar("critic/learning_rate", param_group['lr'], total_steps)
+                    break
+            
+            # 8. 记录智能体排序信息（如果使用敏感度排序）
+            if hasattr(self, 'useS') and self.useS and hasattr(self, 'get_agents_bus'):
+                # 这里可以记录智能体的敏感度值
+                pass
+            
+            # 确保数据写入
+            self.writter.flush()
+            
+        except Exception as e:
+            print(f"记录训练指标时出错: {e}")
+            import traceback
+            traceback.print_exc()

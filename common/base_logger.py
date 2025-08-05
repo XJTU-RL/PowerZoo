@@ -156,6 +156,9 @@ class BaseLogger:
             )
         )
 
+        # 记录详细的训练进度信息到progress.txt
+        self._log_detailed_progress(actor_train_infos, critic_train_info)
+
         if len(self.done_episodes_rewards) > 0:
             aver_episode_rewards = np.mean(self.done_episodes_rewards)
             print(
@@ -168,6 +171,15 @@ class BaseLogger:
                 {"aver_rewards": aver_episode_rewards},
                 self.total_num_steps,
             )
+            
+            # 也记录到progress.txt
+            self.log_file.write(
+                f"Episode {self.episode}, Steps {self.total_num_steps}, "
+                f"Avg Episode Reward: {aver_episode_rewards:.4f}, "
+                f"FPS: {int(self.total_num_steps / (self.end - self.start))}\n"
+            )
+            self.log_file.flush()
+            
             self.done_episodes_rewards = []
 
     def eval_init(self):
@@ -239,6 +251,77 @@ class BaseLogger:
             if len(v) > 0:
                 self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
 
+    def _log_detailed_progress(self, actor_train_infos, critic_train_info):
+        """记录详细的训练进度信息到progress.txt和train_info.txt
+        
+        Args:
+            actor_train_infos: 各智能体的actor训练信息列表
+            critic_train_info: critic训练信息
+        """
+        try:
+            # 构建训练信息摘要
+            train_summary = []
+            train_summary.append(f"\n{'='*80}")
+            train_summary.append(f"Episode {self.episode} | Total Steps {self.total_num_steps}")
+            train_summary.append(f"{'='*80}")
+            
+            # Critic信息
+            train_summary.append("\n[Critic Info]")
+            if 'value_loss' in critic_train_info:
+                train_summary.append(f"  Value Loss: {critic_train_info['value_loss']:.6f}")
+            if 'critic_grad_norm' in critic_train_info:
+                train_summary.append(f"  Grad Norm: {critic_train_info['critic_grad_norm']:.4f}")
+            if 'average_step_rewards' in critic_train_info:
+                train_summary.append(f"  Avg Step Reward: {critic_train_info['average_step_rewards']:.4f}")
+                
+            # Actor信息（每个智能体）
+            train_summary.append("\n[Actor Info by Agent]")
+            for agent_id, info in enumerate(actor_train_infos):
+                train_summary.append(f"\n  Agent {agent_id}:")
+                if 'policy_loss' in info:
+                    train_summary.append(f"    Policy Loss: {info['policy_loss']:.6f}")
+                if 'dist_entropy' in info:
+                    train_summary.append(f"    Entropy: {info['dist_entropy']:.4f}")
+                if 'actor_grad_norm' in info:
+                    train_summary.append(f"    Grad Norm: {info['actor_grad_norm']:.4f}")
+                if 'approx_kl' in info:
+                    train_summary.append(f"    Approx KL: {info['approx_kl']:.6f}")
+                if 'clipfrac' in info:
+                    train_summary.append(f"    Clip Fraction: {info['clipfrac']:.4f}")
+                    
+            # 写入train_info.txt
+            train_info_str = '\n'.join(train_summary) + '\n'
+            self.log_training_info.write(train_info_str)
+            self.log_training_info.flush()
+            
+            # 构建简化的进度信息写入progress.txt
+            if self.episode % 10 == 0:  # 每10个episode记录一次详细信息
+                progress_info = (
+                    f"\nEpisode {self.episode}/{self.episodes} | "
+                    f"Steps {self.total_num_steps}/{self.algo_args['train']['num_env_steps']} | "
+                    f"Avg Step Reward: {critic_train_info.get('average_step_rewards', 0):.4f} | "
+                )
+                
+                # 添加平均policy loss
+                avg_policy_loss = np.mean([info.get('policy_loss', 0) for info in actor_train_infos])
+                progress_info += f"Avg Policy Loss: {avg_policy_loss:.6f} | "
+                
+                # 添加平均entropy
+                avg_entropy = np.mean([info.get('dist_entropy', 0) for info in actor_train_infos])
+                progress_info += f"Avg Entropy: {avg_entropy:.4f} | "
+                
+                # 添加critic value loss
+                if 'value_loss' in critic_train_info:
+                    progress_info += f"Value Loss: {critic_train_info['value_loss']:.6f}"
+                    
+                self.log_file.write(progress_info + '\n')
+                self.log_file.flush()
+                
+        except Exception as e:
+            print(f"记录详细进度时出错: {e}")
+
     def close(self):
         """Close the logger."""
         self.log_file.close()
+        self.log_training_info.close()
+        self.log_eval_info.close()
