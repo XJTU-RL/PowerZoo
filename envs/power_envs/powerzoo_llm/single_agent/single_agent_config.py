@@ -153,21 +153,24 @@ class SingleAgentConfig:
                 'dss_file': 'IEEE13Nodeckt_daily.dss',
                 'reg_act_num': 4,
                 'bat_act_num': 3,
-                'pv_control': True
+                'pv_control': True,
+                'pv_act_num': 5  # 离散光伏动作数量
             },
             "34Bus": {
                 'system_name': '34Bus', 
                 'dss_file': 'ieee34Mod1_daily.dss',
                 'reg_act_num': 33,
                 'bat_act_num': 5,
-                'pv_control': True
+                'pv_control': True,
+                'pv_act_num': 5  # 离散光伏动作数量
             },
             "123Bus": {
                 'system_name': '123Bus',
                 'dss_file': 'IEEE123Master_daily.dss', 
                 'reg_act_num': 4,
                 'bat_act_num': 8,
-                'pv_control': True
+                'pv_control': True,
+                'pv_act_num': 5  # 离散光伏动作数量
             }
         }
         
@@ -181,6 +184,7 @@ class SingleAgentConfig:
             'reg_act_num': circuit_config['reg_act_num'],
             'bat_act_num': circuit_config['bat_act_num'],
             'pv_control': circuit_config['pv_control'] and self.enable_pv_systems,
+            'pv_act_num': circuit_config['pv_act_num'],  # 添加光伏动作数量
             'worker_idx': 0,
             'seed': self.seed,
             # 添加必需的奖励权重参数

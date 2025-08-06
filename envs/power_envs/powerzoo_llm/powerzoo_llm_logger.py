@@ -238,16 +238,17 @@ class PowerZooLLMLogger(BaseLogger):
         self.train_episode_ctrl_reward += ctrl_reward
         self.train_episode_pv_utilization_reward += pv_utilization_reward
         
-        # 更新物理量 - 确保正确的除法操作
+        # 更新物理量 - 功率是瞬时值，应该累加后求平均，而不是每步除以episode_length
         power_loss_kw = ensure_correct_shape(power_loss_kw)
         power_loss_kvar = ensure_correct_shape(power_loss_kvar)
         total_power_kw = ensure_correct_shape(total_power_kw)
         total_power_kvar = ensure_correct_shape(total_power_kvar)
         
-        self.train_episode_power_loss_kw += power_loss_kw / episode_length
-        self.train_episode_power_loss_kvar += power_loss_kvar / episode_length
-        self.train_episode_total_power_kw += total_power_kw / episode_length
-        self.train_episode_total_power_kvar += total_power_kvar / episode_length
+        # 累加瞬时功率值，最后会在episode结束时求平均
+        self.train_episode_power_loss_kw += power_loss_kw
+        self.train_episode_power_loss_kvar += power_loss_kvar
+        self.train_episode_total_power_kw += total_power_kw
+        self.train_episode_total_power_kvar += total_power_kvar
         
         # 更新控制量
         capacitor_ctrl = ensure_correct_shape(capacitor_ctrl)
@@ -256,23 +257,23 @@ class PowerZooLLMLogger(BaseLogger):
         self.train_episode_capacitor_control += capacitor_ctrl
         self.train_episode_regulator_control += regulator_ctrl
         
-        # 更新电池系统 - 确保正确的除法操作
+        # 更新电池系统 - 功率是瞬时值，SOC是状态值
         battery_charge = ensure_correct_shape(battery_charge)
         battery_discharge = ensure_correct_shape(battery_discharge)
         battery_soc = ensure_correct_shape(battery_soc)
         
-        self.train_episode_battery_charge += battery_charge / episode_length
-        self.train_episode_battery_discharge += battery_discharge / episode_length
-        self.train_episode_battery_soc += battery_soc / episode_length
+        self.train_episode_battery_charge += battery_charge  # 瞬时充电功率
+        self.train_episode_battery_discharge += battery_discharge  # 瞬时放电功率
+        self.train_episode_battery_soc += battery_soc  # SOC状态值
         
-        # 更新PV系统 - 确保正确的除法操作
+        # 更新PV系统 - 功率是瞬时值，利用率和功率因数是比率
         pv_output_kw = ensure_correct_shape(pv_output_kw)
         pv_power_factor = ensure_correct_shape(pv_power_factor)
         pv_utilization = ensure_correct_shape(pv_utilization)
         
-        self.train_episode_pv_output_kw += pv_output_kw / episode_length
-        self.train_episode_pv_power_factor += pv_power_factor / episode_length
-        self.train_episode_pv_utilization += pv_utilization / episode_length
+        self.train_episode_pv_output_kw += pv_output_kw  # 瞬时输出功率
+        self.train_episode_pv_power_factor += pv_power_factor  # 功率因数
+        self.train_episode_pv_utilization += pv_utilization  # 利用率
         
         # 更新电压违规
         voltage_violations = ensure_correct_shape(voltage_violations)
@@ -347,17 +348,18 @@ class PowerZooLLMLogger(BaseLogger):
         self.done_episodes_pv_utilization_reward.append(self.train_episode_pv_utilization_reward[thread_id])
         self.train_episode_pv_utilization_reward[thread_id] = 0
         
-        # 记录物理量
-        self.done_episodes_power_loss_kw.append(self.train_episode_power_loss_kw[thread_id])
+        # 记录物理量 - 计算平均功率
+        episode_length = float(self.algo_args["train"]["episode_length"])
+        self.done_episodes_power_loss_kw.append(self.train_episode_power_loss_kw[thread_id] / episode_length)
         self.train_episode_power_loss_kw[thread_id] = 0
         
-        self.done_episodes_power_loss_kvar.append(self.train_episode_power_loss_kvar[thread_id])
+        self.done_episodes_power_loss_kvar.append(self.train_episode_power_loss_kvar[thread_id] / episode_length)
         self.train_episode_power_loss_kvar[thread_id] = 0
         
-        self.done_episodes_total_power_kw.append(self.train_episode_total_power_kw[thread_id])
+        self.done_episodes_total_power_kw.append(self.train_episode_total_power_kw[thread_id] / episode_length)
         self.train_episode_total_power_kw[thread_id] = 0
         
-        self.done_episodes_total_power_kvar.append(self.train_episode_total_power_kvar[thread_id])
+        self.done_episodes_total_power_kvar.append(self.train_episode_total_power_kvar[thread_id] / episode_length)
         self.train_episode_total_power_kvar[thread_id] = 0
         
         # 记录控制量
@@ -367,24 +369,24 @@ class PowerZooLLMLogger(BaseLogger):
         self.done_episodes_regulator_control.append(self.train_episode_regulator_control[thread_id])
         self.train_episode_regulator_control[thread_id] = 0
         
-        # 记录电池系统
-        self.done_episodes_battery_charge.append(self.train_episode_battery_charge[thread_id])
+        # 记录电池系统 - 计算平均值
+        self.done_episodes_battery_charge.append(self.train_episode_battery_charge[thread_id] / episode_length)
         self.train_episode_battery_charge[thread_id] = 0
         
-        self.done_episodes_battery_discharge.append(self.train_episode_battery_discharge[thread_id])
+        self.done_episodes_battery_discharge.append(self.train_episode_battery_discharge[thread_id] / episode_length)
         self.train_episode_battery_discharge[thread_id] = 0
         
-        self.done_episodes_battery_soc.append(self.train_episode_battery_soc[thread_id])
+        self.done_episodes_battery_soc.append(self.train_episode_battery_soc[thread_id] / episode_length)
         self.train_episode_battery_soc[thread_id] = 0
         
-        # 记录PV系统
-        self.done_episodes_pv_output_kw.append(self.train_episode_pv_output_kw[thread_id])
+        # 记录PV系统 - 计算平均值
+        self.done_episodes_pv_output_kw.append(self.train_episode_pv_output_kw[thread_id] / episode_length)
         self.train_episode_pv_output_kw[thread_id] = 0
         
-        self.done_episodes_pv_power_factor.append(self.train_episode_pv_power_factor[thread_id])
+        self.done_episodes_pv_power_factor.append(self.train_episode_pv_power_factor[thread_id] / episode_length)
         self.train_episode_pv_power_factor[thread_id] = 0
         
-        self.done_episodes_pv_utilization.append(self.train_episode_pv_utilization[thread_id])
+        self.done_episodes_pv_utilization.append(self.train_episode_pv_utilization[thread_id] / episode_length)
         self.train_episode_pv_utilization[thread_id] = 0
         
         # 记录电压违规
@@ -442,7 +444,8 @@ class PowerZooLLMLogger(BaseLogger):
             # 功率损耗
             "power_loss_kw": np.mean(self.done_episodes_power_loss_kw),
             "power_loss_kvar": np.mean(self.done_episodes_power_loss_kvar),
-            "power_loss_percentage": np.mean(self.done_episodes_power_loss_kw) / max(np.mean(self.done_episodes_total_power_kw), 1e-6) * 100,
+            # 修复：确保total_power_kw是合理的值（应该是电网总负荷，而不是太小的值）
+            "power_loss_percentage": np.mean(self.done_episodes_power_loss_kw) / max(abs(np.mean(self.done_episodes_total_power_kw)), 100.0) * 100,
             
             # 总功率
             "total_power_kw": np.mean(self.done_episodes_total_power_kw),

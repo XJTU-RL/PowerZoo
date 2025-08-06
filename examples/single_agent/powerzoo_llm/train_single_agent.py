@@ -183,6 +183,14 @@ def parse_arguments():
         help="每个回合的最大步数"
     )
     
+    parser.add_argument(
+        "--action_space_type",
+        type=str,
+        default="auto",
+        choices=["auto", "discrete", "continuous"],
+        help="动作空间类型 (auto: 根据算法自动选择, discrete: 离散, continuous: 连续)"
+    )
+    
     # 其他参数
     parser.add_argument(
         "--verbose",
@@ -237,10 +245,16 @@ def create_experiment_name(args) -> str:
 
 
 def setup_experiment_directories(config: SingleAgentTrainingConfig):
-    """设置实验目录"""
+    """设置实验目录
+    
+    将所有实验结果保存到 /home/zhengxiaodong/exps/PowerZoo/results 文件夹下
+    """
+    # 设置results根目录
+    results_root = "/home/zhengxiaodong/exps/PowerZoo/results"
+    
     # 创建实验特定的目录
-    exp_log_dir = os.path.join(config.log_dir, config.experiment_name)
-    exp_model_dir = os.path.join(config.model_save_dir, config.experiment_name)
+    exp_log_dir = os.path.join(results_root, "logs", config.experiment_name)
+    exp_model_dir = os.path.join(results_root, "models", config.experiment_name)
     
     os.makedirs(exp_log_dir, exist_ok=True)
     os.makedirs(exp_model_dir, exist_ok=True)
@@ -248,6 +262,10 @@ def setup_experiment_directories(config: SingleAgentTrainingConfig):
     # 更新配置中的路径
     config.log_dir = exp_log_dir
     config.model_save_dir = exp_model_dir
+    
+    logger.info(f"实验结果将保存到: {results_root}")
+    logger.info(f"日志目录: {exp_log_dir}")
+    logger.info(f"模型目录: {exp_model_dir}")
     
     return exp_log_dir, exp_model_dir
 
@@ -277,6 +295,19 @@ def main():
             verbose=args.verbose,
             tensorboard_log=not args.no_tensorboard
         )
+        
+        # 确定动作空间类型
+        if args.action_space_type == "auto":
+            # 根据算法自动选择动作空间类型
+            continuous_algos = ["ddpg", "td3", "her"]
+            action_space_type = "continuous" if args.algo.lower() in continuous_algos else "discrete"
+            logger.info(f"自动选择动作空间类型: {action_space_type} (算法: {args.algo})")
+        else:
+            action_space_type = args.action_space_type
+            logger.info(f"使用指定的动作空间类型: {action_space_type}")
+        
+        # 更新配置中的动作空间类型
+        config.action_space_type = action_space_type
         
         # 更新单智能体环境配置
         if config.single_agent_env_config:

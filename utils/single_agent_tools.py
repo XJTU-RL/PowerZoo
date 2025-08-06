@@ -17,7 +17,15 @@ from typing import Dict, Any, Optional, Union, Callable
 from pathlib import Path
 
 # Stable Baselines3 imports
-from stable_baselines3 import PPO, DQN, SAC, A2C
+from stable_baselines3 import PPO, DQN, SAC, A2C, DDPG, TD3
+
+# 尝试导入HER，如果不可用则跳过
+try:
+    from stable_baselines3 import HER
+    HER_AVAILABLE = True
+except ImportError:
+    HER = None
+    HER_AVAILABLE = False
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import (
@@ -32,7 +40,7 @@ from stable_baselines3.common.logger import configure
 # PowerZoo imports
 from envs.power_envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
 from envs.power_envs.powerzoo_llm.single_agent.single_agent_config import SingleAgentConfig
-from configs.single_agent_training_config import SingleAgentTrainingConfig
+from envs.power_envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentTrainingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +50,13 @@ ALGORITHM_REGISTRY = {
     "dqn": DQN,
     "sac": SAC,
     "a2c": A2C,
+    "ddpg": DDPG,
+    "td3": TD3,
 }
+
+# 如果HER可用，添加到注册表
+if HER_AVAILABLE:
+    ALGORITHM_REGISTRY["her"] = HER
 
 # 策略注册表
 POLICY_REGISTRY = {
@@ -50,7 +64,13 @@ POLICY_REGISTRY = {
     "dqn": "MlpPolicy",
     "sac": "MlpPolicy",
     "a2c": "MlpPolicy",
+    "ddpg": "MlpPolicy",
+    "td3": "MlpPolicy",
 }
+
+# 如果HER可用，添加到策略注册表
+if HER_AVAILABLE:
+    POLICY_REGISTRY["her"] = "MlpPolicy"
 
 
 class SingleAgentTrainingLogger(BaseCallback):
@@ -113,7 +133,10 @@ def create_single_agent_env(
         """创建单个环境的工厂函数"""
         def _init():
             # 创建环境
-            env = SingleAgentPowerZooEnv(config=config.single_agent_env_config)
+            env = SingleAgentPowerZooEnv(
+                config=config.single_agent_env_config,
+                action_space_type=config.action_space_type
+            )
             
             # 设置随机种子
             if seed is not None:

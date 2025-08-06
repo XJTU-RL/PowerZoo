@@ -104,14 +104,24 @@ class PVSystem(Node):
 		投影到有效状态#把光伏输出限制在可靠的区间范围内。
 
 		参数:
-			nkw_or_state: nkw: 连续电池的标准化放电功率，范围[-1, 1]，正值是放电，负值是充电
-						  state: 离散电池的放电状态，范围[0, len(avail_kw)-1]
+			nkw: 标准化功率输出，范围[0, 1]，0表示不发电，1表示满功率发电
 		返回值:
-			有效的放电功率(kw)
+			有效的发电功率(kw)，范围[0, pmpp]
 		'''
-		if self.pv_act_num == np.inf:  # 倾向于少放少充，把储能电池的充电放电功率限制在一个可靠的区间内。
-			kw = max(0, min(1.0, nkw)) * self.pmpp  # 此处就是把光伏有功的输出控制在[0,1]
+		if self.pv_act_num == np.inf:  # 连续控制模式
+			# 确保nkw在[0, 1]范围内，然后乘以pmpp得到实际功率
+			normalized_power = max(0.0, min(1.0, float(nkw)))
+			kw = normalized_power * self.pmpp
+			
+			# 确保不超过最大功率点
+			kw = min(kw, self.pmpp)
+			
+			logger.debug(f"PV系统 {self.name}: 标准化功率={normalized_power:.3f}, 实际功率={kw:.3f}kW, Pmpp={self.pmpp:.3f}kW")
 			return kw
+		else:
+			# 离散控制模式 - 需要根据实际需求实现
+			logger.warning(f"PV系统 {self.name} 使用离散控制模式，但未实现相应逻辑")
+			return 0.0
 
 	def step_before_solve(self, action):
 		"""
@@ -174,9 +184,51 @@ class PVSystem(Node):
 		获取此光伏系统的当前状态
 		
 		返回值:
-			[power_ratio, power_factor]: 当前功率输出比率和功率因数
+			[power_ratio, power_factor]: 当前功率输出比率(0-1)和功率因数
 		'''
-		power_ratio = self.kW / self.pmpp if self.pmpp > 0 else 0.0
+		# 从OpenDSS获取实际功率输出
+		try:
+			# 移除pvsystem.前缀获取实际PV名称
+			pv_name = self.name
+			if pv_name.lower().startswith('pvsystem.'):
+				pv_name = pv_name[9:]  # 移除'pvsystem.'前缀
+				
+			# 设置当前PV系统并获取实际功率
+			self.dss.ActiveCircuit.SetActiveElement(f'PVSystem.{pv_name}')
+			actual_powers = self.dss.ActiveCircuit.ActiveElement.Powers  # [P1, Q1, P2, Q2, ...]
+			
+			if actual_powers is not None and len(actual_powers) >= 2:
+				# 计算总有功功率 (三相系统取前3对P值的和)
+				actual_kw = sum(actual_powers[i] for i in range(0, min(len(actual_powers), 6), 2))
+				actual_kw = abs(actual_kw) / 1000.0  # 转换为kW
+				
+				# 基于实际功率和pmpp计算功率比率
+				if self.pmpp > 0:
+					power_ratio = min(max(actual_kw / self.pmpp, 0.0), 1.0)
+				else:
+					power_ratio = 0.0
+				
+				# 更新内部kW值
+				self.kW = actual_kw
+				
+				logger.debug(f"PV系统 {pv_name}: 实际功率={actual_kw:.3f}kW, Pmpp={self.pmpp:.3f}kW, 利用率={power_ratio:.3f}")
+				
+			else:
+				# 如果无法获取实际功率，使用存储的kW值
+				if self.pmpp > 0:
+					power_ratio = min(max(self.kW / self.pmpp, 0.0), 1.0)
+				else:
+					power_ratio = 0.0
+				logger.warning(f"无法获取PV系统 {pv_name} 的实际功率，使用存储值 {self.kW:.3f}kW")
+			
+		except Exception as e:
+			logger.warning(f"获取PV系统 {self.name} 状态时出错: {e}，使用备用计算")
+			# 备用方案：使用存储的kW值
+			if self.pmpp > 0:
+				power_ratio = min(max(self.kW / self.pmpp, 0.0), 1.0)
+			else:
+				power_ratio = 0.0
+		
 		return [power_ratio, self.pf]
 
 

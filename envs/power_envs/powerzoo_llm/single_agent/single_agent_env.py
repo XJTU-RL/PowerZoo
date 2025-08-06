@@ -21,7 +21,7 @@ class SingleAgentPowerZooEnv(Env):
     """
     
     def __init__(self, folder_path: str = None, info: Dict[str, Any] = None, 
-                 dss_act: bool = False, config=None):
+                 dss_act: bool = False, config=None, action_space_type: str = "discrete"):
         """初始化单智能体PowerZoo环境
         
         Args:
@@ -29,6 +29,7 @@ class SingleAgentPowerZooEnv(Env):
             info: 环境配置信息（可选，如果提供config则自动设置）
             dss_act: 是否使用DSS动作
             config: SingleAgentConfig配置对象（推荐使用）
+            action_space_type: 动作空间类型 ("discrete" 或 "continuous")
         """
         # 如果提供了config，则从config中提取参数
         if config is not None:
@@ -47,6 +48,10 @@ class SingleAgentPowerZooEnv(Env):
         # 检查必要参数
         if folder_path is None or info is None:
             raise ValueError("必须提供folder_path和info，或者提供config参数")
+        
+        # 保存动作空间类型
+        self.action_space_type = action_space_type
+        
         # 调用父类初始化
         super().__init__(folder_path, info, dss_act)
         
@@ -54,6 +59,7 @@ class SingleAgentPowerZooEnv(Env):
         self.pv_names = list(self.circuit.pvs.keys()) if hasattr(self.circuit, 'pvs') else []
         self.pv_num = len(self.pv_names)
         self.pv_control_enabled = info.get('pv_control', False)
+        self.pv_act_num = info.get('pv_act_num', 5)  # 从配置中读取光伏动作数量，默认为5
         
         # 重新设置动作空间为单智能体版本
         self._setup_single_agent_action_space()
@@ -69,30 +75,102 @@ class SingleAgentPowerZooEnv(Env):
     def _setup_single_agent_action_space(self):
         """设置单智能体动作空间
         
-        将MultiDiscrete动作空间转换为单个Discrete动作空间，
-        以兼容更多的单智能体RL算法（如PPO）。
+        根据action_space_type参数创建合适的动作空间：
+        - discrete: 将MultiDiscrete转换为单个Discrete动作空间
+        - continuous: 创建Box连续动作空间
         """
         original_space = self.ActionSpace.space
         logger.info(f"原始动作空间类型: {type(original_space)}")
         logger.info(f"原始动作空间: {original_space}")
+        logger.info(f"请求的动作空间类型: {self.action_space_type}")
         
-        # 检查是否为MultiDiscrete类型（兼容gym和gymnasium）
-        is_multi_discrete = (
-            hasattr(original_space, 'nvec') and 
-            ('MultiDiscrete' in str(type(original_space)))
-        )
-        
-        if is_multi_discrete:
-            # 计算所有可能的动作组合数量
-            total_actions = int(np.prod(original_space.nvec))
-            self.action_space = gym.spaces.Discrete(total_actions)
-            self._multi_discrete_nvec = original_space.nvec
-            logger.info(f"转换MultiDiscrete{original_space.nvec}为Discrete({total_actions})")
+        if self.action_space_type == "continuous":
+            # 创建连续动作空间
+            self._setup_continuous_action_space()
         else:
-            # 保持原有动作空间
-            self.action_space = original_space
-            self._multi_discrete_nvec = None
-            logger.info(f"使用动作空间: {type(self.action_space).__name__}")
+            # 创建离散动作空间（默认）
+            self._setup_discrete_action_space(original_space)
+    
+    def _setup_discrete_action_space(self, original_space):
+        """设置离散动作空间
+        
+        创建包含电容器、调压器、电池和光伏的完整MultiDiscrete动作空间
+        """
+        # 构建完整的离散动作空间向量
+        nvec = []
+        
+        # 电容器动作（每个电容器2个状态：开/关）
+        if self.cap_num > 0:
+            nvec.extend([2] * self.cap_num)
+        
+        # 调压器动作
+        if self.reg_num > 0:
+            nvec.extend([self.reg_act_num] * self.reg_num)
+        
+        # 电池动作（如果是离散的）
+        if self.bat_num > 0 and isinstance(self.bat_act_num, (int, float)) and self.bat_act_num < float('inf'):
+            nvec.extend([int(self.bat_act_num)] * self.bat_num)
+        
+        # 光伏动作（如果启用且是离散的）
+        if (self.pv_control_enabled and self.pv_num > 0 and 
+            isinstance(self.pv_act_num, (int, float)) and self.pv_act_num < float('inf')):
+            nvec.extend([int(self.pv_act_num)] * self.pv_num)
+        
+        if nvec:
+            # 创建MultiDiscrete动作空间
+            multi_discrete_space = gym.spaces.MultiDiscrete(nvec)
+            
+            # 计算所有可能的动作组合数量
+            total_actions = int(np.prod(nvec))
+            self.action_space = gym.spaces.Discrete(total_actions)
+            self._multi_discrete_nvec = np.array(nvec)
+            
+            logger.info(f"创建离散动作空间: MultiDiscrete{nvec} -> Discrete({total_actions})")
+            logger.info(f"动作维度分配 - 电容器: {self.cap_num}, 调压器: {self.reg_num}, 电池: {self.bat_num}, 光伏: {self.pv_num}")
+        else:
+            # 如果没有任何离散动作，创建一个虚拟动作空间
+            self.action_space = gym.spaces.Discrete(1)
+            self._multi_discrete_nvec = np.array([1])
+            logger.warning("没有找到离散动作，创建虚拟动作空间")
+    
+    def _setup_continuous_action_space(self):
+        """设置连续动作空间
+        
+        为DDPG、TD3等连续控制算法创建Box动作空间
+        """
+        # 计算连续动作维度
+        action_dim = 0
+        
+        # 电容器动作（每个电容器1个连续值，范围[0,1]表示开关状态概率）
+        if self.cap_num > 0:
+            action_dim += self.cap_num
+        
+        # 调压器动作（每个调压器1个连续值，范围[-1,1]表示调节方向和强度）
+        if self.reg_num > 0:
+            action_dim += self.reg_num
+        
+        # 电池动作（每个电池1个连续值，范围[-1,1]表示充放电功率）
+        if self.bat_num > 0:
+            action_dim += self.bat_num
+        
+        # 光伏动作（每个光伏1个连续值：功率输出档位）
+        if self.pv_num > 0:
+            action_dim += self.pv_num
+        
+        # 创建Box动作空间
+        low = np.full(action_dim, -1.0, dtype=np.float32)
+        high = np.full(action_dim, 1.0, dtype=np.float32)
+        
+        # 电容器动作范围调整为[0,1]
+        if self.cap_num > 0:
+            low[:self.cap_num] = 0.0
+        
+        self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+        self._multi_discrete_nvec = None
+        self._continuous_action_dim = action_dim
+        
+        logger.info(f"创建连续动作空间: Box({action_dim},) 范围[{low.min():.1f}, {high.max():.1f}]")
+        logger.info(f"动作维度分配 - 电容器: {self.cap_num}, 调压器: {self.reg_num}, 电池: {self.bat_num}, 光伏: {self.pv_num}")
     
     def _setup_single_agent_observation_space(self):
         """设置单智能体观测空间
@@ -169,11 +247,64 @@ class SingleAgentPowerZooEnv(Env):
         logger.debug(f"转换动作: {action} -> {multi_action} (nvec: {self._multi_discrete_nvec})")
         return np.array(multi_action, dtype=np.int32)
     
+    def _convert_continuous_to_discrete(self, action: np.ndarray) -> np.ndarray:
+        """将连续动作转换为离散动作
+        
+        Args:
+            action: 连续动作数组，范围在[-1, 1]或[0, 1]
+            
+        Returns:
+            MultiDiscrete格式的动作数组
+        """
+        action = np.array(action, dtype=np.float32)
+        discrete_actions = []
+        action_idx = 0
+        
+        # 电容器动作转换（连续值[0,1] -> 离散开关状态）
+        for i in range(self.cap_num):
+            # 使用阈值0.5来决定开关状态
+            cap_action = 1 if action[action_idx] > 0.5 else 0
+            discrete_actions.append(cap_action)
+            action_idx += 1
+        
+        # 调压器动作转换（连续值[-1,1] -> 离散调节档位）
+        for i in range(self.reg_num):
+            # 将连续值映射到调压器档位
+            continuous_val = action[action_idx]
+            # 映射到[0, reg_act_num-1]范围
+            reg_action = int((continuous_val + 1) / 2 * (self.reg_act_num - 1))
+            reg_action = np.clip(reg_action, 0, self.reg_act_num - 1)
+            discrete_actions.append(reg_action)
+            action_idx += 1
+        
+        # 电池动作转换（连续值[-1,1] -> 离散功率档位）
+        for i in range(self.bat_num):
+            # 将连续值映射到电池功率档位
+            continuous_val = action[action_idx]
+            # 映射到[0, bat_act_num-1]范围
+            bat_action = int((continuous_val + 1) / 2 * (self.bat_act_num - 1))
+            bat_action = np.clip(bat_action, 0, self.bat_act_num - 1)
+            discrete_actions.append(bat_action)
+            action_idx += 1
+        
+        # 光伏动作转换（1个连续值 -> 1个离散值：功率输出档位）
+        for i in range(self.pv_num):
+            # 光伏功率输出档位
+            pv_continuous = action[action_idx]
+            pv_action = int((pv_continuous + 1) / 2 * (self.pv_act_num - 1))
+            pv_action = np.clip(pv_action, 0, self.pv_act_num - 1)
+            discrete_actions.append(pv_action)
+            action_idx += 1
+        
+        result = np.array(discrete_actions, dtype=np.int32)
+        logger.debug(f"连续动作转换: {action} -> {result}")
+        return result
+    
     def step(self, action):
         """执行一步环境交互
         
         Args:
-            action: 单智能体动作，可能是单个离散值或MultiDiscrete数组
+            action: 单智能体动作，可能是单个离散值、MultiDiscrete数组或连续动作数组
         
         Returns:
             observation: 环境观测
@@ -181,8 +312,12 @@ class SingleAgentPowerZooEnv(Env):
             done: 是否结束
             info: 额外信息
         """
-        # 如果是单个离散动作，转换为MultiDiscrete格式
-        if isinstance(action, (int, np.integer)):
+        # 根据动作空间类型处理动作
+        if self.action_space_type == "continuous":
+            # 连续动作转换为离散动作
+            action = self._convert_continuous_to_discrete(action)
+        elif isinstance(action, (int, np.integer)):
+            # 单个离散动作转换为MultiDiscrete格式
             action = self._convert_discrete_to_multi_discrete(action)
         
         # 解析动作
@@ -246,6 +381,13 @@ class SingleAgentPowerZooEnv(Env):
             else:
                 pv_actions = []
                 
+        elif isinstance(self.action_space, gym.spaces.Box):
+            # 连续动作空间
+            continuous_action = np.array(action)
+            
+            # 使用之前实现的连续动作转换方法
+            cap_actions, reg_actions, bat_actions, pv_actions = self._convert_continuous_to_discrete(continuous_action)
+            
         elif isinstance(self.action_space, gym.spaces.Tuple):
             # 混合动作空间（离散 + 连续）
             discrete_action, continuous_action = action[0], action[1]

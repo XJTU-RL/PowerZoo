@@ -33,7 +33,7 @@ show_help() {
     echo "用法: $0 [选项]"
     echo ""
     echo "选项:"
-    echo "  -a, --algo ALGO           算法 (ppo, dqn, sac, a2c) [默认: ppo]"
+    echo "  -a, --algo ALGO           算法 (ppo, dqn, sac, a2c, ddpg, td3, her) [默认: ppo]"
     echo "  -e, --env ENV             环境 [默认: powerzoo_single]"
     echo "  -c, --circuit CIRCUIT     电路名称 (13Bus, 34Bus, 123Bus, 8500Node) [默认: 13Bus]"
     echo "  -t, --timesteps STEPS     总训练步数 [默认: 100000]"
@@ -99,12 +99,12 @@ check_python_env() {
 
 # 检查项目结构
 check_project_structure() {
-    if [[ ! -f "single_agent/powerzoo_llm/train_single_agent.py" ]]; then
-        print_error "未找到single_agent/powerzoo_llm/train_single_agent.py，请确保在正确的项目目录中"
+    if [[ ! -f "examples/single_agent/powerzoo_llm/train_single_agent.py" ]]; then
+        print_error "未找到examples/single_agent/powerzoo_llm/train_single_agent.py，请确保在正确的项目目录中"
         exit 1
     fi
     
-    if [[ ! -d "../configs" ]]; then
+    if [[ ! -d "configs" ]]; then
         print_error "未找到configs目录，请确保项目结构完整"
         exit 1
     fi
@@ -236,7 +236,7 @@ parse_args() {
 
 # 构建训练命令
 build_command() {
-    CMD="python single_agent/powerzoo_llm/train_single_agent.py"
+    CMD="python examples/single_agent/powerzoo_llm/train_single_agent.py"
     CMD="$CMD --algo $ALGO"
     CMD="$CMD --env $ENV"
     CMD="$CMD --circuit_name $CIRCUIT"

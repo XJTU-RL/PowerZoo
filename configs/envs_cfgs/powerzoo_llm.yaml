@@ -54,8 +54,8 @@ environment_specific:
       
     # 光伏系统配置
     pv_systems:
-      num: 0  # 光伏系统数量（34Bus_PV系统中实际没有定义PVSystem）
-      control_enabled: false  # 是否启用控制
+      num: 3  # 光伏系统数量（34Bus_PV系统中有3个PVSystem：PV834, PV890, PV864）
+      control_enabled: true  # 启用控制以利用PV系统
       action_space: "continuous"  # 连续控制
       
   # 奖励权重配置（可调节）- 修复scale问题

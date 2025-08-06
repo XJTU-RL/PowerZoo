@@ -34,6 +34,7 @@ from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.logger import configure
 
 # HER (Hindsight Experience Replay) import
 try:
@@ -46,6 +47,8 @@ except ImportError:
 
 # PowerZoo imports
 from envs.power_envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
+from envs.power_envs.powerzoo_llm.enhanced_tensorboard_callback import EnhancedTensorBoardCallback
+from envs.power_envs.powerzoo_llm.model_manager import ModelManager
 
 # 算法映射字典
 ALGORITHM_REGISTRY = {
@@ -99,9 +102,22 @@ def create_environment(env_config: Dict[str, Any], seed: Optional[int] = None):
     return env
 
 def setup_callbacks(algo_config: Dict[str, Any], env_config: Dict[str, Any], 
-                   log_dir: str, eval_env) -> list:
+                   log_dir: str, eval_env, algorithm_name: str = "unknown") -> list:
     """设置训练回调函数"""
     callbacks = []
+    
+    # 增强TensorBoard回调（集成系统日志和PowerZoo LLM日志）
+    tensorboard_callback = EnhancedTensorBoardCallback(
+        log_dir=os.path.join(log_dir, 'tensorboard'),
+        log_freq=algo_config.get('train', {}).get('log_interval', 100),
+        save_freq=algo_config.get('train', {}).get('save_interval', 10000),
+        model_save_path=os.path.join(log_dir, 'models'),
+        verbose=1,
+        algorithm_name=algorithm_name,
+        enable_system_logging=True,
+        enable_powerzoo_logging=True
+    )
+    callbacks.append(tensorboard_callback)
     
     # 评估回调
     if algo_config.get('eval', {}).get('use_eval', True):
@@ -152,7 +168,7 @@ def create_model(algo_name: str, env, algo_config: Dict[str, Any],
             'env': env,
             'verbose': 1,
             'device': device,
-            'seed': algo_config.get('seed', {}).get('seed', 1),
+            'seed': algo_config.get('seed', 1),
             **base_params
         }
         
@@ -188,14 +204,18 @@ def create_model(algo_name: str, env, algo_config: Dict[str, Any],
             return model
     
     # 普通算法处理
+    # 设置TensorBoard日志目录
+    tensorboard_log_dir = os.path.join(log_dir, 'tensorboard')
+    os.makedirs(tensorboard_log_dir, exist_ok=True)
+    
     # 通用参数
     common_params = {
         'policy': policy_type,
         'env': env,
         'verbose': 1,
-        'tensorboard_log': log_dir,
+        'tensorboard_log': tensorboard_log_dir,
         'device': device,
-        'seed': algo_config.get('seed', {}).get('seed', 1)
+        'seed': algo_config.get('seed', 1)
     }
     
     # 合并算法特定参数
@@ -362,12 +382,25 @@ def main():
         print("创建评估环境...")
         eval_env = create_environment(env_config, args.seed + 1000)
         
+        # 初始化模型管理器
+        model_manager = ModelManager(
+            base_dir=os.path.join(log_dir, 'model_manager'),
+            max_versions=5,
+            auto_backup=True
+        )
+        
         # 设置回调函数
-        callbacks = setup_callbacks(algo_config, env_config, log_dir, eval_env)
+        callbacks = setup_callbacks(algo_config, env_config, log_dir, eval_env, args.algo)
         
         # 创建模型
         print(f"创建{args.algo.upper()}模型...")
         model = create_model(args.algo, train_env, algo_config, log_dir, args.device)
+        
+        # 配置自定义日志记录器
+        custom_log_dir = os.path.join(log_dir, 'sb3_logs')
+        os.makedirs(custom_log_dir, exist_ok=True)
+        new_logger = configure(custom_log_dir, ["stdout", "csv", "tensorboard"])
+        model.set_logger(new_logger)
         
         # 训练模型
         if args.total_timesteps:
@@ -375,14 +408,33 @@ def main():
         print("开始训练...")
         model = train_model(model, algo_config, callbacks)
         
-        # 保存最终模型
-        final_model_path = os.path.join(log_dir, 'final_model')
-        model.save(final_model_path)
-        print(f"最终模型已保存到: {final_model_path}")
-        
         # 最终评估
         print("进行最终评估...")
         mean_reward, std_reward = evaluate_model(model, eval_env, 10)
+        
+        # 准备性能指标
+        performance_metrics = {
+            'mean_reward': float(mean_reward),
+            'std_reward': float(std_reward),
+            'total_timesteps': algo_config.get('train', {}).get('total_timesteps', 100000)
+        }
+        
+        # 使用模型管理器保存最终模型
+        model_name = f"{args.algo}_{args.env}_{args.exp_name}"
+        model_manager.save_model(
+            model=model,
+            model_name=model_name,
+            training_config=algo_config,
+            environment_config=env_config,
+            performance_metrics=performance_metrics,
+            description=f"Final trained model for {args.exp_name}",
+            tags=[args.algo, args.env, 'final_model']
+        )
+        
+        # 传统方式也保存一份（兼容性）
+        final_model_path = os.path.join(log_dir, 'final_model')
+        model.save(final_model_path)
+        print(f"最终模型已保存到: {final_model_path}")
         
         # 保存评估结果
         eval_results = {

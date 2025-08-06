@@ -42,6 +42,7 @@ class SingleAgentTrainingConfig:
     # 环境配置
     env_config: Optional[Dict[str, Any]] = None
     single_agent_env_config: Optional[SingleAgentConfig] = None
+    action_space_type: str = "discrete"  # 动作空间类型: "discrete" 或 "continuous"
     
     # 训练配置
     total_timesteps: int = 100000
@@ -405,12 +406,39 @@ DEFAULT_A2C_CONFIG = SingleAgentTrainingConfig(
     total_timesteps=100000
 )
 
+DEFAULT_DDPG_CONFIG = SingleAgentTrainingConfig(
+    algorithm="ddpg",
+    environment="powerzoo_single",
+    experiment_name="ddpg_powerzoo_default",
+    total_timesteps=100000,
+    action_space_type="continuous"
+)
+
+DEFAULT_TD3_CONFIG = SingleAgentTrainingConfig(
+    algorithm="td3",
+    environment="powerzoo_single",
+    experiment_name="td3_powerzoo_default",
+    total_timesteps=100000,
+    action_space_type="continuous"
+)
+
+DEFAULT_HER_CONFIG = SingleAgentTrainingConfig(
+    algorithm="her",
+    environment="powerzoo_single",
+    experiment_name="her_powerzoo_default",
+    total_timesteps=100000,
+    action_space_type="continuous"
+)
+
 # 配置注册表
 CONFIG_REGISTRY = {
     "ppo": DEFAULT_PPO_CONFIG,
     "dqn": DEFAULT_DQN_CONFIG,
     "sac": DEFAULT_SAC_CONFIG,
-    "a2c": DEFAULT_A2C_CONFIG
+    "a2c": DEFAULT_A2C_CONFIG,
+    "ddpg": DEFAULT_DDPG_CONFIG,
+    "td3": DEFAULT_TD3_CONFIG,
+    "her": DEFAULT_HER_CONFIG
 }
 
 

@@ -489,19 +489,19 @@ class Env(gym.Env):
                         # 渐进式惩罚: 越远离正常范围惩罚越大
                         if v > v_max:
                             violation_degree = (v - v_max) / (1.2 - v_max)  # 归一化违约程度
-                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 50
+                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 2.0  # 降低惩罚系数从50到2
                         elif v < v_min:
                             violation_degree = (v_min - v) / (v_min - 0.8)
-                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 50
+                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 2.0  # 降低惩罚系数从50到2
                         else:
                             # 在合理范围内给予奖励
                             penalty = -0.1  # 小奖励
                     else:
                         # 简单的二元惩罚
                         if v > v_max or v < v_min:
-                            penalty = self.voltage_penalty_scale * 10
+                            penalty = self.voltage_penalty_scale * 1.0  # 降低惩罚系数从10到1
                         else:
-                            penalty = -0.1
+                            penalty = -0.01  # 降低奖励避免影响过大
                     
                     total_penalty += penalty
             
@@ -740,7 +740,8 @@ class Env(gym.Env):
         else:
             self.obs['pv_statuses'] = {}
             
-        self.obs['power_loss'] = - self.circuit.total_loss()[0]/self.circuit.total_power()[0]
+        # 使用新的正确方法计算功率损失百分比
+        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t%self.horizon].to_dict()
@@ -768,25 +769,55 @@ class Env(gym.Env):
         try:
             total_loss = self.circuit.total_loss()
             total_power = self.circuit.total_power()
-            info['power_loss_kw'] = abs(total_loss[0]) if len(total_loss) > 0 else 0.0
+            total_load = self.circuit.total_load_power()
+            
+            info['power_loss_kw'] = total_loss[0] if len(total_loss) > 0 else 0.0
             info['total_power_kw'] = abs(total_power[0]) if len(total_power) > 0 else 100.0
-            info['power_loss_kvar'] = abs(total_loss[1]) if len(total_loss) > 1 else 0.0
+            info['total_load_kw'] = total_load[0] if len(total_load) > 0 else 100.0
+            info['power_loss_kvar'] = total_loss[1] if len(total_loss) > 1 else 0.0
             info['total_power_kvar'] = abs(total_power[1]) if len(total_power) > 1 else 50.0
-        except:
+            info['total_load_kvar'] = total_load[1] if len(total_load) > 1 else 50.0
+            info['power_loss_ratio'] = self.circuit.calculate_loss_percentage() / 100.0
+            info['power_loss_percentage'] = self.circuit.calculate_loss_percentage()  # 添加百分比形式
+        except Exception as e:
+            logger.warning(f"获取功率信息时出错: {e}")
             info['power_loss_kw'] = 0.0
             info['total_power_kw'] = 100.0
+            info['total_load_kw'] = 100.0
             info['power_loss_kvar'] = 0.0 
             info['total_power_kvar'] = 50.0
+            info['total_load_kvar'] = 50.0
+            info['power_loss_ratio'] = 0.0
+            info['power_loss_percentage'] = 0.0
         
         # 电压违规计数
         info['voltage_violation_count'] = voltage_violations
         
-        # PV利用率
+        # PV利用率 - 修复：确保利用率在0-100%范围内
         info['pv_utilization'] = 0.0
         if self.pv_control_enabled and self.pv_num > 0 and 'pv_statuses' in self.obs:
             pv_powers = [status[0] for status in self.obs['pv_statuses'].values() if len(status) > 0]
             if pv_powers:
-                info['pv_utilization'] = np.mean(pv_powers) * 100
+                # 确保每个功率比率都在0-1范围内，然后转换为百分比
+                valid_powers = []
+                for power in pv_powers:
+                    # 检查并修正异常值
+                    if isinstance(power, (int, float)) and not np.isnan(power):
+                        corrected_power = min(max(power, 0.0), 1.0)
+                        valid_powers.append(corrected_power)
+                        if power != corrected_power:
+                            logger.warning(f"PV功率比率异常值已修正: {power:.3f} -> {corrected_power:.3f}")
+                    else:
+                        logger.warning(f"PV功率比率无效值: {power}, 将使用0.0")
+                        valid_powers.append(0.0)
+                
+                if valid_powers:
+                    utilization = np.mean(valid_powers)
+                    info['pv_utilization'] = utilization * 100
+                    logger.debug(f"PV利用率计算: 有效功率比率={valid_powers}, 平均利用率={utilization*100:.2f}%")
+                else:
+                    info['pv_utilization'] = 0.0
+                    logger.warning("没有有效的PV功率比率数据")
         
         # 电池SOC
         info['battery_avg_soc'] = 0.5
@@ -808,7 +839,7 @@ class Env(gym.Env):
             self.agents_bus=self.circuit.get_agent_bus_dict()
             info['agents_bus']=self.agents_bus
             info['powerloss']=self.circuit.total_loss()[0]
-            info['powerloss_reward']=- self.circuit.total_loss()[0]/self.circuit.total_power()[0]*10
+            info['powerloss_reward']= -self.circuit.calculate_loss_percentage() / 100.0 * 10
         
         # if self.LLM:
         #     # PV834在34Bus系统中不存在，需要根据实际系统配置修改
@@ -914,8 +945,8 @@ class Env(gym.Env):
         else:
             self.obs['pv_statuses'] = {}
 
-        ### total power loss
-        self.obs['power_loss'] = -self.circuit.total_loss()[0]/self.circuit.total_power()[0]
+        ### total power loss - 使用正确的计算方法
+        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
         
         ### time step tracker
         self.obs['time'] = self.t
@@ -960,7 +991,8 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
-        self.obs['power_loss'] = - self.circuit.total_loss()[0]/self.circuit.total_power()[0]
+        # 使用新的正确方法计算功率损失百分比
+        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t%self.horizon].to_dict()

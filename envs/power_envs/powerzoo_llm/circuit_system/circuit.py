@@ -908,22 +908,94 @@ class Circuits:
 		获取电路的总损耗
 		
 		返回值:
-			总损耗(kw)
+			总损耗(kW, kvar) - (实部：有功损耗, 虚部：无功损耗)
 		'''
 		losses = self.dss.ActiveCircuit.Losses  # complex 类型，单位：W + jVar
-		real_kW = losses.real / 1000
-		reactive_kvar = losses.imag / 1000
+		
+		# 处理可能的数组类型
+		if hasattr(losses, '__len__') and len(losses) > 0:
+			real_W = float(losses[0]) if len(losses) > 0 else 0.0
+			imag_W = float(losses[1]) if len(losses) > 1 else 0.0
+		else:
+			real_W = float(losses.real)
+			imag_W = float(losses.imag)
+		
+		real_kW = abs(real_W) / 1000  # 损耗总是正数
+		reactive_kvar = abs(imag_W) / 1000  # 损耗总是正数
 		return real_kW, reactive_kvar
 	
 	def total_power(self):
 		'''
-		获取电路的总功率
+		获取来自电源的总功率（净功率）
+		注意：在有PV系统时，这可能是负载减去PV发电的净值
 		
 		返回值:
-			总功率(kw)
+			来自主电源的总功率(kW, kvar)
 		'''
-		power = self.dss.ActiveCircuit.TotalPower  # 也是 complex
-		return power.real / 1000, power.imag / 1000
+		power = self.dss.ActiveCircuit.TotalPower  # complex类型，单位：W + jVar
+		
+		# 处理可能的数组类型
+		if hasattr(power, '__len__') and len(power) > 0:
+			real_W = float(power[0]) if len(power) > 0 else 0.0
+			imag_W = float(power[1]) if len(power) > 1 else 0.0
+		else:
+			real_W = float(power.real)
+			imag_W = float(power.imag)
+		
+		return real_W / 1000, imag_W / 1000
+	
+	def total_load_power(self):
+		'''
+		计算系统总负载功率
+		
+		返回值:
+			总负载功率(kW, kvar)
+		'''
+		total_load_kw = 0.0
+		total_load_kvar = 0.0
+		
+		# 遍历所有负载
+		dssLoad = self.dss.ActiveCircuit.Loads
+		if dssLoad.First != 0:
+			while True:
+				total_load_kw += abs(dssLoad.kW)
+				total_load_kvar += abs(dssLoad.kvar)
+				if dssLoad.Next == 0:
+					break
+		
+		return total_load_kw, total_load_kvar
+	
+	def calculate_loss_percentage(self):
+		'''
+		计算正确的功率损失百分比
+		
+		返回值:
+			功率损失百分比 (%)
+		'''
+		try:
+			# 获取系统损耗
+			loss_kw, _ = self.total_loss()
+			
+			# 获取总负载功率
+			load_kw, _ = self.total_load_power()
+			
+			# 如果负载功率很小，使用来自电源的功率作为备选
+			if load_kw < 10.0:  # 小于10kW时使用电源功率
+				source_kw, _ = self.total_power()
+				denominator = max(abs(source_kw), abs(load_kw), 1.0)
+			else:
+				denominator = load_kw
+			
+			# 计算损失百分比
+			loss_percentage = (loss_kw / denominator) * 100.0
+			
+			logger.debug(f"功率损失计算: 损耗={loss_kw:.3f}kW, 负载={load_kw:.3f}kW, 百分比={loss_percentage:.3f}%")
+			
+			return loss_percentage
+			
+		except Exception as e:
+			logger.error(f"计算功率损失百分比时出错: {e}")
+			return 0.0
 	
 	# object addition functions called by  
 	#          _gen_reg_obj()
