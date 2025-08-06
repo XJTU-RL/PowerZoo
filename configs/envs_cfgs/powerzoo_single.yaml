@@ -1,0 +1,69 @@
+# PowerZoo单智能体环境配置
+env_name: 13Bus # 选择电力系统：13Bus, 34Bus, 123Bus, 8500Node
+
+# 随机种子
+seed: 123456
+
+# 最大步数
+num_steps: 24
+
+# 并行进程数（单智能体通常为1）
+num_workers: 1
+
+# 是否使用绘图
+use_plot: False
+
+# 是否进行测试
+do_testing: False
+
+# 运行模式：single（单智能体）
+mode: single
+
+# 是否使用S参数
+useS: False
+
+# 是否从大到小排序S（仅用于SHOM算法）
+big2small: False
+
+# 是否使用渲染
+use_render: False
+
+# 是否记录节点信息
+record_node: False
+
+# 系统参数记录配置
+enable_system_logging: True  # 是否启用系统参数记录
+system_log_dir: "./logs/single_agent_system_params"  # 系统日志存储目录
+log_buffer_size: 5000  # 内存缓冲区大小
+log_save_interval: 50  # 数据保存间隔(steps)
+enable_realtime_log: True  # 是否启用实时日志输出
+
+# 单智能体特定配置
+single_agent:
+  # 观测空间配置
+  observation:
+    # 是否包含历史信息
+    include_history: False
+    # 历史步数
+    history_length: 1
+    # 是否标准化观测
+    normalize_obs: True
+  
+  # 动作空间配置
+  action:
+    # 动作类型：discrete（离散）或continuous（连续）
+    action_type: discrete
+    # 是否标准化动作
+    normalize_action: False
+  
+  # 奖励配置
+  reward:
+    # 奖励函数类型
+    reward_type: composite
+    # 奖励权重
+    reward_weights:
+      voltage: 1.0
+      power_loss: 0.5
+      reactive_power: 0.3
+    # 是否标准化奖励
+    normalize_reward: False

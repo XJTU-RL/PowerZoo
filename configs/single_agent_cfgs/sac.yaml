@@ -1,0 +1,84 @@
+# SAC (Soft Actor-Critic) 单智能体算法配置
+seed:
+  # 是否使用指定的随机种子
+  seed_specify: True
+  # 随机种子值
+  seed: 1
+
+device:
+  # 是否使用CUDA
+  cuda: True
+  # 是否设置CUDA确定性
+  cuda_deterministic: True
+  # torch线程数
+  torch_threads: 4
+
+train:
+  # 并行环境数量
+  n_rollout_threads: 1
+  # 总训练步数
+  total_timesteps: 100000
+  # 每个episode的最大步数
+  episode_length: 24
+  # 日志记录间隔
+  log_interval: 10
+  # 评估间隔
+  eval_interval: 1000
+  # 模型保存目录（如果设置，则从此目录加载模型；否则随机初始化）
+  model_dir: ~
+  # 模型保存间隔
+  save_interval: 10000
+
+eval:
+  # 是否使用评估
+  use_eval: True
+  # 评估环境数量
+  n_eval_rollout_threads: 1
+  # 每次评估的episode数量
+  eval_episodes: 5
+  # 是否在评估时使用确定性策略
+  deterministic_eval: True
+
+render:
+  # 是否使用渲染
+  use_render: False
+  # 渲染的episode数量
+  render_episodes: 5
+
+# SAC特定参数
+sac:
+  # 学习率
+  learning_rate: 3.0e-4
+  # 批次大小
+  batch_size: 256
+  # 经验回放缓冲区大小
+  buffer_size: 1000000
+  # 开始学习的步数
+  learning_starts: 100
+  # 训练频率
+  train_freq: 1
+  # 梯度步数
+  gradient_steps: 1
+  # 折扣因子
+  gamma: 0.99
+  # tau参数（软更新）
+  tau: 0.005
+  # 熵系数（自动调整）
+  ent_coef: "auto"
+  # 目标熵（如果ent_coef为auto）
+  target_entropy: "auto"
+  # 是否使用SDE（状态相关探索）
+  use_sde: False
+  # SDE采样频率
+  sde_sample_freq: -1
+  # 是否使用SDE在开始时
+  use_sde_at_warmup: False
+
+# 网络架构参数
+model:
+  # MLP隐藏层大小
+  hidden_sizes: [256, 256]
+  # 激活函数：sigmoid, tanh, relu, leaky_relu, selu
+  activation_func: relu
+  # 是否使用正交初始化
+  use_orthogonal_init: False

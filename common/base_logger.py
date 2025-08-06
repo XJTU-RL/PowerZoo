@@ -95,6 +95,14 @@ class BaseLogger:
             self.algo_args["train"]["n_rollout_threads"]
         )#意思是algo_args["train"]类下n_rollout_threads的值，此处创建了一个大小为参数cogfig中设置的训练线程数量的rewards的值，用于存放每个线程的episode_rewards.
         self.done_episodes_rewards = []
+        
+        # 写入初始信息到progress.txt
+        self.log_file.write(f"{'='*80}\n")
+        self.log_file.write(f"Training started at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        self.log_file.write(f"Total episodes: {episodes}, Total steps: {self.algo_args['train']['num_env_steps']}\n")
+        self.log_file.write(f"Environment: {self.args['env']}, Algorithm: {self.args['algo']}\n")
+        self.log_file.write(f"{'='*80}\n\n")
+        self.log_file.flush()
 
     def episode_init(self, episode):
         """Initialize the logger for each episode."""
@@ -174,13 +182,22 @@ class BaseLogger:
             
             # 也记录到progress.txt
             self.log_file.write(
-                f"Episode {self.episode}, Steps {self.total_num_steps}, "
+                f"[COMPLETED] Episode {self.episode}, Steps {self.total_num_steps}, "
                 f"Avg Episode Reward: {aver_episode_rewards:.4f}, "
                 f"FPS: {int(self.total_num_steps / (self.end - self.start))}\n"
             )
             self.log_file.flush()
             
             self.done_episodes_rewards = []
+        else:
+            # 即使没有完成的episode，也记录当前进度（每隔一定间隔）
+            if self.episode % max(1, min(5, self.episodes // 20)) == 0:
+                self.log_file.write(
+                    f"[TRAINING] Episode {self.episode}, Steps {self.total_num_steps}, "
+                    f"Avg Step Reward: {critic_train_info.get('average_step_rewards', 0):.4f}, "
+                    f"FPS: {int(self.total_num_steps / (self.end - self.start))}\n"
+                )
+                self.log_file.flush()
 
     def eval_init(self):
         """Initialize the logger for evaluation."""
@@ -227,9 +244,17 @@ class BaseLogger:
         }
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
-        print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
+        eval_max_rew = np.max(self.eval_episode_rewards)
+        eval_min_rew = np.min(self.eval_episode_rewards)
+        
+        print("Evaluation average episode reward is {:.4f} (max: {:.4f}, min: {:.4f}).\n".format(
+            eval_avg_rew, eval_max_rew, eval_min_rew))
+        
+        # 更详细的eval进度记录
         self.log_file.write(
-            ",".join(map(str, [self.total_num_steps, eval_avg_rew])) + "\n"
+            f"[EVAL] Episode {eval_episode}, Steps {self.total_num_steps}, "
+            f"Avg Reward: {eval_avg_rew:.4f}, Max: {eval_max_rew:.4f}, "
+            f"Min: {eval_min_rew:.4f}, Eval Episodes: {len(self.eval_episode_rewards)}\n"
         )
         self.log_file.flush()
 
@@ -294,11 +319,16 @@ class BaseLogger:
             self.log_training_info.write(train_info_str)
             self.log_training_info.flush()
             
-            # 构建简化的进度信息写入progress.txt
-            if self.episode % 10 == 0:  # 每10个episode记录一次详细信息
+            # 构建简化的进度信息写入progress.txt - 更频繁记录以便monitoring
+            # 改进的自适应记录间隔：每1%进度或每个episode（取更小值）
+            progress_interval = max(1, min(10, max(1, self.episodes // 100)))  # 确保至少每个episode记录一次
+            # 同时增加一个条件：前10个episode都记录，之后按间隔记录
+            should_log = (self.episode <= 10) or (self.episode % progress_interval == 0) or (self.episode == self.episodes)
+            if should_log:  # 更智能的记录条件
                 progress_info = (
                     f"\nEpisode {self.episode}/{self.episodes} | "
                     f"Steps {self.total_num_steps}/{self.algo_args['train']['num_env_steps']} | "
+                    f"Progress: {(self.episode/self.episodes)*100:.1f}% | "
                     f"Avg Step Reward: {critic_train_info.get('average_step_rewards', 0):.4f} | "
                 )
                 

@@ -1,0 +1,489 @@
+import os
+import gymnasium as gym
+import numpy as np
+from typing import Dict, List, Any, Optional, Tuple, Union
+from envs.power_envs.powerzoo.powerzoo.env import Env, ActionSpace
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SingleAgentPowerZooEnv(Env):
+    """单智能体PowerZoo环境
+    
+    基于原有的多智能体PowerZoo环境，创建单智能体版本。
+    在全离散动作情况下使用MultiDiscrete动作空间，更加自然和高效。
+    
+    主要特点:
+    - 直接使用MultiDiscrete动作空间，无需分解为多个Discrete
+    - 保持原有的观测空间和奖励函数
+    - 简化动作处理逻辑
+    - 适合传统单智能体RL算法（DQN、PPO、SAC等）
+    """
+    
+    def __init__(self, folder_path: str = None, info: Dict[str, Any] = None, 
+                 dss_act: bool = False, config=None):
+        """初始化单智能体PowerZoo环境
+        
+        Args:
+            folder_path: DSS文件夹路径（可选，如果提供config则自动设置）
+            info: 环境配置信息（可选，如果提供config则自动设置）
+            dss_act: 是否使用DSS动作
+            config: SingleAgentConfig配置对象（推荐使用）
+        """
+        # 如果提供了config，则从config中提取参数
+        if config is not None:
+            from .single_agent_config import SingleAgentConfig
+            if not isinstance(config, SingleAgentConfig):
+                raise TypeError("config must be an instance of SingleAgentConfig")
+            
+            # 从config生成folder_path和info
+            folder_path = config.get_folder_path()
+            info = config.to_env_info()
+            
+            # 设置日志级别
+            if config.log_level:
+                logging.getLogger().setLevel(getattr(logging, config.log_level.upper()))
+        
+        # 检查必要参数
+        if folder_path is None or info is None:
+            raise ValueError("必须提供folder_path和info，或者提供config参数")
+        # 调用父类初始化
+        super().__init__(folder_path, info, dss_act)
+        
+        # 重新设置动作空间为单智能体版本
+        self._setup_single_agent_action_space()
+        
+        logger.info(f"单智能体PowerZoo环境初始化完成")
+        logger.info(f"设备数量 - 电容器: {self.cap_num}, 调压器: {self.reg_num}, 电池: {self.bat_num}, 光伏: {self.pv_num}")
+        logger.info(f"动作空间: {self.action_space}")
+    
+    def _setup_single_agent_action_space(self):
+        """设置单智能体动作空间
+        
+        直接使用ActionSpace类生成的MultiDiscrete空间，
+        无需分解为多个独立的Discrete空间。
+        """
+        # 直接使用ActionSpace的space属性
+        self.action_space = self.ActionSpace.space
+        
+        # 记录动作空间信息用于调试
+        if isinstance(self.action_space, gym.spaces.MultiDiscrete):
+            logger.info(f"使用MultiDiscrete动作空间，维度: {self.action_space.nvec}")
+        elif isinstance(self.action_space, gym.spaces.Tuple):
+            logger.info(f"使用混合动作空间: {[type(space).__name__ for space in self.action_space.spaces]}")
+        else:
+            logger.info(f"使用动作空间: {type(self.action_space).__name__}")
+    
+    def step(self, action):
+        """执行一步环境交互
+        
+        Args:
+            action: 单智能体动作，格式取决于动作空间类型
+                   - MultiDiscrete: numpy数组，形状为(总设备数,)
+                   - Tuple: 包含离散和连续动作的元组
+        
+        Returns:
+            observation: 环境观测
+            reward: 奖励值
+            done: 是否结束
+            info: 额外信息
+        """
+        # 解析单智能体动作
+        cap_actions, reg_actions, bat_actions, pv_actions = self._parse_single_agent_action(action)
+        
+        # 执行动作（复用父类的动作执行逻辑）
+        return self._execute_actions(cap_actions, reg_actions, bat_actions, pv_actions)
+    
+    def _parse_single_agent_action(self, action):
+        """解析单智能体动作为各设备的动作
+        
+        Args:
+            action: 单智能体动作
+            
+        Returns:
+            cap_actions: 电容器动作列表
+            reg_actions: 调压器动作列表 
+            bat_actions: 电池动作列表
+            pv_actions: 光伏动作列表
+        """
+        if isinstance(self.action_space, gym.spaces.MultiDiscrete):
+            # 纯离散动作空间
+            action = np.array(action)
+            
+            # 按设备类型分割动作
+            idx = 0
+            cap_actions = action[idx:idx+self.cap_num].tolist() if self.cap_num > 0 else []
+            idx += self.cap_num
+            
+            reg_actions = action[idx:idx+self.reg_num].tolist() if self.reg_num > 0 else []
+            idx += self.reg_num
+            
+            # 处理电池动作（可能是离散或连续）
+            if self.bat_num > 0:
+                if isinstance(self.bat_act_num, (int, float)) and self.bat_act_num < float('inf'):
+                    # 离散电池动作
+                    bat_actions = action[idx:idx+self.bat_num].tolist()
+                    idx += self.bat_num
+                else:
+                    # 连续电池动作（不应该在MultiDiscrete中出现）
+                    bat_actions = []
+            else:
+                bat_actions = []
+            
+            # 处理光伏动作（可能是离散或连续）
+            if self.pv_control_enabled and self.pv_num > 0:
+                if isinstance(self.pv_act_num, (int, float)) and self.pv_act_num < float('inf'):
+                    # 离散光伏动作
+                    pv_actions = action[idx:idx+self.pv_num].tolist()
+                else:
+                    # 连续光伏动作（不应该在MultiDiscrete中出现）
+                    pv_actions = []
+            else:
+                pv_actions = []
+                
+        elif isinstance(self.action_space, gym.spaces.Tuple):
+            # 混合动作空间（离散 + 连续）
+            discrete_action, continuous_action = action[0], action[1]
+            
+            # 解析离散动作
+            discrete_action = np.array(discrete_action)
+            idx = 0
+            cap_actions = discrete_action[idx:idx+self.cap_num].tolist() if self.cap_num > 0 else []
+            idx += self.cap_num
+            
+            reg_actions = discrete_action[idx:idx+self.reg_num].tolist() if self.reg_num > 0 else []
+            idx += self.reg_num
+            
+            # 处理离散电池动作
+            if self.bat_num > 0 and isinstance(self.bat_act_num, (int, float)) and self.bat_act_num < float('inf'):
+                bat_discrete = discrete_action[idx:idx+self.bat_num].tolist()
+                idx += self.bat_num
+            else:
+                bat_discrete = []
+            
+            # 处理离散光伏动作
+            if (self.pv_control_enabled and self.pv_num > 0 and 
+                isinstance(self.pv_act_num, (int, float)) and self.pv_act_num < float('inf')):
+                pv_discrete = discrete_action[idx:idx+self.pv_num].tolist()
+            else:
+                pv_discrete = []
+            
+            # 解析连续动作
+            continuous_action = np.array(continuous_action)
+            cont_idx = 0
+            
+            # 处理连续电池动作
+            if self.bat_num > 0 and (not isinstance(self.bat_act_num, (int, float)) or self.bat_act_num == float('inf')):
+                bat_continuous = continuous_action[cont_idx:cont_idx+self.bat_num].tolist()
+                cont_idx += self.bat_num
+                bat_actions = bat_continuous
+            else:
+                bat_actions = bat_discrete
+            
+            # 处理连续光伏动作
+            if (self.pv_control_enabled and self.pv_num > 0 and 
+                (not isinstance(self.pv_act_num, (int, float)) or self.pv_act_num == float('inf'))):
+                pv_continuous = continuous_action[cont_idx:cont_idx+self.pv_num*2].tolist()  # 有功功率 + 功率因数
+                pv_actions = pv_continuous
+            else:
+                pv_actions = pv_discrete
+                
+        else:
+            raise ValueError(f"不支持的动作空间类型: {type(self.action_space)}")
+        
+        return cap_actions, reg_actions, bat_actions, pv_actions
+    
+    def _execute_actions(self, cap_actions, reg_actions, bat_actions, pv_actions):
+        """执行解析后的动作（复用父类逻辑）
+        
+        Args:
+            cap_actions: 电容器动作列表
+            reg_actions: 调压器动作列表
+            bat_actions: 电池动作列表
+            pv_actions: 光伏动作列表
+            
+        Returns:
+            observation, reward, done, info
+        """
+        # 记录动作执行前的状态
+        prev_obs = self.obs.copy() if hasattr(self, 'obs') else {}
+        
+        # 执行电容器动作
+        if cap_actions:
+            self.circuit.set_all_capacitor_statuses(cap_actions)
+        
+        # 执行调压器动作
+        if reg_actions:
+            self.circuit.set_all_regulator_tappings(reg_actions)
+        
+        # 执行电池动作
+        if bat_actions:
+            if isinstance(self.bat_act_num, (int, float)) and self.bat_act_num < float('inf'):
+                # 离散电池动作
+                self.circuit.set_all_batteries_before_solve(bat_actions)
+            else:
+                # 连续电池动作
+                self.circuit.set_all_batteries_before_solve(bat_actions)
+        
+        # 执行光伏动作（如果启用）
+        if pv_actions and self.pv_control_enabled:
+            if isinstance(self.pv_act_num, (int, float)) and self.pv_act_num < float('inf'):
+                # 离散光伏动作
+                self.circuit.set_all_pv_statuses(pv_actions)
+            else:
+                # 连续光伏动作
+                self.circuit.set_all_pv_powers(pv_actions)
+        
+        # 运行电路仿真
+        self.circuit.dss.ActiveCircuit.Solution.Solve()
+        
+        # 更新电池状态（在求解后）
+        if self.bat_num > 0:
+            soc_errs, dis_errs = self.circuit.set_all_batteries_after_solve()
+        
+        # 更新观测
+        self._update_observation()
+        
+        # 计算奖励
+        reward, reward_info = self._calculate_reward(prev_obs, cap_actions, reg_actions, bat_actions, pv_actions)
+        
+        # 更新时间步
+        self.t += 1
+        done = self.t >= self.horizon
+        
+        # 构建info字典
+        info = {
+            'reward_components': reward_info,
+            'timestep': self.t,
+            'horizon': self.horizon,
+            'actions': {
+                'capacitors': cap_actions,
+                'regulators': reg_actions,
+                'batteries': bat_actions,
+                'pv_systems': pv_actions if self.pv_control_enabled else []
+            }
+        }
+        
+        # 返回观测（根据wrap_observation设置）
+        if self.wrap_observation:
+            observation = self._flatten_observation()
+        else:
+            observation = self.obs.copy()
+        
+        return observation, reward, done, info
+    
+    def _update_observation(self):
+        """更新环境观测（复用父类逻辑）"""
+        # 更新观测状态 - 获取所有母线电压
+        bus_voltages = dict()
+        for bus_name in self.all_bus_names:
+            bus_voltages[bus_name] = self.circuit.bus_voltage(bus_name)
+            bus_voltages[bus_name] = [bus_voltages[bus_name][i] for i in range(len(bus_voltages[bus_name])) if i%2==0]
+        self.obs['bus_voltages'] = bus_voltages
+        
+        # 获取设备状态 - 使用字典格式以保持与父类一致
+        self.obs['cap_statuses'] = {cap: self.circuit.capacitors[cap].status for cap in self.cap_names}
+        self.obs['reg_statuses'] = {reg: self.circuit.regulators[reg].tap for reg in self.reg_names}
+        
+        # 获取电池状态
+        bat_statuses = {}
+        for bat in self.bat_names:
+            battery = self.circuit.batteries[bat]
+            bat_statuses[bat] = [battery.soc, battery.actual_power()]
+        self.obs['bat_statuses'] = bat_statuses
+        
+        # 获取光伏状态（如果启用）
+        if self.pv_control_enabled and self.pv_num > 0:
+            pv_statuses = {}
+            for pv in self.pv_names:
+                pv_system = self.circuit.pvs[pv]
+                pv_statuses[pv] = [pv_system.power_output, pv_system.power_factor]
+            self.obs['pv_statuses'] = pv_statuses
+        
+        # 获取系统指标 - 计算功率损耗比值（与父类格式保持一致）
+        total_loss = self.circuit.total_loss()[0]  # 取第一个元素（有功损耗）
+        total_power = self.circuit.total_power()[0]  # 取第一个元素（有功功率）
+        self.obs['power_loss'] = -total_loss / total_power  # 计算损耗比值
+        
+        # 时间步信息
+        self.obs['time'] = self.t
+        
+        # 获取负载曲线（如果需要）
+        if self.observe_load:
+            self.obs['load_profile_t'] = self.load_profile.get_current_load()
+    
+    def _flatten_observation(self):
+        """将观测字典展平为数组（复用父类逻辑）"""
+        obs_list = []
+        
+        # 添加母线电压
+        for voltages in self.obs['bus_voltages'].values():
+            obs_list.extend(voltages)
+        
+        # 添加电容器状态（从字典中按顺序提取值）
+        for cap_name in self.cap_names:
+            obs_list.append(self.obs['cap_statuses'].get(cap_name, 0))
+        
+        # 添加调压器状态（从字典中按顺序提取值）
+        for reg_name in self.reg_names:
+            obs_list.append(self.obs['reg_statuses'].get(reg_name, 0))
+        
+        # 添加电池状态
+        for bat_status in self.obs['bat_statuses'].values():
+            obs_list.extend(bat_status)
+        
+        # 添加光伏状态（如果启用）
+        if self.pv_control_enabled and 'pv_statuses' in self.obs:
+            for pv_status in self.obs['pv_statuses'].values():
+                obs_list.extend(pv_status)
+        
+        # 添加负载曲线（如果需要）
+        if self.observe_load:
+            obs_list.extend(self.obs['load_profile_t'])
+        
+        return np.array(obs_list, dtype=np.float32)
+    
+    def _calculate_reward(self, prev_obs, cap_actions, reg_actions, bat_actions, pv_actions):
+        """计算奖励（复用父类的奖励函数）"""
+        # 计算动作差异
+        prev_cap_dict = prev_obs.get('cap_statuses', {})
+        prev_reg_dict = prev_obs.get('reg_statuses', {})
+        
+        # 将字典转换为列表以便与动作列表进行比较
+        prev_cap = [prev_cap_dict.get(cap_name, 0) for cap_name in self.cap_names] if prev_cap_dict else [0] * self.cap_num
+        prev_reg = [prev_reg_dict.get(reg_name, 0) for reg_name in self.reg_names] if prev_reg_dict else [0] * self.reg_num
+        
+        cap_diff = [abs(int(a) - int(b)) for a, b in zip(cap_actions, prev_cap)] if cap_actions else []
+        reg_diff = [abs(int(a) - int(b)) for a, b in zip(reg_actions, prev_reg)] if reg_actions else []
+        
+        # 计算电池相关指标
+        soc_errors = []
+        discharge_errors = []
+        if bat_actions:
+            for i, bat_name in enumerate(self.bat_names):
+                if i < len(bat_actions):
+                    battery = self.circuit.batteries[bat_name]
+                    soc_errors.append(abs(battery.soc - 0.5))  # 目标SOC为50%
+                    discharge_errors.append(max(0, -battery.actual_power()))  # 放电惩罚
+        
+        # 计算光伏相关指标
+        pv_diff = []
+        if pv_actions and self.pv_control_enabled:
+            # 简单的光伏控制成本（可根据需要调整）
+            pv_diff = [abs(action) for action in pv_actions]
+        
+        # 使用父类的奖励函数
+        reward, reward_info = self.reward_func.composite_reward(
+            cap_diff, reg_diff, soc_errors, discharge_errors, pv_diff,
+            full=True, record_node=False
+        )
+        
+        return reward, reward_info
+    
+    def reset(self, load_profile_idx: Optional[int] = None):
+        """重置环境
+        
+        Args:
+            load_profile_idx: 负载曲线索引，None表示使用默认值0
+            
+        Returns:
+            observation: 初始观测
+        """
+        # 如果load_profile_idx为None，使用默认值0
+        if load_profile_idx is None:
+            load_profile_idx = 0
+            
+        # 调用父类reset方法
+        obs = super().reset(load_profile_idx=load_profile_idx)
+        
+        return obs
+    
+    def render(self, mode='human'):
+        """渲染环境（复用父类方法）"""
+        return super().render(mode)
+    
+    def close(self):
+        """关闭环境（复用父类方法）"""
+        return super().close()
+    
+    def get_action_meanings(self):
+        """获取动作含义说明
+        
+        Returns:
+            dict: 动作含义字典
+        """
+        meanings = {
+            'action_space_type': type(self.action_space).__name__,
+            'total_actions': self.action_space.n if hasattr(self.action_space, 'n') else 'variable',
+            'devices': {
+                'capacitors': {
+                    'count': self.cap_num,
+                    'actions': 'Binary (0=Off, 1=On)',
+                    'range': '[0, 1]'
+                },
+                'regulators': {
+                    'count': self.reg_num,
+                    'actions': f'Discrete tap positions',
+                    'range': f'[0, {self.reg_act_num-1}]'
+                },
+                'batteries': {
+                    'count': self.bat_num,
+                    'actions': 'Discrete' if isinstance(self.bat_act_num, int) else 'Continuous',
+                    'range': f'[0, {self.bat_act_num-1}]' if isinstance(self.bat_act_num, int) else '[-1, 1]'
+                }
+            }
+        }
+        
+        if self.pv_control_enabled and self.pv_num > 0:
+            meanings['devices']['pv_systems'] = {
+                'count': self.pv_num,
+                'actions': 'Discrete' if isinstance(self.pv_act_num, int) else 'Continuous',
+                'range': f'[0, {self.pv_act_num-1}]' if isinstance(self.pv_act_num, int) else '[-1, 1] (Power, PF)'
+            }
+        
+        return meanings
+
+
+def create_single_agent_powerzoo_env(folder_path: str, info: Dict[str, Any], **kwargs):
+    """创建单智能体PowerZoo环境的便捷函数
+    
+    Args:
+        folder_path: DSS文件夹路径
+        info: 环境配置信息
+        **kwargs: 其他参数
+        
+    Returns:
+        SingleAgentPowerZooEnv: 单智能体环境实例
+    """
+    return SingleAgentPowerZooEnv(folder_path, info, **kwargs)
+
+
+# 使用示例
+if __name__ == "__main__":
+    # 示例配置
+    config = {
+        'system_name': '34Bus_PV',
+        'dss_file': 'ieee34Mod1.dss',
+        'max_episode_steps': 100,
+        'reg_act_num': 33,
+        'bat_act_num': 5,  # 离散电池动作
+        'pv_control': True,
+        'pv_act_num': float('inf'),  # 连续PV控制
+        'worker_idx': 0
+    }
+    
+    # 创建环境
+    env = create_single_agent_powerzoo_env('/path/to/node_systems', config)
+    
+    print(f"动作空间: {env.action_space}")
+    print(f"观测空间: {env.observation_space}")
+    print(f"动作含义: {env.get_action_meanings()}")
+    
+    # 测试环境
+    obs = env.reset()
+    action = env.action_space.sample()
+    obs, reward, done, info = env.step(action)
+    
+    print(f"奖励: {reward}")
+    print(f"完成: {done}")
+    print(f"信息: {info}")
