@@ -519,8 +519,8 @@ class OnPolicyBaseRunner:
             action_np = _t2n(action)
             log_prob_np = _t2n(action_log_prob)
             
-            # 调试输出：检查PV智能体的动作维度
-            if agent_id >= 9 and step == 0:  # 假设PV智能体是9-12
+            # 调试输出：检查PV智能体的动作维度（仅在问题调试时启用）
+            if agent_id >= 9 and step == 0 and False:  # 默认关闭调试输出
                 print(f"[DEBUG] Agent {agent_id} (PV):")
                 print(f"  - action tensor shape: {action.shape}")
                 print(f"  - action_np shape: {action_np.shape}")
@@ -537,39 +537,59 @@ class OnPolicyBaseRunner:
             # 获取当前智能体的实际动作维度
             current_agent_action_dim = agent_action_dims[agent_id]
             
-            # 维度兼容性检查
+            # 改进的维度兼容性处理：确保多维动作完整保留
             if action_np.shape[-1] != current_agent_action_dim:
-                print(f"警告：智能体{agent_id}动作维度不匹配！期望{current_agent_action_dim}，实际{action_np.shape[-1]}")
-                # 尝试自动修正常见情况
-                if action_np.shape[-1] == 1 and current_agent_action_dim > 1:
-                    # 如果输出是1维但期望多维，可能是配置问题
-                    print(f"智能体{agent_id}可能存在动作空间配置问题，请检查网络输出层")
+                if step == 0:  # 仅在第一步记录警告，避免日志泛滥
+                    print(f"注意：智能体{agent_id}动作维度 {action_np.shape[-1]} != 期望维度 {current_agent_action_dim}")
+                
+                # 如果网络输出维度小于期望，说明网络配置问题
+                if action_np.shape[-1] < current_agent_action_dim:
+                    print(f"错误：智能体{agent_id}网络输出维度不足，期望{current_agent_action_dim}，实际{action_np.shape[-1]}")
+                    # 用零填充不足的维度（临时解决方案）
+                    padding = np.zeros((action_np.shape[0], current_agent_action_dim - action_np.shape[-1]))
+                    action_np = np.concatenate([action_np, padding], axis=1)
+                    if step == 0:
+                        print(f"  已用零填充至{action_np.shape[-1]}维，请检查网络配置")
+                
+                # 如果网络输出维度大于期望，仅在确实需要时才截断
                 elif action_np.shape[-1] > current_agent_action_dim:
-                    # 如果输出维度超过期望，截断并警告
-                    print(f"截断智能体{agent_id}的动作从{action_np.shape[-1]}维到{current_agent_action_dim}维")
+                    if step == 0:
+                        print(f"  截断多余维度：{action_np.shape[-1]} -> {current_agent_action_dim}")
                     action_np = action_np[:, :current_agent_action_dim]
-                    # 注意：log_prob_np 不需要截断，它应该始终是标量
             
-            # 填充动作数据，保持完整维度（移除截断逻辑）
-            actual_action_dim = min(action_np.shape[-1], max_action_dim)  # 仅用于防止数组越界
+            # 动态分配动作存储空间，确保不丢失信息
+            actual_action_dim = action_np.shape[-1]
+            if actual_action_dim > max_action_dim:
+                # 扩展actions数组以容纳更大的动作维度
+                old_actions = actions
+                actions = np.zeros((n_threads, self.num_agents, actual_action_dim), dtype=np.float32)
+                actions[:, :, :max_action_dim] = old_actions
+                max_action_dim = actual_action_dim
+                if step == 0:
+                    print(f"动态扩展动作数组至维度 {max_action_dim}")
             
-            actions[:, agent_id, :actual_action_dim] = action_np[:, :actual_action_dim]
+            # 填充完整的动作数据
+            actions[:, agent_id, :actual_action_dim] = action_np
             # action_log_probs 应该是 (n_threads, 1) 形状
             action_log_probs[:, agent_id, :] = log_prob_np.reshape(-1, 1)
             rnn_states[:, agent_id] = rnn_state_np
         
-        # 调试输出（可选，用于验证修复效果）
+        # 优化的调试输出：仅显示关键信息
         if step == 0:  # 仅在第一步输出，避免日志过多
-            print(f"异构环境动作维度分布：{dict(zip(range(self.num_agents), agent_action_dims))}")
-            print(f"最大动作维度：{max_action_dim}")
-            print(f"输出actions形状：{actions.shape}")
+            print(f"\n=== 异构环境动作空间信息 ===")
+            print(f"智能体数量: {self.num_agents}")
+            print(f"动作维度分布: {dict(zip(range(self.num_agents), agent_action_dims))}")
+            print(f"最终actions数组形状: {actions.shape}")
             
-            # 更详细的调试信息
-            print("\n[DEBUG] 各智能体动作详情:")
-            for agent_id in range(self.num_agents):
-                agent_actions = actions[:, agent_id, :]
-                non_zero_dims = np.sum(np.abs(agent_actions[0]) > 1e-8)
-                print(f"  Agent {agent_id}: shape={agent_actions.shape}, 非零维度={non_zero_dims}, 值={agent_actions[0][:agent_action_dims[agent_id]]}")
+            # 检查PV智能体（通常在后面的agent id）
+            pv_agents = [i for i in range(self.num_agents) if agent_action_dims[i] > 1]
+            if pv_agents:
+                print(f"检测到多维动作智能体 (PV系统): {pv_agents}")
+                for pv_id in pv_agents[:3]:  # 仅显示前3个以避免输出过多
+                    pv_actions = actions[0, pv_id, :agent_action_dims[pv_id]]
+                    print(f"  PV智能体 {pv_id}: 动作={pv_actions} (维度={len(pv_actions)})")
+            
+            print("=" * 35)
         
         return (
             self._collect_critic_values(step), 

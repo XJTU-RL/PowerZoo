@@ -241,15 +241,38 @@ class HeterogeneousOnPolicyActorBuffer:
         # 确保动作维度正确
         if self.action_type in ['discrete', 'multi_discrete']:
             actions = self._reshape_discrete_actions(actions)
+            # 验证形状匹配
+            if actions.shape[1:] != self.action_shape:
+                raise ValueError(
+                    f"离散动作形状不匹配: 期望 {self.action_shape}, "
+                    f"实际 {actions.shape[1:]}, 完整形状 {actions.shape}"
+                )
             self.actions[self.step] = actions.astype(np.int32)
         else:
             actions = self._reshape_continuous_actions(actions)
+            # 验证形状匹配
+            if actions.shape[1:] != self.action_shape:
+                raise ValueError(
+                    f"连续动作形状不匹配: 期望 {self.action_shape}, "
+                    f"实际 {actions.shape[1:]}, 完整形状 {actions.shape}"
+                )
             self.actions[self.step] = actions.astype(np.float32)
 
     def _reshape_discrete_actions(self, actions):
         """重塑离散动作"""
         if actions.ndim == 1:
             return actions.reshape(-1, *self.action_shape)
+        elif actions.ndim == 2:
+            # 如果是2维，检查是否需要截取
+            if actions.shape[-1] > self.action_shape[0]:
+                # 只取需要的维度
+                actions = actions[:, :self.action_shape[0]]
+            elif actions.shape[-1] < self.action_shape[0]:
+                # 维度不足，报错
+                raise ValueError(
+                    f"离散动作维度不足: 期望至少 {self.action_shape[0]} 维, "
+                    f"实际只有 {actions.shape[-1]} 维"
+                )
         return actions
 
     def _reshape_continuous_actions(self, actions):
@@ -265,8 +288,11 @@ class HeterogeneousOnPolicyActorBuffer:
                 return actions.reshape(1, -1)
         
         if actions.ndim == 2:
-            # 处理形状不匹配的情况
-            if actions.shape[-1] != self.action_shape[0]:
+            # 如果动作维度超过需要，截取
+            if actions.shape[-1] > self.action_shape[0]:
+                actions = actions[:, :self.action_shape[0]]
+            elif actions.shape[-1] < self.action_shape[0]:
+                # 维度不足，尝试修复
                 actions = self._fix_action_shape_mismatch(actions)
             
             # 处理批次大小不匹配
@@ -531,6 +557,11 @@ class HeterogeneousOnPolicyActorBuffer:
 
         # 准备数据
         prepared_data = self._prepare_chunked_data()
+        
+        # 准备advantages
+        if advantages is not None:
+            # advantages 的形状应该是 (episode_length, n_rollout_threads, 1)
+            prepared_data['advantages'] = _sa_cast(advantages)
 
         # 生成mini-batch
         for indices in sampler:
@@ -590,6 +621,7 @@ class HeterogeneousOnPolicyActorBuffer:
         active_masks_batch = []
         old_action_log_probs_batch = []
         factor_batch = []
+        adv_targ_batch = []
 
         for index in indices:
             ind = index * data_chunk_length
@@ -626,6 +658,10 @@ class HeterogeneousOnPolicyActorBuffer:
             
             if prepared_data['factor'] is not None:
                 factor_batch.append(prepared_data['factor'][ind : ind + data_chunk_length])
+            
+            # 处理advantages
+            if 'advantages' in prepared_data and prepared_data['advantages'] is not None:
+                adv_targ_batch.append(prepared_data['advantages'][ind : ind + data_chunk_length])
 
         # Stack数据
         obs_batch = _flatten(L, N, np.stack(obs_batch, axis=1))
@@ -646,9 +682,9 @@ class HeterogeneousOnPolicyActorBuffer:
             factor_batch = None
         
         # 处理advantages
-        if hasattr(self, '_cached_advantages'):
-            adv_targ = self._cached_advantages[index * data_chunk_length : (index + 1) * data_chunk_length]
-            adv_targ = _flatten(L, N, adv_targ)
+        if adv_targ_batch:
+            # advantages 和其他数据一样需要 stack 和 flatten
+            adv_targ = _flatten(L, N, np.stack(adv_targ_batch, axis=1))
         else:
             adv_targ = None
         

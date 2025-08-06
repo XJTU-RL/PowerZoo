@@ -97,5 +97,8 @@ class DiagGaussian(nn.Module):
 
     def forward(self, x, available_actions=None):
         action_mean = self.fc_mean(x)
+        # 改进的标准差计算，增强数值稳定性和探索能力
         action_std = torch.sigmoid(self.log_std / self.std_x_coef) * self.std_y_coef
+        # 确保标准差不会太小，维持足够的探索
+        action_std = torch.clamp(action_std, min=0.01, max=2.0)
         return FixedNormal(action_mean, action_std)

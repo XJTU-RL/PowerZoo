@@ -80,8 +80,9 @@ class OnPolicyActorBuffer:
         ) 
         
         # Buffer for action log probs of this actor.
+        # 注意：action_log_probs通常是标量，不依赖于动作维度
         self.action_log_probs = np.zeros(
-            (self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32
+            (self.episode_length, self.n_rollout_threads, 1), dtype=np.float32
         )
 
         # Buffer for masks of this actor. Masks denotes at which point should the rnn states be reset.
@@ -166,7 +167,7 @@ class OnPolicyActorBuffer:
             )
         masks = self.masks[:-1].reshape(-1, 1)
         active_masks = self.active_masks[:-1].reshape(-1, 1)
-        action_log_probs = self.action_log_probs.reshape(-1, self.action_log_probs.shape[-1])
+        action_log_probs = self.action_log_probs.reshape(-1, 1)
         if self.factor is not None:
             factor = self.factor.reshape(-1, self.factor.shape[-1])
         advantages = advantages.reshape(-1, 1)
