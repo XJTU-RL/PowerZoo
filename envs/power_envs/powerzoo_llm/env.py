@@ -342,7 +342,7 @@ class Env(gym.Env):
         """
         def __init__(self, env, info: Dict[str, Any]):
             self.env = env
-            self.power_w = info.get('power_w', 10.0)
+            self.power_w = info.get('power_w', 1.0)  # 降低功率损耗权重避免奖励scale过大
             self.cap_w = info.get('cap_w', 0.1)
             self.reg_w = info.get('reg_w', 0.1)
             self.soc_w = info.get('soc_w', 0.5)
@@ -763,6 +763,38 @@ class Env(gym.Env):
                       'av_soc_err': sum(soc_errs)/(self.bat_num+1e-10),
                       'av_soc': sum([soc for soc, _ in bat_statuses.values()])/ \
                                    (self.bat_num+1e-10)  })
+        
+        # 添加logger需要的信息字段
+        try:
+            total_loss = self.circuit.total_loss()
+            total_power = self.circuit.total_power()
+            info['power_loss_kw'] = abs(total_loss[0]) if len(total_loss) > 0 else 0.0
+            info['total_power_kw'] = abs(total_power[0]) if len(total_power) > 0 else 100.0
+            info['power_loss_kvar'] = abs(total_loss[1]) if len(total_loss) > 1 else 0.0
+            info['total_power_kvar'] = abs(total_power[1]) if len(total_power) > 1 else 50.0
+        except:
+            info['power_loss_kw'] = 0.0
+            info['total_power_kw'] = 100.0
+            info['power_loss_kvar'] = 0.0 
+            info['total_power_kvar'] = 50.0
+        
+        # 电压违规计数
+        info['voltage_violation_count'] = voltage_violations
+        
+        # PV利用率
+        info['pv_utilization'] = 0.0
+        if self.pv_control_enabled and self.pv_num > 0 and 'pv_statuses' in self.obs:
+            pv_powers = [status[0] for status in self.obs['pv_statuses'].values() if len(status) > 0]
+            if pv_powers:
+                info['pv_utilization'] = np.mean(pv_powers) * 100
+        
+        # 电池SOC
+        info['battery_avg_soc'] = 0.5
+        if self.bat_num > 0 and bat_statuses:
+            soc_values = [soc for soc, _ in bat_statuses.values()]
+            if soc_values:
+                info['battery_avg_soc'] = np.mean(soc_values)
+        
         #使用无功电压敏感度矩阵
         if self.useS==True:
             self.Y=self.circuit.get_Y_matrix()
@@ -778,8 +810,10 @@ class Env(gym.Env):
             info['powerloss']=self.circuit.total_loss()[0]
             info['powerloss_reward']=- self.circuit.total_loss()[0]/self.circuit.total_power()[0]*10
         
-        if self.LLM:
-            pvpower=self.circuit.dss.ActiveCircuit.CktElements('PVSystem.PV834').TotalPowers[0]
+        # if self.LLM:
+        #     # PV834在34Bus系统中不存在，需要根据实际系统配置修改
+        #     # pvpower=self.circuit.dss.ActiveCircuit.CktElements('PVSystem.PV834').TotalPowers[0]
+        #     pass
         
         if self.wrap_observation:
             return self.wrap_obs(self.obs), reward, done, info
