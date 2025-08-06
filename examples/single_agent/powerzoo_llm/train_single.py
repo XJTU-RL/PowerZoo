@@ -23,17 +23,26 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # 将项目根目录添加到系统路径中
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(project_root)
 
 # Stable Baselines3 imports
-from stable_baselines3 import PPO, DQN, SAC, A2C
+from stable_baselines3 import PPO, DQN, SAC, A2C, DDPG, TD3
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.utils import set_random_seed
+
+# HER (Hindsight Experience Replay) import
+try:
+    from stable_baselines3 import HerReplayBuffer
+    from stable_baselines3.her import HER
+    HER_AVAILABLE = True
+except ImportError:
+    HER_AVAILABLE = False
+    print("Warning: HER is not available. Please install stable-baselines3[extra] for HER support.")
 
 # PowerZoo imports
 from envs.power_envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
@@ -44,7 +53,13 @@ ALGORITHM_REGISTRY = {
     "dqn": DQN,
     "sac": SAC,
     "a2c": A2C,
+    "ddpg": DDPG,
+    "td3": TD3,
 }
+
+# HER算法需要特殊处理
+if HER_AVAILABLE:
+    ALGORITHM_REGISTRY["her"] = HER
 
 # 支持的策略类型
 POLICY_REGISTRY = {
@@ -52,6 +67,9 @@ POLICY_REGISTRY = {
     "dqn": "MlpPolicy",
     "sac": "MlpPolicy",
     "a2c": "MlpPolicy",
+    "ddpg": "MlpPolicy",
+    "td3": "MlpPolicy",
+    "her": "MlpPolicy",  # HER使用底层算法的策略
 }
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -121,6 +139,55 @@ def create_model(algo_name: str, env, algo_config: Dict[str, Any],
     # 获取算法特定配置
     algo_params = algo_config.get(algo_name, {})
     
+    # HER算法需要特殊处理
+    if algo_name == "her" and HER_AVAILABLE:
+        # HER需要包装其他算法
+        base_algo = algo_params.get('base_algorithm', 'ddpg')
+        base_algo_class = ALGORITHM_REGISTRY.get(base_algo, DDPG)
+        
+        # 创建基础算法的参数
+        base_params = algo_config.get(base_algo, {})
+        base_model_params = {
+            'policy': policy_type,
+            'env': env,
+            'verbose': 1,
+            'device': device,
+            'seed': algo_config.get('seed', {}).get('seed', 1),
+            **base_params
+        }
+        
+        # 移除不属于模型初始化的参数
+        excluded_keys = ['total_timesteps', 'save_interval', 'base_algorithm']
+        for key in excluded_keys:
+            base_model_params.pop(key, None)
+            algo_params.pop(key, None)
+        
+        print(f"创建HER模型，基础算法: {base_algo.upper()}，参数: {base_model_params}")
+        
+        try:
+            # 创建HER模型
+            model = HER(
+                policy=policy_type,
+                env=env,
+                model_class=base_algo_class,
+                verbose=1,
+                tensorboard_log=log_dir,
+                **algo_params
+            )
+            return model
+        except Exception as e:
+            print(f"创建HER模型时出错: {e}")
+            print("使用默认HER参数重试...")
+            model = HER(
+                policy=policy_type,
+                env=env,
+                model_class=DDPG,
+                verbose=1,
+                tensorboard_log=log_dir
+            )
+            return model
+    
+    # 普通算法处理
     # 通用参数
     common_params = {
         'policy': policy_type,
@@ -197,7 +264,7 @@ def main():
         type=str,
         default="ppo",
         choices=list(ALGORITHM_REGISTRY.keys()),
-        help="选择单智能体算法: ppo, dqn, sac, a2c"
+        help="选择单智能体算法: ppo, dqn, sac, a2c, ddpg, td3, her"
     )
     
     # 环境选择

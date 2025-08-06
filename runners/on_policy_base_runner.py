@@ -863,6 +863,52 @@ class OnPolicyBaseRunner:
             self.actor_buffer[agent_id].after_update()
         self.critic_buffer.after_update()
 
+    def _process_heterogeneous_eval_actions(self, eval_actions_collector, squeeze_single_dim=False):
+        """处理异构动作空间的评估动作收集
+        
+        Args:
+            eval_actions_collector: 收集的动作列表，每个元素形状为 (n_threads, action_dim)
+            squeeze_single_dim: 是否压缩单维度动作，用于兼容之前的transpose(1, 0)操作
+        
+        Returns:
+            np.ndarray: 处理后的动作数组，形状为 (n_threads, n_agents, max_action_dim) 或 (n_threads, n_agents)
+        """
+        if not eval_actions_collector:
+            raise ValueError("eval_actions_collector 不能为空")
+        
+        # 检查是否为异构动作空间
+        action_shapes = [actions.shape for actions in eval_actions_collector]
+        action_dims = [shape[1] if len(shape) > 1 else 1 for shape in action_shapes]
+        
+        if len(set(action_dims)) == 1:
+            # 同构动作空间，使用原始方法
+            if squeeze_single_dim and action_dims[0] == 1:
+                # 对于单维动作，返回 (n_threads, n_agents) 形状
+                actions_array = np.array(eval_actions_collector).transpose(1, 0, 2)
+                return actions_array.squeeze(-1)
+            else:
+                return np.array(eval_actions_collector).transpose(1, 0, 2)
+        
+        # 异构动作空间处理
+        max_action_dim = max(action_dims)
+        n_threads = eval_actions_collector[0].shape[0]
+        n_agents = len(eval_actions_collector)
+        
+        # 手动构建统一维度的动作数组
+        eval_actions = np.zeros((n_threads, n_agents, max_action_dim), dtype=np.float32)
+        
+        for agent_id, actions in enumerate(eval_actions_collector):
+            current_dim = actions.shape[1]
+            eval_actions[:, agent_id, :current_dim] = actions
+            # 剩余维度自动为0 (零填充)
+        
+        
+        # 如果请求压缩单维度且所有动作都是单维，返回压缩后的形状
+        if squeeze_single_dim and max_action_dim == 1:
+            return eval_actions.squeeze(-1)
+        
+        return eval_actions
+
     @torch.no_grad()
     def eval(self):
         """Evaluate the model."""
@@ -908,7 +954,7 @@ class OnPolicyBaseRunner:
                 eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                 eval_actions_collector.append(_t2n(eval_actions))
 
-            eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
+            eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector)
 
             (
                 eval_obs,
@@ -1006,7 +1052,7 @@ class OnPolicyBaseRunner:
                         )
                         eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                         eval_actions_collector.append(_t2n(eval_actions))
-                    eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
+                    eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector)
                     (
                         eval_obs,
                         _,
@@ -1072,8 +1118,8 @@ class OnPolicyBaseRunner:
                         )
                         eval_rnn_states[:,agent_id] = _t2n(temp_rnn_state)
                         eval_actions_collector.append(_t2n(eval_actions))
-                    # eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
-                    eval_actions = np.array(eval_actions_collector).transpose(1, 0)
+                    # 使用统一的异构动作处理函数，并压缩单维度以兼容原有逻辑
+                    eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector, squeeze_single_dim=True)
                     (
                         eval_obs,
                         _,
@@ -1289,9 +1335,9 @@ class OnPolicyBaseRunner:
             init_info.append(f"  有序更新: {self.ordered}")
             init_info.append(f"  使用敏感性矩阵: {self.useS}")
             init_info.append(f"  从大到小排序: {self.big2small}")
-            if self.get_ordered_agents_pairs is not None:
+            if hasattr(self, 'get_ordered_agents_pairs') and self.get_ordered_agents_pairs is not None:
                 init_info.append(f"  智能体配对映射: 已加载")
-            if self.get_agents_bus is not None:
+            if hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None:
                 init_info.append(f"  智能体总线映射: 已加载")
         
         # 训练配置信息

@@ -121,6 +121,8 @@ def main():
                         if k not in exclude_keys and isinstance(v, dict)}
             # 从YAML配置中获取环境参数
             env_args = all_config.get('env_args', {})
+            # 保存完整配置供后续使用（但不放入env_args避免循环引用）
+            full_config = all_config
         else:
             # 加载JSON配置文件（保持向后兼容）
             with open(config_file, encoding="utf-8") as file:
@@ -129,11 +131,22 @@ def main():
             args["env"] = all_config["main_args"]["env"]
             algo_args = all_config["algo_args"]
             env_args = all_config["env_args"]
+            # 保存完整配置供后续使用
+            full_config = all_config
     else:  # 从相应的yaml文件加载配置
         # 从yaml文件中加载配置
         algo_args, env_args = get_defaults_yaml_args(args["algo"], args["env"])
+        full_config = None  # 没有完整配置文件
+    
     # 更新参数
     update_args(unparsed_dict, algo_args, env_args)  # update args from command line
+    
+    # 在env_args中添加配置信息（深拷贝，避免循环引用）
+    if full_config:
+        # 仅传递environment_specific部分，避免循环引用
+        if 'environment_specific' in full_config:
+            env_args['env_specific_config'] = full_config['environment_specific']
+    
     for params in algo_args.values():
         print(params)
     # 开始训练

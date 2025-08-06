@@ -5,7 +5,7 @@ PowerZoo - 电力系统多智能体强化学习环境
 """
 
 # 核心环境类
-from .env import Env, ActionSpace
+from envs.power_envs.powerzoo.powerzoo.env import Env, ActionSpace
 from .powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
 
 # 电路和负载管理

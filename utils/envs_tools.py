@@ -99,8 +99,22 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
                 from envs.power_envs.powerzoo_llm.env_register import make_base_env
                 
-                # Create base environment using make_base_env
-                base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), worker_idx=rank)
+                # Create config dict for environment initialization
+                config_dict = None
+                if 'env_specific_config' in env_args:
+                    # 构建完整的配置字典结构
+                    config_dict = {
+                        'environment_specific': env_args['env_specific_config'],
+                        'env_args': env_args,
+                        'train': {'episode_length': env_args.get('num_steps', 360)}
+                    }
+                
+                base_env = make_base_env(
+                    env_args['env_name'], 
+                    env_args.get('dss_act', False), 
+                    worker_idx=rank,
+                    config_dict=config_dict
+                )
                 # Create PowerZooEnv wrapper with base environment and config
                 env = PowerZooEnv(base_env, env_args, rank)
                 
@@ -169,7 +183,23 @@ def make_eval_env(env_name, seed, n_threads, env_args):
             elif env_name == "powerzoo_llm":
                 from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
                 from envs.power_envs.powerzoo_llm.env_register import make_base_env
-                base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), rank)
+                
+                # Create config dict for environment initialization
+                config_dict = None
+                if 'env_specific_config' in env_args:
+                    # 构建完整的配置字典结构
+                    config_dict = {
+                        'environment_specific': env_args['env_specific_config'],
+                        'env_args': env_args,
+                        'train': {'episode_length': env_args.get('num_steps', 360)}
+                    }
+                
+                base_env = make_base_env(
+                    env_args['env_name'], 
+                    env_args.get('dss_act', False), 
+                    worker_idx=rank,
+                    config_dict=config_dict
+                )
                 env = PowerZooEnv(base_env, env_args, rank)
                 
             elif env_name == "dsr":

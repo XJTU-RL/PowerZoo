@@ -183,7 +183,14 @@ class SingleAgentConfig:
             'pv_control': circuit_config['pv_control'] and self.enable_pv_systems,
             'worker_idx': 0,
             'seed': self.seed,
-            # 添加自定义配置
+            # 添加必需的奖励权重参数
+            'power_w': self.power_loss_weight * 10.0,  # 功率损耗权重
+            'cap_w': 1.0/33,  # 电容器动作奖励权重
+            'reg_w': 1.0/33,  # 调压器动作奖励权重
+            'pv_w': 2.0/33 if self.enable_pv_systems else 0.0,  # PV控制奖励权重
+            'bat_w': 1.0/33 if self.enable_batteries else 0.0,  # 电池控制奖励权重
+            'soc_w': 0.0/33 if not self.enable_batteries else 20.0/33,  # 电池SOC奖励权重
+            'dis_w': 0.0/33 if not self.enable_batteries else 6.0/33,  # 电池放电奖励权重
             'voltage_penalty_weight': self.voltage_penalty_weight,
             'power_loss_weight': self.power_loss_weight,
             'discharge_penalty_weight': self.discharge_penalty_weight,

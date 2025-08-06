@@ -4,20 +4,11 @@
 * If the file or codebase structure provided by the user is unclear, use appropriate tools to read the file structure and gather relevant information. Do not make guesses or fabricate answers.
 * Before performing any major operations, you must always plan thoroughly and take into account the results of previous function calls or actions. Do not rely solely on calling functions to complete the entire process, as this undermines your problem-solving ability.
 * When writing code, handle imports with great caution. After completing each code file, review its import statements to ensure correctness. Pay particular attention to whether data structures and files truly exist. For unused data structures or redundant functions, evaluate carefully and delete or simplify them as needed.
-* When temporary fix files are created during debugging, assess their value after the task is completed. If they are not reusable, delete them. If they are reusable, move them into the **tests** folder and optimize them into more general test files.
+* When temporary fix files are created during debugging, assess their value after the task is completed. If they are not reusable, delete them. 
 * After completing a refactoring task, perform a quick scan of the **examples** folders to ensure that sample programs are updated and consistent.
-
-## Common Commands
-
-### Environment Setup
-```bash
-# Create and activate conda environment
-conda env create -f environment.yml
-conda activate PowerZoo
-
-# Install package in development mode
-pip install -e .
-```
+* delete all temporal files which produced in the task completing process
+* when writing codes, pay attention to the locations the files should be placed, and the file names should be consistent with the other files in the project.
+* use absolute path to import modules, and avoid relative path imports.
 
 ### Training Commands
 ```bash
@@ -32,6 +23,9 @@ python examples/train.py --algo <algorithm> --env <environment> --exp_name <expe
 
 # Using shell script
 ./examples/train.sh
+
+
+bash ./examples/quick_train_happo_pv.sh
 ```
 
 ### Code Quality

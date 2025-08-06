@@ -210,32 +210,72 @@ class PowerZooLLMLogger(BaseLogger):
         
         # 更新累计值
         self.train_episode_rewards += reward_env
-        self.train_episode_powerloss_reward += powerloss_reward / self.algo_args["train"]["episode_length"]
+        
+        # 处理奖励组成 - 确保正确的除法操作
+        episode_length = float(self.algo_args["train"]["episode_length"])
+        n_threads = self.algo_args["train"]["n_rollout_threads"]
+        
+        # 确保所有值都是一维数组且长度正确
+        def ensure_correct_shape(arr, expected_len=n_threads):
+            """确保数组有正确的形状用于累加"""
+            arr = np.atleast_1d(arr).flatten()
+            if len(arr) != expected_len:
+                # 如果长度不匹配，取前n_threads个元素或填充
+                if len(arr) > expected_len:
+                    arr = arr[:expected_len]
+                else:
+                    # 如果元素不足，用最后一个值填充
+                    arr = np.pad(arr, (0, expected_len - len(arr)), mode='edge')
+            return arr
+        
+        powerloss_reward = ensure_correct_shape(powerloss_reward)
+        voltage_reward = ensure_correct_shape(voltage_reward)
+        ctrl_reward = ensure_correct_shape(ctrl_reward)
+        pv_utilization_reward = ensure_correct_shape(pv_utilization_reward)
+        
+        self.train_episode_powerloss_reward += powerloss_reward / episode_length
         self.train_episode_voltage_reward += voltage_reward
         self.train_episode_ctrl_reward += ctrl_reward
         self.train_episode_pv_utilization_reward += pv_utilization_reward
         
-        # 更新物理量
-        self.train_episode_power_loss_kw += power_loss_kw / self.algo_args["train"]["episode_length"]
-        self.train_episode_power_loss_kvar += power_loss_kvar / self.algo_args["train"]["episode_length"]
-        self.train_episode_total_power_kw += total_power_kw / self.algo_args["train"]["episode_length"]
-        self.train_episode_total_power_kvar += total_power_kvar / self.algo_args["train"]["episode_length"]
+        # 更新物理量 - 确保正确的除法操作
+        power_loss_kw = ensure_correct_shape(power_loss_kw)
+        power_loss_kvar = ensure_correct_shape(power_loss_kvar)
+        total_power_kw = ensure_correct_shape(total_power_kw)
+        total_power_kvar = ensure_correct_shape(total_power_kvar)
+        
+        self.train_episode_power_loss_kw += power_loss_kw / episode_length
+        self.train_episode_power_loss_kvar += power_loss_kvar / episode_length
+        self.train_episode_total_power_kw += total_power_kw / episode_length
+        self.train_episode_total_power_kvar += total_power_kvar / episode_length
         
         # 更新控制量
+        capacitor_ctrl = ensure_correct_shape(capacitor_ctrl)
+        regulator_ctrl = ensure_correct_shape(regulator_ctrl)
+        
         self.train_episode_capacitor_control += capacitor_ctrl
         self.train_episode_regulator_control += regulator_ctrl
         
-        # 更新电池系统
-        self.train_episode_battery_charge += battery_charge / self.algo_args["train"]["episode_length"]
-        self.train_episode_battery_discharge += battery_discharge / self.algo_args["train"]["episode_length"]
-        self.train_episode_battery_soc += battery_soc / self.algo_args["train"]["episode_length"]
+        # 更新电池系统 - 确保正确的除法操作
+        battery_charge = ensure_correct_shape(battery_charge)
+        battery_discharge = ensure_correct_shape(battery_discharge)
+        battery_soc = ensure_correct_shape(battery_soc)
         
-        # 更新PV系统
-        self.train_episode_pv_output_kw += pv_output_kw / self.algo_args["train"]["episode_length"]
-        self.train_episode_pv_power_factor += pv_power_factor / self.algo_args["train"]["episode_length"]
-        self.train_episode_pv_utilization += pv_utilization / self.algo_args["train"]["episode_length"]
+        self.train_episode_battery_charge += battery_charge / episode_length
+        self.train_episode_battery_discharge += battery_discharge / episode_length
+        self.train_episode_battery_soc += battery_soc / episode_length
+        
+        # 更新PV系统 - 确保正确的除法操作
+        pv_output_kw = ensure_correct_shape(pv_output_kw)
+        pv_power_factor = ensure_correct_shape(pv_power_factor)
+        pv_utilization = ensure_correct_shape(pv_utilization)
+        
+        self.train_episode_pv_output_kw += pv_output_kw / episode_length
+        self.train_episode_pv_power_factor += pv_power_factor / episode_length
+        self.train_episode_pv_utilization += pv_utilization / episode_length
         
         # 更新电压违规
+        voltage_violations = ensure_correct_shape(voltage_violations)
         self.train_episode_voltage_violations += voltage_violations
         
         # 处理完成的episode
@@ -247,18 +287,42 @@ class PowerZooLLMLogger(BaseLogger):
         """从infos中提取指定key的值
         
         Args:
-            infos: 信息列表
+            infos: 信息列表 - 期望格式: [[{key: value}], [{key: value}], ...]
             key: 要提取的键
             default: 默认值
             
         Returns:
             提取的值数组
         """
-        values = [
-            [d[0].get(key, default) if isinstance(d, list) and len(d) > 0 and d[0] else default for d in infos]
-        ]
-        values_cleaned = values if values else [[default]]
-        return np.mean(values_cleaned, axis=1).flatten()
+        try:
+            if not infos:
+                return np.array([default])
+            
+            # 根据infos的实际结构进行提取
+            values = []
+            for info_item in infos:
+                if isinstance(info_item, list) and len(info_item) > 0:
+                    # infos结构: [[{...}], [{...}], ...]
+                    info_dict = info_item[0]
+                    if isinstance(info_dict, dict):
+                        values.append(info_dict.get(key, default))
+                    else:
+                        values.append(default)
+                elif isinstance(info_item, dict):
+                    # infos结构: [{...}, {...}, ...]
+                    values.append(info_item.get(key, default))
+                else:
+                    values.append(default)
+            
+            if not values:
+                return np.array([default])
+                
+            # 转换为numpy数组并确保是数值类型
+            return np.array(values, dtype=np.float32)
+            
+        except Exception as e:
+            logger.error(f"提取信息 '{key}' 时出错: {e}")
+            return np.array([default], dtype=np.float32)
     
     def _record_episode_done(self, thread_id):
         """记录完成的episode数据
@@ -583,9 +647,8 @@ class PowerZooLLMLogger(BaseLogger):
         }
         
         for metric_name, (info_key, default_value) in metric_keys.items():
-            values = [[[d[0].get(info_key, default_value) for d in eval_infos]]]
-            values_env = np.mean(values, axis=1).flatten()
-            values_env = values_env.reshape((self.algo_args["eval"]["n_eval_rollout_threads"], 1, 1))
+            values = self._extract_info_value(eval_infos, info_key, default_value)
+            values_env = np.array(values).reshape((-1, 1, 1))  # 确保形状正确
             metrics[metric_name] = values_env
             
         return metrics

@@ -229,7 +229,7 @@ class Circuits():
         Returns:
             the absolute change of statuses
         '''
-        assert len(statuses)>0 and len(statuses)==len(self.capacitors), 'inconsistent statuses'
+        assert len(statuses)>0 and len(statuses)==len(self.capacitors), f'inconsistent statuses: {len(statuses)} vs {len(self.capacitors)}'
         statuses = np.array(statuses, dtype=int)
 
         # set capacitor objects

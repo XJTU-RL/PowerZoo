@@ -22,7 +22,17 @@ def get_defaults_yaml_args(algo, env):
     with open(algo_cfg_path, "r", encoding="utf-8") as file:
         algo_args = yaml.load(file, Loader=yaml.FullLoader)
     with open(env_cfg_path, "r", encoding="utf-8") as file:
-        env_args = yaml.load(file, Loader=yaml.FullLoader)
+        env_config = yaml.load(file, Loader=yaml.FullLoader)
+        # 提取环境参数（不包含environment_specific等嵌套配置）
+        env_args = {}
+        for key, value in env_config.items():
+            if key not in ['environment_specific', 'power_system']:
+                env_args[key] = value
+        
+        # 将environment_specific配置单独传递
+        if 'environment_specific' in env_config:
+            env_args['env_specific_config'] = env_config['environment_specific']
+            
     return algo_args, env_args
 
 
@@ -146,8 +156,7 @@ def save_config(args, algo_args, env_args, run_dir):
     output = json.dumps(config_json, separators=(",", ":\t"), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as out:
         out.write(output)
-    with open(os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8") as file:
-        file.write("hello")
+    # 不再写入测试代码到progress.txt - 留给base_logger正确处理
         
 def save_render(args,run_dir):
     renderdata=convert_json(args)

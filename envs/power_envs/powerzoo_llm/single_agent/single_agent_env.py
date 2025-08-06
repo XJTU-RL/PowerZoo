@@ -50,37 +50,130 @@ class SingleAgentPowerZooEnv(Env):
         # 调用父类初始化
         super().__init__(folder_path, info, dss_act)
         
+        # 添加PV相关属性（父类中没有但单智能体环境需要）
+        self.pv_names = list(self.circuit.pvs.keys()) if hasattr(self.circuit, 'pvs') else []
+        self.pv_num = len(self.pv_names)
+        self.pv_control_enabled = info.get('pv_control', False)
+        
         # 重新设置动作空间为单智能体版本
         self._setup_single_agent_action_space()
+        
+        # 重新设置观测空间以兼容stable-baselines3
+        self._setup_single_agent_observation_space()
         
         logger.info(f"单智能体PowerZoo环境初始化完成")
         logger.info(f"设备数量 - 电容器: {self.cap_num}, 调压器: {self.reg_num}, 电池: {self.bat_num}, 光伏: {self.pv_num}")
         logger.info(f"动作空间: {self.action_space}")
+        logger.info(f"观测空间: {self.observation_space}")
     
     def _setup_single_agent_action_space(self):
         """设置单智能体动作空间
         
-        直接使用ActionSpace类生成的MultiDiscrete空间，
-        无需分解为多个独立的Discrete空间。
+        将MultiDiscrete动作空间转换为单个Discrete动作空间，
+        以兼容更多的单智能体RL算法（如PPO）。
         """
-        # 直接使用ActionSpace的space属性
-        self.action_space = self.ActionSpace.space
+        original_space = self.ActionSpace.space
+        logger.info(f"原始动作空间类型: {type(original_space)}")
+        logger.info(f"原始动作空间: {original_space}")
         
-        # 记录动作空间信息用于调试
-        if isinstance(self.action_space, gym.spaces.MultiDiscrete):
-            logger.info(f"使用MultiDiscrete动作空间，维度: {self.action_space.nvec}")
-        elif isinstance(self.action_space, gym.spaces.Tuple):
-            logger.info(f"使用混合动作空间: {[type(space).__name__ for space in self.action_space.spaces]}")
+        # 检查是否为MultiDiscrete类型（兼容gym和gymnasium）
+        is_multi_discrete = (
+            hasattr(original_space, 'nvec') and 
+            ('MultiDiscrete' in str(type(original_space)))
+        )
+        
+        if is_multi_discrete:
+            # 计算所有可能的动作组合数量
+            total_actions = int(np.prod(original_space.nvec))
+            self.action_space = gym.spaces.Discrete(total_actions)
+            self._multi_discrete_nvec = original_space.nvec
+            logger.info(f"转换MultiDiscrete{original_space.nvec}为Discrete({total_actions})")
         else:
+            # 保持原有动作空间
+            self.action_space = original_space
+            self._multi_discrete_nvec = None
             logger.info(f"使用动作空间: {type(self.action_space).__name__}")
+    
+    def _setup_single_agent_observation_space(self):
+        """设置单智能体观测空间
+        
+        修复观测空间定义以兼容stable-baselines3。
+        """
+        # 确保环境已经重置过，获取观测维度
+        if not hasattr(self, 'obs') or self.obs is None:
+            self.reset(load_profile_idx=0)
+        
+        # 计算观测维度
+        nnode = len(np.hstack(list(self.obs['bus_voltages'].values())))
+        nload = len(self.obs['load_profile_t']) if self.observe_load else 0
+        
+        # 构建观测空间边界
+        low = [0.8] * nnode  # 电压下界
+        high = [1.2] * nnode  # 电压上界
+        
+        # 添加电容器状态边界
+        low.extend([0] * self.cap_num)
+        high.extend([1] * self.cap_num)
+        
+        # 添加调压器状态边界
+        low.extend([0] * self.reg_num)
+        high.extend([self.reg_act_num] * self.reg_num)
+        
+        # 添加电池状态边界（SOC + 功率）
+        low.extend([0, -1] * self.bat_num)
+        high.extend([1, 1] * self.bat_num)
+        
+        # 添加负荷观测边界（如果启用）
+        if self.observe_load:
+            low.extend([0.0] * nload)
+            high.extend([1.0] * nload)
+        
+        # 转换为numpy数组
+        low = np.array(low, dtype=np.float32)
+        high = np.array(high, dtype=np.float32)
+        
+        # 创建Box观测空间，明确指定shape和dtype
+        self.observation_space = gym.spaces.Box(
+            low=low, 
+            high=high, 
+            shape=(len(low),), 
+            dtype=np.float32
+        )
+        
+        logger.info(f"观测空间维度: {self.observation_space.shape}")
+        logger.info(f"观测空间范围: [{low.min():.1f}, {high.max():.1f}]")
+    
+    def _convert_discrete_to_multi_discrete(self, action: int) -> np.ndarray:
+        """将单个离散动作转换为MultiDiscrete格式
+        
+        Args:
+            action: 单个离散动作值
+            
+        Returns:
+            MultiDiscrete格式的动作数组
+        """
+        if self._multi_discrete_nvec is None:
+            return action
+            
+        # 将单个动作值转换为多维动作（使用正确的基数转换）
+        multi_action = []
+        remaining = action
+        
+        # 从右到左处理每个维度
+        for i in range(len(self._multi_discrete_nvec) - 1, -1, -1):
+            nvec_i = self._multi_discrete_nvec[i]
+            action_i = remaining % nvec_i
+            remaining = remaining // nvec_i
+            multi_action.insert(0, action_i)
+            
+        logger.debug(f"转换动作: {action} -> {multi_action} (nvec: {self._multi_discrete_nvec})")
+        return np.array(multi_action, dtype=np.int32)
     
     def step(self, action):
         """执行一步环境交互
         
         Args:
-            action: 单智能体动作，格式取决于动作空间类型
-                   - MultiDiscrete: numpy数组，形状为(总设备数,)
-                   - Tuple: 包含离散和连续动作的元组
+            action: 单智能体动作，可能是单个离散值或MultiDiscrete数组
         
         Returns:
             observation: 环境观测
@@ -88,10 +181,17 @@ class SingleAgentPowerZooEnv(Env):
             done: 是否结束
             info: 额外信息
         """
-        # 解析单智能体动作
+        # 如果是单个离散动作，转换为MultiDiscrete格式
+        if isinstance(action, (int, np.integer)):
+            action = self._convert_discrete_to_multi_discrete(action)
+        
+        # 解析动作
         cap_actions, reg_actions, bat_actions, pv_actions = self._parse_single_agent_action(action)
         
-        # 执行动作（复用父类的动作执行逻辑）
+        # 调试信息
+        logger.debug(f"解析后的动作 - 电容器: {cap_actions}, 调压器: {reg_actions}, 电池: {bat_actions}, 光伏: {pv_actions}")
+        
+        # 执行动作并返回结果
         return self._execute_actions(cap_actions, reg_actions, bat_actions, pv_actions)
     
     def _parse_single_agent_action(self, action):
@@ -106,9 +206,14 @@ class SingleAgentPowerZooEnv(Env):
             bat_actions: 电池动作列表
             pv_actions: 光伏动作列表
         """
-        if isinstance(self.action_space, gym.spaces.MultiDiscrete):
+        if isinstance(self.action_space, gym.spaces.Discrete):
+            # 单个离散动作，需要转换为MultiDiscrete格式
+            action = self._convert_discrete_to_multi_discrete(action)
+            
+        if isinstance(self.action_space, (gym.spaces.MultiDiscrete, gym.spaces.Discrete)):
             # 纯离散动作空间
-            action = np.array(action)
+            # 确保action是1维数组
+            action = np.array(action).flatten()
             
             # 按设备类型分割动作
             idx = 0
@@ -250,6 +355,7 @@ class SingleAgentPowerZooEnv(Env):
         # 更新时间步
         self.t += 1
         done = self.t >= self.horizon
+        truncated = False  # 添加truncated标志
         
         # 构建info字典
         info = {
@@ -270,7 +376,7 @@ class SingleAgentPowerZooEnv(Env):
         else:
             observation = self.obs.copy()
         
-        return observation, reward, done, info
+        return observation, reward, done, truncated, info
     
     def _update_observation(self):
         """更新环境观测（复用父类逻辑）"""
@@ -374,21 +480,27 @@ class SingleAgentPowerZooEnv(Env):
         
         # 使用父类的奖励函数
         reward, reward_info = self.reward_func.composite_reward(
-            cap_diff, reg_diff, soc_errors, discharge_errors, pv_diff,
-            full=True, record_node=False
+            cap_diff, reg_diff, soc_errors, discharge_errors, record_node=False
         )
         
         return reward, reward_info
     
-    def reset(self, load_profile_idx: Optional[int] = None):
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None, load_profile_idx: Optional[int] = None):
         """重置环境
         
         Args:
+            seed: 随机种子（gymnasium标准参数）
+            options: 额外选项（gymnasium标准参数）
             load_profile_idx: 负载曲线索引，None表示使用默认值0
             
         Returns:
             observation: 初始观测
+            info: 信息字典
         """
+        # 处理seed
+        if seed is not None:
+            self.seed(seed)
+            
         # 如果load_profile_idx为None，使用默认值0
         if load_profile_idx is None:
             load_profile_idx = 0
@@ -396,7 +508,8 @@ class SingleAgentPowerZooEnv(Env):
         # 调用父类reset方法
         obs = super().reset(load_profile_idx=load_profile_idx)
         
-        return obs
+        # 返回gymnasium标准格式
+        return obs, {}
     
     def render(self, mode='human'):
         """渲染环境（复用父类方法）"""

@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
-import inspect
+import json
 from pathlib import Path
-import yaml
 import re
 try:
     from envs.power_envs.powerzoo_llm.env import Env
@@ -10,48 +9,98 @@ except ImportError:
     # 相对导入用于测试
     from .env import Env
 
-# map from system_name to fixed information of the system
-
-# 电力系统的固定信息，以系统名称为键
-_SYS_INFO = {
-    '13Bus': {
-        'source_bus': 'sourcebus',      # 电力系统中的源节点
-        'node_size': 500,              # 节点的大小
-        'shift': 10,                   # 节点位置的偏移
-        'show_node_labels': True       # 是否显示节点标签
-    },
-
-    '34Bus': {
-        'source_bus': 'sourcebus',
-        'node_size': 500,
-        'shift': 80,
-        'show_node_labels': True
-    },
-    '34Bus_PV': {
-        'source_bus': 'sourcebus',
-        'node_size': 500,
-        'shift': 80,
-        'show_node_labels': True
-    },
-
-    '123Bus': {
-        'source_bus': '150',
-        'node_size': 400,
-        'shift': 80,
-        'show_node_labels': True
-    },
-
-    '8500-Node': {
-        'source_bus': 'e192860',
-        'node_size': 10,
-        'shift': 0,
-        'show_node_labels': False
+# 从JSON文件加载系统信息
+def load_system_info():
+    """从JSON配置文件加载系统信息
+    
+    Returns:
+        dict: 系统信息字典
+    """
+    config_path = Path(__file__).resolve().parent.parent.parent.parent / 'configs' / 'sys_cfgs' / 'system_info.json'
+    
+    # 如果JSON文件存在，从文件加载
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('system_info', {})
+        except Exception as e:
+            print(f"Warning: Failed to load system_info.json: {e}")
+            print("Falling back to default system info...")
+    
+    # 如果文件不存在或加载失败，使用默认值
+    return {
+        '13Bus': {
+            'source_bus': 'sourcebus',
+            'node_size': 500,
+            'shift': 10,
+            'show_node_labels': True
+        },
+        '34Bus': {
+            'source_bus': 'sourcebus',
+            'node_size': 500,
+            'shift': 80,
+            'show_node_labels': True
+        },
+        '34Bus_PV': {
+            'source_bus': 'sourcebus',
+            'node_size': 500,
+            'shift': 80,
+            'show_node_labels': True
+        },
+        '123Bus': {
+            'source_bus': '150',
+            'node_size': 400,
+            'shift': 80,
+            'show_node_labels': True
+        },
+        '8500-Node': {
+            'source_bus': 'e192860',
+            'node_size': 10,
+            'shift': 0,
+            'show_node_labels': False
+        }
     }
-}
 
+# 加载系统信息
+_SYS_INFO = load_system_info()
 
-# map from env_name to the necessary information
-_ENV_INFO = {
+# 从JSON文件加载环境信息
+def load_environments_info():
+    """从JSON配置文件加载环境信息
+    
+    Returns:
+        dict: 环境信息字典
+    """
+    config_path = Path(__file__).resolve().parent.parent.parent.parent / 'configs' / 'sys_cfgs'/'environments_info.json'
+    
+    # 如果JSON文件存在，从文件加载
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                env_info = data.get('environments', {})
+                
+                # 处理特殊值（如 "inf" 转换为 float('inf')）
+                for _, env_config in env_info.items():
+                    if 'pv_act_num' in env_config and env_config['pv_act_num'] == 'inf':
+                        env_config['pv_act_num'] = float('inf')
+                    if 'bat_act_num' in env_config and env_config['bat_act_num'] == 'inf':
+                        env_config['bat_act_num'] = float('inf')
+                
+                return env_info
+        except Exception as e:
+            print(f"Warning: Failed to load environments_info.json: {e}")
+            print("Falling back to default environment info...")
+    
+    # 如果文件不存在或加载失败，返回空字典（将使用下面的默认值）
+    return {}
+
+# 加载环境信息
+_ENV_INFO_FROM_JSON = load_environments_info()
+
+# 默认环境信息（作为后备）
+_ENV_INFO_DEFAULT = {
     '13Bus': {
         'system_name': '13Bus',             # 电力系统的名称
         'dss_file': 'IEEE13Nodeckt_daily.dss',  # 使用duty版本的DSS文件
@@ -315,10 +364,14 @@ _ENV_INFO = {
     }
 }
 
+# 使用JSON文件中的信息，如果不存在则使用默认值
+_ENV_INFO = _ENV_INFO_FROM_JSON if _ENV_INFO_FROM_JSON else _ENV_INFO_DEFAULT
+
 # add system information to environment
 for env in _ENV_INFO.keys():
     sys = _ENV_INFO[env]['system_name']
-    _ENV_INFO[env].update(_SYS_INFO[sys])
+    if sys in _SYS_INFO:
+        _ENV_INFO[env].update(_SYS_INFO[sys])
 
 
 
@@ -329,7 +382,73 @@ def get_data_root():
     ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent  # 项目根目录位置
     return ROOT_DIR / 'node_systems'
 
-def get_info_and_folder(env_name):
+def get_info_from_config(env_name, config_dict=None):
+    """从配置文件获取环境信息
+    
+    Args:
+        env_name: 环境名称
+        config_dict: 完整的配置字典（可选）
+        
+    Returns:
+        base_info: 环境信息字典
+    """
+    # 如果提供了配置字典，优先使用配置文件中的参数
+    if config_dict and 'environment_specific' in config_dict:
+        env_config = config_dict['environment_specific']
+        
+        # 构建基本信息字典
+        base_info = {
+            'system_name': env_config.get('system_name', '34Bus_PV'),
+            'dss_file': env_config.get('dss_file', 'ieee34Mod1_duty.dss'),
+            'for_LLM': config_dict.get('env_args', {}).get('llm_enhanced', False),
+            'max_episode_steps': config_dict.get('train', {}).get('episode_length', 360),
+        }
+        
+        # 从设备配置获取动作数量
+        devices = env_config.get('devices', {})
+        base_info['reg_act_num'] = devices.get('regulators', {}).get('action_num', 33)
+        base_info['bat_act_num'] = devices.get('batteries', {}).get('action_num', 33)
+        
+        # PV控制配置
+        pv_config = devices.get('pv_systems', {})
+        base_info['pv_control'] = pv_config.get('control_enabled', False)
+        if pv_config.get('action_space') == 'continuous':
+            base_info['pv_act_num'] = float('inf')
+        else:
+            base_info['pv_act_num'] = pv_config.get('action_num', 21)
+        
+        # 从配置获取奖励权重
+        reward_weights = env_config.get('reward_weights', {})
+        base_info['power_w'] = reward_weights.get('power_loss', 10.0)
+        base_info['cap_w'] = reward_weights.get('capacitor', 0.0303)
+        base_info['reg_w'] = reward_weights.get('regulator', 0.0303)
+        base_info['soc_w'] = reward_weights.get('battery_soc', 0.0)
+        base_info['dis_w'] = reward_weights.get('battery_discharge', 0.303)
+        if base_info['pv_control']:
+            base_info['pv_w'] = reward_weights.get('pv_control', 0.0606)
+        
+        # 添加约束配置
+        constraints = env_config.get('constraints', {})
+        base_info['voltage_min'] = constraints.get('voltage_min', 0.95)
+        base_info['voltage_max'] = constraints.get('voltage_max', 1.05)
+        base_info['voltage_penalty_scale'] = constraints.get('voltage_penalty_scale', 1.0)
+        base_info['constraint_aware'] = constraints.get('constraint_aware', True)
+        
+        # 添加系统信息
+        sys_name = base_info['system_name']
+        if sys_name in _SYS_INFO:
+            base_info.update(_SYS_INFO[sys_name])
+        
+        return base_info
+    
+    # 如果没有配置文件，回退到使用_ENV_INFO（保持向后兼容）
+    else:
+        if env_name in _ENV_INFO:
+            return _ENV_INFO[env_name].copy()
+        else:
+            raise ValueError(f"Environment {env_name} not found in _ENV_INFO and no config provided")
+
+def get_info_and_folder(env_name, config_dict=None):
     # check env scale and env name
     is_scaled = re.match('.*(_s)([0-9]*[.])?[0-9]+?', env_name)
     if is_scaled:
@@ -337,10 +456,15 @@ def get_info_and_folder(env_name):
         idx = matched_str.rfind('_s')
         env_name = matched_str[:idx]
         scale = float(matched_str[idx+2:])
-    assert env_name in _ENV_INFO, env_name + ' not implemented' # 检查环境名称是否在已实现环境列表中
-
-    # get base_info
-    base_info = _ENV_INFO[env_name].copy()
+    
+    # 优先从配置文件获取信息
+    if config_dict:
+        base_info = get_info_from_config(env_name, config_dict)
+    else:
+        # 回退到_ENV_INFO（保持向后兼容）
+        assert env_name in _ENV_INFO, env_name + ' not implemented'
+        base_info = _ENV_INFO[env_name].copy()
+    
     if is_scaled:
         base_info['scale'] = scale
         base_info['soc_w'] = base_info['soc_w'] * (scale**2)
@@ -350,18 +474,19 @@ def get_info_and_folder(env_name):
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 
-def make_base_env(env_name, dss_act=False, worker_idx=None):
+def make_base_env(env_name, dss_act=False, worker_idx=None, config_dict=None):
     """创建环境实例，同时创建对应的数据
     
     Args:
         env_name: 环境名称
         dss_act: 是否使用DSS控制器
         worker_idx: 工作进程索引
+        config_dict: 完整的配置字典（可选）
         
     Returns:
         Env实例
     """
-    base_info, folder_path = get_info_and_folder(env_name)
+    base_info, folder_path = get_info_and_folder(env_name, config_dict)
 
     if worker_idx is None:
         return Env(folder_path, base_info, dss_act)
