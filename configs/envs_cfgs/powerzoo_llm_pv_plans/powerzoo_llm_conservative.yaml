@@ -1,0 +1,107 @@
+# PV保守方案 - 适度扩展配置 (720kW, 40.7%渗透率)
+# 适用于34Bus_PV_Conservative网络配置
+
+env_name: "34Bus_pv"
+num_agents: 8  # 3个原有PV + 2个新增PV + 3个调压器
+
+# 网络配置路径 - 指向保守方案
+dss_file: "./node_systems/34Bus_PV_Conservative/ieee34Mod1_duty.dss"
+
+# PV系统配置 - 5个PV系统
+pv_systems:
+  # 原有PV系统
+  - name: "PV834"
+    bus: 834
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  - name: "PV890"
+    bus: 890
+    pmpp: 180
+    kVA: 200
+    voltage: 4.16
+  - name: "PV864"
+    bus: 864
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  # 新增PV系统 - 保守方案
+  - name: "PV844"
+    bus: 844
+    pmpp: 120
+    kVA: 133
+    voltage: 24.9
+  - name: "PV832"
+    bus: 832
+    pmpp: 60
+    kVA: 67
+    voltage: 24.9
+
+# 调压器配置
+regulators:
+  - name: "reg1"
+    phases: 3
+    bus: 814
+  - name: "reg2"
+    phases: 3
+    bus: 852
+  - name: "cap844"
+    phases: 3
+    bus: 844
+    kvar: 300
+
+# 环境参数
+episode_length: 360  # 6小时，2分钟间隔
+control_interval: 120  # 控制间隔（秒）
+voltage_limits: [0.95, 1.05]  # 标准电压限值
+
+# 奖励函数权重 - 保守平衡
+reward_weights:
+  voltage_violation: -1.5  # 电压越限惩罚（标准水平）
+  power_loss: -0.6        # 功率损耗惩罚（略高权重）
+  pv_utilization: 0.2     # PV利用率奖励（适度）
+  import_penalty: -0.15   # 进口惩罚（适中）
+  
+# 动作空间配置 - 保守控制
+action_space:
+  pv_power_range: [0.6, 1.0]      # PV功率调节范围（较窄）
+  pv_pf_range: [0.9, 1.0]         # PV功率因数范围（保守）
+  reg_tap_range: [-16, 16]        # 调压器分接头范围
+  cap_switch: [0, 1]              # 电容器开关
+
+# 观察空间配置
+observation_space:
+  include_voltage: true
+  include_power: true
+  include_current: true
+  include_pv_status: true
+  include_load_profile: true
+  include_time_features: true
+
+# 训练参数建议 - 稳定训练
+training:
+  algorithm: "HAPPO"
+  batch_size: 2048  # 较小批次（更快收敛）
+  learning_rate: 5e-4  # 较高学习率（快速学习）
+  gamma: 0.99
+  clip_range: 0.2
+  n_epochs: 8
+  max_grad_norm: 10.0
+  
+# 数据路径
+load_data_path: "./node_systems/34Bus_PV_Conservative/loadshape/"
+irrad_data_path: "./node_systems/34Bus_PV_Conservative/loadshape/irrad_2025_02_0500_to_1659.csv"
+
+# 性能指标目标 - 保守但可实现
+performance_targets:
+  voltage_violation_rate: 0.03    # <3%的时间电压越限（严格）
+  power_loss_percentage: 4.5      # 目标损耗<4.5%
+  pv_utilization: 0.80           # PV利用率>80%
+  average_import: 620             # 平均进口功率<620kW
+  
+# 特殊配置 - 简单稳定
+special_configs:
+  enable_voltage_regulation: true  # 启用电压调节
+  enable_reactive_power_control: false  # 不启用无功控制（保守）
+  enable_curtailment: false  # 不允许弃光（充分利用有限PV）
+  conservative_mode: true  # 保守运行模式

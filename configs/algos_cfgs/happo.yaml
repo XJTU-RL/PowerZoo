@@ -13,10 +13,10 @@ device:
   torch_threads: 4
 train:
   # 训练数据的并行环境数量（PowerZoo推荐值）
-  n_rollout_threads: 2
+  n_rollout_threads: 4
   # 总训练步数（PowerZoo电力系统推荐2M步）
   num_env_steps: 2000000
-  # 每个环境每次训练数据的收集步数（360步=15分钟间隔*24小时）
+  # 每个环境每次训练数据的收集步数（360步=60*6小时）
   episode_length: 360
   # 日志间隔（每3个episode记录一次）
   log_interval: 1

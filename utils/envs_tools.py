@@ -96,8 +96,8 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
             elif env_name == "powerzoo_llm":
                 # Use PowerZooEnv for powerzoo_llm environment
-                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
-                from envs.power_envs.powerzoo_llm.env_register import make_base_env
+                from envs.power_envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo_llm.base_env.env_register import make_base_env
                 
                 # Create config dict for environment initialization
                 config_dict = None
@@ -181,8 +181,8 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 env = PowerZooEnv(env_args,rank)
                 
             elif env_name == "powerzoo_llm":
-                from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
-                from envs.power_envs.powerzoo_llm.env_register import make_base_env
+                from envs.power_envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+                from envs.power_envs.powerzoo_llm.base_env.env_register import make_base_env
                 
                 # Create config dict for environment initialization
                 config_dict = None
@@ -278,8 +278,8 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "powerzoo_llm": #powerzoo_llm环境渲染支持
-        from envs.power_envs.powerzoo_llm.powerzoo_env import PowerZooEnv
-        from envs.power_envs.powerzoo_llm.env_register import make_base_env
+        from envs.power_envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+        from envs.power_envs.powerzoo_llm.base_env.env_register import make_base_env
         
         base_env = make_base_env(env_args['env_name'], env_args.get('dss_act', False), worker_idx=4)
         env = PowerZooEnv(base_env, env_args, rank=4)

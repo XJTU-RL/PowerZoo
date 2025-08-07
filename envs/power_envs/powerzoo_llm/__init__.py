@@ -6,18 +6,18 @@ PowerZoo - 电力系统多智能体强化学习环境
 
 # 核心环境类
 from envs.power_envs.powerzoo.powerzoo.env import Env, ActionSpace
-from .powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
+from .base_env.powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
 
 # 电路和负载管理
 from .circuit_system import Circuits
-from .loadprofile import LoadProfile
+from .data_process.loadprofile import LoadProfile
 
 # 环境注册和工具
-from .env_register import make_base_env, remove_parallel_dss
-from .env_wrapper import PowerZooEnvWrapper
+from .base_env.env_register import make_base_env, remove_parallel_dss
+from .base_env.env_wrapper import PowerZooEnvWrapper
 
 # 配置类
-from .powerzoo_config import (
+from .base_env.powerzoo_config import (
     OpenDSSScenario,
     OpenDSSConstraints,
     OpenDSSMetrics,
@@ -76,7 +76,7 @@ def create_env(env_name="13Bus", **kwargs):
     Returns:
         Env: 环境实例
     """
-    from .env_wrapper import PowerZooEnvWrapper
+    from .base_env.env_wrapper import PowerZooEnvWrapper
     from argparse import Namespace
     
     config = Namespace(
@@ -129,7 +129,7 @@ def get_env_info(env_name):
     Returns:
         dict: 环境配置信息
     """
-    from .env_register import _ENV_INFO
+    from .base_env.env_register import _ENV_INFO
     
     if env_name not in _ENV_INFO:
         raise ValueError(f"不支持的环境: {env_name}. 支持的环境: {list(ENV_LIST.keys())}")
