@@ -116,9 +116,10 @@ class PowerZooEnv:
         self._training_logger = get_training_logger()
         
         # 初始化系统参数记录器
-        self._enable_system_logging = getattr(config, 'enable_system_logging', True)
+        self._enable_system_logging = getattr(config, 'enable_system_logging', False)  # 默认禁用，由adapter管理
         if self._enable_system_logging:
-            log_dir = getattr(config, 'system_log_dir', f"./logs/system_params/rank_{rank if rank is not None else 0}")
+            # 如果在环境级别启用，使用统一的路径
+            log_dir = getattr(config, 'system_log_dir', "./results/system_params")
             self._system_logger = get_system_logger(
                 log_dir=log_dir,
                 buffer_size=getattr(config, 'log_buffer_size', 5000),
@@ -297,7 +298,14 @@ class PowerZooEnv:
                 'power_loss': info.get('power_loss_ratio', 0)
             }
             reward_str = " | ".join([f"{k}: {v:6.3f}" for k, v in reward_components.items()])
-            self._training_logger.reward_debug(f"Reward Components: {reward_str}")
+            # 使用debug方法而不是reward_debug
+            if hasattr(self._training_logger, 'reward_debug'):
+                self._training_logger.reward_debug(f"Reward Components: {reward_str}")
+            elif hasattr(self._training_logger, 'debug'):
+                self._training_logger.debug(f"Reward Components: {reward_str}")
+            else:
+                # 如果都没有，就打印出来
+                print(f"[DEBUG] Reward Components: {reward_str}")
         
         # 系统参数记录
         if self._enable_system_logging and self._system_logger:

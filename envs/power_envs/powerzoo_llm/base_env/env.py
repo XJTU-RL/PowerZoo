@@ -553,9 +553,18 @@ class Env(gym.Env):
                     # 鼓励电压支撑（当系统电压低时）
                     voltage_support_reward = 0.0
                     bus_voltages = self.env.obs.get('bus_voltages', {})
-                    avg_voltage = np.mean([np.mean(v) for v in bus_voltages.values() if v])
-                    if avg_voltage < 0.98 and pf > 0.95:  # 低电压时发出无功
-                        voltage_support_reward = 1.0
+                    # 计算平均电压，处理列表类型的电压值
+                    all_voltages = []
+                    for v in bus_voltages.values():
+                        if isinstance(v, (list, tuple)) and len(v) > 0:
+                            all_voltages.extend(v)
+                        elif v:  # 单个数值
+                            all_voltages.append(v)
+                    
+                    if all_voltages:
+                        avg_voltage = np.mean(all_voltages)
+                        if avg_voltage < 0.98 and pf > 0.95:  # 低电压时发出无功
+                            voltage_support_reward = 1.0
                     
                     total_reward += power_reward - pf_penalty + voltage_support_reward
             
@@ -711,8 +720,16 @@ class Env(gym.Env):
             
             # 统计电压违规情况
             for v in bus_voltages[bus_name]:
-                if v < 0.95 or v > 1.05:
-                    voltage_violations += 1
+                # 确保v是单个数值而不是列表
+                if isinstance(v, (list, tuple)):
+                    # 如果v是列表或元组，检查每个元素
+                    for voltage_val in v:
+                        if voltage_val < 0.95 or voltage_val > 1.05:
+                            voltage_violations += 1
+                else:
+                    # v是单个数值
+                    if v < 0.95 or v > 1.05:
+                        voltage_violations += 1
         
         if voltage_violations > 0:
             logger.warning(f"电压违规节点数: {voltage_violations} - 时步: {self.t}")
@@ -799,7 +816,19 @@ class Env(gym.Env):
         
         # 计算电压违规率（违规bus数/总bus数）
         if bus_voltages:
-            violated_buses = sum(1 for v in bus_voltages.values() if v < 0.95 or v > 1.05)
+            violated_buses = 0
+            for bus_voltage_list in bus_voltages.values():
+                # bus_voltage_list是一个列表，检查每个相的电压
+                if isinstance(bus_voltage_list, (list, tuple)):
+                    # 如果任何一相违规，就计为违规
+                    for v in bus_voltage_list:
+                        if v < 0.95 or v > 1.05:
+                            violated_buses += 1
+                            break  # 这个bus已经违规，不需要检查其他相
+                else:
+                    # 单个值的情况
+                    if bus_voltage_list < 0.95 or bus_voltage_list > 1.05:
+                        violated_buses += 1
             info['voltage_violation_rate'] = violated_buses / total_buses
         else:
             info['voltage_violation_rate'] = 0.0

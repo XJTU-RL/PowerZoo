@@ -352,8 +352,8 @@ for env in _ENV_INFO.keys():
 
 
 def get_data_root():
-    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent  # 项目根目录位置
-    return ROOT_DIR / 'node_systems'
+    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent  # 项目根目录位置（需要再往上一级）
+    return ROOT_DIR  # 返回项目根目录，system_name中已包含node_systems路径
 
 def get_info_from_config(env_name, config_dict=None):
     """从配置文件获取环境信息
@@ -381,7 +381,8 @@ def get_info_from_config(env_name, config_dict=None):
                 extracted_dss_file = path_parts[3]     # 'ieee34Mod1_duty.dss'
                 
                 # 优先使用从路径提取的system_name，这样确保与DSS文件路径一致
-                system_name = extracted_system_name  # 直接使用从路径提取的目录名
+                # 需要包含node_systems路径
+                system_name = f"node_systems/{extracted_system_name}"  # 包含完整路径
                 dss_file = extracted_dss_file
             else:
                 # 路径格式不符合预期，使用默认处理
@@ -485,7 +486,14 @@ def make_base_env(env_name, dss_act=False, worker_idx=None, config_dict=None):
     if worker_idx is None:
         return Env(folder_path, base_info, dss_act)
     else:
-        base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
+        # Construct the base file path
+        # If system_name contains node_systems, it's a full path from project root
+        if 'node_systems/' in base_info['system_name']:
+            # Treat system_name as full path from project root
+            base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
+        else:
+            # Legacy path - system_name is just the system folder name
+            base_file = os.path.join(folder_path, 'node_systems', base_info['system_name'], base_info['dss_file'])
         assert os.path.exists(base_file), base_file + ' does not exist'
         fin = open(base_file, 'r')
         
@@ -508,13 +516,22 @@ def make_base_env(env_name, dss_act=False, worker_idx=None, config_dict=None):
 
 def _create_loadshape_file(folder_path, system_name, worker_idx):
     """创建对应worker_idx的loadshape文件"""
-    base_loadshape_file = os.path.join(folder_path, system_name, 'loadshape.dss')
-    target_loadshape_file = os.path.join(folder_path, system_name, f'loadshape_{worker_idx}.dss')
+    # Handle system_name that includes node_systems path
+    if 'node_systems/' in system_name:
+        base_loadshape_file = os.path.join(folder_path, system_name, 'loadshape.dss')
+        target_loadshape_file = os.path.join(folder_path, system_name, f'loadshape_{worker_idx}.dss')
+    else:
+        base_loadshape_file = os.path.join(folder_path, 'node_systems', system_name, 'loadshape.dss')
+        target_loadshape_file = os.path.join(folder_path, 'node_systems', system_name, f'loadshape_{worker_idx}.dss')
     
     if os.path.exists(base_loadshape_file):
         # 确保对应的loadshape数据目录存在
-        loadshape_data_dir = os.path.join(folder_path, system_name, 'loadshape', f'{worker_idx:03d}')
-        base_data_dir = os.path.join(folder_path, system_name, 'loadshape', '000')
+        if 'node_systems/' in system_name:
+            loadshape_data_dir = os.path.join(folder_path, system_name, 'loadshape', f'{worker_idx:03d}')
+            base_data_dir = os.path.join(folder_path, system_name, 'loadshape', '000')
+        else:
+            loadshape_data_dir = os.path.join(folder_path, 'node_systems', system_name, 'loadshape', f'{worker_idx:03d}')
+            base_data_dir = os.path.join(folder_path, 'node_systems', system_name, 'loadshape', '000')
         
         # 如果目标数据目录不存在，则从000目录复制
         if not os.path.exists(loadshape_data_dir) and os.path.exists(base_data_dir):
@@ -535,8 +552,13 @@ def _create_loadshape_file(folder_path, system_name, worker_idx):
 
 def _create_pv_data_file(folder_path, system_name, worker_idx):
     """创建对应worker_idx的PV数据文件"""
-    base_pv_data_file = os.path.join(folder_path, system_name, 'pv_data.dss')
-    target_pv_data_file = os.path.join(folder_path, system_name, f'pv_data_{worker_idx}.dss')
+    # Handle system_name that includes node_systems path
+    if 'node_systems/' in system_name:
+        base_pv_data_file = os.path.join(folder_path, system_name, 'pv_data.dss')
+        target_pv_data_file = os.path.join(folder_path, system_name, f'pv_data_{worker_idx}.dss')
+    else:
+        base_pv_data_file = os.path.join(folder_path, 'node_systems', system_name, 'pv_data.dss')
+        target_pv_data_file = os.path.join(folder_path, 'node_systems', system_name, f'pv_data_{worker_idx}.dss')
     
     # 检查目标文件是否已经由ConfigGenerator生成（优先级更高）
     if os.path.exists(target_pv_data_file):
@@ -552,10 +574,16 @@ def _create_pv_data_file(folder_path, system_name, worker_idx):
     
     if os.path.exists(base_pv_data_file):
         # 确保对应的irradiation和temperature数据目录存在
-        irrad_data_dir = os.path.join(folder_path, system_name, 'irradiation', f'{worker_idx:03d}')
-        temp_data_dir = os.path.join(folder_path, system_name, 'temperature', f'{worker_idx:03d}')
-        base_irrad_dir = os.path.join(folder_path, system_name, 'irradiation', '000')
-        base_temp_dir = os.path.join(folder_path, system_name, 'temperature', '000')
+        if 'node_systems/' in system_name:
+            irrad_data_dir = os.path.join(folder_path, system_name, 'irradiation', f'{worker_idx:03d}')
+            temp_data_dir = os.path.join(folder_path, system_name, 'temperature', f'{worker_idx:03d}')
+            base_irrad_dir = os.path.join(folder_path, system_name, 'irradiation', '000')
+            base_temp_dir = os.path.join(folder_path, system_name, 'temperature', '000')
+        else:
+            irrad_data_dir = os.path.join(folder_path, 'node_systems', system_name, 'irradiation', f'{worker_idx:03d}')
+            temp_data_dir = os.path.join(folder_path, 'node_systems', system_name, 'temperature', f'{worker_idx:03d}')
+            base_irrad_dir = os.path.join(folder_path, 'node_systems', system_name, 'irradiation', '000')
+            base_temp_dir = os.path.join(folder_path, 'node_systems', system_name, 'temperature', '000')
         
         # 如果目标数据目录不存在，则从000目录复制
         if not os.path.exists(irrad_data_dir) and os.path.exists(base_irrad_dir):

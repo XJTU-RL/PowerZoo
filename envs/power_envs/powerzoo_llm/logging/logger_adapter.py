@@ -71,7 +71,8 @@ class PowerZooLoggerAdapter:
         self.system_logger = None
         if self.enable_system_logging:
             try:
-                system_log_dir = os.path.join(run_dir, "system_logs")
+                # 使用统一的system_params目录
+                system_log_dir = os.path.join(run_dir, "system_params")
                 os.makedirs(system_log_dir, exist_ok=True)
                 
                 self.system_logger = get_system_logger(

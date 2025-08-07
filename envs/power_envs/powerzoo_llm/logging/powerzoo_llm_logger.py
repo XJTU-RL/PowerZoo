@@ -42,10 +42,10 @@ class PowerZooLLMLogger(BaseLogger):
             writter: TensorBoard writer
             run_dir: 运行目录
         """
-        # 创建统一日志管理器
-        self.log_manager = get_unified_log_manager(args, algo_args, env_args)
+        # 创建统一日志管理器，传入现有的run_dir
+        self.log_manager = get_unified_log_manager(args, algo_args, env_args, existing_run_dir=run_dir)
         
-        # 使用统一管理器的路径替换原始run_dir
+        # 使用统一管理器的路径
         unified_run_dir = str(self.log_manager.run_dir)
         
         super(PowerZooLLMLogger, self).__init__(

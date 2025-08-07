@@ -101,8 +101,30 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
                 # Create config dict for environment initialization
                 config_dict = None
-                if 'env_specific_config' in env_args:
-                    # 构建完整的配置字典结构
+                # Check if we have a dss_file in env_args (from YAML config)
+                if 'dss_file' in env_args:
+                    # Build complete config dict structure from YAML config
+                    config_dict = {
+                        'dss_file': env_args.get('dss_file'),  # Pass dss_file at top level
+                        'environment_specific': {
+                            'system_name': env_args.get('system_name', '34Bus_PV'),
+                            'dss_file': env_args.get('dss_file'),
+                            'devices': {
+                                'regulators': {'action_num': env_args.get('reg_act_num', 33)},
+                                'batteries': {'action_num': env_args.get('bat_act_num', 33)},
+                                'pv_systems': {
+                                    'control_enabled': env_args.get('pv_control', True),
+                                    'action_space': 'continuous' if env_args.get('pv_act_num', float('inf')) == float('inf') else 'discrete',
+                                    'action_num': env_args.get('pv_act_num', 21) if env_args.get('pv_act_num', float('inf')) != float('inf') else None
+                                }
+                            },
+                            'reward_weights': env_args.get('reward_weights', {})
+                        },
+                        'env_args': env_args,
+                        'train': {'episode_length': env_args.get('episode_length', env_args.get('num_steps', 360))}
+                    }
+                elif 'env_specific_config' in env_args:
+                    # Old path for compatibility
                     config_dict = {
                         'environment_specific': env_args['env_specific_config'],
                         'env_args': env_args,
@@ -110,7 +132,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
                     }
                 
                 base_env = make_base_env(
-                    env_args['env_name'], 
+                    env_args.get('env_name', '34Bus_pv'),  # Use env_name from config if available
                     env_args.get('dss_act', False), 
                     worker_idx=rank,
                     config_dict=config_dict
@@ -186,8 +208,30 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 
                 # Create config dict for environment initialization
                 config_dict = None
-                if 'env_specific_config' in env_args:
-                    # 构建完整的配置字典结构
+                # Check if we have a dss_file in env_args (from YAML config)
+                if 'dss_file' in env_args:
+                    # Build complete config dict structure from YAML config
+                    config_dict = {
+                        'dss_file': env_args.get('dss_file'),  # Pass dss_file at top level
+                        'environment_specific': {
+                            'system_name': env_args.get('system_name', '34Bus_PV'),
+                            'dss_file': env_args.get('dss_file'),
+                            'devices': {
+                                'regulators': {'action_num': env_args.get('reg_act_num', 33)},
+                                'batteries': {'action_num': env_args.get('bat_act_num', 33)},
+                                'pv_systems': {
+                                    'control_enabled': env_args.get('pv_control', True),
+                                    'action_space': 'continuous' if env_args.get('pv_act_num', float('inf')) == float('inf') else 'discrete',
+                                    'action_num': env_args.get('pv_act_num', 21) if env_args.get('pv_act_num', float('inf')) != float('inf') else None
+                                }
+                            },
+                            'reward_weights': env_args.get('reward_weights', {})
+                        },
+                        'env_args': env_args,
+                        'train': {'episode_length': env_args.get('episode_length', env_args.get('num_steps', 360))}
+                    }
+                elif 'env_specific_config' in env_args:
+                    # Old path for compatibility
                     config_dict = {
                         'environment_specific': env_args['env_specific_config'],
                         'env_args': env_args,
@@ -195,7 +239,7 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                     }
                 
                 base_env = make_base_env(
-                    env_args['env_name'], 
+                    env_args.get('env_name', '34Bus_pv'),  # Use env_name from config if available
                     env_args.get('dss_act', False), 
                     worker_idx=rank,
                     config_dict=config_dict

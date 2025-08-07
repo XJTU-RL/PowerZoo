@@ -270,21 +270,34 @@ class EpisodeGenerator:
                 full_load_data = pd.read_csv(load_file, header=None).values.flatten()
                 full_day_start_idx = sample_info['start_idx_in_full_day']
                 
+                # 生成负荷数据（对所有负载使用相同的时间序列数据）
+                # 从full_day_start_idx开始提取360个点
+                base_load_series = full_load_data[full_day_start_idx:full_day_start_idx + self.steps]
+                
+                if len(base_load_series) < self.steps:
+                    # 如果数据不足，尝试循环填充
+                    print(f"⚠️  负荷数据不足，需要{self.steps}个点，实际{len(base_load_series)}个，尝试循环填充")
+                    if len(base_load_series) > 0:
+                        # 循环填充数据
+                        repeats = (self.steps // len(base_load_series)) + 1
+                        base_load_series = np.tile(base_load_series, repeats)[:self.steps]
+                    else:
+                        # 没有数据，使用默认值
+                        print(f"⚠️  无法获取负荷数据，使用默认值")
+                        base_load_series = np.ones(self.steps) * 0.5  # 默认负荷值
+                
+                # 为每个负载创建数据（可以添加一些随机变化）
                 for i, load_name in enumerate(self.load_names):
-                    # 每个负载从对应位置提取6小时=360个数据点
-                    load_start_idx = full_day_start_idx + i * len(full_load_data) // len(self.load_names)
-                    load_series = full_load_data[load_start_idx:load_start_idx + self.steps]
+                    # 为每个负载添加一些随机变化（±10%）
+                    variation = 1.0 + (np.random.rand() - 0.5) * 0.2
+                    load_series = base_load_series * variation
                     
                     # 应用缩放因子
                     if scale != 1.0:
                         load_series = load_series * scale
                     
-                    if len(load_series) == self.steps:
-                        csv_path = os.path.join(load_episode_dir, f'{load_name}.csv')
-                        pd.DataFrame(load_series).to_csv(csv_path, header=False, index=False)
-                    else:
-                        print(f"⚠️  负荷数据不足: {load_name}, 需要{self.steps}个点，实际{len(load_series)}个")
-                        return False
+                    csv_path = os.path.join(load_episode_dir, f'{load_name}.csv')
+                    pd.DataFrame(load_series).to_csv(csv_path, header=False, index=False)
             
             # 2. 从光伏文件中提取数据
             pv_episode_dir = os.path.join(self.irradiation_path, episode_folder)
