@@ -75,8 +75,7 @@ new regcontrol.creg2b transformer=reg2b winding=2 vreg=124 band=2 ptratio=120 ct
 new transformer.reg2c phases=1 windings=2 buses=(852.3 852r.3) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
 new regcontrol.creg2c transformer=reg2c winding=2 vreg=124 band=2 ptratio=120 ctprim=100 R=2.5 X=1.5
 
-! Loads
-redirect loadshape.dss
+! Loads - 负荷曲线由Python按worker动态注入
 
 ! Spot loads (same as original)
 New Load.S860       Bus1=860   Phases=3 Conn=Wye   Model=1 kV= 24.900 kW=  60.0 kVAR=  48.0 duty=loadshape_S860
@@ -226,8 +225,8 @@ New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 pf=0.95 conn=Delta Model=1
 
 ! ========== PV SYSTEM CONFIGURATION - CONSERVATIVE PLAN ==========
 ! Total PV Capacity: 720 kW (40.7% penetration)
-! Load PV data and system definitions
-redirect pv_data.dss
+! PV系统基础配置 - 曲线数据由Python按worker动态加载
+! redirect pv_systems_base.dss - PV系统配置由Python按worker动态注入
 
 ! Set up control and analysis parameters
 Set ControlMode=Static  
@@ -237,5 +236,5 @@ Set MaxIterations=25
 Set VoltageBases = "69, 24.9, 4.16, .48"
 CalcVoltageBases
 BusCoords IEEE34_BusXY.csv
-Set mode=duty number=1 hour=0 stepsize=60 sec=0 
+Set mode=duty stepsize=60 number=1 hour=0 sec=0 
 Set SampleEnergyMeters=Yes

@@ -245,9 +245,13 @@ class Env(gym.Env):
         self.pv_control_enabled = info.get('pv_control', False)
         self.pv_act_num = info.get('pv_act_num', float('inf'))  # 默认连续控制
         
+        # 获取worker_idx用于PV曲线注入
+        worker_idx = info.get('worker_idx', None)
+        
         self.circuit = Circuits(os.path.join(self.dss_folder_path, self.dss_file),
                                 RB_act_num=(self.reg_act_num, self.bat_act_num),
-                                dss_act=dss_act)
+                                dss_act=dss_act,
+                                worker_idx=worker_idx)
         self.all_bus_names = self.circuit.dss.ActiveCircuit.AllBusNames
         self.cap_names = list(self.circuit.capacitors.keys())
         self.reg_names = list(self.circuit.regulators.keys())
@@ -705,6 +709,8 @@ class Env(gym.Env):
         ### re-compile dss and reset batteries
         try:
             self.circuit.reset()
+            # 确保时间步长设置正确（基于时间步进行LoadMult计算）
+            self.circuit.dss.Text.Command = f"Set Hour={self.t}"
         except Exception as e:
             logger.error(f"电路重置失败: {e}")
             return self._get_safe_reset_result()

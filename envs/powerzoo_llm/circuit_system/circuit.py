@@ -32,11 +32,13 @@ class Circuits:
 	def __init__(self, dss_file, 
 				batt_file='Battery.csv', 
 				RB_act_num=(33, 33), 
-				dss_act=False):
+				dss_act=False,
+				worker_idx=None):
 		# DSS
 		self.dss = opendss.DSS  # the dss simulator object
 		self.dss_file = dss_file  # path to the dss file for the whole circuit
 		self.dss_act = dss_act  # whether to use OpenDSS controllers defined in the circuit file
+		self.worker_idx = worker_idx  # worker index for multi-worker environments
 
 		self.batt_file = os.path.join(Path(self.dss_file).parent, batt_file)
 		if not os.path.exists(self.batt_file): 
@@ -121,10 +123,17 @@ class Circuits:
 			# 切换到DSS文件所在目录，确保相对路径正确
 			os.chdir(dss_dir)
 			
-			# 使用相对文件名编译
-			self.dss.Text.Command = "compile " + dss_filename
+			# 创建临时的编译文件，包含正确的数据文件引用
+			temp_compile_file = self._create_temp_compile_file(dss_filename)
+			
+			# 使用临时文件编译
+			self.dss.Text.Command = f"compile {temp_compile_file}"
 			self.dss.Text.Command = "Set Maxiterations=50"
 			self.dss.Text.Command = "Set Maxcontroliter=100"
+			
+			# 删除临时文件
+			if os.path.exists(temp_compile_file):
+				os.remove(temp_compile_file)
 			
 			if disable:
 				self.dss.Text.Command = 'vsource.source.enabled=no'
@@ -138,6 +147,61 @@ class Circuits:
 		
 		if not self.dss_act:
 			self.dss.Text.Command = "Set ControlMode = off"
+	
+	def _create_temp_compile_file(self, dss_filename):
+		'''
+		创建临时编译文件，包含worker特定的数据文件引用
+		
+		参数:
+			dss_filename: 原始DSS文件名
+		
+		返回值:
+			临时文件名
+		'''
+		# 确定worker特定的文件名
+		if self.worker_idx is not None:
+			loadshape_file = f"loadshape_{self.worker_idx}.dss"
+			pv_data_file = f"pv_data_{self.worker_idx}.dss"
+			temp_filename = f"temp_compile_{self.worker_idx}.dss"
+		else:
+			loadshape_file = "loadshape.dss"
+			pv_data_file = "pv_data.dss"
+			temp_filename = "temp_compile.dss"
+		
+		# 检查文件存在性并选择备选
+		if not os.path.exists(loadshape_file) and os.path.exists("loadshape.dss"):
+			loadshape_file = "loadshape.dss"
+			logger.debug(f"使用默认负荷文件: loadshape.dss")
+		
+		if not os.path.exists(pv_data_file):
+			if os.path.exists("pv_systems_base.dss"):
+				pv_data_file = "pv_systems_base.dss"
+			elif os.path.exists("pv_data.dss"):
+				pv_data_file = "pv_data.dss"
+			logger.debug(f"使用备选PV文件: {pv_data_file}")
+		
+		# 创建临时文件内容
+		temp_content = ["Clear\n"]
+		
+		# 添加负荷曲线文件（如果存在）
+		if os.path.exists(loadshape_file):
+			temp_content.append(f"redirect {loadshape_file}\n")
+			logger.info(f"Worker {self.worker_idx}: 加载负荷文件 {loadshape_file}")
+		
+		# 添加主DSS文件内容（排除之前的redirect语句）
+		temp_content.append(f"redirect {dss_filename}\n")
+		
+		# 添加PV数据文件（如果存在）
+		if os.path.exists(pv_data_file):
+			temp_content.append(f"redirect {pv_data_file}\n")
+			logger.info(f"Worker {self.worker_idx}: 加载PV文件 {pv_data_file}")
+		
+		# 写入临时文件
+		with open(temp_filename, 'w') as f:
+			f.writelines(temp_content)
+		
+		return temp_filename
+	
 	
 	def reset(self):
 		'''

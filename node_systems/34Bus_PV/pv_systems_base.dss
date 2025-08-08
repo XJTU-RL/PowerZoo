@@ -19,7 +19,7 @@
 ! PV系统定义：
 ! New PVSystem.PV{bus} phases={1|3} bus1=trafo_pv{bus} kV={0.277|0.48} kVA={容量} Pmpp={功率}
 ! ~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
-! ~ IrradShape=MyIrrad Tshape=MyTemp EffCurve=MyEff P-TCurve=MyPvsT
+! ~ irradiance=MyIrrad temperature=MyTemp EffCurve=MyEff P-TCurve=MyPvsT
 
 ! ---------- 基础系统无PV元件 ----------
 ! 如需添加PV系统，请参考34Bus_PV_Aggressive、34Bus_PV_Conservative等变种的配置
