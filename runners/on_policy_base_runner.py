@@ -86,7 +86,7 @@ class OnPolicyBaseRunner:
         # 初始化设备
         self.device = init_device(algo_args["device"])
         if not self.algo_args["render"]["use_render"]:  # train, not render 如果不进行渲染,则进行训练
-            self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
+            self.run_dir, self.log_dir, self.save_dir, self.writer = init_dir(
                 args["env"],
                 env_args,
                 args["algo"],
@@ -248,7 +248,7 @@ class OnPolicyBaseRunner:
                 self.value_normalizer = None
 
             self.logger = LOGGER_REGISTRY[args["env"]](
-                args, algo_args, env_args, self.num_agents, self.writter, self.run_dir
+                args, algo_args, env_args, self.num_agents, self.writer, self.run_dir
             )
         # 使用前面已经确定的buffer类型
         self.is_heterogeneous = self._is_heterogeneous
@@ -1276,8 +1276,8 @@ class OnPolicyBaseRunner:
             self.envs.close()
             if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
-            self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
-            self.writter.close()
+            self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
+            self.writer.close()
             self.logger.close()
 
     def get_result(self):
@@ -1398,5 +1398,5 @@ class OnPolicyBaseRunner:
             self.logger.log_training_info.flush()
         
         # 3. 写入到TensorBoard（如果有writter）
-        if hasattr(self.logger, 'writter') and self.logger.writter:
-            self.logger.writter.add_text("initialization/summary", init_info_str)
+        if hasattr(self.logger, 'writer') and self.logger.writer:
+            self.logger.writer.add_text("initialization/summary", init_info_str)

@@ -9,16 +9,10 @@ import time
 from typing import Dict, Any, Optional
 from threading import Lock
 
-try:
-    from envs.power_envs.powerzoo_llm.logging.system_logger import get_system_logger, close_system_logger
-    from envs.power_envs.powerzoo_llm.utils import get_logger
-    SYSTEM_LOGGER_AVAILABLE = True
-except ImportError:
-    SYSTEM_LOGGER_AVAILABLE = False
-    def get_logger(name):
-        import logging
-        logging.basicConfig(level=logging.INFO)
-        return logging.getLogger(name)
+# 使用统一日志系统
+from envs.power_envs.powerzoo_llm.logging.system_logger import get_system_logger, close_system_logger
+from envs.power_envs.powerzoo_llm.logging.base_logger import get_logger
+SYSTEM_LOGGER_AVAILABLE = True
 
 logger = get_logger(__name__)
 

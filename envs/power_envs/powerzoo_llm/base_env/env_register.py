@@ -456,9 +456,33 @@ def get_info_and_folder(env_name, config_dict=None):
     if config_dict:
         base_info = get_info_from_config(env_name, config_dict)
     else:
-        # 回退到_ENV_INFO（保持向后兼容）
-        assert env_name in _ENV_INFO, env_name + ' not implemented'
-        base_info = _ENV_INFO[env_name].copy()
+        # 处理路径形式的环境名（如 /home/xxx/node_systems/34Bus_PV_Aggressive）
+        if env_name.startswith('/') and 'node_systems' in env_name:
+            # 从路径中提取系统名，映射到已知的环境配置
+            if '34Bus_PV_Aggressive' in env_name:
+                mapped_env_name = '34Bus_pv'
+            elif '34Bus_PV_Conservative' in env_name:
+                mapped_env_name = '34Bus_pv'
+            elif '34Bus_PV_Optimized' in env_name:
+                mapped_env_name = '34Bus_pv'
+            elif '34Bus_PV' in env_name:
+                mapped_env_name = '34Bus_pv'
+            elif '34Bus' in env_name:
+                mapped_env_name = '34Bus'
+            elif '13Bus' in env_name:
+                mapped_env_name = '13Bus'
+            else:
+                # 默认使用34Bus_pv配置
+                mapped_env_name = '34Bus_pv'
+            
+            assert mapped_env_name in _ENV_INFO, f"Mapped environment {mapped_env_name} not implemented"
+            base_info = _ENV_INFO[mapped_env_name].copy()
+            # 更新system_name为实际路径
+            base_info['system_name'] = env_name
+        else:
+            # 回退到_ENV_INFO（保持向后兼容）
+            assert env_name in _ENV_INFO, env_name + ' not implemented'
+            base_info = _ENV_INFO[env_name].copy()
     
     if is_scaled:
         base_info['scale'] = scale

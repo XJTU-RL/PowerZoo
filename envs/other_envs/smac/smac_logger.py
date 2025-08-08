@@ -5,9 +5,9 @@ from common.base_logger import BaseLogger
 
 
 class SMACLogger(BaseLogger):
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         super(SMACLogger, self).__init__(
-            args, algo_args, env_args, num_agents, writter, run_dir
+            args, algo_args, env_args, num_agents, writer, run_dir
         )
         self.win_key = "won"
 
@@ -96,7 +96,7 @@ class SMACLogger(BaseLogger):
             if np.sum(incre_battles_game) > 0
             else 0.0
         )
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "incre_win_rate", {"incre_win_rate": incre_win_rate}, self.total_num_steps
         )
 
@@ -108,7 +108,7 @@ class SMACLogger(BaseLogger):
         )
         self.episode_lens = []
 
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "average_episode_length",
             {"average_episode_length": average_episode_len},
             self.total_num_steps,

@@ -106,6 +106,22 @@ class HAPPO(OnPolicyBase):
 
         policy_loss = policy_action_loss#每个actor都有一个L函数
 
+        # HAPPO诊断：策略损失组件分解
+        from utils import happo_diagnostics
+        happo_diagnostics.log_policy_loss_components(
+            policy_loss=policy_loss,
+            imp_weights=imp_weights,
+            advantages=adv_targ,
+            surr1=surr1,
+            surr2=surr2,
+            clip_coef=self.clip_param
+        )
+        
+        # HAPPO诊断：数值稳定性检查
+        happo_diagnostics.check_tensor_stability(policy_loss, "policy_loss")
+        happo_diagnostics.check_tensor_stability(imp_weights, "importance_weights")
+        happo_diagnostics.check_tensor_stability(adv_targ, "advantages")
+
         self.actor_optimizer.zero_grad() # 清空优化器梯度
 
         (policy_loss - dist_entropy * self.entropy_coef).backward()  # add entropy term

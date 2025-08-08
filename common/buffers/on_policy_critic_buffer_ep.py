@@ -23,6 +23,7 @@ import torch
 import numpy as np
 from utils.envs_tools import get_shape_from_obs_space
 from utils.trans_tools import _flatten, _sa_cast
+from utils import happo_diagnostics as happo_diag
 
 
 class OnPolicyCriticBufferEP:
@@ -125,6 +126,8 @@ class OnPolicyCriticBufferEP:
             next_value: (np.ndarray) value predictions for the step after the last episode step.
             value_normalizer: (ValueNorm) If not None, ValueNorm value normalizer instance.
         """
+        # 导入诊断工具
+        from utils.happo_diagnostics import get_diagnostics
         if (
             self.use_proper_time_limits
         ):  # consider the difference between truncation and termination
@@ -148,6 +151,19 @@ class OnPolicyCriticBufferEP:
                         self.returns[step] = gae + value_normalizer.denormalize(
                             self.value_preds[step]
                         )
+                        
+                        # HAPPO诊断：GAE计算中间值记录（使用ValueNorm版本）
+                        if step == 0 or step % 20 == 0:  # 每20步记录一次
+                            happo_diag.log_gae_computation(
+                                step=step,
+                                delta=delta[0, 0] if delta.size > 1 else delta.item(),
+                                gae=gae[0, 0] if gae.size > 1 else gae.item(),
+                                reward=self.rewards[step][0, 0] if self.rewards[step].size > 1 else self.rewards[step].item(),
+                                value_curr=value_normalizer.denormalize(self.value_preds[step])[0, 0] if self.value_preds[step].size > 1 else value_normalizer.denormalize(self.value_preds[step]).item(),
+                                value_next=value_normalizer.denormalize(self.value_preds[step + 1])[0, 0] if self.value_preds[step + 1].size > 1 else value_normalizer.denormalize(self.value_preds[step + 1]).item(),
+                                mask=self.masks[step + 1][0, 0] if self.masks[step + 1].size > 1 else self.masks[step + 1].item(),
+                                bad_mask=self.bad_masks[step + 1][0, 0] if self.bad_masks[step + 1].size > 1 else self.bad_masks[step + 1].item()
+                            )
                     else:  # do not use ValueNorm
                         delta = (
                             self.rewards[step]
@@ -162,6 +178,19 @@ class OnPolicyCriticBufferEP:
                         )
                         gae = self.bad_masks[step + 1] * gae
                         self.returns[step] = gae + self.value_preds[step]
+                        
+                        # HAPPO诊断：GAE计算中间值记录（不使用ValueNorm版本）
+                        if step == 0 or step % 20 == 0:  # 每20步记录一次
+                            happo_diag.log_gae_computation(
+                                step=step,
+                                delta=delta[0, 0] if delta.size > 1 else delta.item(),
+                                gae=gae[0, 0] if gae.size > 1 else gae.item(),
+                                reward=self.rewards[step][0, 0] if self.rewards[step].size > 1 else self.rewards[step].item(),
+                                value_curr=self.value_preds[step][0, 0] if self.value_preds[step].size > 1 else self.value_preds[step].item(),
+                                value_next=self.value_preds[step + 1][0, 0] if self.value_preds[step + 1].size > 1 else self.value_preds[step + 1].item(),
+                                mask=self.masks[step + 1][0, 0] if self.masks[step + 1].size > 1 else self.masks[step + 1].item(),
+                                bad_mask=self.bad_masks[step + 1][0, 0] if self.bad_masks[step + 1].size > 1 else self.bad_masks[step + 1].item()
+                            )
             else:  # do not use GAE
                 self.returns[-1] = next_value
                 for step in reversed(range(self.rewards.shape[0])):

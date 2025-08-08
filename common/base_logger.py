@@ -34,14 +34,14 @@ class BaseLogger:
     Used for logging information in the on-policy training pipeline.用于记录在基于策略的训练流程中的信息
     """
 
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         """Initialize the logger."""
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
         self.task_name = self.get_task_name()
         self.num_agents = num_agents
-        self.writter = writter
+        self.writer = writer
         self.run_dir = run_dir
   
         # 打开一个文件，用于记录训练进度
@@ -74,14 +74,14 @@ class BaseLogger:
                 # 将key和value添加到text中
                 text += f"\t{key}: {value}\n"+ '\n'
 
-        # 将文本添加到 self.writter 中
-        self.writter.add_text("algo_hyperparameters", text)
+        # 将文本添加到 self.writer 中
+        self.writer.add_text("algo_hyperparameters", text)
         text = ""
         for key, value in env_args.items():
             text += f"{key}: {value}\n" + '\n'
 
-        # 将文本添加到 self.writter 中
-        self.writter.add_text("env_parameters", text)
+        # 将文本添加到 self.writer 中
+        self.writer.add_text("env_parameters", text)
 
     def get_task_name(self):
         """Get the task name."""
@@ -174,7 +174,7 @@ class BaseLogger:
                     aver_episode_rewards
                 )
             )
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_rewards",
                 {"aver_rewards": aver_episode_rewards},
                 self.total_num_steps,
@@ -264,17 +264,17 @@ class BaseLogger:
         for agent_id in range(self.num_agents):
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
-                self.writter.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
+                self.writer.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
-            self.writter.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
+            self.writer.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
 
     def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
-                self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+                self.writer.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
 
     def _log_detailed_progress(self, actor_train_infos, critic_train_info):
         """记录详细的训练进度信息到progress.txt和train_info.txt

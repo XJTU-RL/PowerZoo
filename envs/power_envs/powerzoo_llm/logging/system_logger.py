@@ -27,12 +27,8 @@ import threading
 from queue import Queue, Empty
 import yaml
 
-try:
-	from envs.power_envs.powerzoo_llm.utils import get_logger
-except ImportError:
-	def get_logger(name):
-		logging.basicConfig(level=logging.INFO)
-		return logging.getLogger(name)
+# 使用统一日志系统
+from envs.power_envs.powerzoo_llm.logging.base_logger import get_logger
 
 logger = get_logger(__name__)
 

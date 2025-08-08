@@ -23,7 +23,8 @@ from textwrap import dedent
 import numpy as np
 from pathlib import Path
 from envs.power_envs.powerzoo_llm.logging.unified_logger import UnifiedLogManager, get_unified_log_manager
-from envs.power_envs.powerzoo_llm.utils import get_logger
+from envs.power_envs.powerzoo_llm.logging.base_logger import get_logger
+from envs.power_envs.powerzoo_llm.logging.visualization_manager import VisualizationManager
 
 logger = get_logger(__name__)
 
@@ -31,7 +32,7 @@ logger = get_logger(__name__)
 class PowerZooLLMLogger(BaseLogger):
     """PowerZoo LLM环境专用Logger类"""
     
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         """初始化PowerZooLLM Logger
         
         Args:
@@ -39,7 +40,7 @@ class PowerZooLLMLogger(BaseLogger):
             algo_args: 算法参数
             env_args: 环境参数
             num_agents: 智能体数量
-            writter: TensorBoard writer
+            writer: TensorBoard writer
             run_dir: 运行目录
         """
         # 创建统一日志管理器，传入现有的run_dir
@@ -49,8 +50,31 @@ class PowerZooLLMLogger(BaseLogger):
         unified_run_dir = str(self.log_manager.run_dir)
         
         super(PowerZooLLMLogger, self).__init__(
-            args, algo_args, env_args, num_agents, writter, unified_run_dir
+            args, algo_args, env_args, num_agents, writer, unified_run_dir
         )
+        
+        # 初始化可视化管理器
+        self.viz_manager = None
+        if env_args.get('enable_visualization', True):
+            plots_dir = self.log_manager.get_path('plots')
+            self.viz_manager = VisualizationManager(
+                save_dir=str(plots_dir),
+                plot_interval=env_args.get('plot_interval', 100),
+                buffer_size=env_args.get('viz_buffer_size', 10000),
+                enable_plotting=True
+            )
+            logger.info(f"可视化管理器已初始化: {plots_dir}")
+        
+        # CMDP相关追踪
+        self.train_episode_cost_voltage = np.zeros(
+            self.algo_args["train"]["n_rollout_threads"]
+        )
+        self.done_episodes_cost_voltage = []
+        
+        self.train_episode_lambda = np.zeros(
+            self.algo_args["train"]["n_rollout_threads"]
+        )
+        self.done_episodes_lambda = []
         
         logger.info(f"PowerZooLLMLogger 使用统一日志路径: {unified_run_dir}")
         
@@ -235,6 +259,10 @@ class PowerZooLLMLogger(BaseLogger):
         voltage_violations_per_bus = self._extract_info_value(infos, 'voltage_violations_per_bus', 0)
         voltage_violation_rate = self._extract_info_value(infos, 'voltage_violation_rate', 0)
         
+        # 解析CMDP相关信息
+        cost_voltage = self._extract_info_value(infos, 'cost_voltage', 0)
+        lambda_value = self._extract_info_value(infos, 'lambda', 0)
+        
         # 更新累计值
         self.train_episode_rewards += reward_env
         
@@ -309,7 +337,33 @@ class PowerZooLLMLogger(BaseLogger):
         
         self.train_episode_voltage_violations += voltage_violations
         self.train_episode_voltage_violations_per_bus += voltage_violations_per_bus
-        self.train_episode_voltage_violation_rate += voltage_violation_rate
+        # 修复：违规率不应该累加，应该记录最新的值或者计算平均值
+        # voltage_violation_rate 是当前步的违规率，不应该累加
+        self.train_episode_voltage_violation_rate = voltage_violation_rate  # 记录最新值而不是累加
+        
+        # 更新CMDP追踪
+        cost_voltage = ensure_correct_shape(cost_voltage)
+        lambda_value = ensure_correct_shape(lambda_value)
+        self.train_episode_cost_voltage += cost_voltage
+        self.train_episode_lambda = lambda_value  # Lambda是瞬时值，不累加
+        
+        # 更新可视化管理器
+        if self.viz_manager and len(infos) > 0 and isinstance(infos[0], list) and len(infos[0]) > 0:
+            # 提取第一个环境的info用于可视化
+            viz_info = infos[0][0] if isinstance(infos[0][0], dict) else {}
+            
+            # 添加更多可视化需要的信息
+            viz_info.update({
+                'reward_main': reward_env[0] if len(reward_env) > 0 else 0,
+                'powerloss_reward': powerloss_reward[0] if len(powerloss_reward) > 0 else 0,
+                'control_reward': ctrl_reward[0] if len(ctrl_reward) > 0 else 0,
+                'pv_reward': pv_utilization_reward[0] if len(pv_utilization_reward) > 0 else 0,
+                'cost_voltage': cost_voltage[0] if len(cost_voltage) > 0 else 0,
+                'lambda': lambda_value[0] if len(lambda_value) > 0 else 0,
+                'voltage_violation_rate': voltage_violation_rate[0] if len(voltage_violation_rate) > 0 else 0
+            })
+            
+            self.viz_manager.update(viz_info)
         
         # 处理完成的episode
         for t in range(self.algo_args["train"]["n_rollout_threads"]):
@@ -461,10 +515,28 @@ class PowerZooLLMLogger(BaseLogger):
         self.train_episode_voltage_violations_per_bus[thread_id] = 0
         
         # 记录单步电压违规率
+        # 修复：违规率已经是比率了，不需要除以episode_length
         self.done_episodes_voltage_violation_rate.append(
-            self.train_episode_voltage_violation_rate[thread_id] / episode_length
+            self.train_episode_voltage_violation_rate[thread_id]
         )
         self.train_episode_voltage_violation_rate[thread_id] = 0
+        
+        # 记录CMDP相关
+        avg_cost = self.train_episode_cost_voltage[thread_id] / episode_length
+        self.done_episodes_cost_voltage.append(avg_cost)
+        self.train_episode_cost_voltage[thread_id] = 0
+        
+        # Lambda是瞬时值，取最后一个
+        self.done_episodes_lambda.append(self.train_episode_lambda[thread_id])
+        
+        # 更新可视化管理器的episode结束信息
+        if self.viz_manager:
+            episode_reward = self.done_episodes_rewards[-1] if self.done_episodes_rewards else 0
+            self.viz_manager.update_episode_end(
+                episode_reward=episode_reward,
+                episode_cost=avg_cost,
+                lambda_value=self.train_episode_lambda[thread_id]
+            )
         
     def episode_log(self, actor_train_infos, critic_train_info, actor_buffer, critic_buffer):
         """记录episode的日志信息
@@ -503,45 +575,63 @@ class PowerZooLLMLogger(BaseLogger):
             
     def _log_episode_metrics(self):
         """记录episode级别的指标到tensorboard和日志文件"""
+        
+        # 辅助函数：安全计算平均值，处理NaN和Inf
+        def safe_mean(values, default=0.0):
+            if not values:
+                return default
+            arr = np.array(values)
+            # 过滤掉NaN和Inf
+            valid_mask = np.isfinite(arr)
+            if np.any(valid_mask):
+                return np.mean(arr[valid_mask])
+            else:
+                logger.warning(f"所有值都是NaN或Inf，返回默认值: {default}")
+                return default
+        
         # 计算平均值
         metrics = {
             # 总奖励
-            "total_reward": np.mean(self.done_episodes_rewards),
+            "total_reward": safe_mean(self.done_episodes_rewards),
             
             # 奖励组成
-            "powerloss_reward": np.mean(self.done_episodes_powerloss_reward),
-            "voltage_reward": np.mean(self.done_episodes_voltage_reward),
-            "control_reward": np.mean(self.done_episodes_ctrl_reward),
-            "pv_utilization_reward": np.mean(self.done_episodes_pv_utilization_reward),
+            "powerloss_reward": safe_mean(self.done_episodes_powerloss_reward),
+            "voltage_reward": safe_mean(self.done_episodes_voltage_reward),
+            "control_reward": safe_mean(self.done_episodes_ctrl_reward),
+            "pv_utilization_reward": safe_mean(self.done_episodes_pv_utilization_reward),
             
             # 功率损耗
-            "power_loss_kw": np.mean(self.done_episodes_power_loss_kw),
-            "power_loss_kvar": np.mean(self.done_episodes_power_loss_kvar),
+            "power_loss_kw": safe_mean(self.done_episodes_power_loss_kw),
+            "power_loss_kvar": safe_mean(self.done_episodes_power_loss_kvar),
             # 修复：计算功率损耗百分比，应该考虑电网总负荷+PV总发电功率作为基准
             "power_loss_percentage": self._calculate_power_loss_percentage(),
             
             # 总功率
-            "total_power_kw": np.mean(self.done_episodes_total_power_kw),
-            "total_power_kvar": np.mean(self.done_episodes_total_power_kvar),
+            "total_power_kw": safe_mean(self.done_episodes_total_power_kw),
+            "total_power_kvar": safe_mean(self.done_episodes_total_power_kvar),
             
             # 控制动作
-            "capacitor_switches": np.mean(self.done_episodes_capacitor_control),
-            "regulator_changes": np.mean(self.done_episodes_regulator_control),
+            "capacitor_switches": safe_mean(self.done_episodes_capacitor_control),
+            "regulator_changes": safe_mean(self.done_episodes_regulator_control),
             
             # 电池系统
-            "battery_charge_kw": np.mean(self.done_episodes_battery_charge),
-            "battery_discharge_kw": np.mean(self.done_episodes_battery_discharge),
-            "battery_avg_soc": np.mean(self.done_episodes_battery_soc) * 100,  # 转换为百分比显示
+            "battery_charge_kw": safe_mean(self.done_episodes_battery_charge),
+            "battery_discharge_kw": safe_mean(self.done_episodes_battery_discharge),
+            "battery_avg_soc": safe_mean(self.done_episodes_battery_soc, 0.5),  # 保持为0-1范围，格式化时转换
             
             # PV系统
-            "pv_output_kw": np.mean(self.done_episodes_pv_output_kw),
-            "pv_avg_power_factor": np.mean(self.done_episodes_pv_power_factor),
-            "pv_utilization": np.mean(self.done_episodes_pv_utilization) * 100,  # 转换为百分比显示
+            "pv_output_kw": safe_mean(self.done_episodes_pv_output_kw),
+            "pv_avg_power_factor": safe_mean(self.done_episodes_pv_power_factor, 1.0),
+            "pv_utilization": safe_mean(self.done_episodes_pv_utilization),  # 保持为0-1范围，格式化时转换
             
             # 电压质量
-            "voltage_violations": np.mean(self.done_episodes_voltage_violations),
-            "voltage_violations_per_bus": np.mean(self.done_episodes_voltage_violations_per_bus),
-            "voltage_violation_rate": np.mean(self.done_episodes_voltage_violation_rate) * 100,  # 转换为百分比显示
+            "voltage_violations": safe_mean(self.done_episodes_voltage_violations),
+            "voltage_violations_per_bus": safe_mean(self.done_episodes_voltage_violations_per_bus),
+            "voltage_violation_rate": safe_mean(self.done_episodes_voltage_violation_rate),  # 保持为0-1范围，格式化时转换
+            
+            # CMDP相关
+            "cost_voltage": safe_mean(self.done_episodes_cost_voltage) if self.done_episodes_cost_voltage else 0,
+            "lambda": safe_mean(self.done_episodes_lambda) if self.done_episodes_lambda else 0,
         }
         
         # 打印关键指标
@@ -552,6 +642,8 @@ class PowerZooLLMLogger(BaseLogger):
             电压违规次数: {metrics['voltage_violations']:.1f}
             单步单bus电压违规: {metrics['voltage_violations_per_bus']:.3f}
             电压违规率: {metrics['voltage_violation_rate']:.2%}
+            CMDP电压成本: {metrics['cost_voltage']:.4f}
+            Lagrangian Lambda: {metrics['lambda']:.4f}
             PV利用率: {metrics['pv_utilization']:.2%}
             电池平均SOC: {metrics['battery_avg_soc']:.2%}
             ================================================
@@ -563,10 +655,10 @@ class PowerZooLLMLogger(BaseLogger):
         
         # 记录到tensorboard
         for key, value in metrics.items():
-            self.writter.add_scalar(f"train/{key}", value, self.total_num_steps)
+            self.writer.add_scalar(f"train/{key}", value, self.total_num_steps)
             
         # 记录奖励分解到tensorboard（用于分析奖励函数）
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "train/reward_breakdown",
             {
                 "total": metrics['total_reward'],
@@ -579,7 +671,7 @@ class PowerZooLLMLogger(BaseLogger):
         )
         
         # 记录功率相关指标
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "train/power_metrics",
             {
                 "loss_kw": metrics['power_loss_kw'],
@@ -592,7 +684,7 @@ class PowerZooLLMLogger(BaseLogger):
         )
         
         # 记录电压质量指标
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "train/voltage_quality",
             {
                 "violations_total": metrics['voltage_violations'],
@@ -603,7 +695,7 @@ class PowerZooLLMLogger(BaseLogger):
         )
         
         # 记录可再生能源指标
-        self.writter.add_scalars(
+        self.writer.add_scalars(
             "train/renewable_metrics",
             {
                 "pv_output_kw": metrics['pv_output_kw'],

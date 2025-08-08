@@ -30,31 +30,14 @@ import itertools
 import sys, os
 import multiprocessing as mp
 
-try:
-    from .utils import get_logger, log_training_step, setup_training_logger
-    from .system_logger import get_system_logger, SystemLogger
-except ImportError:
-    def get_logger(name):
-        logging.basicConfig(level=logging.INFO)
-        return logging.getLogger(name)
-    
-    def log_training_step(*args, **kwargs):
-        pass
-    
-    def setup_training_logger(name):
-        return get_logger(name)
-    
-    # 系统记录器备用实现
-    class SystemLogger:
-        def __init__(self, **kwargs):
-            pass
-        def log_system_state(self, *args, **kwargs):
-            pass
-        def close(self):
-            pass
-    
-    def get_system_logger(**kwargs):
-        return SystemLogger()
+# 使用统一日志系统
+from envs.power_envs.powerzoo_llm.logging import (
+    get_logger,
+    log_training_step,
+    setup_training_logger,
+    get_system_logger
+)
+from envs.power_envs.powerzoo_llm.logging.system_logger import SystemLogger
 
 logger = get_logger(__name__)
 

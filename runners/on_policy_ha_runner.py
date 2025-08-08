@@ -25,7 +25,6 @@ import torch
 from utils.trans_tools import _t2n
 from runners.on_policy_base_runner import OnPolicyBaseRunner
 
-
 class OnPolicyHARunner(OnPolicyBaseRunner):
     """Runner for on-policy HA algorithms."""
 
@@ -48,6 +47,14 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
     def train(self):
         """Train the model."""
         actor_train_infos = []
+        
+        # HAPPO诊断：设置TensorBoard writer（如果存在）
+        if hasattr(self, 'writer') and self.writer is not None:
+            from utils import happo_diagnostics
+            happo_diagnostics.set_writer(self.writer)
+            # 获取全局步数（如果有的话）
+            if hasattr(self, 'total_num_steps'):
+                happo_diagnostics.set_global_step(self.total_num_steps)
 
         # factor is used for considering updates made by previous agents 
         factor = np.ones(
@@ -77,7 +84,17 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             advantages_copy[active_masks_array[:-1] == 0.0] = np.nan
             mean_advantages = np.nanmean(advantages_copy)
             std_advantages = np.nanstd(advantages_copy)
+            
+            # HAPPO诊断：保存归一化前的优势值
+            advantages_before = advantages.copy()
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
+            
+            # HAPPO诊断：记录优势归一化前后对比
+            from utils import happo_diagnostics
+            happo_diagnostics.log_advantages_normalization(
+                advantages_raw=advantages_before,
+                advantages_norm=advantages
+            )
         
         if hasattr(self, 'useS') and self.useS:
            result = {}
@@ -210,6 +227,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
         # 添加详细的tensorboard日志记录
         self._log_training_metrics(actor_train_infos, critic_train_info, advantages, factor)
 
+
         return actor_train_infos, critic_train_info
 
     def _get_agent_order(self, new_dict):
@@ -297,17 +315,17 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                 
                 # Actor损失相关
                 if 'policy_loss' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/policy_loss", info['policy_loss'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/policy_loss", info['policy_loss'], total_steps)
                 if 'dist_entropy' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/entropy", info['dist_entropy'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/entropy", info['dist_entropy'], total_steps)
                 if 'actor_grad_norm' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/actor_grad_norm", info['actor_grad_norm'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/actor_grad_norm", info['actor_grad_norm'], total_steps)
                 if 'ratio' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/importance_ratio", info['ratio'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/importance_ratio", info['ratio'], total_steps)
                 if 'approx_kl' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/approx_kl", info['approx_kl'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/approx_kl", info['approx_kl'], total_steps)
                 if 'clipfrac' in info:
-                    self.writter.add_scalar(f"{agent_prefix}/clip_fraction", info['clipfrac'], total_steps)
+                    self.writer.add_scalar(f"{agent_prefix}/clip_fraction", info['clipfrac'], total_steps)
                 
                 # 动作分布统计
                 buffer = self.actor_buffer[agent_id]
@@ -320,31 +338,31 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                                 # 离散动作：记录动作频率
                                 action_counts = np.bincount(actions.flatten().astype(int))
                                 for action_idx, count in enumerate(action_counts):
-                                    self.writter.add_scalar(
+                                    self.writer.add_scalar(
                                         f"{agent_prefix}/action_freq/action_{action_idx}", 
                                         count / len(actions.flatten()), 
                                         total_steps
                                     )
                             elif buffer.action_type == 'continuous':
                                 # 连续动作：记录均值和标准差
-                                self.writter.add_scalar(
+                                self.writer.add_scalar(
                                     f"{agent_prefix}/action_mean", 
                                     np.mean(actions), 
                                     total_steps
                                 )
-                                self.writter.add_scalar(
+                                self.writer.add_scalar(
                                     f"{agent_prefix}/action_std", 
                                     np.std(actions), 
                                     total_steps
                                 )
                                 # 对于PV智能体，记录两个控制维度
                                 if actions.shape[-1] == 2:
-                                    self.writter.add_scalar(
+                                    self.writer.add_scalar(
                                         f"{agent_prefix}/pv_active_power", 
                                         np.mean(actions[..., 0]), 
                                         total_steps
                                     )
-                                    self.writter.add_scalar(
+                                    self.writer.add_scalar(
                                         f"{agent_prefix}/pv_power_factor", 
                                         np.mean(actions[..., 1]), 
                                         total_steps
@@ -352,19 +370,19 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
             
             # 2. 记录Critic相关指标
             if 'value_loss' in critic_train_info:
-                self.writter.add_scalar("critic/value_loss", critic_train_info['value_loss'], total_steps)
+                self.writer.add_scalar("critic/value_loss", critic_train_info['value_loss'], total_steps)
             if 'critic_grad_norm' in critic_train_info:
-                self.writter.add_scalar("critic/grad_norm", critic_train_info['critic_grad_norm'], total_steps)
+                self.writer.add_scalar("critic/grad_norm", critic_train_info['critic_grad_norm'], total_steps)
             
             # 3. 记录优势函数统计
-            self.writter.add_scalar("training/advantages_mean", np.mean(advantages), total_steps)
-            self.writter.add_scalar("training/advantages_std", np.std(advantages), total_steps)
-            self.writter.add_scalar("training/advantages_max", np.max(advantages), total_steps)
-            self.writter.add_scalar("training/advantages_min", np.min(advantages), total_steps)
+            self.writer.add_scalar("training/advantages_mean", np.mean(advantages), total_steps)
+            self.writer.add_scalar("training/advantages_std", np.std(advantages), total_steps)
+            self.writer.add_scalar("training/advantages_max", np.max(advantages), total_steps)
+            self.writer.add_scalar("training/advantages_min", np.min(advantages), total_steps)
             
             # 4. 记录更新因子
-            self.writter.add_scalar("training/factor_mean", np.mean(factor), total_steps)
-            self.writter.add_scalar("training/factor_std", np.std(factor), total_steps)
+            self.writer.add_scalar("training/factor_mean", np.mean(factor), total_steps)
+            self.writer.add_scalar("training/factor_std", np.std(factor), total_steps)
             
             # 5. 记录价值函数预测质量
             if hasattr(self.critic_buffer, 'value_preds') and hasattr(self.critic_buffer, 'returns'):
@@ -378,28 +396,34 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                 
                 var_y = np.var(returns)
                 explained_var = np.nan if var_y == 0 else 1 - np.var(returns - value_preds_denorm) / var_y
-                self.writter.add_scalar("critic/explained_variance", explained_var, total_steps)
-                self.writter.add_scalar("critic/value_pred_mean", np.mean(value_preds), total_steps)
-                self.writter.add_scalar("critic/returns_mean", np.mean(returns), total_steps)
+                self.writer.add_scalar("critic/explained_variance", explained_var, total_steps)
+                
+                # HAPPO诊断：解释方差详细分解
+                from utils import happo_diagnostics
+                happo_diagnostics.log_explained_variance(
+                    y_true=returns,
+                    y_pred=value_preds_denorm
+                )
+                self.writer.add_scalar("critic/value_pred_mean", np.mean(value_preds), total_steps)
+                self.writer.add_scalar("critic/returns_mean", np.mean(returns), total_steps)
             
             # 6. 环境相关指标（如果有system_logger）
             if hasattr(self, 'system_logger') and self.system_logger is not None:
                 realtime_metrics = self.system_logger.get_realtime_metrics()
                 if realtime_metrics:
-                    self.writter.add_scalar("env/recent_avg_reward", realtime_metrics.get('recent_avg_reward', 0), total_steps)
-                    self.writter.add_scalar("env/voltage_violations", realtime_metrics.get('recent_voltage_violations', 0), total_steps)
-                    self.writter.add_scalar("env/computation_time", realtime_metrics.get('recent_avg_computation_time', 0), total_steps)
+                    self.writer.add_scalar("env/recent_avg_reward", realtime_metrics.get('recent_avg_reward', 0), total_steps)
+                    self.writer.add_scalar("env/voltage_violations", realtime_metrics.get('recent_voltage_violations', 0), total_steps)
             
             # 7. 记录学习率（如果可用）
             for agent_id in range(self.num_agents):
                 if hasattr(self.actor[agent_id], 'optimizer'):
                     for param_group in self.actor[agent_id].optimizer.param_groups:
-                        self.writter.add_scalar(f"agent_{agent_id}/learning_rate", param_group['lr'], total_steps)
+                        self.writer.add_scalar(f"agent_{agent_id}/learning_rate", param_group['lr'], total_steps)
                         break
             
             if hasattr(self.critic, 'optimizer'):
                 for param_group in self.critic.optimizer.param_groups:
-                    self.writter.add_scalar("critic/learning_rate", param_group['lr'], total_steps)
+                    self.writer.add_scalar("critic/learning_rate", param_group['lr'], total_steps)
                     break
             
             # 8. 记录智能体排序信息（如果使用敏感度排序）
@@ -408,7 +432,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                 pass
             
             # 确保数据写入
-            self.writter.flush()
+            self.writer.flush()
             
         except Exception as e:
             print(f"记录训练指标时出错: {e}")

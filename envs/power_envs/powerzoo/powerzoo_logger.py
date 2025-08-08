@@ -28,9 +28,9 @@ from textwrap import dedent
 import numpy as np
 
 class PowerZooLogger(BaseLogger):
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         super(PowerZooLogger, self).__init__(
-            args, algo_args, env_args, num_agents, writter, run_dir
+            args, algo_args, env_args, num_agents, writer, run_dir
         )
         
 
@@ -345,67 +345,67 @@ class PowerZooLogger(BaseLogger):
             self.log_training_info.flush()
 
             # 记录到tensorboard
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_rewards",#TODO:
                 {"aver_rewards": aver_episode_rewards},
                 self.total_num_steps,
             )
             
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_powerloss_rewards",#TODO:
                 {"aver_rewards": aver_episode_powerloss_rewards},
                 self.total_num_steps,
             )
             
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_voltage_rewards",#TODO:
                 {"aver_rewards": aver_episode_voltage_rewards},
                 self.total_num_steps,
             )
             
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_ctrl_rewards",#TODO:
                 {"aver_rewards": aver_episode_ctrl_rewards},
                 self.total_num_steps,
             )
                      
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_power_loss_kw",
                 {"aver_power_loss_kw": aver_episode_power_loss_kw},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_power_loss_kvar",
                 {"aver_power_loss_kvar": aver_episode_power_loss_kvar},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_total_power_kw",
                 {"aver_total_power_kw": aver_episode_total_power_kw},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_total_power_kvar",
                 {"aver_total_power_kvar": aver_episode_total_power_kvar},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_capacitor_control",
                 {"aver_capacitor_control": aver_episode_capacitor_control},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_regulator_control",
                 {"aver_regulator_control": aver_episode_regulator_control},
                 self.total_num_steps,
             )
 
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_discharge_control",
                 {"aver_discharge_control": aver_episode_discharge_control},
                 self.total_num_steps,
@@ -783,11 +783,11 @@ class PowerZooLogger(BaseLogger):
         for agent_id in range(self.num_agents):
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
-                self.writter.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
+                self.writer.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
-            self.writter.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
+            self.writer.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
 
     def log_env(self, env_infos):
         """记录环境信息."""
@@ -796,7 +796,7 @@ class PowerZooLogger(BaseLogger):
             # 如果v的长度大于0
             if len(v) > 0:
                 # 使用writter添加标量，键为k，值为v的平均值，步数为self.total_num_steps
-                self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+                self.writer.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
 
     def close(self):
         """Close the logger."""

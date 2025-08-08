@@ -4,6 +4,8 @@ import gym
 import numpy as np
 from envs.power_envs.powerzoo_llm.circuit_system import Circuits
 from envs.power_envs.powerzoo_llm.data_process.loadprofile import LoadProfile
+from envs.power_envs.powerzoo_llm.base_env.reward_functions import PowerZooReward
+from envs.power_envs.powerzoo_llm.rewards.lagrangian import LagrangianUpdater
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,20 +14,8 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 from functools import lru_cache, wraps
 import logging
 import time
-from copy import deepcopy 
+from envs.power_envs.powerzoo_llm.utils import get_logger, log_reward_components, log_device_actions
 
-try:
-    from envs.power_envs.powerzoo_llm.utils import get_logger, log_reward_components, log_device_actions
-except ImportError:
-    def get_logger(name):
-        logging.basicConfig(level=logging.INFO)
-        return logging.getLogger(name)
-    
-    def log_reward_components(*args, **kwargs):
-        pass
-    
-    def log_device_actions(*args, **kwargs):
-        pass
 
 logger = get_logger(__name__)
 
@@ -273,8 +263,30 @@ class Env(gym.Env):
                self.cap_num + self.reg_num + self.bat_num + self.pv_num>=1,'invalid CRBP_num'
         
         self.topology = self.build_graph()
-        self.reward_func = self.MyReward(self, info)
+        self.reward_func = PowerZooReward(self, info)
         self.t = 0
+        
+        # CMDP和Lagrangian配置
+        self.use_cmdp = info.get('use_cmdp', True)  # 默认启用CMDP
+        self.lagrangian_updater = None
+        self.lambda_history = []  # Lambda历史记录
+        self.cost_history = []     # 约束成本历史
+        self.episode_costs = []   # 当前episode的成本
+        
+        if self.use_cmdp:
+            # 初始化拉格朗日更新器
+            self.lagrangian_updater = LagrangianUpdater(
+                init_lambda=info.get('lambda_init', 1.0),
+                lr=info.get('lambda_lr', 1e-3),
+                target_cost=info.get('target_cost', 0.01),
+                lambda_max=info.get('lambda_max', 100.0),
+                lambda_min=info.get('lambda_min', 0.0),
+                update_strategy=info.get('lambda_update_strategy', 'standard'),
+                momentum=info.get('lambda_momentum', 0.0),
+                adaptive_lr=info.get('lambda_adaptive_lr', False)
+            )
+            logger.info(f"CMDP模式启用 - 目标成本: {info.get('target_cost', 0.01)}, "
+                       f"初始λ: {info.get('lambda_init', 1.0)}")
         
         # create action space and observation space
         self.ActionSpace = ActionSpace( (self.cap_num, self.reg_num, self.bat_num, self.pv_num),
@@ -333,258 +345,6 @@ class Env(gym.Env):
             
             if observe_load: obs_dict['load_profile_t'] = gym.spaces.Box(0.0, 1.0, shape=(nload,))
             self.observation_space = gym.spaces.Dict(obs_dict)
-
-    class MyReward:
-        """Reward definition class
-        
-        Attributes:
-            env (obj): Inherits all attributes of environment 
-        """
-        def __init__(self, env, info: Dict[str, Any]):
-            self.env = env
-            self.power_w = info.get('power_w', 1.0)  # 降低功率损耗权重避免奖励scale过大
-            self.cap_w = info.get('cap_w', 0.1)
-            self.reg_w = info.get('reg_w', 0.1)
-            self.soc_w = info.get('soc_w', 0.5)
-            self.dis_w = info.get('dis_w', 0.1)
-            self.pv_w = info.get('pv_w', 1.0)  # PV控制奖励权重
-            
-            # 约束感知奖励参数 - 为HAPPO训练优化
-            self.voltage_penalty_scale = info.get('voltage_penalty_scale', 1.0)  # 电压约束惩罚系数
-            self.constraint_aware = info.get('constraint_aware', True)  # 是否启用约束感知
-            self.voltage_target_range = info.get('voltage_target_range', (0.95, 1.05))  # 理想电压范围
-            self.progressive_penalty = info.get('progressive_penalty', True)  # 渐进式惩罚
-
-        @performance_monitor
-        def powerloss_reward(self) -> float:
-            """功率损耗奖励"""
-            current_loss = self.env.obs.get('power_loss', 0)
-            # Handle both scalar and array types
-            if hasattr(current_loss, '__len__'):
-                # If it's an array, take the first element or sum
-                current_loss = float(current_loss[0]) if len(current_loss) > 0 else 0.0
-            else:
-                current_loss = float(current_loss)
-            ratio = max(0.0, min(1.0, current_loss))
-            return -ratio * self.power_w
-
-        def ctrl_reward(self, capdiff: List[float], regdiff: List[float], 
-                       soc_err: List[float], discharge_err: List[float],
-                       pv_diff: List[float] = None) -> float:
-            """控制动作奖励 - 支持PV控制"""
-            pv_diff = pv_diff or []
-            
-            cost = (self.cap_w * sum(capdiff) + 
-                    self.reg_w * sum(regdiff) + 
-                    (0.0 if self.env.t != self.env.horizon else self.soc_w * sum(soc_err)) + 
-                    self.dis_w * sum(discharge_err) +
-                    self.pv_w * sum(pv_diff))  # 添加PV控制成本
-            return -cost
-
-        @performance_monitor
-        def voltage_reward(self, record_node: bool = False) -> Tuple[float, List[str]]:
-            """电压奖励"""
-            violated_nodes = []
-            total_violation = 0.0
-            
-            bus_voltages = self.env.obs.get('bus_voltages', {})
-            
-            # 批量处理电压违规计算
-            for name, voltages in bus_voltages.items():
-                if not voltages:
-                    continue
-                    
-                max_v = max(voltages)
-                min_v = min(voltages)
-                
-                max_penalty = min(0, 1.05 - max_v) if max_v > 1.05 else 0
-                min_penalty = min(0, min_v - 0.95) if min_v < 0.95 else 0
-                
-                violation = max_penalty + min_penalty
-                total_violation += violation
-                
-                if record_node and violation != 0:
-                    violated_nodes.append(name)
-            
-            return total_violation, violated_nodes
-        
-        def composite_reward(self, cd: List[float], rd: List[float], 
-                            soc: List[float], dis: List[float], 
-                            pv_diff: List[float] = None,
-                            full: bool = True, record_node: bool = False) -> Tuple[float, Dict[str, Any]]:
-            """综合奖励计算 - 约束感知版本"""
-            p = self.powerloss_reward()
-            v, vio_nodes = self.voltage_reward(record_node)
-            t = self.ctrl_reward(cd, rd, soc, dis, pv_diff or [])
-            
-            # 约束感知奖励计算
-            if self.constraint_aware:
-                # 增强电压约束奖励
-                v_enhanced = self.enhanced_voltage_reward(vio_nodes)
-                # 功率平衡奖励
-                power_balance_reward = self.power_balance_reward()
-                # PV优化奖励
-                pv_optimization_reward = self.pv_optimization_reward()
-                
-                summ = (t + v_enhanced + p * 0.1 + 
-                       power_balance_reward + pv_optimization_reward)
-                
-                # 记录约束感知奖励详情
-                constraint_components = {
-                    'power_loss': p,
-                    'voltage_enhanced': v_enhanced,
-                    'control': t,
-                    'power_balance': power_balance_reward,
-                    'pv_optimization': pv_optimization_reward,
-                    'total_constraint_aware': summ
-                }
-                log_reward_components(logger, constraint_components)
-            else:
-                summ = t + v  # 原始奖励结构
-                
-                # 记录基础奖励详情
-                basic_components = {
-                    'power_loss': p,
-                    'voltage': v,
-                    'control': t,
-                    'total': summ
-                }
-                log_reward_components(logger, basic_components)
-            
-            info = {} if not record_node else {'violated_nodes': vio_nodes}
-            if full:
-                info.update({
-                    'power_loss_ratio': -p / self.power_w,
-                    'vol_reward': v,
-                    'ctrl_reward': t,
-                    'total_reward': summ
-                })
-                
-                if self.constraint_aware:
-                    info.update({
-                        'voltage_violations': len(vio_nodes),
-                        'voltage_compliance_rate': self._calculate_voltage_compliance(),
-                        'power_balance_score': power_balance_reward,
-                        'pv_utilization_score': pv_optimization_reward
-                    })
-            
-            return summ, info
-        
-        def enhanced_voltage_reward(self, vio_nodes: List[str]) -> float:
-            """增强电压约束奖励 - 约束感知版本"""
-            bus_voltages = self.env.obs.get('bus_voltages', {})
-            total_penalty = 0.0
-            total_nodes = 0
-            
-            v_min, v_max = self.voltage_target_range
-            
-            for name, voltages in bus_voltages.items():
-                if not voltages:
-                    continue
-                    
-                for v in voltages:
-                    total_nodes += 1
-                    
-                    if self.progressive_penalty:
-                        # 渐进式惩罚: 越远离正常范围惩罚越大
-                        if v > v_max:
-                            violation_degree = (v - v_max) / (1.2 - v_max)  # 归一化违约程度
-                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 2.0  # 降低惩罚系数从50到2
-                        elif v < v_min:
-                            violation_degree = (v_min - v) / (v_min - 0.8)
-                            penalty = violation_degree ** 2 * self.voltage_penalty_scale * 2.0  # 降低惩罚系数从50到2
-                        else:
-                            # 在合理范围内给予奖励
-                            penalty = -0.1  # 小奖励
-                    else:
-                        # 简单的二元惩罚
-                        if v > v_max or v < v_min:
-                            penalty = self.voltage_penalty_scale * 1.0  # 降低惩罚系数从10到1
-                        else:
-                            penalty = -0.01  # 降低奖励避免影响过大
-                    
-                    total_penalty += penalty
-            
-            # 平均化惩罚
-            avg_penalty = total_penalty / max(total_nodes, 1)
-            return -avg_penalty
-        
-        def power_balance_reward(self) -> float:
-            """功率平衡奖励 - 鼓励系统功率平衡"""
-            power_loss_ratio = abs(self.env.obs.get('power_loss', 0))
-            
-            # Handle both scalar and array types
-            if hasattr(power_loss_ratio, '__len__'):
-                # If it's an array, take the first element
-                power_loss_ratio = float(power_loss_ratio[0]) if len(power_loss_ratio) > 0 else 0.0
-            else:
-                power_loss_ratio = float(power_loss_ratio)
-            
-            # 功率损耗越低奖励越大
-            if power_loss_ratio < 0.02:  # <2%损耗
-                return 5.0
-            elif power_loss_ratio < 0.05:  # <5%损耗
-                return 2.0
-            elif power_loss_ratio < 0.10:  # <10%损耗
-                return 0.0
-            else:
-                return -power_loss_ratio * 20  # 高损耗惩罚
-        
-        def pv_optimization_reward(self) -> float:
-            """光伏优化奖励 - 鼓励合理使用PV系统"""
-            if not (self.env.pv_control_enabled and self.env.pv_num > 0):
-                return 0.0
-            
-            pv_statuses = self.env.obs.get('pv_statuses', {})
-            if not pv_statuses:
-                return 0.0
-            
-            total_reward = 0.0
-            for pv_name, status in pv_statuses.items():
-                if len(status) >= 2:
-                    p_ratio, pf = status[0], status[1]
-                    
-                    # 鼓励高功率输出（在高辐照时）
-                    power_reward = p_ratio * 2.0
-                    
-                    # 鼓励合理的功率因数（接近单位功率因数）
-                    pf_penalty = abs(pf - 1.0) * 1.0
-                    
-                    # 鼓励电压支撑（当系统电压低时）
-                    voltage_support_reward = 0.0
-                    bus_voltages = self.env.obs.get('bus_voltages', {})
-                    # 计算平均电压，处理列表类型的电压值
-                    all_voltages = []
-                    for v in bus_voltages.values():
-                        if isinstance(v, (list, tuple)) and len(v) > 0:
-                            all_voltages.extend(v)
-                        elif v:  # 单个数值
-                            all_voltages.append(v)
-                    
-                    if all_voltages:
-                        avg_voltage = np.mean(all_voltages)
-                        if avg_voltage < 0.98 and pf > 0.95:  # 低电压时发出无功
-                            voltage_support_reward = 1.0
-                    
-                    total_reward += power_reward - pf_penalty + voltage_support_reward
-            
-            return total_reward / max(self.env.pv_num, 1)
-        
-        def _calculate_voltage_compliance(self) -> float:
-            """计算电压合格率"""
-            bus_voltages = self.env.obs.get('bus_voltages', {})
-            total_measurements = 0
-            compliant_measurements = 0
-            
-            v_min, v_max = self.voltage_target_range
-            
-            for voltages in bus_voltages.values():
-                for v in voltages:
-                    total_measurements += 1
-                    if v_min <= v <= v_max:
-                        compliant_measurements += 1
-            
-            return compliant_measurements / max(total_measurements, 1)
 
     @performance_monitor
     def step(self, action: np.ndarray) -> Tuple[Any, float, bool, Dict[str, Any]]:
@@ -764,8 +524,22 @@ class Env(gym.Env):
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t%self.horizon].to_dict()
 
         done = (self.t == self.horizon)
+        
+        # CMDP: Episode结束时更新Lagrangian乘子
+        if done and self.use_cmdp and self.lagrangian_updater and self.episode_costs:
+            # 计算episode平均成本
+            avg_episode_cost = np.mean(self.episode_costs)
+            
+            # 更新Lambda
+            self.lagrangian_updater.update(avg_episode_cost)
+            self.lambda_history.append(self.lagrangian_updater.lmbda)
+            self.cost_history.append(avg_episode_cost)
+            
+            # 记录更新信息
+            logger.info(f"Episode结束 - Lagrangian更新: Lambda={self.lagrangian_updater.lmbda:.4f}, "
+                       f"平均成本={avg_episode_cost:.4f}, 目标成本={self.lagrangian_updater.target_cost:.4f}")
 
-        # 计算PV控制差异（如果启用）
+        # 计算PV控制差异（如果启用）#NOTE 可以用于以后的PV动作追踪
         pv_diffs = []
         if self.pv_control_enabled and self.pv_num > 0:
             # PV diffs are already calculated by the circuit, just pass empty list for now
@@ -774,6 +548,25 @@ class Env(gym.Env):
 
         reward, info = self.reward_func.composite_reward(capdiff, regdiff,\
                                                          soc_errs, dis_errs, pv_diffs)
+        
+        # CMDP: 记录约束成本和Lambda值
+        if self.use_cmdp and 'cost_voltage' in info:
+            cost_voltage = info['cost_voltage']
+            self.episode_costs.append(cost_voltage)
+            
+            # 添加Lambda值到info
+            if self.lagrangian_updater:
+                info['lambda'] = self.lagrangian_updater.lmbda
+                info['lambda_history_len'] = len(self.lambda_history)
+            
+            # 如果启用了拉格朗日奖励修正（可选）
+            if info.get('use_lagrangian_reward', False) and self.lagrangian_updater:
+                # reward = reward - lambda * cost_voltage
+                lagrangian_penalty = self.lagrangian_updater.lmbda * cost_voltage
+                info['reward_before_lagrangian'] = reward
+                info['lagrangian_penalty'] = lagrangian_penalty
+                reward = reward - lagrangian_penalty
+        
         # avoid dividing by zero
         info.update( {'av_cap_err': sum(capdiff)/(self.cap_num+1e-10),
                       'av_reg_err': sum(regdiff)/(self.reg_num+1e-10),
@@ -921,6 +714,18 @@ class Env(gym.Env):
         """
         ###reset time
         self.t = 0
+        
+        # CMDP: 重置episode相关的成本记录
+        if self.use_cmdp:
+            self.episode_costs = []  # 清空当前episode的成本记录
+            
+            # 可选：重置Lagrangian（取决于训练策略）
+            # 通常不重置Lambda，让其跨episode持续优化
+            # 如果需要重置，取消下面的注释：
+            # if self.lagrangian_updater:
+            #     self.lagrangian_updater.reset()
+            #     self.lambda_history = []
+            #     self.cost_history = []
  
         ### choose load profile
         try:
@@ -1211,7 +1016,7 @@ class Env(gym.Env):
             nx.draw_networkx_nodes(graph, pos, nodelist=nodes, node_color=voltages, vmin=vmin, vmax=vmax, cmap=cmap, node_size=node_size)
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
             sm.set_array([])
-            cbar = plt.colorbar(sm)
+            _ = plt.colorbar(sm)
         else:
             nx.draw_networkx_nodes(graph, pos, nodelist=nodes, node_color=np.ones(len(voltages)), vmin=vmin, vmax=vmax, cmap=cmap, node_size=node_size)
 
@@ -1244,7 +1049,7 @@ class Env(gym.Env):
                 
                 loc = dict()
                 for key in labels.keys():
-                    b1, b2 = key
+                    _, _ = key  # 解包但不使用
                     lx, ly, count = 0.0, 0.0, 0
                     for b in list(key):
                         if b in pos:

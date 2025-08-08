@@ -225,8 +225,8 @@ def main(args):
     if all_args.use_wandb:
         run.finish()
     else:
-        runner.writter.export_scalars_to_json(str(runner.log_dir + '/summary.json'))
-        runner.writter.close()
+        runner.writer.export_scalars_to_json(str(runner.log_dir + '/summary.json'))
+        runner.writer.close()
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -140,7 +140,7 @@ class MlpRunner(object):
         
         self.task_name = get_task_name(args["env"], env_args)
     #if not algo_args["render"]["use_render"]:
-        self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
+        self.run_dir, self.log_dir, self.save_dir, self.writer = init_dir(
             args["env"],
             env_args,
             args["algo"],
@@ -237,7 +237,7 @@ class MlpRunner(object):
         #     self.log_dir = str(self.run_dir / 'logs')
         #     if not os.path.exists(self.log_dir):
         #         os.makedirs(self.log_dir)
-        #     self.writter = SummaryWriter(self.log_dir)
+        #     self.writer = SummaryWriter(self.log_dir)
         #     self.save_dir = str(self.run_dir / 'models')
         #     if not os.path.exists(self.save_dir):
         #         os.makedirs(self.save_dir)
@@ -336,9 +336,9 @@ class MlpRunner(object):
         # if all_args.use_wandb:
         #     run.finish()
         # else:
-        # self.writter.export_scalars_to_json(
+        # self.writer.export_scalars_to_json(
         #     str(self.log_dir + '/summary.json'))
-        self.writter.close()
+        self.writer.close()
 
         return self.total_env_steps
 
@@ -489,7 +489,7 @@ class MlpRunner(object):
                 if self.use_wandb:
                     wandb.log({suffix_k: v}, step=self.total_env_steps)
                 else:
-                    self.writter.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)
+                    self.writer.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)
 
     def log_train(self, policy_id, train_info):
         """
@@ -502,14 +502,14 @@ class MlpRunner(object):
             if self.use_wandb:
                 wandb.log({policy_k: v}, step=self.total_env_steps)
             else:
-                self.writter.add_scalars(policy_k, {policy_k: v}, self.total_env_steps)
+                self.writer.add_scalars(policy_k, {policy_k: v}, self.total_env_steps)
 
     def collect_rollout(self):
         """Collect a rollout and store the transitions in the buffer."""
         raise NotImplementedError
     
     def close(self):
-        """Close environment, writter, and log file."""
+        """Close environment, writer, and log file."""
         # post process
         if self.args.render["use_render"]:
             self.envs.close()
@@ -517,6 +517,6 @@ class MlpRunner(object):
             self.envs.close()
             if self.args.eval["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
-            self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
-            self.writter.close()
+            self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
+            self.writer.close()
             self.log_file.close()

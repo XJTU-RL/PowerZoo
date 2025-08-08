@@ -3,6 +3,19 @@
 PowerZoo LLM日志系统包
 """
 
+# 导入基础日志器
+from envs.power_envs.powerzoo_llm.logging.base_logger import (
+    UnifiedLogger,
+    get_logger,
+    setup_training_logger,
+    log_training_step,
+    log_reward_components,
+    log_device_actions,
+    log_training_summary,
+    create_training_debug_logger
+)
+
+# 导入其他日志组件
 from envs.power_envs.powerzoo_llm.logging.powerzoo_llm_logger import PowerZooLLMLogger
 from envs.power_envs.powerzoo_llm.logging.logger_adapter import (
     PowerZooLoggerAdapter,
@@ -19,6 +32,16 @@ from envs.power_envs.powerzoo_llm.logging.unified_logger import (
 )
 
 __all__ = [
+    # 基础日志器
+    'UnifiedLogger',
+    'get_logger',
+    'setup_training_logger',
+    'log_training_step',
+    'log_reward_components',
+    'log_device_actions',
+    'log_training_summary',
+    'create_training_debug_logger',
+    # 其他组件
     'PowerZooLLMLogger',
     'PowerZooLoggerAdapter',
     'get_powerzoo_logger_adapter',

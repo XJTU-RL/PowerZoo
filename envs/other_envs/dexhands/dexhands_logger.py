@@ -47,7 +47,7 @@ class DexHandsLogger(BaseLogger):
                     aver_episode_rewards
                 )
             )
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_rewards",
                 {"aver_rewards": aver_episode_rewards},
                 self.total_num_steps,

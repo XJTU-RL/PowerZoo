@@ -3,7 +3,7 @@
 
 ! 定义辐照度和温度曲线
 New Loadshape.MyIrrad npts=360 sinterval=120 mult=(file=./loadshape/irrad_2025_02_0500_to_1659.csv)
-New Loadshape.MyTemp npts=360 sinterval=120 mult=(file=./loadshape/temp.csv)
+New TShape.MyTemp npts=360 sinterval=120 temp=(file=./loadshape/temp.csv)
 
 ! 定义效率曲线
 New XYCurve.MyEff npts=4 xarray=[.1 .2 .4 1.0] yarray=[.86 .9 .93 .97]

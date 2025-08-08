@@ -36,7 +36,7 @@ except ImportError:
 class DSRLogger:
     """DSR环境日志记录器，兼容PowerZoo框架"""
     
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         """
         初始化DSR日志记录器
         
@@ -45,7 +45,7 @@ class DSRLogger:
             algo_args: 算法参数  
             env_args: 环境参数
             num_agents: 智能体数量
-            writter: TensorBoard写入器
+            writer: TensorBoard写入器
             run_dir: 运行目录
         """
         self.args = args
@@ -53,7 +53,7 @@ class DSRLogger:
         self.env_args = env_args
         self.num_agents = num_agents
         self.run_dir = run_dir
-        self.writter = writter
+        self.writer = writer
         
         # DSR特有的日志记录项
         self.dsr_metrics = {
@@ -334,13 +334,13 @@ class DSRLogger:
                     for key, value in agent_info.items():
                         if isinstance(value, (int, float)):
                             agent_key = f"{prefix}_agent{agent_id}_{key}"
-                            self.writter.add_scalar(f"train/{agent_key}", value, self.episode_count)
+                            self.writer.add_scalar(f"train/{agent_key}", value, self.episode_count)
         # 如果是critic_train_infos（字典格式），直接处理
         elif isinstance(train_infos, dict):
             for key, value in train_infos.items():
                 if isinstance(value, (int, float)):
                     critic_key = f"{prefix}_{key}"
-                    self.writter.add_scalar(f"train/{critic_key}", value, self.episode_count)
+                    self.writer.add_scalar(f"train/{critic_key}", value, self.episode_count)
     
     def _write_metrics_to_tensorboard(self):
         """将所有指标写入TensorBoard"""
@@ -350,32 +350,32 @@ class DSRLogger:
         for metric_name, values in self.dsr_metrics.items():
             if values:
                 avg_value = np.mean(values[-recent_window:])  # 最近窗口的平均值
-                self.writter.add_scalar(f"dsr/{metric_name}", avg_value, self.episode_count)
+                self.writer.add_scalar(f"dsr/{metric_name}", avg_value, self.episode_count)
         
         # 写入系统状态指标
         for metric_name, values in self.system_metrics.items():
             if values:
                 avg_value = np.mean(values[-recent_window:])
-                self.writter.add_scalar(f"system/{metric_name}", avg_value, self.episode_count)
+                self.writer.add_scalar(f"system/{metric_name}", avg_value, self.episode_count)
                 
                 # 对一些关键指标记录最大/最小值
                 if 'loading' in metric_name or 'voltage' in metric_name:
-                    self.writter.add_scalar(f"system/{metric_name}_max", 
+                    self.writer.add_scalar(f"system/{metric_name}_max", 
                                           max(values[-recent_window:]), self.episode_count)
-                    self.writter.add_scalar(f"system/{metric_name}_min", 
+                    self.writer.add_scalar(f"system/{metric_name}_min", 
                                           min(values[-recent_window:]), self.episode_count)
         
         # 写入智能体行为指标
         for metric_name, values in self.agent_metrics.items():
             if values:
                 avg_value = np.mean(values[-recent_window:])
-                self.writter.add_scalar(f"agent/{metric_name}", avg_value, self.episode_count)
+                self.writer.add_scalar(f"agent/{metric_name}", avg_value, self.episode_count)
         
         # 写入恢复过程指标
         for metric_name, values in self.restoration_metrics.items():
             if values:
                 avg_value = np.mean(values[-recent_window:])
-                self.writter.add_scalar(f"restoration/{metric_name}", avg_value, self.episode_count)
+                self.writer.add_scalar(f"restoration/{metric_name}", avg_value, self.episode_count)
         
         # 写入综合指标
         if (self.dsr_metrics['restored_load_ratio'] and 
@@ -391,9 +391,9 @@ class DSRLogger:
                            convergence_score * 0.3 + 
                            effectiveness_score * 0.2)
             
-            self.writter.add_scalar("overview/overall_performance", overall_score, self.episode_count)
-            self.writter.add_scalar("overview/restoration_score", restoration_score, self.episode_count)
-            self.writter.add_scalar("overview/convergence_score", convergence_score, self.episode_count)
+            self.writer.add_scalar("overview/overall_performance", overall_score, self.episode_count)
+            self.writer.add_scalar("overview/restoration_score", restoration_score, self.episode_count)
+            self.writer.add_scalar("overview/convergence_score", convergence_score, self.episode_count)
     
     def eval_log(self, eval_episode, eval_env_infos=None, eval_average_episode_rewards=None):
         """评估日志记录"""
@@ -403,7 +403,7 @@ class DSRLogger:
         
         # 记录评估奖励
         if eval_average_episode_rewards is not None:
-            self.writter.add_scalar("eval/average_episode_rewards", 
+            self.writer.add_scalar("eval/average_episode_rewards", 
                                   np.mean(eval_average_episode_rewards), eval_episode)
             
             if self.args.use_wandb and WANDB_AVAILABLE:
@@ -438,22 +438,22 @@ class DSRLogger:
         if restored_ratios:
             avg_restored_ratio = np.mean(restored_ratios)
             self.eval_metrics['eval_restored_load_ratio'].append(avg_restored_ratio)
-            self.writter.add_scalar("eval/restored_load_ratio", avg_restored_ratio, self.episode_count)
+            self.writer.add_scalar("eval/restored_load_ratio", avg_restored_ratio, self.episode_count)
         
         if energized_ratios:
             avg_energized_ratio = np.mean(energized_ratios)
             self.eval_metrics['eval_energized_buses_ratio'].append(avg_energized_ratio)
-            self.writter.add_scalar("eval/energized_buses_ratio", avg_energized_ratio, self.episode_count)
+            self.writer.add_scalar("eval/energized_buses_ratio", avg_energized_ratio, self.episode_count)
         
         if success_flags:
             success_rate = np.mean(success_flags)
             self.eval_metrics['eval_success_rate'].append(success_rate)
-            self.writter.add_scalar("eval/success_rate", success_rate, self.episode_count)
+            self.writer.add_scalar("eval/success_rate", success_rate, self.episode_count)
         
         if convergence_flags:
             convergence_rate = np.mean(convergence_flags)
             self.eval_metrics['eval_convergence_rate'].append(convergence_rate)
-            self.writter.add_scalar("eval/convergence_rate", convergence_rate, self.episode_count)
+            self.writer.add_scalar("eval/convergence_rate", convergence_rate, self.episode_count)
         
         # WandB记录
         if self.args.use_wandb and WANDB_AVAILABLE:
@@ -476,7 +476,7 @@ class DSRLogger:
         self.total_env_steps = total_num_steps
         
         # 记录训练进度
-        self.writter.add_scalar("train/total_env_steps", total_num_steps, self.episode_count)
+        self.writer.add_scalar("train/total_env_steps", total_num_steps, self.episode_count)
         
         if self.args.use_wandb and WANDB_AVAILABLE:
             wandb.log({
@@ -497,8 +497,8 @@ class DSRLogger:
             self.monitor.generate_final_report()
         
         # 关闭TensorBoard写入器
-        if self.writter:
-            self.writter.close()
+        if self.writer:
+            self.writer.close()
     
     def _save_final_metrics(self):
         """保存最终指标统计"""

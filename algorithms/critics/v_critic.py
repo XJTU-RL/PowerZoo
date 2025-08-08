@@ -129,6 +129,21 @@ class VCritic:
             value_loss = value_loss_original
 
         value_loss = value_loss.mean()
+        
+        # NOTE 算法诊断：价值损失组件分析
+        from utils import happo_diagnostics
+        happo_diagnostics.log_value_loss_components(
+            value_loss=value_loss,
+            values=values,
+            returns=return_batch,
+            value_pred_clipped=value_pred_clipped if self.use_clipped_value_loss else None,
+            old_values=value_preds_batch if self.use_clipped_value_loss else None
+        )
+        
+        # HAPPO诊断：数值稳定性检查
+        happo_diagnostics.check_tensor_stability(value_loss, "value_loss")
+        happo_diagnostics.check_tensor_stability(values, "value_predictions")
+        happo_diagnostics.check_tensor_stability(return_batch, "returns")
 
         return value_loss
 

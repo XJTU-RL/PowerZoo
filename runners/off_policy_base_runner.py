@@ -80,7 +80,7 @@ class OffPolicyBaseRunner:
         self.device = init_device(algo_args["device"])
         self.task_name = get_task_name(args["env"], env_args)
         if not self.algo_args["render"]["use_render"]:
-            self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
+            self.run_dir, self.log_dir, self.save_dir, self.writer = init_dir(
                 args["env"],
                 env_args,
                 args["algo"],
@@ -667,10 +667,10 @@ class OffPolicyBaseRunner:
                         ",".join(map(str, [step, eval_avg_rew, eval_avg_len])) + "\n"
                     )
                 self.log_file.flush()
-                self.writter.add_scalar(
+                self.writer.add_scalar(
                     "eval_average_episode_rewards", eval_avg_rew, step
                 )
-                self.writter.add_scalar(
+                self.writer.add_scalar(
                     "eval_average_episode_length", eval_avg_len, step
                 )
                 break
@@ -770,7 +770,7 @@ class OffPolicyBaseRunner:
             )
 
     def close(self):
-        """Close environment, writter, and log file."""
+        """Close environment, writer, and log file."""
         # post process
         if self.algo_args["render"]["use_render"]:
             self.envs.close()
@@ -778,6 +778,6 @@ class OffPolicyBaseRunner:
             self.envs.close()
             if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
-            self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
-            self.writter.close()
+            self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
+            self.writer.close()
             self.log_file.close()

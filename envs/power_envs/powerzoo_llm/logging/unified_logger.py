@@ -11,7 +11,7 @@ import yaml
 import time
 from datetime import datetime
 
-from envs.power_envs.powerzoo_llm.utils import get_logger
+from envs.power_envs.powerzoo_llm.logging.base_logger import get_logger
 
 logger = get_logger(__name__)
 
