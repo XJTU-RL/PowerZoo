@@ -443,6 +443,15 @@ node_systems/**/ieee13Mod1_duty_*.dss
 !node_systems/**/ieee13Mod1_duty.dss
 node_systems/**/ieee123Mod1_duty_*.dss
 !node_systems/**/ieee123Mod1_duty.dss
+node_systems/**/IEEE13Nodeckt_daily_*.dss
+!node_systems/**/IEEE13Nodeckt_daily.dss
+node_systems/**/IEEE123Master_daily_*.dss
+!node_systems/**/IEEE123Master_daily.dss
+node_systems/**/IEEE123Loads_*.dss
+!node_systems/**/IEEE123Loads.dss
+node_systems/**/IEEE123Loads_daily_*.dss
+!node_systems/**/IEEE123Loads_daily.dss
+
 logs/
 
 # YoYo AI version control directory
