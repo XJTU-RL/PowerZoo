@@ -430,6 +430,11 @@ node_systems/*.csv
 !node_systems/**/LoadShape1.csv
 !node_systems/**/LoadShape2.csv
 !node_systems/**/LoadShape3.csv
+node_systems/**/loadshape_*.dss
+!node_systems/**/loadshape.dss
+node_systems/**/pv_data_*.dss
+!node_systems/**/pv_data.dss
+!node_systems/**/IEEE34_BusXY.csv
 node_systems/34Bus_PV/logs/
 logs/
 

@@ -28,39 +28,11 @@ def load_system_info():
             print(f"Warning: Failed to load system_info.json: {e}")
             print("Falling back to default system info...")
     
-    # 如果文件不存在或加载失败，使用默认值
-    return {
-        '13Bus': {
-            'source_bus': 'sourcebus',
-            'node_size': 500,
-            'shift': 10,
-            'show_node_labels': True
-        },
-        '34Bus': {
-            'source_bus': 'sourcebus',
-            'node_size': 500,
-            'shift': 80,
-            'show_node_labels': True
-        },
-        '34Bus_PV': {
-            'source_bus': 'sourcebus',
-            'node_size': 500,
-            'shift': 80,
-            'show_node_labels': True
-        },
-        '123Bus': {
-            'source_bus': '150',
-            'node_size': 400,
-            'shift': 80,
-            'show_node_labels': True
-        },
-        '8500-Node': {
-            'source_bus': 'e192860',
-            'node_size': 10,
-            'shift': 0,
-            'show_node_labels': False
-        }
-    }
+    # 如果文件不存在或加载失败，抛出错误
+    raise FileNotFoundError(
+        f"系统配置文件 '{config_path}' 不存在或加载失败。"
+        "请确保配置文件存在并包含有效的系统信息。"
+    )
 
 # 加载系统信息
 _SYS_INFO = load_system_info()
@@ -93,252 +65,23 @@ def load_environments_info():
             print(f"Warning: Failed to load environments_info.json: {e}")
             print("Falling back to default environment info...")
     
-    # 如果文件不存在或加载失败，返回空字典（将使用下面的默认值）
-    return {}
+    # 如果文件不存在或加载失败，抛出错误
+    raise FileNotFoundError(
+        f"环境配置文件 '{config_path}' 不存在或加载失败。"
+        "请确保配置文件存在并包含有效的环境配置信息。"
+    )
 
 # 加载环境信息
 _ENV_INFO_FROM_JSON = load_environments_info()
 
-# 默认环境信息（作为后备）
-_ENV_INFO_DEFAULT = {
-    '13Bus': {
-        'system_name': '13Bus',             # 电力系统的名称
-        'dss_file': 'IEEE13Nodeckt_daily.dss',  # 使用duty版本的DSS文件
-        'for_LLM': False,
-        'max_episode_steps': 24,            # 每个仿真episode的最大步数
-        'reg_act_num': 33,                  # 可用的调节动作数量
-        'bat_act_num': 33,                  # 可用的电池动作数量
-        'pv_control': False,                # 默认禁用PV控制
-        'pv_act_num': float('inf'),         # 连续PV控制
-        'power_w': 10.0,                   # 与功率相关的奖励权重
-        'cap_w': 1.0/33,                   # 与电容相关的奖励权重
-        'reg_w': 1.0/33,                   # 与调节动作相关的奖励权重
-        'soc_w': 0.0/33,                   # 与电池状态相关的奖励权重
-        'dis_w': 6.0/33                    # 与电池放电动作相关的奖励权重
-    },
-        '13Bus_with_irrads': {
-        'system_name': '13Bus',             # 电力系统的名称
-        'dss_file': 'IEEE13Nodeckt_duty.dss',  # 使用duty版本的DSS文件
-        'for_LLM': False,
-        'max_episode_steps': 24,            # 每个仿真episode的最大步数
-        'reg_act_num': 33,                  # 可用的调节动作数量
-        'bat_act_num': 33,                  # 可用的电池动作数量
-        'power_w': 10.0,                   # 与功率相关的奖励权重
-        'cap_w': 1.0/33,                   # 与电容相关的奖励权重
-        'reg_w': 1.0/33,                   # 与调节动作相关的奖励权重
-        'soc_w': 0.0/33,                   # 与电池状态相关的奖励权重
-        'dis_w': 6.0/33                    # 与电池放电动作相关的奖励权重
-    },
-   
-    '13Bus_cbat': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_duty.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 6.0/33,
-    },
-   
-    '13Bus_soc': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_duty.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 20.0/33,
-        'dis_w': 1.0/33
-    },
+# 使用JSON文件中的信息，如果不存在则抛出错误
+if not _ENV_INFO_FROM_JSON:
+    raise FileNotFoundError(
+        "环境配置文件 'configs/sys_cfgs/environments_info.json' 不存在或为空。"
+        "请确保配置文件存在并包含有效的环境配置信息。"
+    )
 
-    '13Bus_cbat_soc': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 20.0/33,
-        'dis_w': 1.0/33,
-    },
-
-    '34Bus': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_duty.dss',
-        'for_LLM': False,
-        'max_episode_steps': 360,           # 匹配loadshape数据点数
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'pv_control': False,                # 默认禁用PV控制
-        'pv_act_num': float('inf'),         # 连续PV控制
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-    },
-    '34Bus_pv': {
-        'system_name': '34Bus_PV',
-        'dss_file': 'ieee34Mod1_duty.dss',
-        'for_LLM': False,
-        'max_episode_steps': 360,           # 匹配loadshape数据点数和配置文件episode_length
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'pv_control': True,                 # 启用PV控制
-        'pv_act_num': float('inf'),         # 启用连续PV控制，如果是离散则填入整数值
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-        'pv_w': 2.0/33,                    # PV控制奖励权重
-    },
-    
-    '34Bus_pv_discrete': {
-        'system_name': '34Bus_PV',
-        'dss_file': 'ieee34Mod1_duty.dss',
-        'for_LLM': False,
-        'max_episode_steps': 360,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'pv_control': True,                 # 启用PV控制
-        'pv_act_num': 21,                   # 离散PV控制 (21个等级)
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-        'pv_w': 2.0/33,                    # PV控制奖励权重
-    },
-
-    '34Bus_cbat': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-    },
-
-    '34Bus_soc': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 4.0/33,
-    },
-
-    '34Bus_cbat_soc': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 4.0/33,
-    },
-
-    '123Bus': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'for_LLM': False,
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 7.0/33,
-    },
-
-    '123Bus_cbat': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 7.0/33,
-    },
-
-    '123Bus_soc': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    '123Bus_cbat_soc': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    '8500Node': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 200.0/33,
-    },
-    
-    '8500Node_cbat': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 200.0/33,
-    },
-}
-
-# 使用JSON文件中的信息，如果不存在则使用默认值
-_ENV_INFO = _ENV_INFO_FROM_JSON if _ENV_INFO_FROM_JSON else _ENV_INFO_DEFAULT
+_ENV_INFO = _ENV_INFO_FROM_JSON
 
 # add system information to environment
 for env in _ENV_INFO.keys():
@@ -352,7 +95,7 @@ for env in _ENV_INFO.keys():
 
 
 def get_data_root():
-    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent  # 项目根目录位置（需要再往上一级）
+    ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent # 项目根目录位置（需要再往上一级）
     return ROOT_DIR  # 返回项目根目录，system_name中已包含node_systems路径
 
 def get_info_from_config(env_name, config_dict=None):

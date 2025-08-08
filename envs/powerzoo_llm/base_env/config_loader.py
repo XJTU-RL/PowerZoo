@@ -153,5 +153,18 @@ def get_env_config(env_name: str, env_args: Dict[str, Any] = None) -> Dict[str, 
     # 设置默认值
     config.setdefault('max_episode_steps', 360)
     config.setdefault('for_LLM', False)
+    config.setdefault('reg_act_num', 33)
+    config.setdefault('bat_act_num', 33)
+    config.setdefault('pv_control', False)
+    config.setdefault('pv_act_num', float('inf'))
+    
+    # 确保奖励权重存在
+    config.setdefault('power_w', 1.0)
+    config.setdefault('cap_w', 0.0303)
+    config.setdefault('reg_w', 0.0303)
+    config.setdefault('soc_w', 0.0)
+    config.setdefault('dis_w', 0.303)
+    if config.get('pv_control'):
+        config.setdefault('pv_w', 0.0606)
     
     return config

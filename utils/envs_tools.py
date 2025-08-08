@@ -191,21 +191,6 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
         
-    elif env_name == "dexhands":
-        from envs.other_envs.dexhands.dexhands_env import DexHandsEnv
-
-        env = DexHandsEnv({"n_threads": 64, **env_args})
-        manual_render = False  # dexhands renders automatically
-        manual_expand_dims = (
-            False  # dexhands uses parallel envs, thus dimension is already expanded
-        )
-        manual_delay = False
-        env_num = 64
-    elif env_name == "lag":
-        from envs.other_envs.lag.lag_env import LAGEnv
-
-        env = LAGEnv(env_args)
-        env.seed(seed * 60000)
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError

@@ -4,7 +4,7 @@ import gym
 import numpy as np
 from envs.powerzoo_llm.circuit_system import Circuits
 from envs.powerzoo_llm.data_process.loadprofile import LoadProfile
-from envs.powerzoo_llm.base_env.reward_functions import PowerZooReward
+from envs.powerzoo_llm.rewards.powerzoo_reward import PowerZooReward
 from envs.powerzoo_llm.rewards.lagrangian import LagrangianUpdater
 import networkx as nx
 import matplotlib.pyplot as plt
