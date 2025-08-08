@@ -559,10 +559,6 @@ class OffPolicyBaseRunner:
             one_episode_rewards.append([])
             eval_episode_rewards.append([])
         eval_episode = 0
-        if "smac" in self.args["env"]:
-            eval_battles_won = 0
-        if "football" in self.args["env"]:
-            eval_score_cnt = 0
         episode_lens = []
         one_episode_len = np.zeros(
             self.algo_args["eval"]["n_eval_rollout_threads"], dtype=np.int
@@ -592,16 +588,6 @@ class OffPolicyBaseRunner:
             for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
                 if eval_dones_env[eval_i]:
                     eval_episode += 1
-                    if "smac" in self.args["env"]:
-                        if "v2" in self.args["env"]:
-                            if eval_infos[eval_i][0]["battle_won"]:
-                                eval_battles_won += 1
-                        else:
-                            if eval_infos[eval_i][0]["won"]:
-                                eval_battles_won += 1
-                    if "football" in self.args["env"]:
-                        if eval_infos[eval_i][0]["score_reward"] > 0:
-                            eval_score_cnt += 1
                     eval_episode_rewards[eval_i].append(
                         np.sum(one_episode_rewards[eval_i], axis=0)
                     )
@@ -616,54 +602,11 @@ class OffPolicyBaseRunner:
                 )
                 eval_avg_rew = np.mean(eval_episode_rewards)
                 eval_avg_len = np.mean(episode_lens)
-                if "smac" in self.args["env"]:
-                    print(
-                        "Eval win rate is {}, eval average episode rewards is {}, eval average episode length is {}.".format(
-                            eval_battles_won / eval_episode, eval_avg_rew, eval_avg_len
-                        )
-                    )
-                elif "football" in self.args["env"]:
-                    print(
-                        "Eval score rate is {}, eval average episode rewards is {}, eval average episode length is {}.".format(
-                            eval_score_cnt / eval_episode, eval_avg_rew, eval_avg_len
-                        )
-                    )
-                else:
-                    print(
+                
+                print(
                         f"Eval average episode reward is {eval_avg_rew}, eval average episode length is {eval_avg_len}.\n"
                     )
-                if "smac" in self.args["env"]:
-                    self.log_file.write(
-                        ",".join(
-                            map(
-                                str,
-                                [
-                                    step,
-                                    eval_avg_rew,
-                                    eval_avg_len,
-                                    eval_battles_won / eval_episode,
-                                ],
-                            )
-                        )
-                        + "\n"
-                    )
-                elif "football" in self.args["env"]:
-                    self.log_file.write(
-                        ",".join(
-                            map(
-                                str,
-                                [
-                                    step,
-                                    eval_avg_rew,
-                                    eval_avg_len,
-                                    eval_score_cnt / eval_episode,
-                                ],
-                            )
-                        )
-                        + "\n"
-                    )
-                else:
-                    self.log_file.write(
+                self.log_file.write(
                         ",".join(map(str, [step, eval_avg_rew, eval_avg_len])) + "\n"
                     )
                 self.log_file.flush()
@@ -738,11 +681,6 @@ class OffPolicyBaseRunner:
                     if eval_dones[0][0]:
                         print(f"total reward of this episode: {rewards}")
                         break
-        if "smac" in self.args["env"]:  # replay for smac, no rendering
-            if "v2" in self.args["env"]:
-                self.envs.env.save_replay()
-            else:
-                self.envs.save_replay()
 
     def restore(self):
         """Restore the model"""

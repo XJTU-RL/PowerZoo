@@ -1146,11 +1146,6 @@ class OnPolicyBaseRunner:
                         print(f"total reward of this episode: {rewards}")
                         break
                 save_render(item_arrays,self.algo_args["train"]["model_dir"])
-        if "smac" in self.args["env"]:  # replay for smac, no rendering
-            if "v2" in self.args["env"]:
-                self.envs.env.save_replay()
-            else:
-                self.envs.save_replay()
 
     def prep_rollout(self):
         """Prepare for rollout."""
