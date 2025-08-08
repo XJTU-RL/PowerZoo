@@ -46,9 +46,9 @@ except ImportError:
     print("Warning: HER is not available. Please install stable-baselines3[extra] for HER support.")
 
 # PowerZoo imports
-from envs.power_envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
+from envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
 from utils.tensorboard_callback import EnhancedTensorBoardCallback
-from envs.power_envs.powerzoo_llm.model_utils.model_manager import ModelManager
+from envs.powerzoo_llm.model_utils.model_manager import ModelManager
 
 # 算法映射字典
 ALGORITHM_REGISTRY = {
@@ -83,7 +83,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
 def create_environment(env_config: Dict[str, Any], seed: Optional[int] = None):
     """创建PowerZoo单智能体环境"""
-    from envs.power_envs.powerzoo_llm.single_agent.single_agent_config import SingleAgentConfig
+    from envs.powerzoo_llm.single_agent.single_agent_config import SingleAgentConfig
     
     # 创建配置对象
     config = SingleAgentConfig(

@@ -30,8 +30,8 @@ from utils.tensorboard_callback import (
 
 # 导入PowerZoo环境（如果可用）
 try:
-    from envs.power_envs.powerzoo_llm.env import SingleAgentPowerZooEnv
-    from envs.power_envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentConfig
+    from envs.powerzoo_llm.env import SingleAgentPowerZooEnv
+    from envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentConfig
     POWERZOO_AVAILABLE = True
 except ImportError:
     POWERZOO_AVAILABLE = False

@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Optional imports for extended functionality
 try:
-    from envs.power_envs.powerzoo_llm.logging.system_logger import SystemLogger, SystemState
+    from envs.powerzoo_llm.logging.system_logger import SystemLogger, SystemState
     SYSTEM_LOGGER_AVAILABLE = True
 except ImportError:
     SYSTEM_LOGGER_AVAILABLE = False
@@ -23,7 +23,7 @@ except ImportError:
     SystemState = None
 
 try:
-    from envs.power_envs.powerzoo_llm.logging.powerzoo_llm_logger import PowerZooLLMLogger
+    from envs.powerzoo_llm.logging.powerzoo_llm_logger import PowerZooLLMLogger
     POWERZOO_LOGGER_AVAILABLE = True
 except ImportError:
     POWERZOO_LOGGER_AVAILABLE = False

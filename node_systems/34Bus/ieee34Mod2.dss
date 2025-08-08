@@ -6,7 +6,7 @@
 Clear
 
 New object=circuit.ieee34-2
-~ basekv=69 pu=1.05 angle=30 mvasc3=200000  !stiffen up a bit over default
+~ basekv=69 pu=1 angle=30 mvasc3=200000  !stiffen up a bit over default
 
 ! Substation Transformer  -- Modification: Make source very stiff by using artificially low short circuit reactance
 New Transformer.SubXF Phases=3 Windings=2 Xhl=0.001 ppm=0    ! Very low %Z and no shunt reactance added

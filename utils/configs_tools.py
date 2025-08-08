@@ -56,29 +56,7 @@ def update_args(unparsed_dict, *args):
 
 
 def get_task_name(env, env_args):
-    """Get task name."""
-    if env == "smac":
-        task = env_args["map_name"]
-    elif env == "smacv2":
-        task = env_args["map_name"]
-    elif env == "mamujoco":
-        task = f"{env_args['scenario']}-{env_args['agent_conf']}"
-    elif env == "pettingzoo_mpe":
-        if env_args["continuous_actions"]:
-            task = f"{env_args['scenario']}-continuous"
-        else:
-            task = f"{env_args['scenario']}-discrete"
-    elif env == "dsr":
-        task = env_args["env_args"]["system_name"]
-    elif env == "gym":
-        task = env_args["scenario"]
-    elif env == "football":
-        task = env_args["env_name"]
-    elif env == "dexhands":
-        task = env_args["task"]
-    elif env == "lag":
-        task = f"{env_args['scenario']}-{env_args['task']}"
-    elif env == "powerzoo": 
+    if env == "powerzoo": 
         task = env_args["env_name"]
     elif env == "powerzoo_llm":
         task = env_args["env_name"]

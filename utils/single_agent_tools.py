@@ -38,9 +38,9 @@ from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.logger import configure
 
 # PowerZoo imports
-from envs.power_envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
-from envs.power_envs.powerzoo_llm.single_agent.single_agent_config import SingleAgentConfig
-from envs.power_envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentTrainingConfig
+from envs.powerzoo_llm.single_agent.single_agent_env import SingleAgentPowerZooEnv
+from envs.powerzoo_llm.single_agent.single_agent_config import SingleAgentConfig
+from envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentTrainingConfig
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ use_action_explanation: False
 # 环境特定配置（从happo_powerzoo_pv.yaml迁移）
 environment_specific:
   # 系统配置
-  system_name: "34Bus_PV_Aggressive"  # 修复: 使用正确的目录名
+  system_name: "34Bus_PV_Aggressive"  
   dss_file: "ieee34Mod1_duty.dss"
   
   # 设备控制配置

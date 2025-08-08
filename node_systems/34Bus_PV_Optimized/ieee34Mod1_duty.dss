@@ -4,7 +4,7 @@
 Clear
 
 New object=circuit.ieee34-1
-~ basekv=69 pu=1.05 angle=30 mvasc3=200000  !stiffen up a bit over DSS default
+~ basekv=69 pu=1 angle=30 mvasc3=200000  !stiffen up a bit over DSS default
 
 ! Substation Transformer  -- Modification: Make source very stiff by defining a tiny leakage Z
 New Transformer.SubXF Phases=3 Windings=2 Xhl=0.01    ! normally 8
@@ -252,11 +252,11 @@ redirect pv_data.dss
 
 ! Set up control and analysis parameters
 Set ControlMode=Static  
-Set MaxIterations=15  
+Set MaxIterations=25  
 
 ! let the DSS estimate voltage bases automatically
 Set VoltageBases = "69, 24.9, 4.16, .48"
 CalcVoltageBases
 BusCoords IEEE34_BusXY.csv
-Set mode=duty number=360 hour=0 stepsize=60 sec=0 
+Set mode=duty number=1 hour=0 stepsize=60 sec=0 
 Set SampleEnergyMeters=Yes

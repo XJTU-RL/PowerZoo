@@ -39,7 +39,7 @@ project_root = Path(__file__).parent.parent.parent.parent.absolute()
 sys.path.insert(0, str(project_root))
 
 # 导入自定义模块
-from envs.power_envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentTrainingConfig, get_config
+from envs.powerzoo_llm.single_agent.single_agent_training_config import SingleAgentTrainingConfig, get_config
 from utils.single_agent_tools import (
     create_single_agent_env,
     create_model,

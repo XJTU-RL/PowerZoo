@@ -4,7 +4,7 @@
 Clear
 
 New object=circuit.ieee34-1
-~ basekv=69 pu=1.05 angle=30 mvasc3=200000  
+~ basekv=69 pu=1 angle=30 mvasc3=200000  
 
 ! Substation Transformer  
 New Transformer.SubXF Phases=3 Windings=2 Xhl=0.01    
@@ -221,21 +221,21 @@ Load.d846_848sb.vminpu=.85
 Load.d846_848rb.vminpu=.85
 
 !BATTERY DEFINITIONS
-New Generator.batt1 bus1=890.1.2.3 kV=4.16 kW=0 pf=0.95 conn=Delta Model=1
-New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 pf=0.95 conn=Delta Model=1
+New Generator.batt1 bus1=890.1.2.3 kV=4.16 kW=0 PF=1 conn=Delta Model=1
+New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 PF=1 conn=Delta Model=1
 
 ! ========== PV SYSTEM CONFIGURATION - AGGRESSIVE PLAN ==========
 ! Total PV Capacity: 1080 kW (61% penetration)
 ! Load PV data and system definitions
-redirect pv_data_0.dss
+redirect pv_data_2.dss
 
 ! Set up control and analysis parameters
 Set ControlMode=Static  
-Set MaxIterations=15  
+Set MaxIterations=25  
 
 ! let the DSS estimate voltage bases automatically
 Set VoltageBases = "69, 24.9, 4.16, .48"
 CalcVoltageBases
 BusCoords IEEE34_BusXY.csv
-Set mode=duty number=360 hour=0 stepsize=60 sec=0 
+Set mode=duty stepsize=60 number=1 hour=0  sec=0 
 Set SampleEnergyMeters=Yes
