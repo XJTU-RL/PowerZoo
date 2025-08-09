@@ -586,11 +586,12 @@ class Env(gym.Env):
                     info['pv_utilization'] = float(np.mean(valid_powers))
 
         # 电池 SOC
-        info['battery_avg_soc'] = 0.5
-        if self.bat_num > 0 and bat_statuses:
-            soc_values = [soc for soc, _ in bat_statuses.values()]
-            if soc_values:
-                info['battery_avg_soc'] = float(np.mean(soc_values))
+        if self.bat_num > 0:
+            info['battery_avg_soc'] = 0.0
+            if bat_statuses:
+                soc_values = [soc for soc, _ in bat_statuses.values()]
+                if soc_values:
+                    info['battery_avg_soc'] = float(np.mean(soc_values))
 
         # 可选：无功电压敏感度
         if self.useS is True:

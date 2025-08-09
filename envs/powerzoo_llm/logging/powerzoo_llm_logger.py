@@ -254,7 +254,7 @@ class PowerZooLLMLogger(BaseLogger):
         # 解析电池系统信息
         battery_charge = self._extract_info_value(infos, 'battery_charge_kw', 0)
         battery_discharge = self._extract_info_value(infos, 'battery_discharge_kw', 0)
-        battery_soc = self._extract_info_value(infos, 'battery_avg_soc', 0.5)
+        battery_soc = self._extract_info_value(infos, 'battery_avg_soc', 0.0)
         
         # 解析PV系统信息
         pv_output_kw = self._extract_info_value(infos, 'pv_output_kw', 0)
@@ -631,7 +631,7 @@ class PowerZooLLMLogger(BaseLogger):
             # 电池系统
             "battery_charge_kw": safe_mean(self.done_episodes_battery_charge),
             "battery_discharge_kw": safe_mean(self.done_episodes_battery_discharge),
-            "battery_avg_soc": safe_mean(self.done_episodes_battery_soc, 0.5),  # 保持为0-1范围，格式化时转换
+            "battery_avg_soc": safe_mean(self.done_episodes_battery_soc, 0.0),  # 保持为0-1范围，格式化时转换
             
             # PV系统
             "pv_output_kw": safe_mean(self.done_episodes_pv_output_kw),
@@ -852,7 +852,7 @@ class PowerZooLLMLogger(BaseLogger):
             'regulator_control': ('regulator_ctrl', 0),
             'battery_charge': ('battery_charge_kw', 0),
             'battery_discharge': ('battery_discharge_kw', 0),
-            'battery_soc': ('battery_avg_soc', 0.5),
+            'battery_soc': ('battery_avg_soc', 0.0),
             'pv_output_kw': ('pv_output_kw', 0),
             'pv_power_factor': ('pv_avg_power_factor', 1.0),
             'pv_utilization_eval': ('pv_utilization', 0),
