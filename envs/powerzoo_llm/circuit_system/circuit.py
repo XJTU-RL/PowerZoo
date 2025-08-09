@@ -996,8 +996,9 @@ class Circuits:
 		
 		返回值:
 			来自主电源的总功率(kW, kvar)
+			(OpenDSS的``TotalPower``属性已经返回kW/kVar)
 		'''
-		power = self.dss.ActiveCircuit.TotalPower  # complex类型，单位：W + jVar
+		power = self.dss.ActiveCircuit.TotalPower  # complex类型，单位：kW + jkVar
 		
 		# 处理可能的数组类型
 		if hasattr(power, '__len__') and len(power) > 0:
@@ -1007,7 +1008,7 @@ class Circuits:
 			real_W = float(power.real)
 			imag_W = float(power.imag)
 		
-		return real_W / 1000, imag_W / 1000
+		return real_W, imag_W
 	
 	def total_load_power(self):
 		'''
@@ -1041,15 +1042,12 @@ class Circuits:
 			# 获取系统损耗
 			loss_kw, _ = self.total_loss()
 			
-			# 获取总负载功率
+			# 获取来自电源的总功率和总负载功率
+			source_kw, _ = self.total_power()
 			load_kw, _ = self.total_load_power()
 			
-			# 如果负载功率很小，使用来自电源的功率作为备选
-			if load_kw < 10.0:  # 小于10kW时使用电源功率
-				source_kw, _ = self.total_power()
-				denominator = max(abs(source_kw), abs(load_kw), 1.0)
-			else:
-				denominator = load_kw
+			# 使用较大的功率值作为分母，确保分母为正
+			denominator = max(abs(source_kw), abs(load_kw), 1.0)
 			
 			# 计算损失百分比
 			loss_percentage = (loss_kw / denominator) * 100.0
