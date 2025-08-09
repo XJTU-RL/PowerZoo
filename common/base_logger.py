@@ -34,14 +34,14 @@ class BaseLogger:
     Used for logging information in the on-policy training pipeline.用于记录在基于策略的训练流程中的信息
     """
 
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
         """Initialize the logger."""
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
         self.task_name = self.get_task_name()
         self.num_agents = num_agents
-        self.writter = writter
+        self.writer = writer
         self.run_dir = run_dir
   
         # 打开一个文件，用于记录训练进度
@@ -74,14 +74,14 @@ class BaseLogger:
                 # 将key和value添加到text中
                 text += f"\t{key}: {value}\n"+ '\n'
 
-        # 将文本添加到 self.writter 中
-        self.writter.add_text("algo_hyperparameters", text)
+        # 将文本添加到 self.writer 中
+        self.writer.add_text("algo_hyperparameters", text)
         text = ""
         for key, value in env_args.items():
             text += f"{key}: {value}\n" + '\n'
 
-        # 将文本添加到 self.writter 中
-        self.writter.add_text("env_parameters", text)
+        # 将文本添加到 self.writer 中
+        self.writer.add_text("env_parameters", text)
 
     def get_task_name(self):
         """Get the task name."""
@@ -95,6 +95,14 @@ class BaseLogger:
             self.algo_args["train"]["n_rollout_threads"]
         )#意思是algo_args["train"]类下n_rollout_threads的值，此处创建了一个大小为参数cogfig中设置的训练线程数量的rewards的值，用于存放每个线程的episode_rewards.
         self.done_episodes_rewards = []
+        
+        # 写入初始信息到progress.txt
+        self.log_file.write(f"{'='*80}\n")
+        self.log_file.write(f"Training started at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        self.log_file.write(f"Total episodes: {episodes}, Total steps: {self.algo_args['train']['num_env_steps']}\n")
+        self.log_file.write(f"Environment: {self.args['env']}, Algorithm: {self.args['algo']}\n")
+        self.log_file.write(f"{'='*80}\n\n")
+        self.log_file.flush()
 
     def episode_init(self, episode):
         """Initialize the logger for each episode."""
@@ -156,6 +164,9 @@ class BaseLogger:
             )
         )
 
+        # 记录详细的训练进度信息到progress.txt
+        self._log_detailed_progress(actor_train_infos, critic_train_info)
+
         if len(self.done_episodes_rewards) > 0:
             aver_episode_rewards = np.mean(self.done_episodes_rewards)
             print(
@@ -163,12 +174,30 @@ class BaseLogger:
                     aver_episode_rewards
                 )
             )
-            self.writter.add_scalars(
+            self.writer.add_scalars(
                 "train_episode_rewards",
                 {"aver_rewards": aver_episode_rewards},
                 self.total_num_steps,
             )
+            
+            # 也记录到progress.txt
+            self.log_file.write(
+                f"[COMPLETED] Episode {self.episode}, Steps {self.total_num_steps}, "
+                f"Avg Episode Reward: {aver_episode_rewards:.4f}, "
+                f"FPS: {int(self.total_num_steps / (self.end - self.start))}\n"
+            )
+            self.log_file.flush()
+            
             self.done_episodes_rewards = []
+        else:
+            # 即使没有完成的episode，也记录当前进度（每隔一定间隔）
+            if self.episode % max(1, min(5, self.episodes // 20)) == 0:
+                self.log_file.write(
+                    f"[TRAINING] Episode {self.episode}, Steps {self.total_num_steps}, "
+                    f"Avg Step Reward: {critic_train_info.get('average_step_rewards', 0):.4f}, "
+                    f"FPS: {int(self.total_num_steps / (self.end - self.start))}\n"
+                )
+                self.log_file.flush()
 
     def eval_init(self):
         """Initialize the logger for evaluation."""
@@ -215,9 +244,17 @@ class BaseLogger:
         }
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
-        print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
+        eval_max_rew = np.max(self.eval_episode_rewards)
+        eval_min_rew = np.min(self.eval_episode_rewards)
+        
+        print("Evaluation average episode reward is {:.4f} (max: {:.4f}, min: {:.4f}).\n".format(
+            eval_avg_rew, eval_max_rew, eval_min_rew))
+        
+        # 更详细的eval进度记录
         self.log_file.write(
-            ",".join(map(str, [self.total_num_steps, eval_avg_rew])) + "\n"
+            f"[EVAL] Episode {eval_episode}, Steps {self.total_num_steps}, "
+            f"Avg Reward: {eval_avg_rew:.4f}, Max: {eval_max_rew:.4f}, "
+            f"Min: {eval_min_rew:.4f}, Eval Episodes: {len(self.eval_episode_rewards)}\n"
         )
         self.log_file.flush()
 
@@ -227,18 +264,94 @@ class BaseLogger:
         for agent_id in range(self.num_agents):
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
-                self.writter.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
+                self.writer.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
-            self.writter.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
+            self.writer.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
 
     def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
-                self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+                self.writer.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+
+    def _log_detailed_progress(self, actor_train_infos, critic_train_info):
+        """记录详细的训练进度信息到progress.txt和train_info.txt
+        
+        Args:
+            actor_train_infos: 各智能体的actor训练信息列表
+            critic_train_info: critic训练信息
+        """
+        try:
+            # 构建训练信息摘要
+            train_summary = []
+            train_summary.append(f"\n{'='*80}")
+            train_summary.append(f"Episode {self.episode} | Total Steps {self.total_num_steps}")
+            train_summary.append(f"{'='*80}")
+            
+            # Critic信息
+            train_summary.append("\n[Critic Info]")
+            if 'value_loss' in critic_train_info:
+                train_summary.append(f"  Value Loss: {critic_train_info['value_loss']:.6f}")
+            if 'critic_grad_norm' in critic_train_info:
+                train_summary.append(f"  Grad Norm: {critic_train_info['critic_grad_norm']:.4f}")
+            if 'average_step_rewards' in critic_train_info:
+                train_summary.append(f"  Avg Step Reward: {critic_train_info['average_step_rewards']:.4f}")
+                
+            # Actor信息（每个智能体）
+            train_summary.append("\n[Actor Info by Agent]")
+            for agent_id, info in enumerate(actor_train_infos):
+                train_summary.append(f"\n  Agent {agent_id}:")
+                if 'policy_loss' in info:
+                    train_summary.append(f"    Policy Loss: {info['policy_loss']:.6f}")
+                if 'dist_entropy' in info:
+                    train_summary.append(f"    Entropy: {info['dist_entropy']:.4f}")
+                if 'actor_grad_norm' in info:
+                    train_summary.append(f"    Grad Norm: {info['actor_grad_norm']:.4f}")
+                if 'approx_kl' in info:
+                    train_summary.append(f"    Approx KL: {info['approx_kl']:.6f}")
+                if 'clipfrac' in info:
+                    train_summary.append(f"    Clip Fraction: {info['clipfrac']:.4f}")
+                    
+            # 写入train_info.txt
+            train_info_str = '\n'.join(train_summary) + '\n'
+            self.log_training_info.write(train_info_str)
+            self.log_training_info.flush()
+            
+            # 构建简化的进度信息写入progress.txt - 更频繁记录以便monitoring
+            # 改进的自适应记录间隔：每1%进度或每个episode（取更小值）
+            progress_interval = max(1, min(10, max(1, self.episodes // 100)))  # 确保至少每个episode记录一次
+            # 同时增加一个条件：前10个episode都记录，之后按间隔记录
+            should_log = (self.episode <= 10) or (self.episode % progress_interval == 0) or (self.episode == self.episodes)
+            if should_log:  # 更智能的记录条件
+                progress_info = (
+                    f"\nEpisode {self.episode}/{self.episodes} | "
+                    f"Steps {self.total_num_steps}/{self.algo_args['train']['num_env_steps']} | "
+                    f"Progress: {(self.episode/self.episodes)*100:.1f}% | "
+                    f"Avg Step Reward: {critic_train_info.get('average_step_rewards', 0):.4f} | "
+                )
+                
+                # 添加平均policy loss
+                avg_policy_loss = np.mean([info.get('policy_loss', 0) for info in actor_train_infos])
+                progress_info += f"Avg Policy Loss: {avg_policy_loss:.6f} | "
+                
+                # 添加平均entropy
+                avg_entropy = np.mean([info.get('dist_entropy', 0) for info in actor_train_infos])
+                progress_info += f"Avg Entropy: {avg_entropy:.4f} | "
+                
+                # 添加critic value loss
+                if 'value_loss' in critic_train_info:
+                    progress_info += f"Value Loss: {critic_train_info['value_loss']:.6f}"
+                    
+                self.log_file.write(progress_info + '\n')
+                self.log_file.flush()
+                
+        except Exception as e:
+            print(f"记录详细进度时出错: {e}")
 
     def close(self):
         """Close the logger."""
         self.log_file.close()
+        self.log_training_info.close()
+        self.log_eval_info.close()

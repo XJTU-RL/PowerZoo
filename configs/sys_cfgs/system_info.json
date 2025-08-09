@@ -1,0 +1,60 @@
+{
+  "system_info": {
+    "13Bus": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 10,
+      "show_node_labels": true,
+      "description": "IEEE 13-bus test feeder system"
+    },
+    "34Bus": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 34-bus test feeder system"
+    },
+    "34Bus_PV": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 34-bus test feeder with PV integration"
+    },
+    "123Bus": {
+      "source_bus": "150",
+      "node_size": 400,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 123-bus test feeder system"
+    },
+    "8500-Node": {
+      "source_bus": "e192860",
+      "node_size": 10,
+      "shift": 0,
+      "show_node_labels": false,
+      "description": "IEEE 8500-node test feeder system"
+    },
+    "34Bus_PV_Conservative": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 34-bus with conservative PV expansion (720kW)"
+    },
+    "34Bus_PV_Optimized": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 34-bus with optimized PV expansion (900kW)"
+    },
+    "34Bus_PV_Aggressive": {
+      "source_bus": "sourcebus",
+      "node_size": 500,
+      "shift": 80,
+      "show_node_labels": true,
+      "description": "IEEE 34-bus with aggressive PV expansion (1080kW)"
+    }
+  }
+}

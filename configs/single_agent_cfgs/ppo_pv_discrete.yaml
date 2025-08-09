@@ -1,0 +1,105 @@
+# PPO算法配置 - 光伏离散控制专用
+# 适用于包含光伏系统的单智能体强化学习控制
+
+# 随机种子和设备设置
+seed: 1
+device: "cuda"  # 使用GPU加速，如果没有GPU可改为"cpu"
+
+# 训练参数
+num_env_processes: 8  # 并行环境数量
+num_env_steps: 2000000  # 总训练步数
+episode_length: 24  # 每个episode的长度（24小时）
+
+# 日志和评估设置
+log_interval: 10  # 日志记录间隔
+eval_interval: 25  # 评估间隔
+eval_episodes: 32  # 评估时的episode数量
+
+# 学习率调度
+use_linear_lr_decay: true  # 使用线性学习率衰减
+
+# 模型保存设置
+save_interval: 100  # 模型保存间隔
+model_dir: "./results/models/ppo_pv_discrete"  # 模型保存目录
+
+# 评估和渲染
+use_eval: true  # 启用评估
+use_render: false  # 不启用渲染（训练时）
+render_episodes: 5  # 渲染的episode数量
+
+# PPO算法特定参数
+algorithm_name: "ppo"  # 算法名称
+
+# PPO超参数
+ppo_epoch: 15  # PPO更新轮数
+num_mini_batch: 1  # 小批次数量
+value_loss_coef: 1  # 价值损失系数
+entropy_coef: 0.01  # 熵正则化系数
+max_grad_norm: 10.0  # 梯度裁剪阈值
+clip_param: 0.2  # PPO裁剪参数
+use_clipped_value_loss: true  # 使用裁剪的价值损失
+
+# 学习率
+lr: 5e-4  # 学习率
+critic_lr: 5e-4  # 评论家网络学习率
+
+# 折扣因子和优势估计
+gamma: 0.99  # 折扣因子
+gae_lambda: 0.95  # GAE lambda参数
+use_gae: true  # 使用广义优势估计
+
+# 网络架构
+hidden_size: 64  # 隐藏层大小
+layer_N: 2  # 网络层数
+use_orthogonal_init: true  # 使用正交初始化
+activation_id: 1  # 激活函数ID (1=ReLU)
+
+# 经验回放
+use_naive_recurrent_policy: false  # 不使用循环策略
+use_recurrent_policy: false  # 不使用循环策略
+recurrent_N: 1  # 循环层数
+data_chunk_length: 10  # 数据块长度
+
+# 其他设置
+use_valuenorm: false  # 不使用价值归一化
+use_feature_normalization: true  # 使用特征归一化
+use_popart: false  # 不使用PopArt
+
+# 环境特定设置
+env_name: "single_agent_powerzoo"  # 环境名称
+scenario_name: "13Bus_pv_discrete"  # 场景名称
+
+# 单智能体环境配置
+single_agent_config:
+  circuit: "13Bus"  # 使用13Bus电路
+  action_space_type: "discrete"  # 使用离散动作空间
+  wrap_observation: true  # 包装观测空间
+  observe_load: true  # 观测负荷信息
+  
+  # 光伏控制设置
+  pv_control: true  # 启用光伏控制
+  pv_act_num: 5  # 光伏离散动作数量（5个功率档位）
+  
+  # 其他设备控制
+  enable_capacitors: true  # 启用电容器控制
+  enable_regulators: true  # 启用调压器控制
+  enable_batteries: false  # 禁用电池控制（13Bus默认无电池）
+  enable_pv_systems: true  # 启用光伏系统控制
+  
+  # 奖励权重
+  power_w: 1.0  # 功率损失权重
+  voltage_penalty_weight: 10.0  # 电压越限惩罚权重
+  pv_w: 0.1  # 光伏动作惩罚权重
+  
+  # 训练设置
+  max_episode_steps: 24  # 最大episode步数
+  seed: 1  # 环境随机种子
+
+# 实验设置
+exp_name: "ppo_pv_discrete_13bus"  # 实验名称
+run_dir: "./results/runs"  # 运行结果目录
+log_dir: "./results/logs"  # 日志目录
+
+# 调试设置
+use_wandb: false  # 不使用wandb
+use_tensorboard: true  # 使用tensorboard

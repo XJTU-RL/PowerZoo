@@ -25,14 +25,18 @@ class FixedNormal(torch.distributions.Normal):
     """Modify standard PyTorch Normal."""
 
     def log_probs(self, actions):
-        return super().log_prob(actions)
+        # 对于多维连续动作，返回联合对数概率（各维度之和）
+        log_probs = super().log_prob(actions)
+        if log_probs.dim() > 1:
+            # 将各维度的对数概率相加，得到联合对数概率
+            return log_probs.sum(dim=-1, keepdim=True)
+        return log_probs
 
     def entropy(self):
         return super().entropy().sum(-1)
 
     def mode(self):
         return self.mean
-
 
 class Categorical(nn.Module):
     """A linear layer followed by a Categorical distribution."""
@@ -46,12 +50,20 @@ class Categorical(nn.Module):
         def init_(m):
             return init(m, init_method, lambda x: nn.init.constant_(x, 0), gain)
 
+        # 创建一个线性层,将输入维度映射到输出维度(动作空间维度)
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
 
     def forward(self, x, available_actions=None):
+        # 通过线性层得到logits
         x = self.linear(x)
+        
+        # 如果提供了available_actions掩码,将不可用动作的logits设为极小值
+        # available_actions是一个二值tensor,1表示该动作可用,0表示不可用
         if available_actions is not None:
             x[available_actions == 0] = -1e10
+            
+        # 返回一个Categorical分布,用于采样离散动作
+        # logits会被用来计算各个动作的概率
         return FixedCategorical(logits=x)
 
 
@@ -85,5 +97,8 @@ class DiagGaussian(nn.Module):
 
     def forward(self, x, available_actions=None):
         action_mean = self.fc_mean(x)
+        # 改进的标准差计算，增强数值稳定性和探索能力
         action_std = torch.sigmoid(self.log_std / self.std_x_coef) * self.std_y_coef
+        # 确保标准差不会太小，维持足够的探索
+        action_std = torch.clamp(action_std, min=0.01, max=2.0)
         return FixedNormal(action_mean, action_std)

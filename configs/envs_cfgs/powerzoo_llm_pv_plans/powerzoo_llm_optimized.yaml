@@ -1,0 +1,109 @@
+# PV优化方案 - 最优配置 (900kW, 50.8%渗透率)
+# 适用于34Bus_PV_Optimized网络配置
+
+env_name: "34Bus_pv"
+num_agents: 10  # 3个原有PV + 4个新增PV + 3个调压器
+
+# 网络配置路径 - 指向优化方案
+dss_file: "./node_systems/34Bus_PV_Optimized/ieee34Mod1_duty.dss"
+
+# PV系统配置 - 7个PV系统
+pv_systems:
+  # 原有PV系统
+  - name: "PV834"
+    bus: 834
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  - name: "PV890"
+    bus: 890
+    pmpp: 180
+    kVA: 200
+    voltage: 4.16
+  - name: "PV864"
+    bus: 864
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  # 新增PV系统 - 优化方案
+  - name: "PV844"
+    bus: 844
+    pmpp: 120
+    kVA: 133
+    voltage: 24.9
+  - name: "PV848"
+    bus: 848
+    pmpp: 90
+    kVA: 100
+    voltage: 24.9
+  - name: "PV832"
+    bus: 832
+    pmpp: 90
+    kVA: 100
+    voltage: 24.9
+  - name: "PV856"
+    bus: 856
+    pmpp: 60
+    kVA: 67
+    voltage: 14.376
+
+# 调压器配置
+regulators:
+  - name: "reg1"
+    phases: 3
+    bus: 814
+  - name: "reg2"
+    phases: 3
+    bus: 852
+  - name: "cap844"
+    phases: 3
+    bus: 844
+    kvar: 300
+
+# 环境参数
+episode_length: 360  # 6小时，2分钟间隔
+control_interval: 120  # 控制间隔（秒）
+voltage_limits: [0.95, 1.05]  # 电压限值
+
+# 奖励函数权重 - 配网优化目标
+reward_weights:
+  voltage_violation: -2.0  # 电压越限惩罚（首要目标）
+  power_loss: -0.5        # 功率损耗惩罚（次要目标）
+  pv_utilization: 0.3     # PV利用率奖励
+  import_penalty: -0.1    # 过量进口惩罚（仅惩罚>500kW部分）
+  
+# 动作空间配置
+action_space:
+  pv_power_range: [0.5, 1.0]      # PV功率调节范围
+  pv_pf_range: [0.85, 1.0]        # PV功率因数范围
+  reg_tap_range: [-16, 16]        # 调压器分接头范围
+  cap_switch: [0, 1]              # 电容器开关
+
+# 观察空间配置
+observation_space:
+  include_voltage: true
+  include_power: true
+  include_current: true
+  include_pv_status: true
+  include_load_profile: true
+  include_time_features: true
+
+# 训练参数建议
+training:
+  algorithm: "HAPPO"
+  batch_size: 4096
+  learning_rate: 3e-4
+  gamma: 0.99
+  clip_range: 0.2
+  n_epochs: 10
+  max_grad_norm: 10.0
+  
+# 数据路径
+load_data_path: "./node_systems/34Bus_PV_Optimized/loadshape/"
+irrad_data_path: "./node_systems/34Bus_PV_Optimized/loadshape/irrad_2025_02_0500_to_1659.csv"
+
+# 性能指标目标
+performance_targets:
+  voltage_violation_rate: 0.05    # <5%的时间电压越限
+  power_loss_percentage: 4.2      # 目标损耗<4.2%
+  pv_utilization: 0.85           # PV利用率>85%

@@ -71,7 +71,8 @@ class HAPPO(OnPolicyBase):
         factor_batch = check(factor_batch).to(**self.tpdv)
 
         # 重塑以在一次前向传递中对所有步骤进行评估
-        action_log_probs, dist_entropy, _ = self.evaluate_actions(#dist_entropy表示动作的熵，训练完成后，这个值也趋近于0，表示智能体的动作逐渐趋于稳定
+        #dist_entropy表示动作的熵，训练完成后，这个值也趋近于0，表示智能体的动作逐渐趋于稳定
+        action_log_probs, dist_entropy, _ = self.evaluate_actions(
             obs_batch,
             rnn_states_batch,
             actions_batch,
@@ -104,6 +105,22 @@ class HAPPO(OnPolicyBase):
             ).mean()
 
         policy_loss = policy_action_loss#每个actor都有一个L函数
+
+        # HAPPO诊断：策略损失组件分解
+        from utils import happo_diagnostics
+        happo_diagnostics.log_policy_loss_components(
+            policy_loss=policy_loss,
+            imp_weights=imp_weights,
+            advantages=adv_targ,
+            surr1=surr1,
+            surr2=surr2,
+            clip_coef=self.clip_param
+        )
+        
+        # HAPPO诊断：数值稳定性检查
+        happo_diagnostics.check_tensor_stability(policy_loss, "policy_loss")
+        happo_diagnostics.check_tensor_stability(imp_weights, "importance_weights")
+        happo_diagnostics.check_tensor_stability(adv_targ, "advantages")
 
         self.actor_optimizer.zero_grad() # 清空优化器梯度
 
@@ -143,6 +160,14 @@ class HAPPO(OnPolicyBase):
             advantages_copy[actor_buffer.active_masks[:-1] == 0.0] = np.nan #将所有等于 0 的值设置成 nan
             mean_advantages = np.nanmean(advantages_copy)
             std_advantages = np.nanstd(advantages_copy) # 计算 std 除去 nan 值
+            
+            # 增强数值稳定性：处理std为0或极小的情况
+            if np.isnan(mean_advantages) or np.isnan(std_advantages) or std_advantages < 1e-8:
+                # 如果所有mask都是0或std太小，使用原始advantages的统计量
+                mean_advantages = np.mean(advantages)
+                std_advantages = np.std(advantages)
+                std_advantages = max(std_advantages, 1e-3)  # 确保分母不会太小
+            
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
 
         for _ in range(self.ppo_epoch):

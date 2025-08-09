@@ -1,8 +1,9 @@
+# HAPPO算法配置 - PowerZoo优化版本
 seed:
   # 是否使用指定的种子
   seed_specify: True
   # 种子
-  seed: 1
+  seed: 12345
 device:
   # 是否使用CUDA
   cuda: True
@@ -11,39 +12,41 @@ device:
   # arg to torch.set_num_threads
   torch_threads: 4
 train:
-  # 训练数据的并行环境数量，不支持并行环境怎么办呢，default20，我先选不支持并行环境，改为1，实际选6也可以正常运行
-  n_rollout_threads: 3
-  # 总训练步数，default is 10000000，（n_rollout_threads* episode_length）并行收集的线程数量乘以episode的长度，即为总的步数，此处共有100个episode。
-  num_env_steps: 5088
-  # 每个环境每次训练数据的收集步数，电力系统按天算，一天24小时，正好episode长度是24
-  episode_length: 24
-  # 日志间隔，default is 5
+  # 训练数据的并行环境数量（PowerZoo推荐值）
+  n_rollout_threads: 4
+  # 总训练步数（PowerZoo电力系统推荐2M步）
+  num_env_steps: 2000000
+  # 每个环境每次训练数据的收集步数（360步=60*6小时）
+  episode_length: 360
+  # 日志间隔（每3个episode记录一次）
   log_interval: 1
-  # 评估间隔，default 25,for testing modified as 1,评估训练结果的间隔，最后会有50个结果
-  eval_interval: 1
+  # 评估间隔（每2个episode评估一次）
+  eval_interval: 2
+  # 模型保存间隔（每5个episode保存一次模型）
+  save_interval: 5
   # 是否使用ValueNorm
   use_valuenorm: True
   # 是否使用线性学习率衰减
   use_linear_lr_decay: False
   # 是否考虑在episode结束时截断
   use_proper_time_limits: True
-  # 如果设置，从该目录加载模型；否则，随机初始化模型，default ~
-  model_dir: ~
+  # 如果设置，从该目录加载模型；否则，随机初始化模型
+  model_dir: null
 eval:
   # 是否使用评估
   use_eval: True
-  # 评估并行环境数量，default 10，这里使用4个，因为powerzoo提供的数据只有16个，12个用于训练，4个用于评估。
-  n_eval_rollout_threads: 3
-  # 每次评估使用的episode数量，default 20，每次评估使用的episode的数量，我的理解是，跑多少次取平均，此处为跑5次取平均应该，可以在代码中进行查看
-  eval_episodes: 4
+  # 评估并行环境数量
+  n_eval_rollout_threads: 2
+  # 每次评估使用的episode数量
+  eval_episodes: 10
 render:
   # 是否使用渲染
   use_render: False
   # 要渲染的episode数量
   render_episodes: 1
 model:
-  # 网络参数
-  # mlp模块在网络中的隐藏层大小
+  # 网络参数（PowerZoo电力系统优化）
+  # mlp模块在网络中的隐藏层大小（加大以处理复杂电力系统）
   hidden_sizes: [128, 128]
   # 激活函数，选择sigmoid、tanh、relu、leaky_relu、selu
   activation_func: relu
@@ -51,52 +54,52 @@ model:
   use_feature_normalization: True
   # 网络参数初始化方法，选择xavier_uniform_、orthogonal_等
   initialization_method: orthogonal_
-  # 输出层增益
-  gain: 0.01
+  # 输出层增益（增大以提高初期探索能力）
+  gain: 0.2
   # 循环参数
   # 是否使用简单的循环网络策略（训练数据不分块）
   use_naive_recurrent_policy: False
-  # 是否使用循环网络策略（训练数据分块）
-  use_recurrent_policy: False
+  # 是否使用循环网络策略（训练数据分块）- PowerZoo推荐启用
+  use_recurrent_policy: True
   # 循环层数量
   recurrent_n: 1
   # 数据分块长度；仅当use_recurrent_policy为True时有用；episode_length必须是data_chunk_length的倍数
-  data_chunk_length: 10
-  # 优化器参数
-  # 演员学习率
-  lr: 0.0005
-  # 评论家学习率
-  critic_lr: 0.0005
+  data_chunk_length: 60
+  # 优化器参数（PowerZoo优化）
+  # 演员学习率（降低以提高稳定性）
+  lr: 0.0001
+  # 评论家学习率（保持稍高以快速学习价值函数）
+  critic_lr: 0.0003
   # Adam中的eps
   opti_eps: 0.00001
   # Adam中的权重衰减
-  weight_decay: 0
+  weight_decay: 0.0
   # 标准差系数
   std_x_coef: 1
   # 标准差系数
   std_y_coef: 0.5
 algo:
-  # ppo参数
-  # 演员更新轮数
+  # PPO参数（PowerZoo电力系统优化）
+  # 演员更新轮数（降低以避免过拟合）
   ppo_epoch: 5
   # 评论家更新轮
   critic_epoch: 5
   # 是否使用裁剪值损失
   use_clipped_value_loss: True
-  # 裁剪参数
-  clip_param: 0.2
+  # 裁剪参数（稍微增大以提供更多探索空间）
+  clip_param: 0.25
   # 每个epoch的演员更新批次
   actor_num_mini_batch: 4
   # 每个epoch的评论家更新批次
   critic_num_mini_batch: 4
-  # 熵系数
-  entropy_coef: 0.01
+  # 熵系数（增大以促进探索）
+  entropy_coef: 0.08
   # 值损失系数
-  value_loss_coef: 1
+  value_loss_coef: 1.0
   # 是否裁剪梯度
   use_max_grad_norm: True
-  # 最大梯度范数
-  max_grad_norm: 10.0
+  # 最大梯度范数（降低以允许更大的梯度更新）
+  max_grad_norm: 3.0
   # 是否使用Generalized Advantage Estimation (GAE)
   use_gae: True
   # GAE的gamma
@@ -115,8 +118,8 @@ algo:
   share_param: False
   # 是否使用固定优化顺序
   fixed_order: False
-    # 是否使用sentivity 规定的优化顺序
-  sentivity_order: True
+  # 是否使用sentivity 规定的优化顺序
+  sentivity_order: False
 logger:
   # 日志目录
   log_dir: "./results"

@@ -1,0 +1,148 @@
+# HER (Hindsight Experience Replay) 单智能体算法配置
+# HER是一种经验回放技术，通常与DDPG、TD3、SAC等off-policy算法结合使用
+seed:
+  # 是否使用指定的随机种子
+  seed_specify: True
+  # 随机种子值
+  seed: 1
+
+device:
+  # 是否使用CUDA
+  cuda: True
+  # 是否设置CUDA确定性
+  cuda_deterministic: True
+  # torch线程数
+  torch_threads: 4
+
+train:
+  # 并行环境数量
+  n_rollout_threads: 1
+  # 总训练步数
+  total_timesteps: 100000
+  # 每个episode的最大步数
+  episode_length: 24
+  # 日志记录间隔
+  log_interval: 10
+  # 评估间隔
+  eval_interval: 1000
+  # 模型保存目录（如果设置，则从此目录加载模型；否则随机初始化）
+  model_dir: ~
+  # 模型保存间隔
+  save_interval: 10000
+
+eval:
+  # 是否使用评估
+  use_eval: True
+  # 评估环境数量
+  n_eval_rollout_threads: 1
+  # 每次评估的episode数量
+  eval_episodes: 5
+  # 是否在评估时使用确定性策略
+  deterministic_eval: True
+
+render:
+  # 是否使用渲染
+  use_render: False
+  # 渲染的episode数量
+  render_episodes: 5
+
+# HER特定参数
+her:
+  # 基础算法（HER包装的算法）
+  base_algorithm: "ddpg"  # 可选: ddpg, td3, sac
+  # HER策略：future, final, episode, random
+  goal_selection_strategy: "future"
+  # 每个episode中选择的目标数量
+  n_sampled_goal: 4
+  # 在线HER比例
+  online_sampling: True
+  # 最大episode长度
+  max_episode_length: 50
+
+# 基础算法配置（DDPG作为默认基础算法）
+ddpg:
+  # 学习率
+  learning_rate: 1.0e-3
+  # 批次大小
+  batch_size: 256
+  # 经验回放缓冲区大小
+  buffer_size: 1000000
+  # 开始学习的步数
+  learning_starts: 1000
+  # 训练频率
+  train_freq: 1
+  # 梯度步数
+  gradient_steps: -1
+  # 折扣因子
+  gamma: 0.95
+  # tau参数（软更新）
+  tau: 0.05
+  # 动作噪声类型和参数
+  action_noise: "normal"
+  # 正态分布噪声的标准差
+  action_noise_sigma: 0.2
+
+# TD3配置（可选基础算法）
+td3:
+  # 学习率
+  learning_rate: 1.0e-3
+  # 批次大小
+  batch_size: 256
+  # 经验回放缓冲区大小
+  buffer_size: 1000000
+  # 开始学习的步数
+  learning_starts: 1000
+  # 训练频率
+  train_freq: 1
+  # 梯度步数
+  gradient_steps: -1
+  # 折扣因子
+  gamma: 0.95
+  # tau参数（软更新）
+  tau: 0.05
+  # 策略延迟更新频率
+  policy_delay: 2
+  # 目标策略噪声
+  target_policy_noise: 0.2
+  # 目标噪声裁剪
+  target_noise_clip: 0.5
+  # 动作噪声类型和参数
+  action_noise: "normal"
+  # 正态分布噪声的标准差
+  action_noise_sigma: 0.1
+
+# SAC配置（可选基础算法）
+sac:
+  # 学习率
+  learning_rate: 3.0e-4
+  # 批次大小
+  batch_size: 256
+  # 经验回放缓冲区大小
+  buffer_size: 1000000
+  # 开始学习的步数
+  learning_starts: 1000
+  # 训练频率
+  train_freq: 1
+  # 梯度步数
+  gradient_steps: 1
+  # 折扣因子
+  gamma: 0.95
+  # tau参数（软更新）
+  tau: 0.05
+  # 熵系数（自动调整）
+  ent_coef: "auto"
+  # 目标熵（如果ent_coef为auto）
+  target_entropy: "auto"
+
+# 网络架构参数
+model:
+  # MLP隐藏层大小
+  hidden_sizes: [256, 256, 256]
+  # 激活函数：sigmoid, tanh, relu, leaky_relu, selu
+  activation_func: relu
+  # 是否使用正交初始化
+  use_orthogonal_init: False
+  # 网络架构
+  policy_kwargs:
+    net_arch: [256, 256, 256]
+    activation_fn: "relu"

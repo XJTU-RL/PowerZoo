@@ -1,277 +1,209 @@
-# Configuration for Stackelberg Game Environment - 123Bus System
+# Stackelberg Game Environment Configuration for 123Bus System
 
+# Basic environment settings
 env_name: stackelberg_123bus
 system_name: 123Bus
 dss_file: IEEE123Master.dss
-
-# Episode configuration
 max_episode_steps: 24  # 24-hour episodes
-num_steps: 24
-
-# Random seed
-seed: 123456
 
 # Agent configuration
-n_consumer_agents_123bus: 20  # 20 consumer agents for 123Bus system
-n_uc_agents: 1  # Single UC agent
+n_consumer_agents: 20  # Number of consumer agents (paper example uses 8+1)
+
+# UC action space configuration
+uc_action_space:
+  price_signal:
+    low: 0.5      # Minimum price multiplier
+    high: 2.0     # Maximum price multiplier
+  dr_incentive:
+    low: 0.0      # Minimum DR incentive
+    high: 0.5     # Maximum DR incentive
+  capacity_allocation:
+    low: 0.0      # Minimum capacity allocation
+    high: 1.0     # Maximum capacity allocation
+  ess_charge:
+    low: -1.0     # Discharge (negative)
+    high: 1.0     # Charge (positive)
+  der_curtailment:
+    low: 0.0      # No curtailment
+    high: 1.0     # Full curtailment
+
+# Consumer action space configuration
+consumer_action_space:
+  load_adjustment:
+    low: -0.3     # Maximum load reduction (30%)
+    high: 0.1     # Maximum load increase (10%)
+  der_output:
+    low: 0.0      # Minimum DER output
+    high: 1.0     # Maximum DER output
+
+# Observation space configuration
+observation_config:
+  uc_observations:
+    - total_load           # System total load
+    - total_generation     # Total generation
+    - system_loss          # System losses
+    - avg_voltage          # Average voltage
+    - min_voltage          # Minimum voltage
+    - max_voltage          # Maximum voltage
+    - der_available        # Available DER generation
+    - ess_soc             # ESS state of charge
+    - hour_of_day         # Current hour (0-23)
+    - day_type            # Weekday/weekend
+    - load_forecast       # Next hour load forecast
+    - der_forecast        # Next hour DER forecast
+    - carbon_intensity    # Current carbon intensity
+    - market_price        # Current market price
+  
+  consumer_observations:
+    - uc_price_signal     # UC price signal
+    - uc_dr_incentive     # UC DR incentive
+    - uc_capacity_alloc   # UC capacity allocation
+    - local_load          # Consumer's current load
+    - local_voltage       # Local bus voltage
+    - local_der_available # Local DER availability
+    - neighbor_loads      # Neighboring consumer loads
+    - hour_of_day         # Current hour
+    - comfort_level       # Current comfort level
+    - dr_participation    # Historical DR participation
+
+# Reward weights (based on paper equations)
+reward_weights:
+  # UC reward components (Equations 5-10)
+  uc:
+    electricity_revenue: 1.0      # C_t^s weight
+    market_cost: 1.0             # C_t^m weight
+    der_profit: 0.8              # C_t^g weight
+    dr_cost: 0.6                 # C_t^r weight
+    system_loss: 0.5             # Additional loss penalty
+    voltage_violation: 2.0       # Voltage violation penalty
+    carbon_reduction: 0.3        # Carbon reduction bonus
+  
+  # Consumer reward components (Equations 21-25)
+  consumer:
+    electricity_cost: 1.0        # U_i,t^s weight
+    comfort_loss: 0.8           # U_i,t^c weight
+    dr_revenue: 1.2             # U_i,t^r weight
+    voltage_quality: 0.3        # Additional voltage quality
+
+# Physical constraints
+constraints:
+  voltage_min: 0.95              # Minimum voltage p.u.
+  voltage_max: 1.05              # Maximum voltage p.u.
+  line_capacity_factor: 0.9      # Line capacity safety factor
+  max_load_change_rate: 0.1      # Maximum load change per step
+  ess_ramp_rate: 0.2             # ESS max ramp rate
+
+# Market configuration
+market_config:
+  base_price: 0.10               # Base electricity price ($/kWh)
+  peak_multiplier: 2.0           # Peak hour price multiplier
+  valley_multiplier: 0.5         # Valley hour price multiplier
+  market_volatility: 0.03        # Market price volatility
+
+# Time-of-Use configuration (from paper)
+tou_config:
+  peak_hours: [8, 9, 10, 11, 17, 18, 19, 20]
+  valley_hours: [0, 1, 2, 3, 4, 5, 23]
+  normal_hours: [6, 7, 12, 13, 14, 15, 16, 21, 22]
+
+# Tiered pricing configuration
+tier_config:
+  tier_1_limit: 2.0              # First tier limit (MWh)
+  tier_2_limit: 4.0              # Second tier limit (MWh)
+  tier_3_limit: 8.0              # Third tier limit (MWh)
+  tier_1_multiplier: 1.0         # First tier price multiplier
+  tier_2_multiplier: 1.2         # Second tier price multiplier
+  tier_3_multiplier: 1.5         # Third tier price multiplier
+  tier_4_multiplier: 2.0         # Fourth tier price multiplier
+
+# ESS configuration per paper
+ess_config:
+  total_capacity: 10.0           # Total ESS capacity (MWh)
+  initial_soc: 0.5               # Initial state of charge
+  efficiency_charge: 0.95        # Charging efficiency
+  efficiency_discharge: 0.95     # Discharging efficiency
+  self_discharge_rate: 0.001     # Self-discharge rate per hour
+  min_soc: 0.2                   # Minimum SOC
+  max_soc: 0.9                   # Maximum SOC
+  max_power: 2.0                 # Maximum charge/discharge power (MW)
+
+# DER configuration
+der_config:
+  total_capacity: 12.0           # Total DER capacity (MW)
+  availability_profile: solar    # DER availability profile type
+  forecast_error_std: 0.1        # DER forecast error std dev
+  curtailment_cost: 0.02         # Cost of curtailing DER ($/kWh)
+
+# DR configuration
+dr_config:
+  max_dr_ratio: 0.3              # Maximum DR as fraction of load
+  min_response_time: 1           # Minimum response time (hours)
+  fatigue_factor: 0.9            # DR fatigue factor
+  participation_rate: 0.8        # Consumer participation rate
+
+# Monitoring configuration
+monitoring_config:
+  enable: True
+  log_dir: logs/stackelberg_123bus
+  save_interval: 100
+  plot_interval: 50
+  experiment_name: null          # Will be auto-generated if null
+  track_convergence: True
+  track_nash_gap: True
+  track_carbon: True
+
+# Async execution configuration
+async_config:
+  consumer_delay: 1              # Consumer response delay (steps)
+  action_persistence: 1          # Action persistence (steps)
+  enable_action_prediction: False
+  partial_observability: False
+  observation_noise: 0.0
 
 # Load aggregation configuration
 load_aggregation:
-  method: graph  # Use graph-based for large system
+  method: priority               # zone, priority, graph, adaptive
   use_electrical_distance: True
-  spectral_clusters: True
-  consider_power_flow: True
-  
-  # Graph-based specific settings
-  max_electrical_distance: 5  # Maximum hops for connectivity
-  community_detection: True
-  weight_by_load_size: True
-  
-  # Adaptive settings
-  enable_dynamic_reaggregation: True
-  adaptation_interval: 200
-  adaptation_threshold: 0.2
-  load_balance_factor: 0.8
+  zone_definitions: null         # Auto-detect zones
+  priority_weights:
+    residential: 1.0
+    commercial: 2.0
+    industrial: 3.0
+    critical: 10.0
 
-# Stackelberg game configuration
-stackelberg_config:
-  price_bounds: [0.7, 1.6]  # Tighter bounds for large system stability
-  dr_incentive_bounds: [0.0, 0.35]
-  nash_iterations: 3  # More iterations needed
-  enable_best_response: True
-  best_response_buffer_size: 200
-  equilibrium_threshold: 0.05  # Tighter convergence
-  equilibrium_window: 100
-  
-  # Advanced settings for 123Bus
-  enable_opponent_modeling: True
-  opponent_model_update_freq: 50
-  nash_max_iterations: 200
-  nash_convergence_threshold: 5e-5
-  nash_learning_rate: 0.005
-  
-  # Hierarchical decision making
-  enable_hierarchical_decisions: True
-  decision_levels: 3  # UC -> Zone coordinators -> Individual consumers
-  zone_coordinator_count: 5
+# Random seed
+seed: 42
 
-# Reward weights (carefully tuned for 123Bus)
-reward_weights:
-  # UC rewards
-  power_loss_weight: 15.0  # Critical for large system
-  voltage_violation_weight: 8.0
-  revenue_weight: 1.0
-  carbon_penalty_weight: 3.0
-  line_overload_weight: 10.0
-  transformer_overload_weight: 12.0
-  n_minus_1_violation_weight: 20.0  # Very high penalty
-  
-  # Consumer rewards
-  comfort_penalty_weight: 1.5
-  dr_benefit_weight: 15.0
-  electricity_cost_weight: 1.0
-  reliability_bonus: 3.0
-  coordination_bonus: 2.0  # Bonus for following zone coordinator
+# Debug settings
+debug: False
+verbose: True
+render: False
 
-# Physical constraints (strict for large system)
-constraints:
-  v_min: 0.95
-  v_max: 1.05
-  max_load_adjustment: 0.25  # More conservative for stability
-  line_rating_factor: 0.8  # Conservative line loading
-  emergency_rating_factor: 1.05
-  transformer_rating_factor: 0.85
-  
-  # N-1 security constraints
-  enable_n_minus_1: True
-  n_minus_1_contingencies: 10  # Check top 10 contingencies
-  critical_lines: auto  # Automatically identify critical lines
-  
-  # Additional constraints
-  max_voltage_unbalance: 0.02  # 2% max unbalance
-  max_frequency_deviation: 0.1  # Hz
-  power_factor_limits: [0.85, 1.0]
+# Load profile configuration
+load_profile_config:
+  profile_type: real             # real or synthetic
+  noise_level: 0.02              # Load noise level
+  growth_rate: 1.02              # Annual load growth rate
+  weekend_factor: 0.8            # Weekend load reduction factor
 
-# Multi-timescale configuration (essential for 123Bus)
-timescale_config:
-  enable_multiscale: True
-  day_ahead_horizon: 24
-  intraday_horizon: 4
-  real_time_horizon: 1
-  rolling_window: 8
-  
-  # Coordination between timescales
-  day_ahead_weight: 0.5
-  intraday_weight: 0.3
-  real_time_weight: 0.2
+# N-1 security configuration
+n1_security:
+  enable: True
+  critical_lines: []             # Auto-detect critical lines
+  contingency_probability: 0.001
+  recovery_time: 4               # Hours to recover from contingency
 
-# Monitoring configuration (comprehensive for 123Bus)
-monitoring_config:
-  enabled: True
-  metrics:
-    - power_loss
-    - voltage_violation
-    - carbon_emission
-    - nash_gap
-    - social_welfare
-    - convergence
-    - line_loading
-    - agent_rewards
-    - transformer_loading
-    - reactive_power_balance
-    - frequency_stability
-    - three_phase_unbalance
-    - zone_coordination
-    - computational_time
-    - memory_usage
-  log_interval: 1  # Log every step for debugging
-  save_interval: 25
-  plot_interval: 10
-  
-  # Performance monitoring
-  profile_computation: True
-  track_convergence_speed: True
-  measure_scalability: True
+# Carbon tracking configuration
+carbon_config:
+  track_emissions: True
+  grid_carbon_intensity: 0.5     # kg CO2/kWh
+  der_carbon_intensity: 0.0      # kg CO2/kWh
+  carbon_price: 0.02             # $/kg CO2
 
-# Visualization settings (optimized for large network)
-visualization:
-  show_network: False  # Too large to display by default
-  show_agents: True
-  show_aggregate_view: True  # Show aggregated zone view
-  node_size: 100
-  shift: 20
-  show_node_labels: False
-  show_critical_paths: True
-  use_interactive_plot: False
-  
-  # Selective visualization
-  show_voltage_violations_only: True
-  show_overloaded_lines_only: True
-  update_frequency: 100  # Update viz every 100 steps
-
-# Training configuration (optimized for 123Bus scale)
-training:
-  num_workers: 4  # Parallel workers
-  use_cuda: True
-  buffer_size: 50000  # Large buffer for stability
-  batch_size: 1024  # Large batch for efficiency
-  learning_rate: 1e-4  # Lower LR for stability
-  gamma: 0.998
-  
-  # Advanced training settings
-  use_gae: True
-  gae_lambda: 0.97
-  use_proper_time_limits: True
-  max_grad_norm: 0.3  # Aggressive clipping
-  
-  # Distributed training settings
-  use_distributed: True
-  backend: nccl
-  gradient_accumulation_steps: 4
-
-# Asynchronous execution configuration (complex for 123Bus)
-async_config:
-  consumer_delay: 2  # Base delay
-  consumer_delays: variable  # Will be set based on zone
-  zone_delays:  # Zone-based delays
-    zone_1: 1
-    zone_2: 2
-    zone_3: 2
-    zone_4: 3
-    zone_5: 3
-  action_persistence: 3
-  history_length: 20  # Longer history for patterns
-  enable_action_prediction: True
-  prediction_horizon: 5
-  partial_observability: True
-  observation_noise: 0.03
-  
-  # Communication delays
-  enable_communication_delays: True
-  communication_dropout_rate: 0.01
-
-# Environment options
-env_options:
-  use_load_noise: True
-  scale: 1.0
-  load_noise_std: 0.1  # 10% load noise
-  wrap_observation: True
-  observe_load: True
-  use_render: False
-  record_node: True
-  
-  # Performance options
-  use_sparse_matrices: True
-  cache_network_data: True
-  parallel_power_flow: True
-
-# Device configuration
-reg_act_num: 17  # Fewer discrete levels for faster computation
-bat_act_num: 17
-dss_act: False
-
-# Carbon emission factors (detailed for 123Bus)
-carbon_factors:
-  grid_average: 450.0
-  solar: 0.0
-  wind: 0.0
-  natural_gas: 350.0
-  coal: 820.0
-  hydro: 5.0
-  nuclear: 10.0
-  biomass: 230.0
-  
-  # Time-varying factors
-  use_time_varying: True
-  peak_factor: 1.3
-  off_peak_factor: 0.7
-
-# Zone definitions for 123Bus
-zone_definitions:
-  automatic_detection: True
-  n_zones: 5
-  zone_overlap_allowed: False
-  zone_balancing: True
-  
-  # Manual zone seeds (optional)
-  zone_seeds:
-    zone_1: [bus_1, bus_13, bus_18]
-    zone_2: [bus_25, bus_28, bus_35]
-    zone_3: [bus_40, bus_44, bus_51]
-    zone_4: [bus_60, bus_65, bus_72]
-    zone_5: [bus_80, bus_97, bus_108]
-
-# Data logging (extensive for research)
-data_logging:
-  save_episodes: True
-  save_interval: 10  # Save frequently
-  log_dir: logs/stackelberg_123bus
-  save_format: hdf5
-  compression: lzf  # Fast compression
-  
-  # Detailed logging
-  save_agent_trajectories: True
-  save_system_states: True
-  save_convergence_metrics: True
-  save_power_flow_results: True
-  save_communication_logs: True
-  
-  # Checkpointing
-  enable_checkpoints: True
-  checkpoint_interval: 1000
-  keep_checkpoints: 5
-
-# Computational optimization
-optimization:
-  use_jit: True  # Just-in-time compilation
-  cache_power_flow: True
-  parallel_agent_step: True
-  batch_observations: True
-  
-  # Memory management
-  clear_buffer_interval: 1000
-  gc_collect_interval: 500
-  
-  # Numerical settings
-  power_flow_tolerance: 1e-6
-  max_power_flow_iterations: 50
+# Training specific settings
+training_config:
+  curriculum_learning: True
+  warmup_episodes: 100
+  exploration_noise_start: 0.1
+  exploration_noise_end: 0.01
+  exploration_decay_episodes: 1000

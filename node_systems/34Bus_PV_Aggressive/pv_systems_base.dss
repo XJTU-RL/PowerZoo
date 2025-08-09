@@ -1,0 +1,102 @@
+! ============================================================
+! pv_systems_base.dss
+! 固定的 PV 元件与升压变压器定义（不包含曲线/温度/效率曲线）
+! 曲线由每个worker的 pv_data_{i}.dss 提供：MyIrrad / MyTemp / MyEff / MyPvsT
+! ============================================================
+
+! ---------- 升压变压器（与原配置一致） ----------
+New Transformer.pv_up834 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv834 kV=0.48 kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=834        kV=24.9 kVA=300 conn=wye %r=0.5
+
+New Transformer.pv_up890 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv890 kV=0.48 kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=890         kV=4.16 kVA=300 conn=wye %r=0.5
+
+New Transformer.pv_up864 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv864 kV=0.48 kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=864.1       kV=24.9 kVA=300 conn=wye %r=0.5
+
+New Transformer.pv_up844 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv844 kV=0.48 kVA=200 conn=wye %r=0.5
+~ wdg=2 bus=844         kV=24.9 kVA=200 conn=wye %r=0.5
+
+New Transformer.pv_up848 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv848 kV=0.48 kVA=150 conn=wye %r=0.5
+~ wdg=2 bus=848         kV=24.9 kVA=150 conn=wye %r=0.5
+
+New Transformer.pv_up832 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv832 kV=0.48 kVA=150 conn=wye %r=0.5
+~ wdg=2 bus=832         kV=24.9 kVA=150 conn=wye %r=0.5
+
+New Transformer.pv_up856 phases=1 xhl=4.5
+~ wdg=1 bus=trafo_pv856 kV=0.277 kVA=100 conn=wye %r=0.5
+~ wdg=2 bus=856.2       kV=14.376 kVA=100 conn=wye %r=0.5
+
+New Transformer.pv_up840 phases=3 xhl=4.5
+~ wdg=1 bus=trafo_pv840 kV=0.48 kVA=100 conn=wye %r=0.5
+~ wdg=2 bus=840         kV=24.9 kVA=100 conn=wye %r=0.5
+
+New Transformer.pv_up822 phases=1 xhl=4.5
+~ wdg=1 bus=trafo_pv822 kV=0.277 kVA=100 conn=wye %r=0.5
+~ wdg=2 bus=822.1       kV=14.376 kVA=100 conn=wye %r=0.5
+
+! ---------- PV 系统（基础定义，曲线后续动态绑定） ----------
+! 策略：先定义PV系统的基本参数，避免直接引用未定义的曲线
+!       曲线将在pv_data_{i}.dss加载后通过Python代码动态绑定
+!       避免duty参数引用不存在的LoadShape，防止解析错误
+
+! PV834: 180 kW @ 834
+New PVSystem.PV834 phases=3 bus1=trafo_pv834 kV=0.48 kVA=200 Pmpp=180
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV890: 180 kW @ 890
+New PVSystem.PV890 phases=3 bus1=trafo_pv890 kV=0.48 kVA=200 Pmpp=180
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV864: 180 kW @ 864
+New PVSystem.PV864 phases=3 bus1=trafo_pv864 kV=0.48 kVA=200 Pmpp=180
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV844: 120 kW @ 844
+New PVSystem.PV844 phases=3 bus1=trafo_pv844 kV=0.48 kVA=133 Pmpp=120
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV848: 90 kW @ 848
+New PVSystem.PV848 phases=3 bus1=trafo_pv848 kV=0.48 kVA=100 Pmpp=90
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV832: 90 kW @ 832
+New PVSystem.PV832 phases=3 bus1=trafo_pv832 kV=0.48 kVA=100 Pmpp=90
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV856: 60 kW @ 856（单相）
+New PVSystem.PV856 phases=1 bus1=trafo_pv856 kV=0.277 kVA=67 Pmpp=60
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV840: 60 kW @ 840
+New PVSystem.PV840 phases=3 bus1=trafo_pv840 kV=0.48 kVA=67 Pmpp=60
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! PV822: 60 kW @ 822（单相）
+New PVSystem.PV822 phases=1 bus1=trafo_pv822 kV=0.277 kVA=67 Pmpp=60
+~ pf=1.0 irrad=1.0 %cutin=0 %cutout=0
+~ Vminpu=0.88 Vmaxpu=1.12
+
+! 注意：曲线绑定将在Python代码中完成，如：
+! dss.Text.Command = "PVSystem.PV834.irradiance=MyIrrad"
+! dss.Text.Command = "PVSystem.PV834.temperature=MyTemp"
+! dss.Text.Command = "PVSystem.PV834.EffCurve=MyEff"
+! dss.Text.Command = "PVSystem.PV834.P-TCurve=MyPvsT"
+
+! （调试期可选）若担心电压门限导致PV抑制，可临时放宽：
+! PVSystem.*.Vminpu=0.01
+! PVSystem.*.Vmaxpu=2.0

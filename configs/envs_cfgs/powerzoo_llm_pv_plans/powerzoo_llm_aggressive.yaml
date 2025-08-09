@@ -1,0 +1,129 @@
+# PV激进方案 - 高渗透率配置 (1080kW, 61%渗透率)
+# 适用于34Bus_PV_Aggressive网络配置
+
+env_name: "34Bus_pv"
+num_agents: 12  # 3个原有PV + 6个新增PV + 3个调压器
+
+# 网络配置路径 - 指向激进方案
+dss_file: "./node_systems/34Bus_PV_Aggressive/ieee34Mod1_duty.dss"
+
+# PV系统配置 - 9个PV系统
+pv_systems:
+  # 原有PV系统
+  - name: "PV834"
+    bus: 834
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  - name: "PV890"
+    bus: 890
+    pmpp: 180
+    kVA: 200
+    voltage: 4.16
+  - name: "PV864"
+    bus: 864
+    pmpp: 180
+    kVA: 200
+    voltage: 24.9
+  # 新增PV系统 - 激进方案
+  - name: "PV844"
+    bus: 844
+    pmpp: 120
+    kVA: 133
+    voltage: 24.9
+  - name: "PV848"
+    bus: 848
+    pmpp: 90
+    kVA: 100
+    voltage: 24.9
+  - name: "PV832"
+    bus: 832
+    pmpp: 90
+    kVA: 100
+    voltage: 24.9
+  - name: "PV856"
+    bus: 856
+    pmpp: 60
+    kVA: 67
+    voltage: 14.376
+  - name: "PV840"
+    bus: 840
+    pmpp: 60
+    kVA: 67
+    voltage: 24.9
+  - name: "PV822"
+    bus: 822
+    pmpp: 60
+    kVA: 67
+    voltage: 14.376
+
+# 调压器配置
+regulators:
+  - name: "reg1"
+    phases: 3
+    bus: 814
+  - name: "reg2"
+    phases: 3
+    bus: 852
+  - name: "cap844"
+    phases: 3
+    bus: 844
+    kvar: 300
+
+# 环境参数
+episode_length: 360  
+control_interval: 120  
+voltage_limits: [0.93, 1.07]  # 放宽电压限值（高渗透率需要）
+
+# 奖励函数权重 - 激进方案需要调整
+reward_weights:
+  voltage_violation: -3.0  # 增加电压惩罚（防止过电压）
+  power_loss: -0.3        # 降低损耗权重
+  pv_utilization: 0.5     # 提高PV利用率奖励
+  import_penalty: -0.05   # 降低进口惩罚
+  reverse_flow: -1.0      # 增加反向潮流惩罚
+  
+# 动作空间配置 - 更精细的控制
+action_space:
+  pv_power_range: [0.3, 1.0]      # 扩大PV功率调节范围
+  pv_pf_range: [0.8, 1.0]         # 扩大功率因数范围
+  reg_tap_range: [-16, 16]        
+  cap_switch: [0, 1]              
+
+# 观察空间配置
+observation_space:
+  include_voltage: true
+  include_power: true
+  include_current: true
+  include_pv_status: true
+  include_load_profile: true
+  include_time_features: true
+  include_reverse_flow: true  # 增加反向潮流监测
+
+# 训练参数建议 - 需要更长训练
+training:
+  algorithm: "HAPPO"
+  batch_size: 8192  # 增大批次
+  learning_rate: 1e-4  # 降低学习率
+  gamma: 0.99
+  clip_range: 0.1  # 更保守的裁剪
+  n_epochs: 15
+  max_grad_norm: 5.0
+  
+# 数据路径
+load_data_path: "./node_systems/34Bus_PV_Aggressive/loadshape/"
+irrad_data_path: "./node_systems/34Bus_PV_Aggressive/loadshape/irrad_2025_02_0500_to_1659.csv"
+
+# 性能指标目标 - 激进但可行
+performance_targets:
+  voltage_violation_rate: 0.08    # <8%的时间电压越限（放宽）
+  power_loss_percentage: 3.8      # 目标损耗<3.8%
+  pv_utilization: 0.90           # PV利用率>90%
+  average_import: 400             # 平均进口功率<400kW
+  
+# 特殊配置 - 处理高渗透率挑战
+special_configs:
+  enable_voltage_regulation: true
+  enable_reactive_power_control: true
+  enable_curtailment: true  # 允许弃光
+  max_reverse_flow: 200  # 最大反向潮流限制(kW)

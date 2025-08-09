@@ -22,7 +22,17 @@ def get_defaults_yaml_args(algo, env):
     with open(algo_cfg_path, "r", encoding="utf-8") as file:
         algo_args = yaml.load(file, Loader=yaml.FullLoader)
     with open(env_cfg_path, "r", encoding="utf-8") as file:
-        env_args = yaml.load(file, Loader=yaml.FullLoader)
+        env_config = yaml.load(file, Loader=yaml.FullLoader)
+        # 提取环境参数（不包含environment_specific等嵌套配置）
+        env_args = {}
+        for key, value in env_config.items():
+            if key not in ['environment_specific', 'power_system']:
+                env_args[key] = value
+        
+        # 将environment_specific配置单独传递
+        if 'environment_specific' in env_config:
+            env_args['env_specific_config'] = env_config['environment_specific']
+            
     return algo_args, env_args
 
 
@@ -46,30 +56,12 @@ def update_args(unparsed_dict, *args):
 
 
 def get_task_name(env, env_args):
-    """Get task name."""
-    if env == "smac":
-        task = env_args["map_name"]
-    elif env == "smacv2":
-        task = env_args["map_name"]
-    elif env == "mamujoco":
-        task = f"{env_args['scenario']}-{env_args['agent_conf']}"
-    elif env == "pettingzoo_mpe":
-        if env_args["continuous_actions"]:
-            task = f"{env_args['scenario']}-continuous"
-        else:
-            task = f"{env_args['scenario']}-discrete"
-    elif env == "dsr":
-        task = env_args["env_args"]["system_name"]
-    elif env == "gym":
-        task = env_args["scenario"]
-    elif env == "football":
+    if env == "powerzoo": 
         task = env_args["env_name"]
-    elif env == "dexhands":
-        task = env_args["task"]
-    elif env == "lag":
-        task = f"{env_args['scenario']}-{env_args['task']}"
-    elif env == "powerzoo": 
+    elif env == "powerzoo_llm":
         task = env_args["env_name"]
+    else:
+        task = "unknown"
     return task
 
 
@@ -93,11 +85,11 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     os.makedirs(log_path, exist_ok=True)
     from tensorboardX import SummaryWriter
 
-    writter = SummaryWriter(log_path)
+    writer = SummaryWriter(log_path)
     models_path = os.path.join(results_path, "models")
     os.makedirs(models_path, exist_ok=True)
     # 返回绝对路径
-    return os.path.abspath(results_path), os.path.abspath(log_path), os.path.abspath(models_path), writter
+    return os.path.abspath(results_path), os.path.abspath(log_path), os.path.abspath(models_path), writer
 
 
 def is_json_serializable(value):
@@ -142,8 +134,7 @@ def save_config(args, algo_args, env_args, run_dir):
     output = json.dumps(config_json, separators=(",", ":\t"), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as out:
         out.write(output)
-    with open(os.path.join(run_dir, "progress.txt"), "w", encoding="utf-8") as file:
-        file.write("hello")
+    # 不再写入测试代码到progress.txt - 留给base_logger正确处理
         
 def save_render(args,run_dir):
     renderdata=convert_json(args)

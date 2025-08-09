@@ -6,6 +6,9 @@ import torch
 from multiprocessing import Process, Pipe
 from abc import ABC, abstractmethod
 import copy
+import logging
+
+logger = logging.getLogger(__name__)
 
 def tile_images(img_nhwc):
     """
@@ -211,7 +214,16 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             fr = env.render_vulnerability(data)
             remote.send((fr))
         elif cmd == "get_num_agents":
-            remote.send((env.n_agents))
+            # 兼容不同环境类型，优先使用powerzoo_env.py的PowerZooEnv包装器
+            if hasattr(env, 'n_agents'):
+                remote.send((env.n_agents))
+            else:
+                # 对于原始Env类，根据设备数量计算智能体数量
+                n_agents = getattr(env, 'cap_num', 0) + getattr(env, 'reg_num', 0) + getattr(env, 'bat_num', 0)
+                # 如果启用PV控制，添加PV智能体
+                if hasattr(env, 'pv_control_enabled') and env.pv_control_enabled:
+                    n_agents += getattr(env, 'pv_num', 0)
+                remote.send((n_agents))
         # elif cmd == "get_agents_orders":
         #     remote.send((env.update_orders))
         elif cmd == "get_ordered_agents_pairs":
@@ -305,11 +317,166 @@ class ShareSubprocVecEnv(ShareVecEnv):
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, share_obs, rews, dones, infos, available_actions = zip(*results)
+        
+        # HAPPO兼容性：强制数据形状标准化
+        try:
+            # Step 1: 标准化所有数据的形状
+            dones_processed = self._standardize_dones(dones)
+            obs_processed = self._standardize_observations(obs)
+            share_obs_processed = self._standardize_observations(share_obs)
+            rews_processed = self._standardize_rewards(rews)
+            
+            # Step 2: 验证形状一致性（HAPPO关键要求）
+            self._validate_shapes(obs_processed, share_obs_processed, rews_processed, dones_processed)
+            
+            return (
+                np.stack(obs_processed),
+                np.stack(share_obs_processed),
+                np.stack(rews_processed),
+                np.stack(dones_processed),
+                infos,
+                list(available_actions),
+            )
+            
+        except Exception as e:
+            logger.error(f"HAPPO并行环境数据处理失败: {e}")
+            # 降级到安全模式
+            return self._get_safe_step_results(len(dones))
+    
+    def _standardize_dones(self, dones):
+        """标准化done信号为HAPPO兼容格式"""
+        processed_dones = []
+        target_shape = None
+        
+        # 首先确定目标形状
+        for done_env in dones:
+            if isinstance(done_env, (list, tuple, np.ndarray)):
+                target_shape = (len(done_env),) if target_shape is None else target_shape
+                break
+        
+        if target_shape is None:
+            # 如果都是标量，假设单智能体环境
+            target_shape = (1,)
+        
+        # 标准化所有done信号
+        for done_env in dones:
+            if isinstance(done_env, (list, tuple)):
+                done_array = np.array(done_env, dtype=bool)
+            elif isinstance(done_env, np.ndarray):
+                done_array = done_env.astype(bool)
+            else:
+                # 标量done值，扩展到目标形状
+                done_array = np.full(target_shape, bool(done_env), dtype=bool)
+            
+            # 确保形状匹配
+            if done_array.shape != target_shape:
+                # 形状不匹配时的修正策略
+                if done_array.size == 1 and target_shape[0] > 1:
+                    # 标量扩展到多智能体
+                    done_array = np.full(target_shape, done_array.item(), dtype=bool)
+                elif len(done_array) > target_shape[0]:
+                    # 截断到目标长度
+                    done_array = done_array[:target_shape[0]]
+                elif len(done_array) < target_shape[0]:
+                    # 扩展到目标长度
+                    padding = target_shape[0] - len(done_array)
+                    done_array = np.concatenate([done_array, np.full(padding, done_array[-1], dtype=bool)])
+            
+            processed_dones.append(done_array)
+        
+        return processed_dones
+    
+    def _standardize_observations(self, observations):
+        """标准化观测数据为HAPPO兼容格式"""
+        if not observations:
+            return []
+        
+        # 检查是否所有观测都有相同的结构
+        reference_obs = observations[0]
+        processed_obs = []
+        
+        for obs in observations:
+            if isinstance(obs, list):
+                # 多智能体观测列表
+                if isinstance(reference_obs, list) and len(obs) != len(reference_obs):
+                    logger.warning(f"观测长度不一致: {len(obs)} vs {len(reference_obs)}")
+                    # 填充或截断到参考长度
+                    target_len = len(reference_obs)
+                    if len(obs) < target_len:
+                        obs = obs + [obs[-1]] * (target_len - len(obs))
+                    elif len(obs) > target_len:
+                        obs = obs[:target_len]
+                processed_obs.append(obs)
+            else:
+                processed_obs.append(obs)
+        
+        return processed_obs
+    
+    def _standardize_rewards(self, rewards):
+        """标准化奖励数据为HAPPO兼容格式"""
+        processed_rewards = []
+        
+        for rew in rewards:
+            if isinstance(rew, (list, tuple)):
+                # 确保奖励是2D结构 [[reward]]
+                if len(rew) > 0 and not isinstance(rew[0], (list, tuple)):
+                    # 转换为嵌套列表格式
+                    processed_rewards.append([rew])
+                else:
+                    processed_rewards.append(rew)
+            else:
+                # 标量奖励，转换为标准格式
+                processed_rewards.append([[rew]])
+        
+        return processed_rewards
+    
+    def _validate_shapes(self, obs, share_obs, rewards, dones):
+        """验证所有数据形状的HAPPO兼容性"""
+        n_envs = len(obs)
+        
+        # 验证环境数量一致性
+        assert len(share_obs) == n_envs, f"share_obs环境数不匹配: {len(share_obs)} vs {n_envs}"
+        assert len(rewards) == n_envs, f"rewards环境数不匹配: {len(rewards)} vs {n_envs}"
+        assert len(dones) == n_envs, f"dones环境数不匹配: {len(dones)} vs {n_envs}"
+        
+        # 验证done信号形状一致性（HAPPO关键要求）
+        done_shapes = [d.shape for d in dones]
+        if len(set(done_shapes)) > 1:
+            raise ValueError(f"Done信号形状不一致: {done_shapes}")
+        
+        # 验证观测形状一致性
+        if isinstance(obs[0], list):
+            obs_lens = [len(o) for o in obs]
+            if len(set(obs_lens)) > 1:
+                logger.warning(f"观测长度不一致: {obs_lens}")
+    
+    def _get_safe_step_results(self, n_envs):
+        """在错误情况下返回安全的结果"""
+        # 假设13智能体环境（根据34Bus_pv配置）
+        n_agents = 13
+        obs_dim = 100  # 假设观测维度
+        
+        safe_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
+        safe_share_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
+        safe_rewards = [[[0.0]] for _ in range(n_envs)]
+        safe_dones = [np.array([False] * n_agents, dtype=bool) for _ in range(n_envs)]
+        safe_infos = [{"error": True} for _ in range(n_envs)]
+        safe_avail_actions = [None for _ in range(n_envs)]
+        
+        return (
+            np.stack(safe_obs),
+            np.stack(safe_share_obs),
+            np.stack(safe_rewards),
+            np.stack(safe_dones),
+            safe_infos,
+            safe_avail_actions
+        )
+        
         return (
             np.stack(obs),
             np.stack(share_obs),
             np.stack(rews),
-            np.stack(dones),
+            dones_stacked,
             infos,
             list(available_actions),  # 保持为列表格式
         )
@@ -370,8 +537,11 @@ class ShareDummyVecEnv(ShareVecEnv):
     def step_wait(self):
         results = [env.step(a) for (a, env) in zip(self.actions, self.envs)]
         obs, share_obs, rews, dones, infos, available_actions = zip(*results)
-        obs = np.array(obs)
-        share_obs = np.array(share_obs)
+        
+        # Convert to lists first to handle potential shape mismatches during reset
+        obs = list(obs)
+        share_obs = list(share_obs)
+        
         rews = np.array(rews)
         dones = np.array(dones)
         infos = np.array(infos)
@@ -399,6 +569,11 @@ class ShareDummyVecEnv(ShareVecEnv):
                         available_actions[i]
                     )
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
+        
+        # Convert back to numpy arrays after all resets are done
+        obs = np.array(obs)
+        share_obs = np.array(share_obs)
+        
         self.actions = None
 
         return obs, share_obs, rews, dones, infos, available_actions

@@ -1,317 +1,92 @@
-# PowerZoo Examples 使用指南
+# PowerZoo训练示例
 
-本目录包含了PowerZoo框架的示例脚本和训练工具，特别是针对DSR（需求侧响应）环境的负荷聚合训练功能。
+本目录包含PowerZoo环境的所有训练示例和脚本，按照智能体类型进行组织。
 
-## 文件说明
+## 📁 目录结构
 
-- `train.py` - 通用训练脚本
-- `train_dsr_aggregation.py` - DSR负荷聚合训练脚本
-- `run_dsr_aggregation.sh` - DSR聚合训练的灵活运行脚本
-- `main.py` - 主入口脚本
-- `auto_train.py` - 自动训练脚本
-
-## DSR负荷聚合训练
-
-### 快速开始
-
-#### 1. 使用Shell脚本（推荐）
-
-```bash
-# 查看帮助信息
-./run_dsr_aggregation.sh --help
-
-# 小系统快速训练
-./run_dsr_aggregation.sh --small --eval
-
-# 大系统完整训练
-./run_dsr_aggregation.sh --large --wandb
+```
+examples/
+├── multi_agent/           # 多智能体强化学习
+│   ├── scripts/          # Python训练脚本
+│   └── launchers/        # Shell启动脚本
+├── single_agent/         # 单智能体强化学习
+│   ├── scripts/          # Python训练脚本
+│   └── launchers/        # Shell启动脚本
+└── scripts/              # 共用工具脚本
 ```
 
-#### 2. 直接使用Python脚本
+## 🚀 快速开始
+
+### 多智能体训练
 
 ```bash
-# 基础训练
-python train_dsr_aggregation.py --system_name 123Bus --use_load_aggregation
+# 使用HAPPO算法训练PV控制（激进方案）
+cd multi_agent/launchers
+./quick_train_happo_pv.sh aggressive
 
-# 自定义配置
-python train_dsr_aggregation.py \
-    --system_name 8500-Node \
-    --use_load_aggregation \
-    --n_load_agents 50 \
-    --load_aggregation_method zone \
-    --algorithm_name mappo \
-    --num_env_steps 10000000
+# 使用完整参数配置
+./train_happo_pv_full.sh --plan optimized --gpu 0 --threads 32
 ```
 
-### Shell脚本详细使用
-
-#### 预设场景
-
-| 预设 | 系统 | 聚合 | 智能体数 | 训练步数 | 适用场景 |
-|------|------|------|----------|----------|----------|
-| `--small` | 13Bus | 否 | - | 100万 | 小规模测试 |
-| `--medium` | 123Bus | 是 | 10 | 500万 | 中等规模训练 |
-| `--large` | 8500-Node | 是 | 50 | 2000万 | 大规模训练 |
-| `--quick` | 默认 | 默认 | 默认 | 10万 | 快速验证 |
-| `--benchmark` | 默认 | 默认 | 默认 | 5000万 | 基准测试 |
-
-#### 系统参数
+### 单智能体训练
 
 ```bash
-# 选择电力系统
---system 13Bus          # 13节点系统（小规模）
---system 34Bus          # 34节点系统
---system 123Bus         # 123节点系统（中等规模）
---system 8500-Node      # 8500节点系统（大规模）
+# 使用PPO算法训练
+cd single_agent/launchers
+./train_single_agent_powerzoo_pv.sh
 
-# 选择算法
---algorithm mappo       # MAPPO（默认）
---algorithm maddpg      # MADDPG
---algorithm qmix        # QMIX
---algorithm hatd3       # HATD3
+# 使用DDPG算法测试
+./test_ddpg.sh
 ```
 
-#### 聚合参数
+## 📊 算法支持
 
-```bash
-# 启用/禁用聚合
---aggregation           # 启用负荷聚合
---no-aggregation        # 禁用负荷聚合
+### 多智能体算法
+- **HAPPO**: 异构智能体近端策略优化
+- **MAPPO**: 多智能体近端策略优化
+- **HATRPO**: 异构智能体信任域策略优化
+- **MADDPG**: 多智能体深度确定性策略梯度
+- **MATD3**: 多智能体双延迟深度确定性策略梯度
 
-# 设置智能体数量
---agents 20             # 指定20个负荷智能体
+### 单智能体算法
+- **PPO**: 近端策略优化
+- **SAC**: 软演员评论家
+- **TD3**: 双延迟深度确定性策略梯度
+- **DDPG**: 深度确定性策略梯度
+- **A2C**: 优势演员评论家
 
-# 选择聚合方法
---method zone           # 基于区域聚合（默认）
---method priority       # 基于优先级聚合
---method random         # 随机聚合
-```
+## 🔧 PV方案配置
 
-#### 训练参数
+系统支持三种PV渗透率方案：
 
-```bash
-# 基础参数
---seed 42               # 随机种子
---steps 5000000         # 训练步数
---episode-len 20        # 回合长度
---threads 4             # 并行线程数
+1. **保守方案** (Conservative)
+   - 容量: 720kW
+   - 渗透率: 40.7%
+   - 风险: 低
 
-# 网络参数
---hidden 256            # 隐藏层大小
---lr 1e-4               # 学习率
+2. **优化方案** (Optimized)
+   - 容量: 900kW
+   - 渗透率: 50.8%
+   - 风险: 中等
 
-# 评估和日志
---eval                  # 启用评估
---wandb                 # 启用wandb日志
---save-interval 50      # 保存间隔
---eval-interval 25      # 评估间隔
-```
+3. **激进方案** (Aggressive)
+   - 容量: 1080kW
+   - 渗透率: 61%
+   - 风险: 高
 
-#### 实用功能
+## 📝 详细文档
 
-```bash
-# 预览命令（不执行）
-./run_dsr_aggregation.sh --large --dry-run
+- 多智能体训练详情: [multi_agent/README.md](multi_agent/README.md)
+- 单智能体训练详情: [single_agent/README.md](single_agent/README.md)
 
-# 详细输出
-./run_dsr_aggregation.sh --medium --verbose
+## 🎯 使用建议
 
-# 组合使用
-./run_dsr_aggregation.sh --system 123Bus --aggregation --agents 15 --method priority --eval --wandb
-```
+1. **初学者**: 从单智能体训练开始，使用PPO算法
+2. **进阶用户**: 尝试多智能体HAPPO算法，优化方案
+3. **研究人员**: 使用完整参数配置脚本，自定义奖励权重
 
-### 使用示例
+## ⚠️ 注意事项
 
-#### 示例1：小规模快速验证
-
-```bash
-# 使用13Bus系统进行快速验证
-./run_dsr_aggregation.sh --small --quick --eval
-```
-
-这将：
-- 使用13Bus系统（无聚合）
-- 训练10万步
-- 启用评估
-- 适合快速验证代码正确性
-
-#### 示例2：中等规模完整训练
-
-```bash
-# 使用123Bus系统进行完整训练
-./run_dsr_aggregation.sh --medium --wandb --eval
-```
-
-这将：
-- 使用123Bus系统
-- 启用负荷聚合（10个智能体）
-- 训练500万步
-- 启用wandb日志和评估
-
-#### 示例3：大规模基准测试
-
-```bash
-# 使用8500-Node系统进行基准测试
-./run_dsr_aggregation.sh --large --benchmark --agents 100 --wandb
-```
-
-这将：
-- 使用8500-Node系统
-- 100个负荷智能体
-- 训练5000万步
-- 启用wandb日志
-
-#### 示例4：自定义配置
-
-```bash
-# 完全自定义的训练配置
-./run_dsr_aggregation.sh \
-    --system 123Bus \
-    --aggregation \
-    --agents 20 \
-    --method priority \
-    --algorithm maddpg \
-    --steps 8000000 \
-    --hidden 512 \
-    --lr 3e-4 \
-    --eval \
-    --wandb
-```
-
-#### 示例5：算法对比实验
-
-```bash
-# MAPPO训练
-./run_dsr_aggregation.sh --medium --algorithm mappo --experiment mappo_test --wandb
-
-# MADDPG训练
-./run_dsr_aggregation.sh --medium --algorithm maddpg --experiment maddpg_test --wandb
-
-# QMIX训练
-./run_dsr_aggregation.sh --medium --algorithm qmix --experiment qmix_test --wandb
-```
-
-### Python脚本参数说明
-
-如果直接使用`train_dsr_aggregation.py`，支持以下主要参数：
-
-#### 环境参数
-- `--env_name`: 环境名称（默认：dsr）
-- `--algorithm_name`: 算法名称（默认：mappo）
-- `--experiment_name`: 实验名称（默认：dsr_aggregation）
-
-#### DSR特定参数
-- `--system_name`: 电力系统选择
-- `--use_load_aggregation`: 启用负荷聚合
-- `--n_load_agents`: 负荷智能体数量
-- `--load_aggregation_method`: 聚合方法
-
-#### 训练参数
-- `--seed`: 随机种子
-- `--episode_length`: 回合长度
-- `--num_env_steps`: 训练步数
-- `--n_rollout_threads`: 并行线程数
-- `--hidden_size`: 隐藏层大小
-- `--lr`: 学习率
-
-#### 评估参数
-- `--use_eval`: 启用评估
-- `--eval_interval`: 评估间隔
-- `--use_wandb`: 启用wandb日志
-
-### 系统要求
-
-1. **Python环境**：Python 3.7+
-2. **依赖包**：按照项目根目录的`environment.yml`安装
-3. **硬件要求**：
-   - 小系统（13Bus）：2GB内存，1个CPU核心
-   - 中等系统（123Bus）：4GB内存，2-4个CPU核心
-   - 大系统（8500-Node）：8GB+内存，4-8个CPU核心
-
-### 输出文件
-
-训练过程中会生成以下文件：
-
-- `results/`: 训练结果和日志
-- `models/`: 保存的模型文件
-- `logs/`: 详细的训练日志
-- `wandb/`: wandb日志文件（如果启用）
-
-### 故障排除
-
-#### 常见问题
-
-1. **内存不足**
-   ```bash
-   # 减少并行线程数
-   ./run_dsr_aggregation.sh --medium --threads 1
-   ```
-
-2. **训练速度慢**
-   ```bash
-   # 使用GPU加速（如果可用）
-   ./run_dsr_aggregation.sh --medium --cuda
-   ```
-
-3. **大系统训练失败**
-   ```bash
-   # 增加聚合程度，减少智能体数量
-   ./run_dsr_aggregation.sh --large --agents 20
-   ```
-
-4. **查看详细错误信息**
-   ```bash
-   # 使用verbose模式
-   ./run_dsr_aggregation.sh --medium --verbose
-   ```
-
-### 进阶使用
-
-#### 批量实验
-
-```bash
-#!/bin/bash
-# 批量运行不同配置的实验
-
-for system in "13Bus" "123Bus"; do
-    for method in "zone" "priority" "random"; do
-        ./run_dsr_aggregation.sh \
-            --system $system \
-            --aggregation \
-            --method $method \
-            --experiment "${system}_${method}" \
-            --wandb
-    done
-done
-```
-
-#### 超参数搜索
-
-```bash
-# 不同学习率实验
-for lr in "1e-4" "5e-4" "1e-3"; do
-    ./run_dsr_aggregation.sh \
-        --medium \
-        --lr $lr \
-        --experiment "lr_${lr}" \
-        --wandb
-done
-```
-
-### 性能优化建议
-
-1. **系统选择**：根据计算资源选择合适的系统规模
-2. **聚合策略**：大系统必须使用聚合，小系统可以不用
-3. **并行设置**：根据CPU核心数设置合适的线程数
-4. **内存管理**：大系统训练时注意内存使用
-5. **日志记录**：生产环境建议启用wandb进行实验管理
-
-### 联系方式
-
-如有问题或建议，请联系：
-- 作者：Xiaodong Zheng
-- 项目地址：PowerZoo框架
-
----
-
-**注意**：首次运行前请确保已正确安装所有依赖包，并根据你的硬件配置调整相应参数。
+- 确保已安装所有依赖包
+- GPU训练需要CUDA支持
+- 首次运行建议使用`--dry_run`参数检查配置

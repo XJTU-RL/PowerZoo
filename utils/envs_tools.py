@@ -55,47 +55,29 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
     def get_env_fn(rank):
         def init_env():
-            if env_name == "smac":
-                from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
-
-                env = StarCraft2Env(env_args)
-            elif env_name == "smacv2":
-                from envs.other_envs.smacv2.smacv2_env import SMACv2Env
-
-                env = SMACv2Env(env_args)
-            elif env_name == "mamujoco":
-                from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import (
-                    MujocoMulti,
-                )
-
-                env = MujocoMulti(env_args=env_args)
-            elif env_name == "pettingzoo_mpe":
-                from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import (
-                    PettingZooMPEEnv,
-                )
-
-                assert env_args["scenario"] in [
-                    "simple_v2",
-                    "simple_spread_v2",
-                    "simple_reference_v2",
-                    "simple_speaker_listener_v3",
-                ], "only cooperative scenarios in MPE are supported"
-                env = PettingZooMPEEnv(env_args)
-            elif env_name == "gym":
-                from envs.other_envs.gym.gym_env import GYMEnv
-
-                env = GYMEnv(env_args)
-            elif env_name == "football":
-                from envs.other_envs.football.football_env import FootballEnv
-
-                env = FootballEnv(env_args)
-            elif env_name == "powerzoo":
-                from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv   
+            if env_name == "powerzoo":
+                from envs.powerzoo.powerzoo_env import PowerZooEnv   
                 
                 env = PowerZooEnv(env_args,rank) 
                 
+            elif env_name == "powerzoo_llm":
+                # Use PowerZooEnv for powerzoo_llm environment
+                from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+                from envs.powerzoo_llm.base_env.env_register import make_base_env
+                
+                # 简化的配置传递 - 只传递 env_args
+                config_dict = {'env_args': env_args}
+                
+                base_env = make_base_env(
+                    env_args.get('env_name', '34Bus_pv'),
+                    env_args.get('dss_act', False), 
+                    worker_idx=rank,
+                    config_dict=config_dict
+                )
+                env = PowerZooEnv(base_env, env_args, rank)
+                
             elif env_name == "dsr":
-                from envs.power_envs.dsr.dsr_env import DSREnv
+                from envs.dsr.dsr_env import DSREnv
                 
                 env = DSREnv(env_args, rank)
                 
@@ -103,6 +85,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from envs.other_envs.lag.lag_env import LAGEnv
 
                 env = LAGEnv(env_args)
+
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -110,54 +93,42 @@ def make_train_env(env_name, seed, n_threads, env_args):
             return env
 
         return init_env
-    print("make_train_env=",n_threads)
+    print("train env的数量是=",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
         return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])#get_env_fn(i)返回值是单个的环境
 
 
-def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
+def make_eval_env(env_name, seed, n_threads, env_args):
     """Make env for evaluation."""
     if env_name == "dexhands":  # dexhands does not support running multiple instances
         raise NotImplementedError
 
     def get_env_fn(rank):
         def init_env():
-            if env_name == "smac":
-                from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
-
-                env = StarCraft2Env(env_args)
-            elif env_name == "smacv2":
-                from envs.other_envs.smacv2.smacv2_env import SMACv2Env
-
-                env = SMACv2Env(env_args)
-            elif env_name == "mamujoco":
-                from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import (
-                    MujocoMulti,
+            if env_name == "powerzoo":
+                from envs.powerzoo.powerzoo_env import PowerZooEnv
+                env = PowerZooEnv(env_args,rank)
+                
+            elif env_name == "powerzoo_llm":
+                from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+                from envs.powerzoo_llm.base_env.env_register import make_base_env
+                
+                # 简化的配置传递 - 只传递 env_args
+                config_dict = {'env_args': env_args}
+                
+                base_env = make_base_env(
+                    env_args.get('env_name', '34Bus_pv'),
+                    env_args.get('dss_act', False), 
+                    worker_idx=rank,
+                    config_dict=config_dict
                 )
-
-                env = MujocoMulti(env_args=env_args)
-            elif env_name == "pettingzoo_mpe":
-                from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import (
-                    PettingZooMPEEnv,
-                )
-
-                env = PettingZooMPEEnv(env_args)
-            elif env_name == "gym":
-                from envs.other_envs.gym.gym_env import GYMEnv
-
-                env = GYMEnv(env_args)
-            elif env_name == "football":
-                from envs.other_envs.football.football_env import FootballEnv
-
-                env = FootballEnv(env_args)
-            elif env_name == "powerzoo":
-                from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
-                env = PowerZooEnv(env_args,rank+train_threads)
+                env = PowerZooEnv(base_env, env_args, rank)
+                
             elif env_name == "dsr":
-                from envs.power_envs.dsr.dsr_env import DSREnv
-                env = DSREnv(env_args, rank+train_threads)
+                from envs.dsr.dsr_env import DSREnv
+                env = DSREnv(env_args, rank)
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -169,7 +140,7 @@ def make_eval_env(env_name, seed, n_threads, env_args,train_threads=3):
             return env
 
         return init_env
-    print("make_eval_env=",n_threads)
+    print("eval env 的数量是 =",n_threads)
     if n_threads == 1:
         return ShareDummyVecEnv([get_env_fn(0)])
     else:
@@ -182,46 +153,9 @@ def make_render_env(env_name, seed, env_args):
     manual_expand_dims = True  # manually expand the num_of_parallel_envs dimension
     manual_delay = True  # manually delay the rendering by time.sleep()
     env_num = 1  # number of parallel envs
-    if env_name == "smac":
-        from envs.other_envs.smac.StarCraft2_Env import StarCraft2Env
-
-        env = StarCraft2Env(args=env_args)
-        manual_render = (
-            False  # smac does not support manually calling the render() function
-        )
-        # instead, it use save_replay()
-        manual_delay = False
-        env.seed(seed * 60000)
-    elif env_name == "smacv2":
-        from envs.other_envs.smacv2.smacv2_env import SMACv2Env
-
-        env = SMACv2Env(args=env_args)
-        manual_render = False
-        manual_delay = False
-        env.seed(seed * 60000)
-    elif env_name == "mamujoco":
-        from envs.other_envs.mamujoco.multiagent_mujoco.mujoco_multi import MujocoMulti
-
-        env = MujocoMulti(env_args=env_args)
-        env.seed(seed * 60000)
-    elif env_name == "pettingzoo_mpe":
-        from envs.other_envs.pettingzoo_mpe.pettingzoo_mpe_env import PettingZooMPEEnv
-
-        env = PettingZooMPEEnv({**env_args, "render_mode": "human"})
-        env.seed(seed * 60000)
-    elif env_name == "gym":
-        from envs.other_envs.gym.gym_env import GYMEnv
-
-        env = GYMEnv(env_args)
-        env.seed(seed * 60000)
-    elif env_name == "football":
-        from envs.other_envs.football.football_env import FootballEnv
-
-        env = FootballEnv(env_args)
-        manual_render = False  # football renders automatically
-        env.seed(seed * 60000)
-    elif env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
-        from envs.power_envs.powerzoo.powerzoo_env import PowerZooEnv
+    
+    if env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
+        from envs.powerzoo.powerzoo_env import PowerZooEnv
 
         env = PowerZooEnv(env_args,rank=4)
         manual_render = False  
@@ -230,8 +164,26 @@ def make_render_env(env_name, seed, env_args):
         )
         manual_delay = False
         env.seed(seed * 60000)
+    elif env_name == "powerzoo_llm": #powerzoo_llm环境渲染支持
+        from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+        from envs.powerzoo_llm.base_env.env_register import make_base_env
+        
+        # 简化的配置传递
+        config_dict = {'env_args': env_args}
+        base_env = make_base_env(
+            env_args.get('env_name', '34Bus_pv'),
+            env_args.get('dss_act', False),
+            worker_idx=4,
+            config_dict=config_dict
+        )
+        env = PowerZooEnv(base_env, env_args, rank=4)
+        manual_render = False  
+        manual_expand_dims = False
+        manual_delay = False
+        env.seed(seed * 60000)
+        
     elif env_name == "dsr":
-        from envs.power_envs.dsr.dsr_env import DSREnv
+        from envs.dsr.dsr_env import DSREnv
 
         env = DSREnv(env_args, rank=4)
         manual_render = False  
@@ -239,21 +191,6 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
         
-    elif env_name == "dexhands":
-        from envs.other_envs.dexhands.dexhands_env import DexHandsEnv
-
-        env = DexHandsEnv({"n_threads": 64, **env_args})
-        manual_render = False  # dexhands renders automatically
-        manual_expand_dims = (
-            False  # dexhands uses parallel envs, thus dimension is already expanded
-        )
-        manual_delay = False
-        env_num = 64
-    elif env_name == "lag":
-        from envs.other_envs.lag.lag_env import LAGEnv
-
-        env = LAGEnv(env_args)
-        env.seed(seed * 60000)
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError
@@ -274,25 +211,11 @@ def set_seed(args):
 
 def get_num_agents(env, env_args, envs):
     """Get the number of agents in the environment."""
-    if env == "smac":
-        from envs.other_envs.smac.smac_maps import get_map_params
-
-        return get_map_params(env_args["map_name"])["n_agents"]
-    elif env == "smacv2":
+    if env == "powerzoo":
         return envs.n_agents
-    elif env == "mamujoco":
+    elif env == "PowerZoo":
         return envs.n_agents
-    elif env == "pettingzoo_mpe":
-        return envs.n_agents
-    elif env == "gym":
-        return envs.n_agents
-    elif env == "football":
-        return envs.n_agents
-    elif env == "dexhands":
-        return envs.n_agents
-    elif env == "lag":
-        return envs.n_agents
-    elif env == "powerzoo":
+    elif env == "powerzoo_llm":
         return envs.n_agents
     elif env == "dsr":
         return envs.n_agents
@@ -303,7 +226,7 @@ def get_num_agents(env, env_args, envs):
 #         return envs.update_orders
 def get_ordered_agents_pairs(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env == "powerzoo":
+    if env in ["powerzoo", "powerzoo_llm"]:
        if env_args.get("useS", False):
            return envs.ordered_agents_pairs
        else:
@@ -311,8 +234,10 @@ def get_ordered_agents_pairs(env, env_args, envs):
 
 def get_agents_bus(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env == "powerzoo":
+    if env in ["powerzoo", "powerzoo_llm"]:
        if env_args.get("useS", False):
            return envs.agents_bus
        else:
            return None
+    else:
+        return None

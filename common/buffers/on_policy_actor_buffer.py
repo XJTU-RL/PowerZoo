@@ -15,9 +15,8 @@
     - `feed_forward_generator_actor` 方法：为使用多层感知机网络的演员生成训练数据。
     - `naive_recurrent_generator_actor` 方法：为使用循环神经网络的演员生成训练数据，不拆分轨迹。
     - `recurrent_generator_actor` 方法：为使用循环神经网络的演员生成训练数据，拆分轨迹为指定长度的块。
-- 依赖库：`torch`、`numpy`，以及 `utils` 模块中的 `_flatten`、`_sa_cast`、`get_shape_from_obs_space` 和 `get_shape_from_act_space` 工具函数。
 """
-"""On-policy buffer for actor."""
+
 
 import torch
 import numpy as np
@@ -63,7 +62,7 @@ class OnPolicyActorBuffer:
             dtype=np.float32,
         )
 
-        #TODO 考虑混合动作空间的情况，如果有连续量应该如何进行直接调节
+        
         # Buffer for available actions of this actor.
         if act_space.__class__.__name__ == "Discrete":
             self.available_actions = np.ones(
@@ -71,26 +70,19 @@ class OnPolicyActorBuffer:
                 dtype=np.float32,
             )
         else: 
-            #TODO:为了避免available_actions为none的情况，原来的代码只有下面的一行else注释
             self.available_actions = None
-            # nvec = act_space.nvec
-            # int_nvec = [int(x) for x in nvec]
-            # self.available_actions = np.ones(
-            #     (self.episode_length + 1, self.n_rollout_threads, *int_nvec),
-            #     dtype=np.float32,
-            # )
+            
         act_shape = get_shape_from_act_space(act_space)
 
         # Buffer for actions of this actor.
-        # 24*6*1
         self.actions = np.zeros(
             (self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32
         ) 
         
-
         # Buffer for action log probs of this actor.
+        # 注意：action_log_probs通常是标量，不依赖于动作维度
         self.action_log_probs = np.zeros(
-            (self.episode_length, self.n_rollout_threads, act_shape), dtype=np.float32
+            (self.episode_length, self.n_rollout_threads, 1), dtype=np.float32
         )
 
         # Buffer for masks of this actor. Masks denotes at which point should the rnn states be reset.
@@ -118,7 +110,6 @@ class OnPolicyActorBuffer:
         available_actions=None,
     ):
         """Insert data into actor buffer."""
-        #print("obs-------------shape",obs.shape)
         self.obs[self.step + 1] = obs.copy()
         self.rnn_states[self.step + 1] = rnn_states.copy()
         self.actions[self.step] = actions.copy()
@@ -147,7 +138,7 @@ class OnPolicyActorBuffer:
 
         # get episode_length, n_rollout_threads, mini_batch_size
         episode_length, n_rollout_threads = self.actions.shape[0:2]
-        batch_size = n_rollout_threads * episode_length#指的是在每一次模型参数更新时一次性输入到模型的样本数量,一次输入的样本数是线程数乘以episode的长度
+        batch_size = n_rollout_threads * episode_length #每一次模型参数更新时一次性输入到模型的样本数量,一次输入的样本数是线程数乘以episode的长度
         if mini_batch_size is None:
             assert batch_size >= actor_num_mini_batch, (
                 f"The number of processes ({n_rollout_threads}) "
@@ -176,7 +167,7 @@ class OnPolicyActorBuffer:
             )
         masks = self.masks[:-1].reshape(-1, 1)
         active_masks = self.active_masks[:-1].reshape(-1, 1)
-        action_log_probs = self.action_log_probs.reshape(-1, self.action_log_probs.shape[-1])
+        action_log_probs = self.action_log_probs.reshape(-1, 1)
         if self.factor is not None:
             factor = self.factor.reshape(-1, self.factor.shape[-1])
         advantages = advantages.reshape(-1, 1)

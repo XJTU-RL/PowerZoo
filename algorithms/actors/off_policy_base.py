@@ -5,19 +5,7 @@
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
 @Description: 此 Python 文件定义了一个用于离策略（off - policy）算法的基类 `OffPolicyBase`，主要作用是为离策略算法提供基础功能和通用接口。
-- 关键组件及职责：
-  - `__init__`：类的构造函数，初始化对象，接收参数、观测空间、动作空间和设备信息。
-  - `lr_decay`：衰减 actor 和 critic 的学习率，根据当前训练步骤和总训练步骤更新学习率。
-  - `get_actions`：获取动作，具体实现待子类完成。
-  - `get_target_actions`：获取目标动作，具体实现待子类完成。
-  - `soft_update`：软更新目标 actor 的参数，使用 Polyak 平均法更新。
-  - `save`：保存 actor 和目标 actor 的状态字典到指定目录。
-  - `restore`：从指定目录恢复 actor 和目标 actor 的状态字典。
-  - `turn_on_grad`：开启 actor 参数的梯度计算。
-  - `turn_off_grad`：关闭 actor 参数的梯度计算。
-- 依赖库：使用了 `copy`、`numpy`、`torch` 库，以及 `utils.envs_tools` 和 `utils.models_tools` 模块。
 """
-"""Base class for off-policy algorithms."""
 
 from copy import deepcopy
 import numpy as np

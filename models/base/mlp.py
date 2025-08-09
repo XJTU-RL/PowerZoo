@@ -1,7 +1,7 @@
 import torch.nn as nn
 from utils.models_tools import init, get_active_func, get_init_method
 
-"""MLP modules."""#TODO:定义网络模型的结构
+"""MLP modules."""
 
 
 class MLPLayer(nn.Module):

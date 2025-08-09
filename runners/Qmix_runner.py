@@ -391,8 +391,8 @@ class QMIXRunner(MlpRunner):
                     if self.use_wandb:
                         wandb.log({suffix_k: v}, step=step)
                     else:
-                        self.writter.add_scalar(suffix_k, v, step)
-                        self.writter.add_scalar("example_metric", step * 0.1, step)
+                        self.writer.add_scalar(suffix_k, v, step)
+                        self.writer.add_scalar("example_metric", step * 0.1, step)
                 render_episode_rewards.append(rewards)
                 if step==23:
                      average_render_episode_rewards=np.sum(render_episode_rewards)
@@ -585,7 +585,7 @@ class QMIXRunner(MlpRunner):
                 if self.use_wandb:
                     wandb.log({suffix_k: v}, step=self.total_env_steps)
                 else:
-                    self.writter.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)
+                    self.writer.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)
 
     def log_clear(self):
         """See parent class."""

@@ -1,0 +1,142 @@
+algo_config:
+  device:
+    cuda: true
+    cuda_deterministic: true
+    torch_threads: 4
+  eval:
+    deterministic_eval: true
+    eval_episodes: 5
+    n_eval_rollout_threads: 1
+    use_eval: true
+  model:
+    activation_func: tanh
+    gain: 0.01
+    hidden_sizes:
+    - 64
+    - 64
+    use_orthogonal_init: true
+  ppo:
+    batch_size: 64
+    clip_range: 0.2
+    ent_coef: 0.0
+    gae_lambda: 0.95
+    gamma: 0.99
+    learning_rate: 0.0003
+    max_grad_norm: 0.5
+    n_epochs: 10
+    n_steps: 2048
+    vf_coef: 0.5
+  seed:
+    seed: 1
+    seed_specify: true
+  train:
+    episode_length: 24
+    eval_interval: 1000
+    log_interval: 10
+    n_rollout_threads: 1
+    save_interval: 10000
+    total_timesteps: 100000
+    use_linear_lr_decay: true
+algorithm: ppo
+device: auto
+env_config:
+  big2small: false
+  do_testing: false
+  env_name: 13Bus
+  mode: single
+  num_steps: 24
+  num_workers: 1
+  record_node: false
+  seed: 123456
+  single_agent:
+    action:
+      action_type: discrete
+      normalize_action: false
+    observation:
+      history_length: 1
+      include_history: false
+      normalize_obs: true
+    reward:
+      normalize_reward: false
+      reward_type: composite
+      reward_weights:
+        power_loss: 0.5
+        reactive_power: 0.3
+        voltage: 1.0
+  useS: false
+  use_plot: false
+  use_render: false
+environment: powerzoo_single
+experiment_name: ppo_powerzoo_single_13Bus_20250806_211131_seed42
+seed: 42
+single_agent_env_config:
+  action_constraints:
+    battery_power_range: !!python/tuple
+    - -1.0
+    - 1.0
+    capacitor_steps:
+    - -1
+    - 0
+    - 1
+    pv_power_factor_range: !!python/tuple
+    - 0.8
+    - 1.0
+    regulator_taps:
+    - -16
+    - -15
+    - -14
+    - -13
+    - -12
+    - -11
+    - -10
+    - -9
+    - -8
+    - -7
+    - -6
+    - -5
+    - -4
+    - -3
+    - -2
+    - -1
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
+    - 12
+    - 13
+    - 14
+    - 15
+    - 16
+  circuit_name: 13Bus
+  custom_reward_weights:
+    discharge_penalty: 0.5
+    power_loss: 0.5
+    voltage_penalty: 1.0
+  discharge_penalty_weight: 0.5
+  enable_batteries: true
+  enable_capacitors: true
+  enable_pv_systems: true
+  enable_regulators: true
+  include_bus_voltages: true
+  include_device_states: true
+  include_power_flows: true
+  log_level: INFO
+  max_episode_steps: 24
+  normalize_observations: true
+  observation_filters: null
+  power_loss_weight: 0.5
+  render_mode: null
+  save_episode_data: false
+  seed: 42
+  voltage_penalty_weight: 1.0
+  voltage_target: 1.0
+  voltage_tolerance: 0.05
+total_timesteps: 1000

@@ -210,7 +210,7 @@ def get_config():
     
     # Add DAN-HAPPO specific arguments
     parser.add_argument('--scenario_name', type=str, default='DSR', help="Scenario name")
-    parser.add_argument('--case_path', type=str, default='./envs/cases/13Bus/IEEE13Nodeckt.dss', help="Path to DSS case file")
+    parser.add_argument('--case_path', type=str, default='/home/zhengxiaodong/exps/PowerZoo/cases/13Bus/IEEE13Nodeckt.dss', help="Path to DSS case file")
     parser.add_argument('--num_agents', type=int, default=4, help="Number of agents")
     parser.add_argument('--use_dan', action='store_true', default=True, help="Whether to use DAN architecture")
     parser.add_argument('--use_neighbor_obs', action='store_true', default=True, help="Whether to use neighbor observations")

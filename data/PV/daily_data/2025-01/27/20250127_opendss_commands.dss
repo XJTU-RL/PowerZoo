@@ -1,0 +1,9 @@
+! OpenDSS PV System Commands - 20250127
+
+New LoadShape.MyIrrad npts=1440 interval=1 mult=(file=20250127_irradiance_timeseries.csv)
+New LoadShape.MyTemp npts=1440 interval=1 mult=(file=20250127_temperature_timeseries.csv)
+
+New XYCurve.Myeff npts=4 xarray=[.1 .2 .4 1.0] yarray=[.86 .9 .93 .97]
+New XYCurve.MyPvsT npts=4 xarray=[0 25 75 100] yarray=[1.2 1.0 0.8 0.6]
+
+New PVSystem.PV834 phases=3 bus1=trafo_pv kV=0.48 kVA=200 irrad=0.349 Pmpp=180 temperature=2.1 PF=1 %cutin=0.1 %cutout=0.1 effcurve=Myeff P-TCurve=MyPvsT Duty=MyIrrad TDuty=MyTemp
