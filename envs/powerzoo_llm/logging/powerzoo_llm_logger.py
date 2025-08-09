@@ -134,11 +134,17 @@ class PowerZooLLMLogger(BaseLogger):
             self.algo_args["train"]["n_rollout_threads"]
         )
         self.done_episodes_total_power_kw = []
-        
+
         self.train_episode_total_power_kvar = np.zeros(
             self.algo_args["train"]["n_rollout_threads"]
         )
         self.done_episodes_total_power_kvar = []
+
+        # 新增：记录电网总负荷
+        self.train_episode_total_load_kw = np.zeros(
+            self.algo_args["train"]["n_rollout_threads"]
+        )
+        self.done_episodes_total_load_kw = []
         
         # 控制设备追踪
         self.train_episode_capacitor_control = np.zeros(
@@ -239,6 +245,7 @@ class PowerZooLLMLogger(BaseLogger):
         power_loss_kvar = self._extract_info_value(infos, 'power_loss_kvar', 0)
         total_power_kw = self._extract_info_value(infos, 'total_power_kw', 0)
         total_power_kvar = self._extract_info_value(infos, 'total_power_kvar', 0)
+        total_load_kw = self._extract_info_value(infos, 'total_load_kw', 0)
         
         # 解析控制量
         capacitor_ctrl = self._extract_info_value(infos, 'capacitor_ctrl', 0)
@@ -298,12 +305,14 @@ class PowerZooLLMLogger(BaseLogger):
         power_loss_kvar = ensure_correct_shape(power_loss_kvar)
         total_power_kw = ensure_correct_shape(total_power_kw)
         total_power_kvar = ensure_correct_shape(total_power_kvar)
+        total_load_kw = ensure_correct_shape(total_load_kw)
         
         # 累加瞬时功率值，最后会在episode结束时求平均
         self.train_episode_power_loss_kw += power_loss_kw
         self.train_episode_power_loss_kvar += power_loss_kvar
         self.train_episode_total_power_kw += total_power_kw
         self.train_episode_total_power_kvar += total_power_kvar
+        self.train_episode_total_load_kw += total_load_kw
         
         # 更新控制量
         capacitor_ctrl = ensure_correct_shape(capacitor_ctrl)
@@ -419,25 +428,26 @@ class PowerZooLLMLogger(BaseLogger):
         Returns:
             float: 功率损耗百分比
         """
-        if not self.done_episodes_power_loss_kw or not self.done_episodes_total_power_kw or not self.done_episodes_pv_output_kw:
+        if not self.done_episodes_power_loss_kw or not self.done_episodes_total_load_kw:
             return 0.0
-        
+
         avg_power_loss = np.mean(self.done_episodes_power_loss_kw)
-        avg_total_load = abs(np.mean(self.done_episodes_total_power_kw))  # 电网总负荷（取绝对值）
-        avg_pv_generation = np.mean(self.done_episodes_pv_output_kw)  # PV发电功率
-        
-        # 系统总传输功率 = 电网负荷 + PV发电功率
-        total_transmitted_power = avg_total_load + avg_pv_generation
-        
-        # 避免除以零的情况
-        if total_transmitted_power < 10.0:  # 如果总传输功率小于10kW，认为是异常情况
+        avg_total_load = abs(np.mean(self.done_episodes_total_load_kw))  # 电网总负荷（取绝对值）
+        avg_pv_generation = (
+            np.mean(self.done_episodes_pv_output_kw)
+            if self.done_episodes_pv_output_kw
+            else 0.0
+        )  # PV发电功率
+
+        total_input_power = avg_total_load + avg_pv_generation
+        if total_input_power <= 0:
             return 0.0
-            
-        power_loss_percentage = (avg_power_loss / total_transmitted_power) * 100
-        
+
+        power_loss_percentage = (avg_power_loss / total_input_power) * 100
+
         # 限制在合理范围内（通常不会超过50%）
         power_loss_percentage = min(power_loss_percentage, 50.0)
-        
+
         return power_loss_percentage
     
     def _record_episode_done(self, thread_id):
@@ -473,9 +483,12 @@ class PowerZooLLMLogger(BaseLogger):
         
         self.done_episodes_total_power_kw.append(self.train_episode_total_power_kw[thread_id] / episode_length)
         self.train_episode_total_power_kw[thread_id] = 0
-        
+
         self.done_episodes_total_power_kvar.append(self.train_episode_total_power_kvar[thread_id] / episode_length)
         self.train_episode_total_power_kvar[thread_id] = 0
+
+        self.done_episodes_total_load_kw.append(self.train_episode_total_load_kw[thread_id] / episode_length)
+        self.train_episode_total_load_kw[thread_id] = 0
         
         # 记录控制量
         self.done_episodes_capacitor_control.append(self.train_episode_capacitor_control[thread_id])
@@ -609,6 +622,7 @@ class PowerZooLLMLogger(BaseLogger):
             # 总功率
             "total_power_kw": safe_mean(self.done_episodes_total_power_kw),
             "total_power_kvar": safe_mean(self.done_episodes_total_power_kvar),
+            "total_load_kw": safe_mean(self.done_episodes_total_load_kw),
             
             # 控制动作
             "capacitor_switches": safe_mean(self.done_episodes_capacitor_control),
@@ -678,6 +692,7 @@ class PowerZooLLMLogger(BaseLogger):
                 "loss_kvar": metrics['power_loss_kvar'],
                 "total_kw": metrics['total_power_kw'],
                 "total_kvar": metrics['total_power_kvar'],
+                "load_kw": metrics['total_load_kw'],
                 "loss_percentage": metrics['power_loss_percentage'],
             },
             self.total_num_steps
@@ -722,6 +737,7 @@ class PowerZooLLMLogger(BaseLogger):
         self.done_episodes_power_loss_kvar = []
         self.done_episodes_total_power_kw = []
         self.done_episodes_total_power_kvar = []
+        self.done_episodes_total_load_kw = []
         self.done_episodes_capacitor_control = []
         self.done_episodes_regulator_control = []
         self.done_episodes_battery_charge = []
