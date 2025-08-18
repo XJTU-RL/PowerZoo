@@ -1,1 +1,1 @@
-python examples/scripts/train.py --algo happo --env powerzoo --exp_name test
+python examples/multi_agent/scripts/train.py --algo happo --env powerzoo --exp_name test

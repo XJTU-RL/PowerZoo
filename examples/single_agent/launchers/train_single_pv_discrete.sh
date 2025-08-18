@@ -30,7 +30,7 @@ echo "开始训练..."
 echo ""
 
 # 执行训练
-python examples/train.py \
+python examples/single_agent/scripts/train_single_agent.py \
     --algo $ALGO \
     --env $ENV \
     --exp_name $EXP_NAME \

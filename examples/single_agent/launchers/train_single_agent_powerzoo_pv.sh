@@ -99,8 +99,8 @@ check_python_env() {
 
 # 检查项目结构
 check_project_structure() {
-    if [[ ! -f "examples/single_agent/powerzoo_llm/train_single_agent.py" ]]; then
-        print_error "未找到examples/single_agent/powerzoo_llm/train_single_agent.py，请确保在正确的项目目录中"
+    if [[ ! -f "examples/single_agent/scripts/train_single_agent.py" ]]; then
+        print_error "未找到examples/single_agent/scripts/train_single_agent.py，请确保在正确的项目目录中"
         exit 1
     fi
     
@@ -236,7 +236,7 @@ parse_args() {
 
 # 构建训练命令
 build_command() {
-    CMD="python examples/single_agent/powerzoo_llm/train_single_agent.py"
+    CMD="python examples/single_agent/scripts/train_single_agent.py"
     CMD="$CMD --algo $ALGO"
     CMD="$CMD --env $ENV"
     CMD="$CMD --circuit_name $CIRCUIT"

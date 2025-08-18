@@ -253,7 +253,7 @@ if [[ ! "$AGGREGATION_METHOD" =~ ^(zone|priority|random)$ ]]; then
 fi
 
 # 构建命令
-CMD="python examples/scripts/train_dsr_aggregation.py"
+CMD="python examples/multi_agent/scripts/train_dsr_aggregation.py"
 CMD+=" --system_name $SYSTEM_NAME"
 CMD+=" --algorithm_name $ALGORITHM"
 CMD+=" --experiment_name $EXPERIMENT_NAME"
