@@ -3,6 +3,10 @@
 # 快速训练脚本 - PPO算法光伏离散控制
 # 用于测试光伏智能体的离散动作空间控制
 
+# 脚本目录和项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+
 echo "开始PPO光伏离散控制训练..."
 echo "配置: 13Bus电路，光伏5档位离散控制"
 echo "算法: PPO (Proximal Policy Optimization)"
@@ -17,6 +21,9 @@ ALGO="ppo"
 ENV="single_agent_powerzoo"
 EXP_NAME="$ENV _ $ALOG PV_discrete"
 CONFIG_FILE="configs/single_agent_cfgs/ppo_pv_discrete.yaml"
+
+# 切换到项目根目录
+cd "$PROJECT_ROOT"
 
 # 检查配置文件是否存在
 if [ ! -f "$CONFIG_FILE" ]; then

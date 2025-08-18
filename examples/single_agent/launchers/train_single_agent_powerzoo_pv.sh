@@ -7,7 +7,7 @@ set -e  # 遇到错误时退出
 
 # 脚本目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
 
 # 默认参数
 ALGO="ppo"
@@ -99,13 +99,13 @@ check_python_env() {
 
 # 检查项目结构
 check_project_structure() {
-    if [[ ! -f "examples/single_agent/scripts/train_single_agent.py" ]]; then
-        print_error "未找到examples/single_agent/scripts/train_single_agent.py，请确保在正确的项目目录中"
+    if [[ ! -f "../scripts/train_single_agent.py" ]]; then
+        print_error "未找到../scripts/train_single_agent.py，请确保在正确的项目目录中"
         exit 1
     fi
     
-    if [[ ! -d "configs" ]]; then
-        print_error "未找到configs目录，请确保项目结构完整"
+    if [[ ! -d "../../../configs" ]]; then
+        print_error "未找到../../../configs目录，请确保项目结构完整"
         exit 1
     fi
     
@@ -310,7 +310,7 @@ main() {
     check_project_structure
     
     # 切换到项目根目录
-    cd "$(dirname "$SCRIPT_DIR")"
+    cd "$PROJECT_ROOT"
     
     # 打印配置
     print_config

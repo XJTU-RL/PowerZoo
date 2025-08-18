@@ -4,6 +4,10 @@
 # 使用方法:
 # ./train_single.sh [算法名称] [环境名称] [实验名称] [其他参数...]
 
+# 脚本目录和项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+
 # 设置默认参数
 ALGO=${1:-"ppo"}           # 默认算法: PPO
 ENV=${2:-"powerzoo_single"}  # 默认环境: powerzoo_single
@@ -27,8 +31,11 @@ echo "======================================"
 # 激活conda环境（如果需要）
 # conda activate PowerZoo
 
+# 切换到项目根目录
+cd "$PROJECT_ROOT"
+
 # 运行训练脚本
-python single_agent/powerzoo_llm/train_single.py \
+python examples/single_agent/scripts/train_single_agent.py \
     --algo $ALGO \
     --env $ENV \
     --exp_name $EXP_NAME \

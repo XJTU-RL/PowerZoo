@@ -6,6 +6,10 @@
 # @Description: 灵活的DSR聚合训练运行脚本
 # 文件路径: examples/run_dsr_aggregation.sh
 
+# 脚本目录和项目根目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+
 # 设置默认参数
 SYSTEM_NAME="123Bus"
 ALGORITHM="mappo"
@@ -322,8 +326,8 @@ else
     echo -e "${GREEN}开始训练...${NC}"
     echo ""
     
-    # 切换到脚本目录
-    cd "$(dirname "$0")"
+    # 切换到项目根目录
+    cd "$PROJECT_ROOT"
     
     # 执行训练
     eval $CMD
