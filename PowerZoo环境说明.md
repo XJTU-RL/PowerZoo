@@ -178,19 +178,69 @@ total_reward = ctrl_reward + voltage_reward + powerloss_reward * 0.1 +
 
 ## 使用示例
 
+### PowerZoo环境
+
 ```python
-from envs.power_envs.powerzoo_llm.env_register import make_env
+from envs.powerzoo import PowerZooEnv
 
 # 创建基础环境
-env = make_env('34Bus_pv')
-
-# 获取空间信息
-print(f"动作空间维度: {env.ActionSpace.dim()}")
-print(f"设备数量: {env.ActionSpace.CRBP_num()}")
-print(f"观测空间: {env.observation_space}")
+config = {
+	"dss_file": "path/to/ieee13Nodeckt.dss",
+	"num_agents": 3,
+	"episode_length": 96
+}
+env = PowerZooEnv(**config)
 
 # 环境交互
 obs = env.reset()
-action = env.action_space.sample()
-obs, reward, done, info = env.step(action)
+if isinstance(env.action_space, list):
+	actions = [space.sample() for space in env.action_space]
+else:
+	actions = env.action_space.sample()
+obs, reward, done, info = env.step(actions)
+```
+
+### PowerZoo_LLM环境
+
+```python
+from envs.powerzoo_llm.base_env import PowerZooEnv
+
+# 创建完整环境
+config = {
+	"dss_folder_path": "path/to/34Bus_PV_Aggressive",
+	"dss_file": "ieee34Mod1_duty.dss",
+	"num_agents": 10,
+	"episode_length": 96,
+	"reward_type": "powerzoo"
+}
+env = PowerZooEnv(**config)
+
+# 环境交互
+obs = env.reset()
+if isinstance(env.action_space, list):
+	actions = [space.sample() for space in env.action_space]
+elif isinstance(env.action_space, dict):
+	actions = {key: space.sample() for key, space in env.action_space.items()}
+else:
+	actions = env.action_space.sample()
+obs, reward, done, info = env.step(actions)
+```
+
+### 单智能体环境（使用gymnasium）
+
+```python
+from envs.powerzoo_llm.single_agent import SingleAgentPowerZooEnv
+
+# 创建单智能体环境
+config = {
+	"dss_folder_path": "path/to/34Bus_PV_Aggressive",
+	"max_episode_steps": 96
+}
+env = SingleAgentPowerZooEnv(**config)
+
+# 使用Stable-Baselines3训练
+from stable_baselines3 import PPO
+
+model = PPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=100000)
 ```
