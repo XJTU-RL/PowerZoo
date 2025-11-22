@@ -3,7 +3,7 @@
 # Basic environment settings
 env_name: stackelberg_34bus
 system_name: 34Bus
-dss_file: ieee34Mod1.dss
+dss_file: ieee34Mod1_daily.dss
 max_episode_steps: 24  # 24-hour episodes
 
 # Agent configuration

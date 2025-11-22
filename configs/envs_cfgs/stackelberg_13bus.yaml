@@ -3,7 +3,7 @@
 # Basic environment settings
 env_name: stackelberg_13bus
 system_name: 13Bus
-dss_file: IEEE13bus_battery_adaptive.dss
+dss_file: IEEE13Nodeckt_daily.dss
 max_episode_steps: 24  # 24-hour episodes
 
 # Agent configuration

@@ -92,9 +92,9 @@ runner.run()  # Uses 'sn_mappo' algorithm
 ## Configuration
 
 Configurations are stored in `configs/envs_cfgs/`:
-- `stackelberg_13bus.yaml`
-- `stackelberg_34bus.yaml` (to be created)
-- `stackelberg_123bus.yaml` (to be created)
+- `stackelberg_13bus.yaml` - 13-bus system configuration
+- `stackelberg_34bus.yaml` - 34-bus system configuration
+- `stackelberg_123bus.yaml` - 123-bus system configuration
 
 ## Integration Points
 

@@ -3,7 +3,7 @@
 # Basic environment settings
 env_name: stackelberg_123bus
 system_name: 123Bus
-dss_file: IEEE123Master.dss
+dss_file: IEEE123Master_daily.dss
 max_episode_steps: 24  # 24-hour episodes
 
 # Agent configuration

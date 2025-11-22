@@ -14,13 +14,12 @@ Key Features:
 """
 
 import os
-import gym
+import gymnasium as gym
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any, Union
 from collections import defaultdict, deque
 import networkx as nx
-import matplotlib.pyplot as plt
 from datetime import datetime
 import json
 
@@ -83,22 +82,13 @@ class StackelbergBaseEnv:
         # Episode tracking
         self.current_step = 0
         self.episode_count = 0
-        
-        # Prioritized Experience Replay
-        self.per_config = config.get('per_config', {})
-        self.enable_per = self.per_config.get('enable', False)
-        self.per_buffer_size = self.per_config.get('buffer_size', 10000)
-        self.per_alpha = self.per_config.get('alpha', 0.6)  # Priority exponent
-        self.per_beta = self.per_config.get('beta', 0.4)   # Importance sampling
-        self.per_beta_increment = self.per_config.get('beta_increment', 0.001)
-        self.per_epsilon = self.per_config.get('epsilon', 1e-6)
-        
-        if self.enable_per:
-            self.replay_buffer = []
-            self.priorities = np.zeros(self.per_buffer_size)
-            self.buffer_ptr = 0
-            self.buffer_size = 0
-        
+
+        # Initialize circuit adapter for action translation
+        self.circuit_adapter = StackelbergCircuitAdapter(
+            self.circuit,
+            config.get('circuit_adapter_config', {})
+        )
+
         # Asynchronous execution support
         self.uc_action_buffer = None
         self.consumer_actions_buffer = {}
@@ -521,23 +511,25 @@ class StackelbergBaseEnv:
         return obs_array[:15]
     
     def _execute_circuit_actions(self):
-        """Execute the combined UC and consumer actions in the circuit."""
-        # This is a simplified implementation
-        # In practice, this would translate agent actions to circuit control actions
-        
-        # Example: Adjust loads based on consumer actions
-        for agent_id, action in self.consumer_actions_buffer.items():
-            if agent_id in self.consumer_agent_ids:
-                load_adjustment = action[0]  # First component is load adjustment
-                
-                # Apply to associated loads
-                for load_name in self.agent_to_loads.get(agent_id, []):
-                    if load_name in self.circuit.loads:
-                        # Simplified load adjustment
-                        # In practice, this would be more sophisticated
-                        pass
-        
-        # Solve circuit
+        """
+        Execute the combined UC and consumer actions in the circuit.
+
+        Uses the circuit adapter to translate agent actions to circuit controls:
+        - UC actions: ESS control, price signals (for reward calculation)
+        - Consumer actions: Load adjustments, DER output control
+        """
+        # Apply UC actions through circuit adapter
+        if self.uc_action_buffer is not None:
+            self.circuit_adapter.apply_uc_actions(self.uc_action_buffer)
+
+        # Apply consumer actions through circuit adapter
+        if self.consumer_actions_buffer:
+            self.circuit_adapter.apply_consumer_actions(
+                self.consumer_actions_buffer,
+                self.load_to_agent
+            )
+
+        # Solve power flow
         self.circuit.dss.ActiveCircuit.Solution.Solve()
     
     def _update_system_state(self):
@@ -1077,70 +1069,59 @@ class StackelbergBaseEnv:
     def unwrapped(self):
         """Return the unwrapped environment."""
         return self
-    
-    def add_to_replay_buffer(self, transition: Dict[str, Any], td_error: float):
+
+    def step(self, actions: Dict[int, np.ndarray]) -> Tuple[
+        Dict[int, np.ndarray], Dict[int, float], bool, Dict[int, Dict[str, Any]]
+    ]:
         """
-        Add transition to prioritized replay buffer.
-        
+        Execute a complete environment step with all agent actions.
+
+        This is a unified step method that handles both UC and consumer actions
+        in a single call, suitable for synchronous training loops.
+
         Args:
-            transition: Dictionary containing state, action, reward, next_state, done
-            td_error: Temporal difference error for prioritization
-        """
-        if not self.enable_per:
-            return
-        
-        # Calculate priority based on TD error
-        priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
-        
-        # Add to buffer
-        if self.buffer_size < self.per_buffer_size:
-            self.replay_buffer.append(transition)
-            self.buffer_size += 1
-        else:
-            self.replay_buffer[self.buffer_ptr] = transition
-        
-        # Update priority
-        self.priorities[self.buffer_ptr] = priority
-        
-        # Update pointer
-        self.buffer_ptr = (self.buffer_ptr + 1) % self.per_buffer_size
-    
-    def sample_from_replay_buffer(self, batch_size: int) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
-        """
-        Sample batch from prioritized replay buffer.
-        
+            actions: Dictionary mapping agent_id to action array
+                - actions[0]: UC action (leader)
+                - actions[1..n]: Consumer actions (followers)
+
         Returns:
-            transitions: List of sampled transitions
-            weights: Importance sampling weights
-            indices: Indices of sampled transitions
+            observations: Next observations for all agents
+            rewards: Rewards for all agents
+            done: Whether the episode is finished
+            infos: Additional information dictionaries
         """
-        if not self.enable_per or self.buffer_size < batch_size:
-            return [], np.array([]), np.array([])
-        
-        # Calculate sampling probabilities
-        priorities = self.priorities[:self.buffer_size]
-        probs = priorities / priorities.sum()
-        
-        # Sample indices
-        indices = np.random.choice(self.buffer_size, batch_size, p=probs)
-        
-        # Get transitions
-        transitions = [self.replay_buffer[idx] for idx in indices]
-        
-        # Calculate importance sampling weights
-        weights = (self.buffer_size * probs[indices]) ** (-self.per_beta)
-        weights = weights / weights.max()  # Normalize
-        
-        # Increment beta
-        self.per_beta = min(1.0, self.per_beta + self.per_beta_increment)
-        
-        return transitions, weights, indices
-    
-    def update_priorities(self, indices: np.ndarray, td_errors: np.ndarray):
-        """Update priorities for sampled transitions."""
-        if not self.enable_per:
-            return
-        
-        for idx, td_error in zip(indices, td_errors):
-            priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
-            self.priorities[idx] = priority
+        # Extract UC action
+        uc_action = actions.get(self.uc_agent_id, None)
+        if uc_action is None:
+            raise ValueError("UC action (agent 0) is required")
+
+        # Execute UC phase
+        self.step_uc(uc_action)
+
+        # Extract consumer actions
+        consumer_actions = {
+            aid: act for aid, act in actions.items()
+            if aid in self.consumer_agent_ids
+        }
+
+        # Fill missing consumer actions with zeros
+        for cid in self.consumer_agent_ids:
+            if cid not in consumer_actions:
+                consumer_actions[cid] = np.zeros(
+                    self.action_spaces[cid].shape,
+                    dtype=np.float32
+                )
+
+        # Execute consumer phase and get results
+        rewards, infos, done = self.step_consumers(consumer_actions)
+
+        # Get next observations
+        observations = self._get_observations()
+
+        return observations, rewards, done, infos
+
+    def close(self):
+        """Clean up environment resources."""
+        if hasattr(self, 'circuit') and self.circuit is not None:
+            # OpenDSS cleanup if needed
+            pass
