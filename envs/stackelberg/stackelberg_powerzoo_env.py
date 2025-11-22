@@ -144,58 +144,114 @@ class StackelbergPowerZooEnv:
     def reset(self, choose=None):
         """
         Reset environment.
-        
+
         Args:
             choose: Optional load profile index
-            
+
         Returns:
-            observations: Initial observations for all agents
+            Tuple containing:
+            - observations: Initial observations for all agents
+            - state: Global state
+            - available_actions: Available actions for all agents
         """
         self.current_episode += 1
-        
+
         # Reset through async wrapper
         observations = self.async_wrapper.reset(load_profile_idx=choose)
-        
+
+        # Convert observations to list format if needed
+        if isinstance(observations, dict):
+            obs_list = [observations.get(i, np.zeros(self.get_obs_size())) for i in range(self.n_agents)]
+        else:
+            obs_list = list(observations)
+
+        # Global state (concatenation of all observations)
+        state = np.concatenate([np.array(o).flatten() for o in obs_list])
+
+        # Get available actions
+        available_actions = self.get_avail_actions()
+
         # Log episode start
         self.logger.info(f"Episode {self.current_episode} started")
-        
-        return observations
+
+        return obs_list, state, available_actions
     
     def step(self, actions):
         """
         Execute environment step.
-        
+
         Args:
             actions: Dictionary or array of actions
-            
+
         Returns:
-            observations: Next observations
-            rewards: Agent rewards
-            dones: Done flags
-            infos: Additional information
+            Tuple containing:
+            - observations: Next observations for all agents
+            - state: Global state (same as observations for compatibility)
+            - rewards: Agent rewards as [[reward]] format
+            - dones: Done flags for all agents
+            - infos: List of info dicts for all agents
+            - available_actions: Available actions for all agents
         """
         # Convert actions to dictionary if needed
         if isinstance(actions, (list, np.ndarray)):
             action_dict = {i: actions[i] for i in range(len(actions))}
         else:
             action_dict = actions
-        
+
         # Step through async wrapper
         observations, rewards, done, infos = self.async_wrapper.step(action_dict)
-        
+
         # Update step counter
         self.total_steps += 1
-        
-        # Convert outputs for PowerZoo compatibility
+
+        # Convert outputs for PowerZoo/HAPPO compatibility
         if isinstance(rewards, dict):
-            reward_array = np.array([rewards.get(i, 0.0) for i in range(self.n_agents)])
+            reward_array = np.array([[rewards.get(i, 0.0)] for i in range(self.n_agents)])
+        elif isinstance(rewards, np.ndarray) and rewards.ndim == 1:
+            reward_array = rewards.reshape(-1, 1)
         else:
             reward_array = rewards
-        
+
         # Done is same for all agents in this setup
         done_array = np.array([done] * self.n_agents)
-        
-        return observations, reward_array, done_array, infos
+
+        # Convert observations to list format if needed
+        if isinstance(observations, dict):
+            obs_list = [observations.get(i, np.zeros(self.get_obs_size())) for i in range(self.n_agents)]
+        else:
+            obs_list = list(observations)
+
+        # Global state (concatenation of all observations)
+        state = np.concatenate([np.array(o).flatten() for o in obs_list])
+
+        # Convert infos to list format
+        if isinstance(infos, dict):
+            info_list = [infos.get(i, {}) for i in range(self.n_agents)]
+        else:
+            info_list = [infos] * self.n_agents if not isinstance(infos, list) else infos
+
+        # Get available actions for all agents
+        available_actions = self.get_avail_actions()
+
+        return obs_list, state, reward_array, done_array, info_list, available_actions
+
+    def get_avail_actions(self) -> List[List[int]]:
+        """
+        Get available actions for all agents.
+
+        Returns:
+            List of available action masks for each agent.
+            For continuous action spaces, returns [1] indicating all actions available.
+        """
+        available_actions = []
+        for i in range(self.n_agents):
+            if hasattr(self.action_spaces[i], 'n'):
+                # Discrete action space - all actions available
+                available_actions.append([1] * self.action_spaces[i].n)
+            else:
+                # Continuous action space - single indicator
+                available_actions.append([1])
+        return available_actions
     
     def get_env_info(self):
         """Get environment information for PowerZoo."""
