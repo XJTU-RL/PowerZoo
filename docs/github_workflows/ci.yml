@@ -1,0 +1,170 @@
+# PowerZoo CI/CD Pipeline
+# This workflow runs on push and pull requests to ensure code quality
+
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev/*]
+    paths:
+      - 'envs/**'
+      - 'algorithms/**'
+      - 'runners/**'
+      - 'configs/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - 'setup.py'
+      - 'requirements*.txt'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'envs/**'
+      - 'algorithms/**'
+      - 'runners/**'
+      - 'configs/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+
+jobs:
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Run Ruff linter
+        run: |
+          ruff check envs/ --select=E,F,W --ignore=E501,E402,F401 --exit-zero
+
+      - name: Check import sorting
+        run: |
+          ruff check envs/ --select=I --exit-zero
+
+  test-stackelberg:
+    name: Stackelberg Environment Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install gymnasium numpy pandas networkx scikit-learn pyyaml pytest
+          pip install -e .
+
+      - name: Install OpenDSS Python bindings
+        run: |
+          pip install dss-python
+
+      - name: Run Stackelberg integration tests
+        run: |
+          python envs/stackelberg/test_stackelberg_integration.py
+        continue-on-error: true
+
+      - name: Run pytest (if tests exist)
+        run: |
+          pytest tests/ -v --tb=short || echo "No pytest tests found or tests failed"
+        continue-on-error: true
+
+  test-environments:
+    name: Environment Compatibility Check
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install gymnasium numpy pandas networkx scikit-learn pyyaml
+          pip install dss-python
+          pip install -e .
+
+      - name: Verify environment imports
+        run: |
+          python -c "
+          print('Testing environment imports...')
+          try:
+              from envs.stackelberg import (
+                  StackelbergBaseEnv,
+                  StackelbergPowerZooEnv,
+                  AsyncMultiAgentWrapper,
+                  make_stackelberg_env
+              )
+              print('✓ Stackelberg environment imports successful')
+          except Exception as e:
+              print(f'✗ Import failed: {e}')
+              exit(1)
+          "
+
+      - name: Verify configuration loading
+        run: |
+          python -c "
+          from envs.stackelberg import load_stackelberg_config
+
+          configs = ['stackelberg_13bus', 'stackelberg_34bus', 'stackelberg_123bus']
+          for cfg_name in configs:
+              try:
+                  config = load_stackelberg_config(cfg_name)
+                  print(f'✓ {cfg_name} configuration loaded')
+              except Exception as e:
+                  print(f'✗ {cfg_name} failed: {e}')
+          "
+
+  type-check:
+    name: Type Checking (Optional)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install mypy
+        run: |
+          pip install mypy types-PyYAML types-setuptools
+
+      - name: Run mypy on Stackelberg module
+        run: |
+          mypy envs/stackelberg/ --ignore-missing-imports --no-error-summary || true

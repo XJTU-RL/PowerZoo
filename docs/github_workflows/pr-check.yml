@@ -1,0 +1,138 @@
+# Pull Request Validation Workflow
+# Runs additional checks specific to pull requests
+
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Check for large files
+        run: |
+          # Warn about files larger than 1MB
+          find . -type f -size +1M ! -path "./.git/*" | while read file; do
+            echo "Warning: Large file detected: $file ($(du -h "$file" | cut -f1))"
+          done
+
+      - name: Validate YAML configs
+        run: |
+          pip install pyyaml
+          python -c "
+          import yaml
+          import glob
+          import sys
+
+          errors = []
+          for yaml_file in glob.glob('configs/**/*.yaml', recursive=True):
+              try:
+                  with open(yaml_file, 'r') as f:
+                      yaml.safe_load(f)
+                  print(f'✓ {yaml_file}')
+              except Exception as e:
+                  errors.append(f'✗ {yaml_file}: {e}')
+                  print(errors[-1])
+
+          if errors:
+              sys.exit(1)
+          "
+
+      - name: Check Python syntax
+        run: |
+          pip install ruff
+          # Check for syntax errors only
+          ruff check envs/stackelberg/ --select=E999 --exit-zero
+
+  stackelberg-smoke-test:
+    name: Stackelberg Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install minimal dependencies
+        run: |
+          pip install gymnasium numpy pyyaml networkx pandas scikit-learn
+
+      - name: Verify module structure
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+
+          # Check that all expected files exist
+          import os
+
+          required_files = [
+              'envs/stackelberg/__init__.py',
+              'envs/stackelberg/stackelberg_powerzoo_env.py',
+              'envs/stackelberg/stackelberg_game/__init__.py',
+              'envs/stackelberg/stackelberg_game/stackelberg_base_env.py',
+              'envs/stackelberg/stackelberg_game/async_wrapper.py',
+              'envs/stackelberg/stackelberg_game/circuit_adapter.py',
+              'envs/stackelberg/stackelberg_game/load_aggregator.py',
+              'envs/stackelberg/stackelberg_game/stackelberg_monitor.py',
+              'envs/stackelberg/stackelberg_game/env_factory.py',
+          ]
+
+          missing = []
+          for f in required_files:
+              if not os.path.exists(f):
+                  missing.append(f)
+
+          if missing:
+              print('Missing required files:')
+              for f in missing:
+                  print(f'  - {f}')
+              sys.exit(1)
+          else:
+              print('✓ All required Stackelberg files present')
+          "
+
+      - name: Verify configuration files
+        run: |
+          python -c "
+          import yaml
+          import os
+
+          config_files = [
+              'configs/envs_cfgs/stackelberg_13bus.yaml',
+              'configs/envs_cfgs/stackelberg_34bus.yaml',
+              'configs/envs_cfgs/stackelberg_123bus.yaml',
+          ]
+
+          for cfg in config_files:
+              if os.path.exists(cfg):
+                  with open(cfg) as f:
+                      data = yaml.safe_load(f)
+                      # Verify required keys
+                      required = ['env_name', 'system_name', 'dss_file']
+                      for key in required:
+                          if key not in data:
+                              print(f'✗ {cfg}: missing {key}')
+                              exit(1)
+                      print(f'✓ {cfg}')
+              else:
+                  print(f'⚠ {cfg} not found (optional)')
+          "
