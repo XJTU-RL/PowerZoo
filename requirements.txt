@@ -47,6 +47,7 @@ h5py>=3.0.0                    # HDF5 file format for logging and data storage
 # Configuration & Logging
 # ----------------------------------------------------------------------------
 pyyaml>=5.3.1,<7.0.0           # YAML configuration file parsing
+absl-py>=1.0.0                 # Google Abseil Python (for flags in envs)
 
 # Training & Monitoring
 # ----------------------------------------------------------------------------

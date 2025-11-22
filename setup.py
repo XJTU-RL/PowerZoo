@@ -30,6 +30,7 @@ setup(
         # Data storage & configuration
         "h5py>=3.0.0",
         "pyyaml>=5.3.1,<7.0.0",
+        "absl-py>=1.0.0",
         # Training & monitoring
         "tensorboard>=2.2.1",
         "tensorboardX>=2.0",
