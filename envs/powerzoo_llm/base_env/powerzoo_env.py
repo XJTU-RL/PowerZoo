@@ -10,8 +10,6 @@ import gym
 from gym.spaces import Discrete, Box, MultiDiscrete
 import matplotlib.pyplot as plt
 import numpy as np
-import imageio
-import glob
 import torch
 import time
 try:
@@ -20,15 +18,14 @@ except ImportError:
     # 相对导入用于测试
     from .env_register import make_base_env, remove_parallel_dss
 from typing import Dict, List, Any, Optional, Tuple, Union
-from gym.spaces import Discrete, Box
 from functools import lru_cache
 import logging
 
 import argparse
 import random
 import itertools
-import sys, os
-import multiprocessing as mp
+import sys
+import os
 
 # 使用统一日志系统
 from envs.powerzoo_llm.logging import (
@@ -44,7 +41,7 @@ logger = get_logger(__name__)
 # 添加训练日志记录器（如果需要详细的训练日志）
 _training_logger = None
 
-def get_training_logger():
+def get_training_logger() -> logging.Logger:
     """获取训练专用日志记录器"""
     global _training_logger
     if _training_logger is None:
@@ -694,19 +691,19 @@ class PowerZooEnv:
             default_actions = np.zeros(self.n_agents, dtype=int)
             return default_actions
     
-    def _get_default_actions(self):
+    def _get_default_actions(self) -> List[Union[int, np.ndarray]]:
         """获取默认动作（错误恢复用）"""
-        default_actions = []
-        
+        default_actions: List[Union[int, np.ndarray]] = []
+
         # 电容器和调压器默认动作（离散）
         for i in range(self.cap_num + self.reg_num + self.bat_num):
             default_actions.append(0)
-        
+
         # PV系统默认动作（连续）
         if self.pv_control_enabled:
             for i in range(self.pv_num):
                 default_actions.append(np.array([0.0, 0.0]))  # [有功功率, 功率因数]
-        
+
         return default_actions
     
     def _clear_caches(self) -> None:
@@ -736,7 +733,7 @@ class PowerZooEnv:
         safe_obs = [np.zeros(100) for _ in range(self.n_agents)]
         return safe_obs, safe_obs, self.get_avail_actions()
     
-    def _validate_step_output(self, obs, dones, rewards, info):
+    def _validate_step_output(self, obs: List, dones: np.ndarray, rewards: np.ndarray, info: Dict) -> None:
         """验证step输出的HAPPO兼容性"""
         try:
             # 验证观测数据
