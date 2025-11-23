@@ -24,6 +24,13 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 import time
 
+# 导入常量
+try:
+	from envs.powerzoo_llm.constants import VOLTAGE, REWARD, POWER_FACTOR
+except ImportError:
+	# 相对导入用于测试
+	from ..constants import VOLTAGE, REWARD, POWER_FACTOR
+
 # 获取logger
 logger = logging.getLogger(__name__)
 
@@ -88,19 +95,19 @@ class PowerZooReward:
 		"""
 		self.env = env
 		
-		# 约束参数
-		self.voltage_threshold = info.get('voltage_threshold', 0.02)  # ±2% 死区
-		self.voltage_range = info.get('voltage_range', (0.95, 1.05))  # 电压安全范围
-		
+		# 约束参数 - 使用常量作为默认值
+		self.voltage_threshold = info.get('voltage_threshold', VOLTAGE.DEADBAND)
+		self.voltage_range = info.get('voltage_range', (VOLTAGE.MIN_PU, VOLTAGE.MAX_PU))
+
 		# 归一化参数
-		self.power_base = info.get('power_base', 0.02)  # 网损基准值 (2%)
-		
-		# 权重配置
+		self.power_base = info.get('power_base', REWARD.POWER_LOSS_BASE)
+
+		# 权重配置 - 使用常量作为默认值
 		self.weights = {
-			'powerloss': info.get('powerloss_weight', 1.0),
-			'control': info.get('control_weight', 0.5),
-			'pv': info.get('pv_weight', 0.8),
-			'action_smoothing': info.get('action_smoothing_weight', 0.3)
+			'powerloss': info.get('powerloss_weight', REWARD.POWER_LOSS_WEIGHT),
+			'control': info.get('control_weight', REWARD.CONTROL_WEIGHT),
+			'pv': info.get('pv_weight', REWARD.PV_WEIGHT),
+			'action_smoothing': info.get('action_smoothing_weight', REWARD.ACTION_SMOOTHING_WEIGHT)
 		}
 		
 		# 动作平滑配置

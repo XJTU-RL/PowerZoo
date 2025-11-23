@@ -13,6 +13,11 @@ import re
 
 import dss as opendss
 import logging
+import math
+import threading
+
+# 线程安全: DSS编译锁，防止多worker并发编译时的竞态条件
+_dss_compile_lock = threading.Lock()
 
 from .components.edge_components import Line, Transformer, Regulator
 from .components.node_components import Load, Capacitor, PVSystem, Battery
@@ -27,15 +32,22 @@ except ImportError:
 
 
 class Circuits:
-	"""电力系统电路主管理类"""
-	
-	def __init__(self, dss_file, 
-				batt_file='Battery.csv', 
-				RB_act_num=(33, 33), 
+	"""电力系统电路主管理类
+
+	线程安全注意事项:
+	- OpenDSS使用全局COM对象，多worker训练时需要锁保护
+	- compile()方法使用_dss_compile_lock确保线程安全
+	- 建议每个worker使用独立的Circuits实例
+	"""
+
+	def __init__(self, dss_file,
+				batt_file='Battery.csv',
+				RB_act_num=(33, 33),
 				dss_act=False,
 				worker_idx=None):
 		# DSS
 		self.dss = opendss.DSS  # the dss simulator object
+		self._is_closed = False  # 资源清理标志
 		self.dss_file = dss_file  # path to the dss file for the whole circuit
 		self.dss_act = dss_act  # whether to use OpenDSS controllers defined in the circuit file
 		self.worker_idx = worker_idx  # worker index for multi-worker environments
@@ -111,17 +123,21 @@ class Circuits:
 					这在计算导纳矩阵(Ymat)时使用
 
 		返回值: 无
+
+		线程安全: 使用_dss_compile_lock确保多worker环境下的安全编译
 		'''
 		# 保存当前工作目录
 		current_dir = os.getcwd()
-		
+
 		# 获取DSS文件的目录并切换到该目录
 		dss_dir = os.path.dirname(os.path.abspath(self.dss_file))
 		dss_filename = os.path.basename(self.dss_file)
-		
-		try:
-			# 切换到DSS文件所在目录，确保相对路径正确
-			os.chdir(dss_dir)
+
+		# 使用锁确保线程安全
+		with _dss_compile_lock:
+			try:
+				# 切换到DSS文件所在目录，确保相对路径正确
+				os.chdir(dss_dir)
 			
 			# 创建临时的编译文件，包含正确的数据文件引用
 			temp_compile_file = self._create_temp_compile_file(dss_filename)
@@ -141,10 +157,10 @@ class Circuits:
 			else:
 				self.dss.Text.Command = 'vsource.source.enabled=yes'
 				self.dss.Text.Command = 'batchedit load..* enabled=yes'
-		finally:
-			# 恢复原工作目录
-			os.chdir(current_dir) 
-		
+			finally:
+				# 恢复原工作目录
+				os.chdir(current_dir)
+
 		if not self.dss_act:
 			self.dss.Text.Command = "Set ControlMode = off"
 	
@@ -392,9 +408,9 @@ class Circuits:
 			while True:
 				if dssTrans.Name in trans2tap:
 					tap, tapnum = trans2tap[dssTrans.Name]
-					dssTrans.NumTaps = tapnum
+					# NOTE: NumTaps是抽头总数，不应在运行时修改，只设置Tap值
 					dssTrans.Tap = tap
-					logger.debug(f"DSS调压器设置: {dssTrans.Name} | Tap: {tap:.3f} | TapNum: {tapnum}")
+					logger.debug(f"DSS调压器设置: {dssTrans.Name} | Tap: {tap:.3f}")
 				if dssTrans.Next == 0: 
 					break 
 		
@@ -427,7 +443,12 @@ class Circuits:
 			batt = self.batteries[bat]
 			old_kw = getattr(batt, 'kw', 0)
 			kw = batt.state_projection(nkws_or_states[i])  # projection
-			kvar = kw / batt.pf
+			# 正确的无功功率计算公式: Q = P * tan(θ) = P * sqrt(1-pf²) / pf
+			import math
+			if batt.pf < 1.0:
+				kvar = kw * math.sqrt(1 - batt.pf**2) / batt.pf
+			else:
+				kvar = 0.0
 			bat2kwkvar[batt.name[8:]] = (kw, kvar)  # remove the header 'Battery.'
 			
 			# log battery state change
@@ -1164,13 +1185,13 @@ class Circuits:
 	def add_batteries(self, batname, bus, phases, feature):
 		'''
 		向电路添加电池
-		
+
 		参数:
 			batname: 电池名称
 			bus: 母线
 			phases: 相位
 			feature: 电池特性
-		
+
 		返回值: 无
 		'''
 		self.batteries[batname] = Battery(self.dss, batname, bus, phases, feature,
@@ -1179,3 +1200,27 @@ class Circuits:
 			self.bus_obj[bus] = [batname]
 		else:
 			self.bus_obj[bus].append(batname)
+
+	def close(self):
+		'''
+		释放DSS资源并清理状态
+
+		应在环境关闭时调用此方法，防止资源泄漏。
+
+		返回值: 无
+		'''
+		if self._is_closed:
+			return
+
+		try:
+			if hasattr(self, 'dss') and self.dss:
+				self.dss.ClearAll()
+				logger.debug(f"Worker {self.worker_idx}: DSS资源已清理")
+		except Exception as e:
+			logger.warning(f"Worker {self.worker_idx}: DSS资源清理时出错: {e}")
+		finally:
+			self._is_closed = True
+
+	def __del__(self):
+		'''析构函数 - 确保资源被释放'''
+		self.close()

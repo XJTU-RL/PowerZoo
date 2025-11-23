@@ -16,6 +16,15 @@ import logging
 import time
 from envs.powerzoo_llm.utils import get_logger, log_reward_components, log_device_actions
 
+# 导入自定义异常类和常量
+from envs.powerzoo_llm.exceptions import (
+    DSSSimulationError,
+    DSSConvergenceError,
+    ActionValidationError,
+    ConfigurationError
+)
+from envs.powerzoo_llm.constants import VOLTAGE, SIMULATION
+
 
 logger = get_logger(__name__)
 
@@ -449,20 +458,29 @@ class Env(gym.Env):
             self.circuit.dss.ActiveCircuit.Solution.Solve()
             converged = self.circuit.dss.ActiveCircuit.Solution.Converged
             if not converged:
+                # 使用自定义异常类提供更详细的错误信息
                 logger.warning(f"DSS求解未收敛 - 时步: {self.t}")
+                # 尝试重新求解一次
+                self.circuit.dss.ActiveCircuit.Solution.Solve()
+                if not self.circuit.dss.ActiveCircuit.Solution.Converged:
+                    raise DSSConvergenceError(f"DSS求解连续两次未收敛 - 时步: {self.t}")
             else:
                 logger.debug(f"DSS求解成功收敛 - 时步: {self.t}")
-                
+
             if self.t == 1:
                 for pv_name in self.pv_names[:5]:
                     elem = self.circuit.dss.ActiveCircuit.CktElements(f"{pv_name}")
                     P = elem.TotalPowers[0]
                     Q = elem.TotalPowers[1]
                     logger.info(f"[PVCHK] {pv_name}: P={P:.1f} kW, Q={Q:.1f} kvar")
-                    
-        except Exception as e:
-            logger.error(f"DSS求解失败: {e}")
+
+        except DSSConvergenceError:
+            # 收敛失败时返回安全结果，但不中断训练
+            logger.warning(f"DSS求解未收敛，使用安全默认值 - 时步: {self.t}")
             return self._get_safe_step_result()
+        except Exception as e:
+            logger.error(f"DSS求解失败: {e}", exc_info=True)
+            raise DSSSimulationError(f"DSS求解失败: {e}") from e
 
         #### Battery after solve ####
         if self.bat_num > 0:
@@ -785,11 +803,12 @@ class Env(gym.Env):
         prev_tapnums = self.circuit.get_all_regulator_tapnums()
         
         self.circuit.dss.ActiveCircuit.Solution.Solve()
-        dss.LoadShapes.Name = "MyIrrad"
-        print("Irrad Npts=", dss.LoadShapes.Npts,
-            "MinInterval(min)=", dss.LoadShapes.MinInterval,
-            "UseActual=", dss.LoadShapes.UseActual)
-        print("Irrad first10=", list(dss.LoadShapes.PMult)[:10])
+        # 修复: 使用self.circuit.dss而不是未定义的dss
+        self.circuit.dss.LoadShapes.Name = "MyIrrad"
+        print("Irrad Npts=", self.circuit.dss.LoadShapes.Npts,
+            "MinInterval(min)=", self.circuit.dss.LoadShapes.MinInterval,
+            "UseActual=", self.circuit.dss.LoadShapes.UseActual)
+        print("Irrad first10=", list(self.circuit.dss.LoadShapes.PMult)[:10])
 
         self.t += 1 
         cap_statuses = self.circuit.get_all_capacitor_statuses()

@@ -10,8 +10,6 @@ import gym
 from gym.spaces import Discrete, Box, MultiDiscrete
 import matplotlib.pyplot as plt
 import numpy as np
-import imageio
-import glob
 import torch
 import time
 try:
@@ -20,15 +18,14 @@ except ImportError:
     # 相对导入用于测试
     from .env_register import make_base_env, remove_parallel_dss
 from typing import Dict, List, Any, Optional, Tuple, Union
-from gym.spaces import Discrete, Box
 from functools import lru_cache
 import logging
 
 import argparse
 import random
 import itertools
-import sys, os
-import multiprocessing as mp
+import sys
+import os
 
 # 使用统一日志系统
 from envs.powerzoo_llm.logging import (
@@ -44,7 +41,7 @@ logger = get_logger(__name__)
 # 添加训练日志记录器（如果需要详细的训练日志）
 _training_logger = None
 
-def get_training_logger():
+def get_training_logger() -> logging.Logger:
     """获取训练专用日志记录器"""
     global _training_logger
     if _training_logger is None:
@@ -205,15 +202,20 @@ class PowerZooEnv:
         
         return self._avail_actions_cache
     
-    def _get_avail_agent_actions(self, agent_id: int) -> List[int]:
-        """获取单个智能体的可用动作"""
+    def _get_avail_agent_actions(self, agent_id: int) -> Optional[List[int]]:
+        """获取单个智能体的可用动作
+
+        Returns:
+            离散动作空间: 返回可用动作掩码列表 [1, 1, ..., 1]
+            连续动作空间: 返回 None（连续动作不需要掩码）
+        """
         agent_space = self.action_space[agent_id]
-        
+
         if isinstance(agent_space, Discrete):
             return [1] * agent_space.n
         elif isinstance(agent_space, Box):
-            # 连续动作空间（PV系统），返回空列表或单个1表示可用
-            return [1]  # 表示连续动作可用
+            # 连续动作空间（PV系统）不需要可用动作掩码
+            return None
         else:
             # 默认情况
             return [1] * getattr(agent_space, 'n', 1)
@@ -318,8 +320,9 @@ class PowerZooEnv:
         # Done信号：必须是numpy数组，形状为(n_agents,)
         dones_array = np.array([bool(done) for _ in range(self.n_agents)], dtype=bool)
         
-        # 奖励信号：确保为正确的嵌套结构
-        rewards_formatted = [[float(rew)]]
+        # 奖励信号：HAPPO要求形状为(n_agents, 1)的numpy数组
+        # 所有智能体共享相同的团队奖励（标准MARL协作设置）
+        rewards_formatted = np.array([[float(rew)] for _ in range(self.n_agents)], dtype=np.float32)
         
         # 验证返回数据的形状一致性
         self._validate_step_output(wrapped_obs, dones_array, rewards_formatted, info)
@@ -327,7 +330,7 @@ class PowerZooEnv:
         return (
             wrapped_obs,           # local_obs: List[np.ndarray]  
             wrapped_obs,           # global_state: List[np.ndarray] 
-            rewards_formatted,     # rewards: List[List[float]]
+            rewards_formatted,     # rewards: np.ndarray(n_agents, 1)
             dones_array,           # dones: np.ndarray(n_agents,)
             [info],               # infos: List[Dict]
             self.get_avail_actions()  # available_actions: List
@@ -688,19 +691,19 @@ class PowerZooEnv:
             default_actions = np.zeros(self.n_agents, dtype=int)
             return default_actions
     
-    def _get_default_actions(self):
+    def _get_default_actions(self) -> List[Union[int, np.ndarray]]:
         """获取默认动作（错误恢复用）"""
-        default_actions = []
-        
+        default_actions: List[Union[int, np.ndarray]] = []
+
         # 电容器和调压器默认动作（离散）
         for i in range(self.cap_num + self.reg_num + self.bat_num):
             default_actions.append(0)
-        
+
         # PV系统默认动作（连续）
         if self.pv_control_enabled:
             for i in range(self.pv_num):
                 default_actions.append(np.array([0.0, 0.0]))  # [有功功率, 功率因数]
-        
+
         return default_actions
     
     def _clear_caches(self) -> None:
@@ -730,7 +733,7 @@ class PowerZooEnv:
         safe_obs = [np.zeros(100) for _ in range(self.n_agents)]
         return safe_obs, safe_obs, self.get_avail_actions()
     
-    def _validate_step_output(self, obs, dones, rewards, info):
+    def _validate_step_output(self, obs: List, dones: np.ndarray, rewards: np.ndarray, info: Dict) -> None:
         """验证step输出的HAPPO兼容性"""
         try:
             # 验证观测数据
@@ -742,9 +745,9 @@ class PowerZooEnv:
             assert dones.dtype == bool, f"Done信号必须是布尔类型，得到: {dones.dtype}"
             assert dones.shape == (self.n_agents,), f"Done信号形状错误: {dones.shape} vs ({self.n_agents},)"
             
-            # 验证奖励数据
-            assert isinstance(rewards, list), f"奖励必须是列表，得到: {type(rewards)}"
-            assert len(rewards) > 0 and isinstance(rewards[0], list), f"奖励格式错误: {rewards}"
+            # 验证奖励数据 - 修复: 奖励现在是numpy数组，形状为(n_agents, 1)
+            assert isinstance(rewards, np.ndarray), f"奖励必须是numpy数组，得到: {type(rewards)}"
+            assert rewards.shape == (self.n_agents, 1), f"奖励形状错误: {rewards.shape} vs ({self.n_agents}, 1)"
             
             # 验证info数据
             assert isinstance(info, dict), f"Info必须是字典，得到: {type(info)}"
