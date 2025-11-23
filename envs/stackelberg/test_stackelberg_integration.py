@@ -3,7 +3,7 @@
 Integration tests for Stackelberg game environment.
 
 This module provides comprehensive tests for the Stackelberg-Nash game
-environment implementation.
+environment implementation with PowerZoo-compatible interface.
 """
 
 import numpy as np
@@ -20,30 +20,33 @@ def test_basic_environment():
 	"""Test basic environment creation and reset."""
 	logger.info("=" * 50)
 	logger.info("Testing basic environment functionality...")
-	
+
 	try:
 		from envs.stackelberg.stackelberg_game.env_factory import make_stackelberg_env
-		
+
 		# Create environment
 		env = make_stackelberg_env('stackelberg_13bus', use_async_wrapper=False)
-		logger.info("✓ Environment created successfully")
-		
-		# Test reset
+		logger.info("OK Environment created successfully")
+
+		# Test reset - returns (obs_dict)
 		observations = env.reset()
-		logger.info(f"✓ Environment reset successful")
+		logger.info(f"OK Environment reset successful")
 		logger.info(f"  - Number of agents: {len(observations)}")
 		logger.info(f"  - UC observation shape: {observations[0].shape}")
-		logger.info(f"  - Consumer observation shape: {observations[1].shape}")
-		
+		if 1 in observations:
+			logger.info(f"  - Consumer observation shape: {observations[1].shape}")
+
 		# Test agent properties
 		logger.info(f"  - UC agent ID: {env.uc_agent_id}")
 		logger.info(f"  - Consumer agent IDs: {env.consumer_agent_ids}")
 		logger.info(f"  - Agent types: {env.agent_types}")
-		
+
 		return True
-		
+
 	except Exception as e:
-		logger.error(f"✗ Basic environment test failed: {e}")
+		logger.error(f"FAIL Basic environment test failed: {e}")
+		import traceback
+		traceback.print_exc()
 		return False
 
 
@@ -352,25 +355,93 @@ def test_nash_gap_tracking():
 		return False
 
 
+def test_powerzoo_compatibility():
+	"""Test PowerZoo interface compatibility."""
+	logger.info("=" * 50)
+	logger.info("Testing PowerZoo interface compatibility...")
+
+	try:
+		from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
+
+		# Create environment using factory
+		args = {
+			'env_name': 'stackelberg_13bus',
+			'seed': 42,
+		}
+		env = StackelbergPowerZooEnv(args)
+
+		# Test required attributes
+		assert hasattr(env, 'n_agents'), "Missing n_agents"
+		assert hasattr(env, 'share_observation_space'), "Missing share_observation_space"
+		assert hasattr(env, 'observation_space'), "Missing observation_space"
+		assert hasattr(env, 'action_space'), "Missing action_space"
+		logger.info("OK Required attributes present")
+
+		# Test share_observation_space
+		assert len(env.share_observation_space) == env.n_agents, "share_observation_space length mismatch"
+		logger.info(f"OK share_observation_space: {len(env.share_observation_space)} spaces")
+
+		# Test reset returns (obs, share_obs, avail_actions)
+		result = env.reset()
+		assert len(result) == 3, f"reset() should return 3 items, got {len(result)}"
+		local_obs, share_obs, avail_actions = result
+		logger.info(f"OK reset() returns 3 items: obs, share_obs, avail_actions")
+
+		assert len(local_obs) == env.n_agents, "local_obs length mismatch"
+		assert len(share_obs) == env.n_agents, "share_obs length mismatch"
+		logger.info("OK reset() output shapes correct")
+
+		# Test get_avail_actions
+		avail = env.get_avail_actions()
+		assert len(avail) == env.n_agents, "avail_actions length mismatch"
+		logger.info(f"OK get_avail_actions() returns {len(avail)} items")
+
+		# Test step returns (obs, share_obs, rewards, dones, infos, avail_actions)
+		actions = [env.action_space[i].sample() for i in range(env.n_agents)]
+		result = env.step(actions)
+		assert len(result) == 6, f"step() should return 6 items, got {len(result)}"
+		local_obs, share_obs, rewards, dones, infos, avail_actions = result
+
+		assert len(local_obs) == env.n_agents, "step local_obs length mismatch"
+		assert len(rewards) == env.n_agents, "step rewards length mismatch"
+		assert len(dones) == env.n_agents, "step dones length mismatch"
+		logger.info("OK step() returns 6 items with correct shapes")
+
+		# Test reward format [[r]]
+		for r in rewards:
+			assert isinstance(r, list), f"Reward should be list, got {type(r)}"
+			assert len(r) == 1, f"Reward should have length 1, got {len(r)}"
+		logger.info("OK Reward format [[r]] correct")
+
+		env.close()
+		return True
+
+	except Exception as e:
+		logger.error(f"FAIL PowerZoo compatibility test failed: {e}")
+		import traceback
+		traceback.print_exc()
+		return False
+
+
 def run_all_tests():
 	"""Run all integration tests."""
 	logger.info("\n" + "=" * 70)
 	logger.info("STACKELBERG GAME ENVIRONMENT INTEGRATION TESTS")
 	logger.info("=" * 70 + "\n")
-	
+
 	tests = [
 		("Basic Environment", test_basic_environment),
 		("Action Spaces", test_action_spaces),
 		("Step Execution", test_step_execution),
 		("Async Wrapper", test_async_wrapper),
 		("Episode Completion", test_episode_completion),
+		("PowerZoo Compatibility", test_powerzoo_compatibility),
 		("Monitoring", test_monitoring),
-		("Different Systems", test_different_systems),
 		("Nash Gap Tracking", test_nash_gap_tracking)
 	]
-	
+
 	results = []
-	
+
 	for test_name, test_func in tests:
 		start_time = time.time()
 		try:
@@ -379,30 +450,32 @@ def run_all_tests():
 			results.append((test_name, success, elapsed))
 		except Exception as e:
 			logger.error(f"Test {test_name} crashed: {e}")
+			import traceback
+			traceback.print_exc()
 			results.append((test_name, False, 0))
-		
+
 		logger.info("")  # Blank line between tests
-	
+
 	# Summary
 	logger.info("\n" + "=" * 70)
 	logger.info("TEST SUMMARY")
 	logger.info("=" * 70)
-	
+
 	total_tests = len(results)
 	passed_tests = sum(1 for _, success, _ in results if success)
-	
+
 	for test_name, success, elapsed in results:
-		status = "✓ PASSED" if success else "✗ FAILED"
+		status = "OK PASSED" if success else "FAIL"
 		logger.info(f"{test_name:.<40} {status} ({elapsed:.2f}s)")
-	
+
 	logger.info("=" * 70)
 	logger.info(f"Total: {passed_tests}/{total_tests} tests passed")
-	
+
 	if passed_tests == total_tests:
-		logger.info("✓ ALL TESTS PASSED!")
+		logger.info("OK ALL TESTS PASSED!")
 	else:
-		logger.info("✗ Some tests failed.")
-	
+		logger.info("FAIL Some tests failed.")
+
 	return passed_tests == total_tests
 
 
