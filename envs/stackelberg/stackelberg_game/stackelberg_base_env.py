@@ -10,23 +10,36 @@ Key Features:
 - Asynchronous action execution with temporal relationships
 - Support for 13Bus, 34Bus, and 123Bus systems
 - Comprehensive monitoring and logging
-- No inheritance from existing Env class for maximum flexibility
+- PowerZoo/MARL framework compatible interface
+
+Compatibility:
+- gym/gymnasium API compatible (reset returns (obs, info), step returns 5-tuple)
+- PowerZoo MARL interface (share_observation_space, get_avail_actions)
+- HAPPO algorithm compatible (agent_types, heterogeneous spaces)
 """
 
 import os
-import gym
+import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Any, Union
 from collections import defaultdict, deque
-import networkx as nx
-import matplotlib.pyplot as plt
 from datetime import datetime
 import json
+
+# Conditional gym/gymnasium import for compatibility
+try:
+	import gymnasium as gym
+	from gymnasium.spaces import Box, Discrete
+except ImportError:
+	import gym
+	from gym.spaces import Box, Discrete
 
 from envs.powerzoo.powerzoo.circuit import Circuits
 from envs.powerzoo.powerzoo.loadprofile import LoadProfile
 from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
+
+logger = logging.getLogger('StackelbergBaseEnv')
 
 
 class StackelbergBaseEnv:
@@ -83,22 +96,10 @@ class StackelbergBaseEnv:
         # Episode tracking
         self.current_step = 0
         self.episode_count = 0
-        
-        # Prioritized Experience Replay
-        self.per_config = config.get('per_config', {})
-        self.enable_per = self.per_config.get('enable', False)
-        self.per_buffer_size = self.per_config.get('buffer_size', 10000)
-        self.per_alpha = self.per_config.get('alpha', 0.6)  # Priority exponent
-        self.per_beta = self.per_config.get('beta', 0.4)   # Importance sampling
-        self.per_beta_increment = self.per_config.get('beta_increment', 0.001)
-        self.per_epsilon = self.per_config.get('epsilon', 1e-6)
-        
-        if self.enable_per:
-            self.replay_buffer = []
-            self.priorities = np.zeros(self.per_buffer_size)
-            self.buffer_ptr = 0
-            self.buffer_size = 0
-        
+
+        # NOTE: PER (Prioritized Experience Replay) has been removed from environment.
+        # PER is an algorithm-level feature and should be implemented in the algorithm/buffer.
+
         # Asynchronous execution support
         self.uc_action_buffer = None
         self.consumer_actions_buffer = {}
@@ -136,18 +137,41 @@ class StackelbergBaseEnv:
         return consumer_counts.get(self.system_name, 10)
     
     def _init_circuit(self, config: Dict[str, Any]):
-        """Initialize circuit from DSS file."""
-        self.circuit = Circuits(
-            dss_file=config['dss_file_abs_path'],
-            dss_act=config.get('dss_act', False)
-        )
-        
+        """
+        Initialize circuit from DSS file.
+
+        Raises:
+            FileNotFoundError: If DSS file doesn't exist
+            RuntimeError: If circuit initialization fails
+        """
+        dss_path = config['dss_file_abs_path']
+
+        if not os.path.exists(dss_path):
+            raise FileNotFoundError(f"DSS file not found: {dss_path}")
+
+        try:
+            self.circuit = Circuits(
+                dss_file=dss_path,
+                dss_act=config.get('dss_act', False)
+            )
+
+            # Create circuit adapter for action translation
+            self.circuit_adapter = StackelbergCircuitAdapter(
+                self.circuit,
+                config=config.get('circuit_adapter_config', {})
+            )
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize circuit from {dss_path}: {e}")
+
         # Get system information
         self.all_bus_names = self.circuit.dss.ActiveCircuit.AllBusNames
         self.n_buses = len(self.all_bus_names)
-        
+
         # Build network topology
         self.topology = self.circuit.topology
+
+        logger.info(f"Circuit initialized: {self.n_buses} buses, {len(self.circuit.loads)} loads")
         
     def _init_load_profile(self, config: Dict[str, Any]):
         """Initialize load profile."""
@@ -461,14 +485,23 @@ class StackelbergBaseEnv:
         return np.array(obs_components, dtype=np.float32)
     
     def _get_consumer_observation(self, agent_id: int) -> np.ndarray:
-        """Get observation for a consumer agent."""
+        """
+        Get observation for a consumer agent.
+
+        Args:
+            agent_id: Consumer agent ID
+
+        Returns:
+            Observation array of shape (15,)
+        """
         obs_components = []
-        
-        # UC signals (if available)
+
+        # UC signals (if available) - must match UC action space dimension (5)
         if self.uc_action_buffer is not None:
             obs_components.extend(self.uc_action_buffer)
         else:
-            obs_components.extend([1.0, 0.0, 0.5])  # Default values
+            # Default values: [price_mult=1.0, dr_incentive=0.0, dr_target=0.5, ess_charge=0.0, ess_discharge=0.0]
+            obs_components.extend([1.0, 0.0, 0.5, 0.0, 0.0])
         
         # Local state information
         agent_loads = self.agent_to_loads.get(agent_id, [])
@@ -521,24 +554,32 @@ class StackelbergBaseEnv:
         return obs_array[:15]
     
     def _execute_circuit_actions(self):
-        """Execute the combined UC and consumer actions in the circuit."""
-        # This is a simplified implementation
-        # In practice, this would translate agent actions to circuit control actions
-        
-        # Example: Adjust loads based on consumer actions
-        for agent_id, action in self.consumer_actions_buffer.items():
-            if agent_id in self.consumer_agent_ids:
-                load_adjustment = action[0]  # First component is load adjustment
-                
-                # Apply to associated loads
-                for load_name in self.agent_to_loads.get(agent_id, []):
-                    if load_name in self.circuit.loads:
-                        # Simplified load adjustment
-                        # In practice, this would be more sophisticated
-                        pass
-        
-        # Solve circuit
-        self.circuit.dss.ActiveCircuit.Solution.Solve()
+        """
+        Execute the combined UC and consumer actions in the circuit.
+
+        Uses the circuit adapter to translate agent actions to DSS controls.
+        """
+        # Apply UC actions (ESS control, etc.)
+        if self.uc_action_buffer is not None:
+            self.circuit_adapter.apply_uc_actions(self.uc_action_buffer)
+
+        # Apply consumer actions (load adjustments)
+        if self.consumer_actions_buffer:
+            self.circuit_adapter.apply_consumer_actions(
+                self.consumer_actions_buffer,
+                self.load_to_agent
+            )
+
+        # Solve circuit with updated settings
+        try:
+            self.circuit.dss.ActiveCircuit.Solution.Solve()
+
+            # Check for convergence
+            if not self.circuit.dss.ActiveCircuit.Solution.Converged:
+                logger.warning("Circuit solution did not converge")
+
+        except Exception as e:
+            logger.error(f"Circuit solve failed: {e}")
     
     def _update_system_state(self):
         """Update system state after circuit solution."""
@@ -1077,70 +1118,14 @@ class StackelbergBaseEnv:
     def unwrapped(self):
         """Return the unwrapped environment."""
         return self
-    
-    def add_to_replay_buffer(self, transition: Dict[str, Any], td_error: float):
-        """
-        Add transition to prioritized replay buffer.
-        
-        Args:
-            transition: Dictionary containing state, action, reward, next_state, done
-            td_error: Temporal difference error for prioritization
-        """
-        if not self.enable_per:
-            return
-        
-        # Calculate priority based on TD error
-        priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
-        
-        # Add to buffer
-        if self.buffer_size < self.per_buffer_size:
-            self.replay_buffer.append(transition)
-            self.buffer_size += 1
-        else:
-            self.replay_buffer[self.buffer_ptr] = transition
-        
-        # Update priority
-        self.priorities[self.buffer_ptr] = priority
-        
-        # Update pointer
-        self.buffer_ptr = (self.buffer_ptr + 1) % self.per_buffer_size
-    
-    def sample_from_replay_buffer(self, batch_size: int) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
-        """
-        Sample batch from prioritized replay buffer.
-        
-        Returns:
-            transitions: List of sampled transitions
-            weights: Importance sampling weights
-            indices: Indices of sampled transitions
-        """
-        if not self.enable_per or self.buffer_size < batch_size:
-            return [], np.array([]), np.array([])
-        
-        # Calculate sampling probabilities
-        priorities = self.priorities[:self.buffer_size]
-        probs = priorities / priorities.sum()
-        
-        # Sample indices
-        indices = np.random.choice(self.buffer_size, batch_size, p=probs)
-        
-        # Get transitions
-        transitions = [self.replay_buffer[idx] for idx in indices]
-        
-        # Calculate importance sampling weights
-        weights = (self.buffer_size * probs[indices]) ** (-self.per_beta)
-        weights = weights / weights.max()  # Normalize
-        
-        # Increment beta
-        self.per_beta = min(1.0, self.per_beta + self.per_beta_increment)
-        
-        return transitions, weights, indices
-    
-    def update_priorities(self, indices: np.ndarray, td_errors: np.ndarray):
-        """Update priorities for sampled transitions."""
-        if not self.enable_per:
-            return
-        
-        for idx, td_error in zip(indices, td_errors):
-            priority = (abs(td_error) + self.per_epsilon) ** self.per_alpha
-            self.priorities[idx] = priority
+
+    def seed(self, seed: Optional[int] = None):
+        """Set random seed for reproducibility."""
+        if seed is not None:
+            np.random.seed(seed)
+            self.config['seed'] = seed
+            logger.info(f"Environment seed set to {seed}")
+
+    def close(self):
+        """Clean up environment resources."""
+        logger.info("Closing StackelbergBaseEnv")
