@@ -205,15 +205,20 @@ class PowerZooEnv:
         
         return self._avail_actions_cache
     
-    def _get_avail_agent_actions(self, agent_id: int) -> List[int]:
-        """获取单个智能体的可用动作"""
+    def _get_avail_agent_actions(self, agent_id: int) -> Optional[List[int]]:
+        """获取单个智能体的可用动作
+
+        Returns:
+            离散动作空间: 返回可用动作掩码列表 [1, 1, ..., 1]
+            连续动作空间: 返回 None（连续动作不需要掩码）
+        """
         agent_space = self.action_space[agent_id]
-        
+
         if isinstance(agent_space, Discrete):
             return [1] * agent_space.n
         elif isinstance(agent_space, Box):
-            # 连续动作空间（PV系统），返回空列表或单个1表示可用
-            return [1]  # 表示连续动作可用
+            # 连续动作空间（PV系统）不需要可用动作掩码
+            return None
         else:
             # 默认情况
             return [1] * getattr(agent_space, 'n', 1)

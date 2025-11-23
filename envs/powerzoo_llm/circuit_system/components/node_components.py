@@ -340,8 +340,8 @@ class Battery(Node):
 		返回值: soc误差和放电误差
 		'''
 		self.kwh += self.actual_power() * self.duration
-		# enforce capacity constraint and round to integer
-		self.kwh = round(max(0.0, min(self.max_kwh, self.kwh)))
+		# enforce capacity constraint - 移除round()以保留精度
+		self.kwh = max(0.0, min(self.max_kwh, self.kwh))
 		self.soc = self.kwh / self.max_kwh
 		soc_err = abs(self.soc - self.initial_soc)
 		
