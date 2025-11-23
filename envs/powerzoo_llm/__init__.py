@@ -51,13 +51,11 @@ __all__ = [
     
     # 配置类
     "OpenDSSScenario",
-    "OpenDSSConstraints", 
+    "OpenDSSConstraints",
     "OpenDSSMetrics",
-    "PowerZooEnvConfig",
     "PowerZooEnvConfig",
     "OpenDSSExpertRules",
     "OpenDSSStateAnalyzer",
-    "PowerZooActionSelector",
     "PowerZooActionSelector",
 ]
 
@@ -79,7 +77,7 @@ def get_env_info(env_name):
     from .base_env.env_register import _ENV_INFO
     
     if env_name not in _ENV_INFO:
-        raise ValueError(f"不支持的环境: {env_name}. 支持的环境: {list(ENV_LIST.keys())}")
+        raise ValueError(f"不支持的环境: {env_name}. 支持的环境: {list(_ENV_INFO.keys())}")
     
     return _ENV_INFO[env_name]
 

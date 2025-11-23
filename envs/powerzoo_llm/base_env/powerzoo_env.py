@@ -318,8 +318,9 @@ class PowerZooEnv:
         # Done信号：必须是numpy数组，形状为(n_agents,)
         dones_array = np.array([bool(done) for _ in range(self.n_agents)], dtype=bool)
         
-        # 奖励信号：确保为正确的嵌套结构
-        rewards_formatted = [[float(rew)]]
+        # 奖励信号：HAPPO要求形状为(n_agents, 1)的numpy数组
+        # 所有智能体共享相同的团队奖励（标准MARL协作设置）
+        rewards_formatted = np.array([[float(rew)] for _ in range(self.n_agents)], dtype=np.float32)
         
         # 验证返回数据的形状一致性
         self._validate_step_output(wrapped_obs, dones_array, rewards_formatted, info)
@@ -327,7 +328,7 @@ class PowerZooEnv:
         return (
             wrapped_obs,           # local_obs: List[np.ndarray]  
             wrapped_obs,           # global_state: List[np.ndarray] 
-            rewards_formatted,     # rewards: List[List[float]]
+            rewards_formatted,     # rewards: np.ndarray(n_agents, 1)
             dones_array,           # dones: np.ndarray(n_agents,)
             [info],               # infos: List[Dict]
             self.get_avail_actions()  # available_actions: List
@@ -742,9 +743,9 @@ class PowerZooEnv:
             assert dones.dtype == bool, f"Done信号必须是布尔类型，得到: {dones.dtype}"
             assert dones.shape == (self.n_agents,), f"Done信号形状错误: {dones.shape} vs ({self.n_agents},)"
             
-            # 验证奖励数据
-            assert isinstance(rewards, list), f"奖励必须是列表，得到: {type(rewards)}"
-            assert len(rewards) > 0 and isinstance(rewards[0], list), f"奖励格式错误: {rewards}"
+            # 验证奖励数据 - 修复: 奖励现在是numpy数组，形状为(n_agents, 1)
+            assert isinstance(rewards, np.ndarray), f"奖励必须是numpy数组，得到: {type(rewards)}"
+            assert rewards.shape == (self.n_agents, 1), f"奖励形状错误: {rewards.shape} vs ({self.n_agents}, 1)"
             
             # 验证info数据
             assert isinstance(info, dict), f"Info必须是字典，得到: {type(info)}"

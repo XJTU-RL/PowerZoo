@@ -785,11 +785,12 @@ class Env(gym.Env):
         prev_tapnums = self.circuit.get_all_regulator_tapnums()
         
         self.circuit.dss.ActiveCircuit.Solution.Solve()
-        dss.LoadShapes.Name = "MyIrrad"
-        print("Irrad Npts=", dss.LoadShapes.Npts,
-            "MinInterval(min)=", dss.LoadShapes.MinInterval,
-            "UseActual=", dss.LoadShapes.UseActual)
-        print("Irrad first10=", list(dss.LoadShapes.PMult)[:10])
+        # 修复: 使用self.circuit.dss而不是未定义的dss
+        self.circuit.dss.LoadShapes.Name = "MyIrrad"
+        print("Irrad Npts=", self.circuit.dss.LoadShapes.Npts,
+            "MinInterval(min)=", self.circuit.dss.LoadShapes.MinInterval,
+            "UseActual=", self.circuit.dss.LoadShapes.UseActual)
+        print("Irrad first10=", list(self.circuit.dss.LoadShapes.PMult)[:10])
 
         self.t += 1 
         cap_statuses = self.circuit.get_all_capacitor_statuses()

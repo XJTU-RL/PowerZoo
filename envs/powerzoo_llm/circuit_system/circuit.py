@@ -392,9 +392,9 @@ class Circuits:
 			while True:
 				if dssTrans.Name in trans2tap:
 					tap, tapnum = trans2tap[dssTrans.Name]
-					dssTrans.NumTaps = tapnum
+					# NOTE: NumTaps是抽头总数，不应在运行时修改，只设置Tap值
 					dssTrans.Tap = tap
-					logger.debug(f"DSS调压器设置: {dssTrans.Name} | Tap: {tap:.3f} | TapNum: {tapnum}")
+					logger.debug(f"DSS调压器设置: {dssTrans.Name} | Tap: {tap:.3f}")
 				if dssTrans.Next == 0: 
 					break 
 		
@@ -427,7 +427,12 @@ class Circuits:
 			batt = self.batteries[bat]
 			old_kw = getattr(batt, 'kw', 0)
 			kw = batt.state_projection(nkws_or_states[i])  # projection
-			kvar = kw / batt.pf
+			# 正确的无功功率计算公式: Q = P * tan(θ) = P * sqrt(1-pf²) / pf
+			import math
+			if batt.pf < 1.0:
+				kvar = kw * math.sqrt(1 - batt.pf**2) / batt.pf
+			else:
+				kvar = 0.0
 			bat2kwkvar[batt.name[8:]] = (kw, kvar)  # remove the header 'Battery.'
 			
 			# log battery state change
