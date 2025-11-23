@@ -16,6 +16,7 @@ from runners.on_policy_ma_runner import OnPolicyMARunner
 from runners.off_policy_ha_runner import OffPolicyHARunner
 from runners.off_policy_ma_runner import OffPolicyMARunner
 from runners.Qmix_runner import QMIXRunner
+from runners.two_ts_runner import TwoTSRunner
 
 RUNNER_REGISTRY = {
     "happo": OnPolicyHARunner,
@@ -32,4 +33,5 @@ RUNNER_REGISTRY = {
     "shom": OnPolicyHARunner,
     "sn_mappo": OnPolicyHARunner,  # Stackelberg-Nash MAPPO uses heterogeneous runner
     "dan_happo": OnPolicyHARunner,  # DAN-HAPPO uses heterogeneous runner
+    "2ts_vvc": TwoTSRunner,
 }
