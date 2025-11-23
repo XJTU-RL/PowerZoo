@@ -1,0 +1,49 @@
+timescale:
+  slow_period_minutes: 15
+  T: 15
+  slow_group: ["Regulator_*", "Capacitor_*"]
+  fast_group: ["PV_*", "Battery_*"]
+
+reward:
+  w_line_loss: 1.0
+  w_volt_violation: 50.0
+  w_inverter_degradation: 1.0
+  c_tap: 1.0
+  c_cap: 0.5
+
+fast:
+  buffer: 200000
+  batch: 256
+  warmup: 5000
+  updates_per_interval: 50
+  ddpg: 
+    lr: 1e-3
+    tau: 0.005
+    gamma: 0.99
+    noise:
+      type: "OU"
+      theta: 0.15
+      sigma: 0.2
+
+slow:
+  buffer: 50000
+  batch: 128
+  warmup: 200
+  updates_per_interval: 10
+  seq_embed_dim: 128
+  lstm_hidden: 64
+  lstm_layers: 2
+  sacd:
+    lr: 3e-4
+    tau: 0.005
+    gamma: 0.99
+    alpha: 0.2
+
+train:
+  pretrain_fast_intervals: 200
+  joint_intervals: 1000
+
+runtime:
+  n_rollout_threads: 2
+  seed: 1
+  save_every_ep: 5

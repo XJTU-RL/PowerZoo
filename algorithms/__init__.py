@@ -13,6 +13,7 @@ from algorithms.actors.m_Qmix import M_QMix as QMIX
 from algorithms.actors.shom import SHOM
 from algorithms.actors.sn_mappo import SN_MAPPO
 from algorithms.actors.dan_happo import DAN_HAPPO
+from algorithms.twots_vvc import TwoTSVVC
 
 ALGO_REGISTRY = {
     "happo": HAPPO,
@@ -29,4 +30,5 @@ ALGO_REGISTRY = {
     "shom": SHOM,
     "sn_mappo": SN_MAPPO,
     "dan_happo": DAN_HAPPO,
+    "2ts_vvc": TwoTSVVC,
 }

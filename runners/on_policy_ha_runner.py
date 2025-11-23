@@ -27,32 +27,93 @@ from runners.on_policy_base_runner import OnPolicyBaseRunner
 
 class OnPolicyHARunner(OnPolicyBaseRunner):
     """Runner for on-policy HA algorithms."""
+    
+    def _calculate_agent_order(self):
+        """计算智能体的排序顺序。
+        
+        Returns:
+            list: 智能体的排序列表
+        """
+        # 如果不使用敏感度排序，直接返回默认顺序
+        if not (hasattr(self, 'useS') and self.useS):
+            agent_order = list(range(self.num_agents))
+            print(f"default_order: {agent_order}")
+            return agent_order
+            
+        # 计算敏感度结果字典
+        result = {}
+        for step_data in self.critic_buffer.infos.values():
+            for item in step_data:
+                for key, value in item.items():
+                    label, _ = key.split('.')
+                    full_label = f"{label}.{_}"
+                    result[full_label] = result.get(full_label, 0) + value
+        
+        # 如果没有get_agents_bus属性，返回默认顺序
+        if not (hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None):
+            agent_order = list(range(self.num_agents))
+            print(f"default_order: {agent_order}")
+            return agent_order
+            
+        # 计算每个智能体的总敏感度
+        new_dict = {}
+        for key, value in self.get_agents_bus.items():
+            total_value = sum(result.get(item, 0) for item in value)
+            new_dict[key] = total_value
+
+        # 根据敏感度计算智能体排序
+        agent_order = self._get_agent_order(new_dict)
+        print(f"{self._get_order_type()}_order: {agent_order}")
+
+        # 最终验证agent_order的有效性
+        if not isinstance(agent_order, list) or len(agent_order) != self.num_agents:
+            print(f"错误：agent_order格式无效: {agent_order}，使用默认顺序")
+            agent_order = list(range(self.num_agents))
+            
+        return agent_order
 
     def _get_buffer_attribute(self, agent_id, attr_name):
         """获取buffer属性，兼容异构和同构buffer
-        
+
         Args:
             agent_id: 智能体ID
             attr_name: 属性名称（如'actions', 'available_actions'等）
-            
+
         Returns:
-            对应的属性值
+            对应的属性值（混合动作空间会自动拼接）
         """
         buffer = self.actor_buffer[agent_id]
         attr = getattr(buffer, attr_name, None)
-        
-        # 新版异构buffer已经简化为单智能体版本，直接返回属性
+
+        # 处理混合动作空间的特殊情况
+        if attr_name == 'actions' and isinstance(attr, dict):
+            # 混合动作空间：拼接所有子动作
+            actions_list = []
+            for i in sorted(attr.keys()):
+                actions_list.append(attr[i])
+            # 在最后一个维度拼接
+            return np.concatenate(actions_list, axis=-1)
+
+        # 处理混合动作空间的available_actions
+        if attr_name == 'available_actions' and isinstance(attr, dict):
+            # 返回第一个非None的available_actions
+            for i in sorted(attr.keys()):
+                if attr[i] is not None:
+                    return attr[i]
+            return None
+
+        # 非混合动作空间或其他属性，直接返回
         return attr
 
     def train(self):
         """Train the model."""
         actor_train_infos = []
         
-        # HAPPO诊断：设置TensorBoard writer（如果存在）
+        # HAPPO诊断：设置TensorBoard writer
         if hasattr(self, 'writer') and self.writer is not None:
             from utils import happo_diagnostics
             happo_diagnostics.set_writer(self.writer)
-            # 获取全局步数（如果有的话）
+            # 获取全局步数
             if hasattr(self, 'total_num_steps'):
                 happo_diagnostics.set_global_step(self.total_num_steps)
 
@@ -96,65 +157,22 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                 advantages_norm=advantages
             )
         
-        if hasattr(self, 'useS') and self.useS:
-           result = {}
-           for step_data in self.critic_buffer.infos.values():
-            # 遍历每个步骤中的字典
-               for item in step_data:
-                # 遍历字典中的键值对
-                   for key, value in item.items():
-                    # 分割键名，获取标签后面的数字
-                       label, _ = key.split('.')
-                    # 将标签后面的数字加入结果字典中
-                       full_label = f"{label}.{_}"
-                    # 将标签后面的数字加入结果字典中
-                       result[full_label] = result.get(full_label, 0) + value
-        
-        # 只有当 get_agents_bus 存在时才进行智能体排序
-        if hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None:
-            new_dict = {}
-            # 遍历第一个字典
-            for key, value in self.get_agents_bus.items():
-                total_value = 0
-                # 遍历第一个字典中的值
-                for item in value:
-                    # 如果值在第二个字典中，则累加对应的值
-                    if item in result:
-                        total_value += result[item]
-                # 构建新的字典
-                new_dict[key] = total_value
 
-            # 计算智能体排序
-            agent_order = self._get_agent_order(new_dict)
-            print(f"{self._get_order_type()}_order: {agent_order}")
-        else:
-            # 当不使用智能体排序时，使用默认顺序
-            agent_order = list(range(self.num_agents))
-            print(f"default_order: {agent_order}")
-        
-        # 最终验证agent_order的有效性
-        if not isinstance(agent_order, list) or len(agent_order) != self.num_agents:
-            print(f"错误：agent_order格式无效: {agent_order}，使用默认顺序")
-            agent_order = list(range(self.num_agents))
-        
-        # 验证所有元素都是有效的整数索引
-        for i, agent_id in enumerate(agent_order):
-            if not isinstance(agent_id, (int, np.integer)) or agent_id < 0 or agent_id >= self.num_agents:
-                print(f"错误：检测到无效的agent_id: {agent_id} (位置 {i})，使用默认顺序")
-                agent_order = list(range(self.num_agents))
-                break
+        # 计算agent排序
+        agent_order = self._calculate_agent_order()
         
         for agent_id in agent_order:
             self.actor_buffer[agent_id].update_factor(factor)  # current actor save factor
 
             # the following reshaping combines the first two dimensions (i.e. episode_length and n_rollout_threads) to form a batch
             # 获取available_actions
-            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
-                available_actions = self.actor_buffer[agent_id].available_actions[:-1].reshape(
-                    -1, *self.actor_buffer[agent_id].available_actions.shape[2:] #将前两个维度合并，形成一个batch
-                )
-            else:
-                available_actions = None
+            available_actions = (
+                None
+                if self.actor_buffer[agent_id].available_actions is None
+                else self.actor_buffer[agent_id]
+                .available_actions[:-1]
+                .reshape(-1, *self.actor_buffer[agent_id].available_actions.shape[2:])
+            )
 
             # compute action log probs for the actor before update.
             # 获取actions数据（兼容异构buffer）
