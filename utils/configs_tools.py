@@ -1,9 +1,9 @@
 """Tools for loading and updating configs."""
-import time
-import os
 import json
+import os
+import time
+
 import yaml
-from uu import Error
 
 
 def get_defaults_yaml_args(algo, env):
@@ -93,11 +93,11 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
 
 
 def is_json_serializable(value):
-    """Check if v is JSON serializable."""
+    """Check if value is JSON serializable."""
     try:
         json.dumps(value)
         return True
-    except Error:
+    except (TypeError, ValueError):
         return False
 
 

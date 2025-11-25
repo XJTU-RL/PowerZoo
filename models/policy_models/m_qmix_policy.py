@@ -1,12 +1,21 @@
 import numpy as np
 import torch
-from models.value_function_models.agent_q_function import AgentQFunction
 from torch.distributions import Categorical, OneHotCategorical
-from utils.trans_tools import _t2n,avail_choose,DecayThenFlatSchedule, is_discrete, is_multidiscrete, make_onehot,get_dim_from_space
-#from offpolicy.algorithms.base.mlp_policy import MLPPolicy
-from models.policy_models.qmix_mlp_policy import MLPPolicy
 
-class M_QMixPolicy(MLPPolicy):#sto是一个模型nnmodel，而原始使用的是一个policy的模板，还是换成原始吧
+from models.policy_models.qmix_mlp_policy import MLPPolicy
+from models.value_function_models.agent_q_function import AgentQFunction
+from utils.trans_tools import (
+    DecayThenFlatSchedule,
+    _t2n,
+    avail_choose,
+    get_dim_from_space,
+    is_discrete,
+    is_multidiscrete,
+    make_onehot,
+)
+
+
+class M_QMixPolicy(MLPPolicy):
     """
     QMIX/VDN Policy Class to compute Q-values and actions (MLP). See parent class for details.
     :param config: (dict) contains information about hyperparameters and algorithm configuration
@@ -42,7 +51,7 @@ class M_QMixPolicy(MLPPolicy):#sto是一个模型nnmodel，而原始使用的是
         :return q_values: (torch.Tensor) computed q values
         """
 
-        q_batch = self.q_network(obs_batch)#这里也有些问题，返回值第一维度非1即0，感觉第一列是采取的动作，第二列是动作的q值
+        q_batch = self.q_network(obs_batch)
         if action_batch is not None:
             if type(action_batch) == np.ndarray:
                 action_batch = torch.FloatTensor(action_batch)
@@ -55,10 +64,7 @@ class M_QMixPolicy(MLPPolicy):#sto是一个模型nnmodel，而原始使用的是
                     all_q_values.append(curr_q_values)
                 return torch.cat(all_q_values, dim=-1)
             else:
-                ####################
-                #q_batch=torch.cat(q_batch, dim=-1)
                 q_values = torch.gather(q_batch, 1, action_batch.unsqueeze(dim=-1))
-                # q_values is a column vector containing q values for the actions specified by action_batch
                 return q_values
         return q_batch
 
@@ -75,7 +81,7 @@ class M_QMixPolicy(MLPPolicy):#sto是一个模型nnmodel，而原始使用的是
             q_values = avail_choose(q_values, available_actions)
         else:
             q_values = q_values_out
-        #greedy_Qs, greedy_actions = list(map(lambda a: a.max(dim=-1), q_values))
+
         if self.multidiscrete:
             onehot_actions = []
             greedy_Qs = []
@@ -100,9 +106,6 @@ class M_QMixPolicy(MLPPolicy):#sto是一个模型nnmodel，而原始使用的是
             onehot_actions = np.concatenate(onehot_actions, axis=-1)
             greedy_Qs = torch.cat(greedy_Qs, dim=-1)
         else:
-            ################
-            #q_values = torch.cat(q_values, dim=-1)
-            ################################
             greedy_Qs, greedy_actions = q_values.max(dim=-1)
             if explore:
                 eps = self.exploration.eval(t_env)

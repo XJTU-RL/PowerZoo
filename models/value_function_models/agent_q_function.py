@@ -20,13 +20,8 @@ class AgentQFunction(nn.Module):
         self._gain = args.gain
         self.device = device
         self.tpdv = dict(dtype=torch.float32, device=device)
-        
-        ######################
-        #act_dim_space=gym.spaces.Discrete(act_dim)
-        
 
         self.mlp = MLPBase(vars(args)["model"], [input_dim])
-        #self.q = ACTLayer(act_dim, self.hidden_size, self._use_orthogonal, gain=self._gain, args=vars(args)["model"])
         self.q = ACTLayer(act_dim, self.hidden_size, self._use_orthogonal, gain=self._gain)
         self.to(device)
 

@@ -95,6 +95,7 @@ class Circuits():
         self.loads = dict()
         self.capacitors = dict()
         self.batteries = dict()
+        self.pvs = dict()
 
         # regulator and battery action dim
         self.reg_act_num, self.bat_act_num = RB_act_num
