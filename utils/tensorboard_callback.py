@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Optional imports for extended functionality
 try:
-    from envs.powerzoo_llm.logging.system_logger import SystemLogger, SystemState
+    from envs.smartgrid.logging.system_logger import SystemLogger, SystemState
     SYSTEM_LOGGER_AVAILABLE = True
 except ImportError:
     SYSTEM_LOGGER_AVAILABLE = False
@@ -23,11 +23,11 @@ except ImportError:
     SystemState = None
 
 try:
-    from envs.powerzoo_llm.logging.powerzoo_llm_logger import PowerZooLLMLogger
+    from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
     POWERZOO_LOGGER_AVAILABLE = True
 except ImportError:
     POWERZOO_LOGGER_AVAILABLE = False
-    PowerZooLLMLogger = None
+    SmartGridLogger = None
 
 
 class EnhancedTensorBoardCallback(BaseCallback):
@@ -37,7 +37,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
     Features:
     - 记录训练指标到TensorBoard
     - 集成SystemLogger记录系统状态
-    - 集成PowerZooLLMLogger记录环境特定指标
+    - 集成SmartGridLogger记录环境特定指标
     - 自动保存最佳模型
     - 记录算法特定参数和性能指标
     """
@@ -140,7 +140,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
             try:
                 powerzoo_log_dir = os.path.join(self.log_dir, "powerzoo_logs")
                 os.makedirs(powerzoo_log_dir, exist_ok=True)
-                self.powerzoo_logger = PowerZooLLMLogger(
+                self.powerzoo_logger = SmartGridLogger(
                     log_dir=powerzoo_log_dir,
                     experiment_name=f"{self.algorithm_name}_training"
                 )

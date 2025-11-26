@@ -127,8 +127,7 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        #self.orders_agents = get_agents_orders(args["env"], env_args, self.envs) #NOTE:自定义的powerzoo更新顺序
-        if args["env"] in ["powerzoo", "powerzoo_llm"] and args["algo"] == "shom":
+        if args["env"] in ["powerzoo", "smartgrid"] and args["algo"] == "shom":
             if self.useS:
                 self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
                 self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)

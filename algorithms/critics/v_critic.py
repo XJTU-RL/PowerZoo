@@ -20,14 +20,16 @@
 """V Critic."""
 import torch
 import torch.nn as nn
+
+from models.value_function_models.v_net import VNet
+from utils import happo_diagnostics
+from utils.envs_tools import check
 from utils.models_tools import (
     get_grad_norm,
     huber_loss,
     mse_loss,
     update_linear_schedule,
 )
-from utils.envs_tools import check
-from models.value_function_models.v_net import VNet
 
 
 class VCritic:
@@ -129,9 +131,8 @@ class VCritic:
             value_loss = value_loss_original
 
         value_loss = value_loss.mean()
-        
-        # NOTE 算法诊断：价值损失组件分析
-        from utils import happo_diagnostics
+
+        # NOTE: Value loss component analysis for diagnostics
         happo_diagnostics.log_value_loss_components(
             value_loss=value_loss,
             values=values,

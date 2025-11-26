@@ -60,13 +60,13 @@ def main():
     parser.add_argument(
         "--env",
         type=str,
-        default="powerzoo_llm",
+        default="smartgrid",
         choices=[
             "powerzoo",
-            "powerzoo_llm",
+            "smartgrid",
             "dsr",
         ],
-        help="选择环境: powerzoo,powerzoo_llm, dsr.",
+        help="选择环境: powerzoo, smartgrid, dsr.",
     )
     # 添加实验名称参数，默认为"test"
     parser.add_argument(
@@ -91,7 +91,7 @@ def main():
         "--env_config",
         type=str,
         default="",
-        help="指定环境配置文件路径，例如: configs/envs_cfgs/powerzoo_llm_pv_plans/powerzoo_llm_aggressive.yaml",
+        help="指定环境配置文件路径，例如: configs/envs_cfgs/smartgrid_pv_plans/smartgrid_aggressive.yaml",
     )
     
     

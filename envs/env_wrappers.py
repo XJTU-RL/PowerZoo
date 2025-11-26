@@ -471,15 +471,6 @@ class ShareSubprocVecEnv(ShareVecEnv):
             safe_infos,
             safe_avail_actions
         )
-        
-        return (
-            np.stack(obs),
-            np.stack(share_obs),
-            np.stack(rews),
-            dones_stacked,
-            infos,
-            list(available_actions),  # 保持为列表格式
-        )
 
     def reset(self):
         for remote in self.remotes:

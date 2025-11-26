@@ -56,7 +56,7 @@ cd examples/single_agent/launchers
 ### Python脚本训练
 
 ```python
-from envs.powerzoo_llm.base_env import PowerZooEnv
+from envs.smartgrid.base_env import PowerZooEnv
 from stable_baselines3 import PPO
 
 # 创建环境
@@ -82,7 +82,7 @@ model.learn(total_timesteps=100000)
 pytest
 
 # 运行特定环境测试
-pytest -m powerzoo_llm
+pytest -m smartgrid
 
 # 生成覆盖率报告
 pytest --cov=envs --cov-report=html
@@ -96,7 +96,7 @@ pytest --cov=envs --cov-report=html
 PowerZoo/
 ├── envs/                      # 环境实现
 │   ├── powerzoo/             # 基础PowerZoo环境
-│   ├── powerzoo_llm/         # 完整PowerZoo_LLM环境
+│   ├── smartgrid/         # 完整PowerZoo_LLM环境
 │   ├── stackelberg/          # Stackelberg博弈环境
 │   └── dsr/                  # 需求侧响应环境
 ├── algorithms/               # RL算法实现

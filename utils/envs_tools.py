@@ -60,10 +60,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
                 env = PowerZooEnv(env_args,rank) 
                 
-            elif env_name == "powerzoo_llm":
-                # Use PowerZooEnv for powerzoo_llm environment
-                from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
-                from envs.powerzoo_llm.base_env.env_register import make_base_env
+            elif env_name == "smartgrid":
+                # Use PowerZooEnv for smartgrid environment
+                from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+                from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
                 config_dict = {'env_args': env_args}
@@ -111,9 +111,9 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from envs.powerzoo.powerzoo_env import PowerZooEnv
                 env = PowerZooEnv(env_args,rank)
                 
-            elif env_name == "powerzoo_llm":
-                from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
-                from envs.powerzoo_llm.base_env.env_register import make_base_env
+            elif env_name == "smartgrid":
+                from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+                from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
                 config_dict = {'env_args': env_args}
@@ -164,9 +164,9 @@ def make_render_env(env_name, seed, env_args):
         )
         manual_delay = False
         env.seed(seed * 60000)
-    elif env_name == "powerzoo_llm": #powerzoo_llm环境渲染支持
-        from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
-        from envs.powerzoo_llm.base_env.env_register import make_base_env
+    elif env_name == "smartgrid": #smartgrid环境渲染支持
+        from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+        from envs.smartgrid.base_env.env_register import make_base_env
         
         # 简化的配置传递
         config_dict = {'env_args': env_args}
@@ -215,7 +215,7 @@ def get_num_agents(env, env_args, envs):
         return envs.n_agents
     elif env == "PowerZoo":
         return envs.n_agents
-    elif env == "powerzoo_llm":
+    elif env == "smartgrid":
         return envs.n_agents
     elif env == "dsr":
         return envs.n_agents
@@ -226,7 +226,7 @@ def get_num_agents(env, env_args, envs):
 #         return envs.update_orders
 def get_ordered_agents_pairs(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env in ["powerzoo", "powerzoo_llm"]:
+    if env in ["powerzoo", "smartgrid"]:
        if env_args.get("useS", False):
            return envs.ordered_agents_pairs
        else:
@@ -234,7 +234,7 @@ def get_ordered_agents_pairs(env, env_args, envs):
 
 def get_agents_bus(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env in ["powerzoo", "powerzoo_llm"]:
+    if env in ["powerzoo", "smartgrid"]:
        if env_args.get("useS", False):
            return envs.agents_bus
        else:

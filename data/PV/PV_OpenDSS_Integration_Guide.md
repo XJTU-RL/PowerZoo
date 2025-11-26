@@ -63,7 +63,7 @@ python pv_opendss_integrator.py
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `--pv-data-dir` | PV数据目录路径 | `/home/zhengxiaodong/exps/PowerZoo/data/PV` |
-| `--dss-project-dir` | OpenDSS项目目录路径 | `/home/zhengxiaodong/exps/PowerZoo/envs/powerzoo_llm/node_systems_with_pv/34Bus` |
+| `--dss-project-dir` | OpenDSS项目目录路径 | `/home/zhengxiaodong/exps/PowerZoo/envs/smartgrid/node_systems_with_pv/34Bus` |
 | `--date` | 指定日期 (YYYY-MM-DD格式) | - |
 | `--list-dates` | 列出可用的日期 | - |
 | `--batch` | 批量处理模式 | - |

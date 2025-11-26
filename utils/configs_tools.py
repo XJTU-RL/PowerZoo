@@ -1,9 +1,9 @@
 """Tools for loading and updating configs."""
-import time
-import os
 import json
+import os
+import time
+
 import yaml
-from uu import Error
 
 
 def get_defaults_yaml_args(algo, env):
@@ -58,7 +58,7 @@ def update_args(unparsed_dict, *args):
 def get_task_name(env, env_args):
     if env == "powerzoo": 
         task = env_args["env_name"]
-    elif env == "powerzoo_llm":
+    elif env == "smartgrid":
         task = env_args["env_name"]
     else:
         task = "unknown"
@@ -93,11 +93,11 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
 
 
 def is_json_serializable(value):
-    """Check if v is JSON serializable."""
+    """Check if value is JSON serializable."""
     try:
         json.dumps(value)
         return True
-    except Error:
+    except (TypeError, ValueError):
         return False
 
 

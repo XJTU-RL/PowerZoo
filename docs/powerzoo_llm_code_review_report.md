@@ -1,7 +1,7 @@
 # PowerZoo LLM 环境深度代码审查报告
 
 > **审查时间**: 2025-11-22
-> **审查范围**: `envs/powerzoo_llm/` 分支 `dev/powerzoo_llm`
+> **审查范围**: `envs/smartgrid/` 分支 `dev/smartgrid`
 > **审查团队**: env-compatibility-reviewer, power-systems-engineer, code-reviewer
 
 ---
@@ -34,7 +34,7 @@
 ### 2.1 模块结构
 
 ```
-envs/powerzoo_llm/
+envs/smartgrid/
 ├── __init__.py           # 模块导出（存在重复导出问题）
 ├── utils.py              # 工具函数
 ├── base_env/             # 核心环境封装

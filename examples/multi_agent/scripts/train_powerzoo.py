@@ -47,8 +47,8 @@ class PowerZooTrainer:
 		self.parser.add_argument(
 			"--system",
 			type=str,
-			default="powerzoo_llm",
-			help="电力系统环境配置 (powerzoo_llm, powerzoo, 等)"
+			default="smartgrid",
+			help="电力系统环境配置 (smartgrid, powerzoo, 等)"
 		)
 		
 		self.parser.add_argument(
@@ -234,7 +234,7 @@ class PowerZooTrainer:
 		"""获取PV方案配置"""
 		configs = {
 			"conservative": {
-				"config_file": "configs/envs_cfgs/powerzoo_llm_pv_plans/powerzoo_llm_conservative.yaml",
+				"config_file": "configs/envs_cfgs/smartgrid_pv_plans/smartgrid_conservative.yaml",
 				"description": "保守方案 (720kW, 40.7%渗透率)",
 				"default_weights": {
 					"voltage_violation": -1.5,
@@ -244,7 +244,7 @@ class PowerZooTrainer:
 				}
 			},
 			"optimized": {
-				"config_file": "configs/envs_cfgs/powerzoo_llm_pv_plans/powerzoo_llm_optimized.yaml",
+				"config_file": "configs/envs_cfgs/smartgrid_pv_plans/smartgrid_optimized.yaml",
 				"description": "优化方案 (900kW, 50.8%渗透率)",
 				"default_weights": {
 					"voltage_violation": -2.0,
@@ -254,7 +254,7 @@ class PowerZooTrainer:
 				}
 			},
 			"aggressive": {
-				"config_file": "configs/envs_cfgs/powerzoo_llm_pv_plans/powerzoo_llm_aggressive.yaml",
+				"config_file": "configs/envs_cfgs/smartgrid_pv_plans/smartgrid_aggressive.yaml",
 				"description": "激进方案 (1080kW, 61%渗透率)",
 				"default_weights": {
 					"voltage_violation": -3.0,

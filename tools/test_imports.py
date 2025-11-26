@@ -4,7 +4,7 @@
 Test imports for all PowerZoo modules.
 
 This script systematically tests imports for all Python modules in the project,
-focusing on powerzoo and powerzoo_llm environments.
+focusing on powerzoo and smartgrid environments.
 """
 
 import sys
@@ -96,24 +96,24 @@ def test_core_imports() -> Dict[str, Tuple[bool, str]]:
 		"envs.powerzoo.powerzoo.env_register",
 
 		# PowerZoo_LLM environment
-		"envs.powerzoo_llm",
-		"envs.powerzoo_llm.base_env",
-		"envs.powerzoo_llm.base_env.powerzoo_env",
-		"envs.powerzoo_llm.base_env.env",
-		"envs.powerzoo_llm.base_env.env_register",
-		"envs.powerzoo_llm.circuit_system",
-		"envs.powerzoo_llm.circuit_system.circuit",
-		"envs.powerzoo_llm.circuit_system.components",
-		"envs.powerzoo_llm.data_process",
-		"envs.powerzoo_llm.data_process.loadprofile",
-		"envs.powerzoo_llm.data_process.loadprofile_core",
-		"envs.powerzoo_llm.rewards",
-		"envs.powerzoo_llm.rewards.powerzoo_reward",
-		"envs.powerzoo_llm.rewards.lagrangian",
-		"envs.powerzoo_llm.logging",
-		"envs.powerzoo_llm.logging.base_logger",
-		"envs.powerzoo_llm.single_agent",
-		"envs.powerzoo_llm.single_agent.single_agent_env",
+		"envs.smartgrid",
+		"envs.smartgrid.base_env",
+		"envs.smartgrid.base_env.powerzoo_env",
+		"envs.smartgrid.base_env.env",
+		"envs.smartgrid.base_env.env_register",
+		"envs.smartgrid.circuit_system",
+		"envs.smartgrid.circuit_system.circuit",
+		"envs.smartgrid.circuit_system.components",
+		"envs.smartgrid.data_process",
+		"envs.smartgrid.data_process.loadprofile",
+		"envs.smartgrid.data_process.loadprofile_core",
+		"envs.smartgrid.rewards",
+		"envs.smartgrid.rewards.powerzoo_reward",
+		"envs.smartgrid.rewards.lagrangian",
+		"envs.smartgrid.logging",
+		"envs.smartgrid.logging.base_logger",
+		"envs.smartgrid.single_agent",
+		"envs.smartgrid.single_agent.single_agent_env",
 
 		# Algorithms
 		"algorithms.algo_registry",
@@ -209,14 +209,14 @@ def main():
 		print(f"{RED}Directory not found: {powerzoo_dir}{RESET}")
 		pz_success, pz_failure = 0, 0
 
-	# Test powerzoo_llm directory
-	print(f"\n{YELLOW}Testing envs/powerzoo_llm imports...{RESET}")
-	powerzoo_llm_dir = PROJECT_ROOT / "envs" / "powerzoo_llm"
-	if powerzoo_llm_dir.exists():
-		powerzoo_llm_results = test_all_imports(powerzoo_llm_dir)
-		pzl_success, pzl_failure = print_results(powerzoo_llm_results, "PowerZoo_LLM Environment Imports")
+	# Test smartgrid directory
+	print(f"\n{YELLOW}Testing envs/smartgrid imports...{RESET}")
+	smartgrid_dir = PROJECT_ROOT / "envs" / "smartgrid"
+	if smartgrid_dir.exists():
+		smartgrid_results = test_all_imports(smartgrid_dir)
+		pzl_success, pzl_failure = print_results(smartgrid_results, "PowerZoo_LLM Environment Imports")
 	else:
-		print(f"{RED}Directory not found: {powerzoo_llm_dir}{RESET}")
+		print(f"{RED}Directory not found: {smartgrid_dir}{RESET}")
 		pzl_success, pzl_failure = 0, 0
 
 	# Summary

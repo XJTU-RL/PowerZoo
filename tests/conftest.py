@@ -111,12 +111,12 @@ def skip_if_no_opendss():
 
 
 # ==============================================================================
-# PowerZoo_LLM-specific fixtures
+# SmartGrid-specific fixtures
 # ==============================================================================
 
 @pytest.fixture
-def powerzoo_llm_config(node_systems_dir: Path) -> Dict[str, Any]:
-	"""Return configuration for PowerZoo_LLM environment."""
+def smartgrid_config(node_systems_dir: Path) -> Dict[str, Any]:
+	"""Return configuration for SmartGrid environment."""
 	system_34bus = node_systems_dir / "34Bus_PV_Aggressive"
 
 	config = {
@@ -197,7 +197,7 @@ def pytest_configure(config):
 		"markers", "powerzoo: PowerZoo environment tests"
 	)
 	config.addinivalue_line(
-		"markers", "powerzoo_llm: PowerZoo_LLM environment tests"
+		"markers", "smartgrid: SmartGrid environment tests"
 	)
 	config.addinivalue_line(
 		"markers", "requires_opendss: Requires OpenDSS installation"
@@ -211,8 +211,8 @@ def pytest_collection_modifyitems(config, items):
 	"""Modify test collection to add markers automatically."""
 	for item in items:
 		# Add markers based on test path
-		if "powerzoo_llm" in str(item.fspath):
-			item.add_marker(pytest.mark.powerzoo_llm)
+		if "smartgrid" in str(item.fspath):
+			item.add_marker(pytest.mark.smartgrid)
 		elif "powerzoo" in str(item.fspath):
 			item.add_marker(pytest.mark.powerzoo)
 

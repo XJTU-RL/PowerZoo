@@ -70,7 +70,7 @@ class M_QMixer(nn.Module):
         # hyper_b1 outputs bias vector of dimension (1 x hidden_layer_dim)
         self.hyper_b1 = init_(
             nn.Linear(self.cent_obs_dim, self.hidden_layer_dim)).to(self.device)
-        # hyper_b2 outptus bias vector of dimension (1 x 1)
+        # hyper_b2 outputs bias vector of dimension (1 x 1)
         self.hyper_b2 = nn.Sequential(
             init_(nn.Linear(self.cent_obs_dim, self.hypernet_hidden_dim)),
             nn.ReLU(),
@@ -120,7 +120,5 @@ class M_QMixer(nn.Module):
         out = torch.bmm(hidden_layer, w2) + b2
         # reshape to (batch_size, 1, 1)
         q_tot = out.view(batch_size, -1, 1)
-
-        q_tot = q_tot.cpu()
 
         return q_tot

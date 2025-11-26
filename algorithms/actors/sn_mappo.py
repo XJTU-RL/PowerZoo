@@ -199,17 +199,6 @@ class SN_MAPPO(MAPPO):
         
         return policy_loss, dist_entropy, actor_grad_norm, imp_weights
     
-    def _adjust_advantages_for_followers(
-        self, obs_batch, actions_batch, adv_targ
-    ):
-        """
-        Adjust advantages based on anticipated follower responses.
-        This implements the total derivative calculation from Equation 39.
-        """
-        # This is a simplified implementation
-        # In practice, this would use opponent models to predict follower responses
-        return adv_targ
-    
     def _compute_total_derivative(self, loss_uc, loss_consumers, uc_params, consumer_params):
         """
         Compute total derivative for UC policy update (Equation 39).
@@ -267,7 +256,8 @@ class SN_MAPPO(MAPPO):
                     hessian_diag.append(grad2)
             
             return torch.diag(torch.cat([h.flatten() for h in hessian_diag]))
-        except:
+        except (RuntimeError, ValueError) as e:
+            # Hessian computation can fail for various reasons (singular matrix, etc.)
             return None
     
     def update_follower(self, sample):
@@ -504,14 +494,7 @@ class SN_MAPPO(MAPPO):
         self.hierarchy_level = checkpoint.get('hierarchy_level', self.hierarchy_level)
         self.agent_type = checkpoint.get('agent_type', self.agent_type)
         self.policy_changes = checkpoint.get('policy_changes', [])
-    
-    
-    def _adjust_advantages_for_leader(self, leader_signals, actions_batch, adv_targ):
-        """Adjust consumer advantages based on UC signals."""
-        # This implements consumer's best response to UC actions
-        # In practice, this would incorporate the UC pricing and incentives
-        return adv_targ
-    
+
     def _policy_distance(self, policy1, policy2):
         """Compute distance between two policies (e.g., KL divergence)."""
         # Placeholder implementation

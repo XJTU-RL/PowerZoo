@@ -20,9 +20,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
+
+from algorithms.actors.on_policy_base import OnPolicyBase
+from utils import happo_diagnostics
 from utils.envs_tools import check
 from utils.models_tools import get_grad_norm
-from algorithms.actors.on_policy_base import OnPolicyBase
 
 
 class HAPPO(OnPolicyBase):
@@ -104,10 +106,9 @@ class HAPPO(OnPolicyBase):
                 factor_batch * torch.min(surr1, surr2), dim=-1, keepdim=True
             ).mean()
 
-        policy_loss = policy_action_loss#每个actor都有一个L函数
+        policy_loss = policy_action_loss
 
-        # HAPPO诊断：策略损失组件分解
-        from utils import happo_diagnostics
+        # HAPPO diagnostics: policy loss component analysis
         happo_diagnostics.log_policy_loss_components(
             policy_loss=policy_loss,
             imp_weights=imp_weights,
