@@ -35,7 +35,7 @@ pytest -m integration
 pytest -m powerzoo
 
 # PowerZoo_LLM environment tests
-pytest -m powerzoo_llm
+pytest -m smartgrid
 
 # Skip slow tests
 pytest -m "not slow"
@@ -51,7 +51,7 @@ pytest -m "not requires_opendss"
 pytest tests/envs/powerzoo/
 
 # PowerZoo_LLM environment tests
-pytest tests/envs/powerzoo_llm/
+pytest tests/envs/smartgrid/
 
 # Specific test file
 pytest tests/envs/powerzoo/test_powerzoo_env.py
@@ -87,8 +87,8 @@ tests/
 ├── envs/
 │   ├── powerzoo/
 │   │   └── test_powerzoo_env.py   # PowerZoo environment tests
-│   └── powerzoo_llm/
-│       └── test_powerzoo_llm_env.py  # PowerZoo_LLM environment tests
+│   └── smartgrid/
+│       └── test_smartgrid_env.py  # PowerZoo_LLM environment tests
 └── README.md                      # This file
 ```
 
@@ -100,7 +100,7 @@ Tests are categorized using pytest markers:
 - `@pytest.mark.integration`: Integration tests, may require system setup
 - `@pytest.mark.slow`: Slow tests, full environment simulation
 - `@pytest.mark.powerzoo`: Tests specific to PowerZoo environment
-- `@pytest.mark.powerzoo_llm`: Tests specific to PowerZoo_LLM environment
+- `@pytest.mark.smartgrid`: Tests specific to PowerZoo_LLM environment
 - `@pytest.mark.requires_opendss`: Tests requiring OpenDSS installation
 - `@pytest.mark.requires_gpu`: Tests requiring GPU/CUDA
 
@@ -117,10 +117,10 @@ Tests are categorized using pytest markers:
 import pytest
 
 @pytest.mark.unit
-@pytest.mark.powerzoo_llm
+@pytest.mark.smartgrid
 def test_example():
     """Test description."""
-    from envs.powerzoo_llm import PowerZooEnv
+    from envs.smartgrid import PowerZooEnv
     assert PowerZooEnv is not None
 ```
 
@@ -129,9 +129,9 @@ def test_example():
 Common fixtures are defined in `tests/conftest.py`:
 
 ```python
-def test_with_config(powerzoo_llm_config):
+def test_with_config(smartgrid_config):
     """Use predefined configuration fixture."""
-    assert powerzoo_llm_config["num_agents"] > 0
+    assert smartgrid_config["num_agents"] > 0
 ```
 
 ## Continuous Integration

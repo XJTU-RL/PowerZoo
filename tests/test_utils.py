@@ -51,7 +51,7 @@ class TestConfigsTools:
 
 		env_args = {"env_name": "test_env"}
 		assert get_task_name("powerzoo", env_args) == "test_env"
-		assert get_task_name("powerzoo_llm", env_args) == "test_env"
+		assert get_task_name("smartgrid", env_args) == "test_env"
 		assert get_task_name("unknown_env", env_args) == "unknown"
 
 

@@ -9,7 +9,7 @@ class LoadProfile:
     """DSR模块的负载配置文件管理类
     
     该类用于管理DSR环境中的负载配置文件，包括负载形状、负载名称等。
-    与powerzoo_llm中的LoadProfile类兼容，但针对DSR环境进行了优化。
+    与smartgrid中的LoadProfile类兼容，但针对DSR环境进行了优化。
     """
     
     def __init__(self, steps: int, dss_folder_path: str, dss_file: str, 

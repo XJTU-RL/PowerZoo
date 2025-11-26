@@ -64,7 +64,7 @@
 
 **最需要重构的方法 TOP 5**:
 1. `runners/Qmix_runner.py::separated_collect_rollout` - 343 行
-2. `envs/powerzoo_llm/base_env/env.py::step` - 293 行
+2. `envs/smartgrid/base_env/env.py::step` - 293 行
 3. `runners/Qmix_base_runner.py::__init__` - 246 行
 4. `common/buffers/shared_on_policy_actor_buffer.py::recurrent_generator` - 239 行
 5. `runners/off_policy_ha_runner.py::train` - 229 行
@@ -109,7 +109,7 @@ Runner 初始化 → Algorithm 初始化 → Environment 初始化
 | 7 | 缺少配置schema验证 | MEDIUM | 引入 Pydantic |
 | 8 | 部分参数默认值硬编码在代码中 | MEDIUM | 移至配置文件 |
 | 9 | 缺少配置版本控制 | LOW | 添加版本字段 |
-| 10 | 环境名相似易混淆 (`powerzoo` vs `powerzoo_llm`) | HIGH | 添加验证提示 |
+| 10 | 环境名相似易混淆 (`powerzoo` vs `smartgrid`) | HIGH | 添加验证提示 |
 | 11 | 缺少配置模板生成工具 | LOW | 开发脚手架 |
 | 12 | 异步训练参数配置复杂 | MEDIUM | 简化接口 |
 | 13 | GPU/CPU 设备配置分散 | LOW | 统一设备管理 |
@@ -119,7 +119,7 @@ Runner 初始化 → Algorithm 初始化 → Environment 初始化
 
 **短期改进 (1-2周)**:
 1. 创建 `configs/config_validator.py` 实现启动时配置验证
-2. 添加 `powerzoo` 和 `powerzoo_llm` 的名称检查提示
+2. 添加 `powerzoo` 和 `smartgrid` 的名称检查提示
 3. 为核心配置添加 Pydantic 模型
 
 **中期改进 (1个月)**:
@@ -193,8 +193,8 @@ docs/
 │   ├── configuration.md
 │   └── training.md
 └── reports/                   # 技术报告
-    ├── powerzoo_llm_code_review_report.md
-    └── powerzoo_llm_fix_summary.md
+    ├── smartgrid_code_review_report.md
+    └── smartgrid_fix_summary.md
 ```
 
 ### 5.2 文档改进行动项
@@ -215,7 +215,7 @@ docs/
 
 1. **统一动作处理管道**
    - 创建 `ActionProcessor` 类消除重复逻辑
-   - 位置: `envs/powerzoo_llm/base_env/action_processor.py`
+   - 位置: `envs/smartgrid/base_env/action_processor.py`
 
 2. **配置验证层**
    - 创建 Pydantic 模型验证配置

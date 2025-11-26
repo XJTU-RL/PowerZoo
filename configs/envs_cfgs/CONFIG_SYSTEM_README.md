@@ -13,7 +13,7 @@ PowerZoo LLM 环境的配置系统已经完成重构，实现了统一、简洁�
    - 支持所有环境参数的覆盖
 
 2. **PV场景配置**
-   - `powerzoo_llm_pv_plans/` 目录下的 YAML 文件
+   - `smartgrid_pv_plans/` 目录下的 YAML 文件
    - 三种场景：aggressive, conservative, optimized
 
 3. **环境基础配置**
@@ -80,7 +80,7 @@ env_args = {
 - 节点布局信息
 - 系统描述
 
-### powerzoo_llm_pv_plans/
+### smartgrid_pv_plans/
 - aggressive.yaml: 激进方案（1080kW, 61%渗透率）
 - conservative.yaml: 保守方案（720kW, 40.7%渗透率）
 - optimized.yaml: 优化方案（900kW, 50.8%渗透率）
@@ -99,7 +99,7 @@ env_args = {
 
 ### envs_tools.py
 - 最小化的修改
-- 只传递 env_args 给 powerzoo_llm
+- 只传递 env_args 给 smartgrid
 - 不影响其他环境
 
 ## 主要改进
@@ -113,4 +113,4 @@ env_args = {
 
 - envs_tools.py 的接口保持不变，不影响其他环境
 - 所有硬编码配置已移除，统一使用配置文件
-- 配置加载器只在 powerzoo_llm 内部使用，不影响系统其他部分
+- 配置加载器只在 smartgrid 内部使用，不影响系统其他部分

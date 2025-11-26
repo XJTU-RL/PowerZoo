@@ -24,7 +24,7 @@
 - **Purpose**: Collects rollout data for QMIX algorithm
 - **Recommendation**: Split into `_collect_observations()`, `_execute_actions()`, `_process_rewards()`, `_update_buffers()`
 
-### 2. envs/powerzoo_llm/base_env/env.py::step
+### 2. envs/smartgrid/base_env/env.py::step
 - **Lines**: 370-662 (293 lines)
 - **Purpose**: Environment step function
 - **Recommendation**: Extract `_process_actions()`, `_run_power_flow()`, `_compute_rewards()`, `_build_observations()`
@@ -59,7 +59,7 @@
 - **Purpose**: SAC critic training
 - **Recommendation**: Split into `_compute_loss()`, `_update_targets()`, `_log_diagnostics()`
 
-### 9. envs/powerzoo_llm/logging/powerzoo_llm_logger.py::per_step
+### 9. envs/smartgrid/logging/smartgrid_logger.py::per_step
 - **Lines**: 214-380 (167 lines)
 - **Purpose**: Per-step logging
 - **Recommendation**: Extract metric collection methods
@@ -103,13 +103,13 @@
 | envs/dsr/dsr_env.py | _build_agent_observation | 463-604 | 142 |
 | runners/on_policy_ha_runner.py | train | 108-249 | 142 |
 | runners/on_policy_ha_runner.py | _log_training_metrics | 317-458 | 142 |
-| envs/powerzoo_llm/logging/powerzoo_llm_logger.py | _log_episode_metrics | 589-727 | 139 |
+| envs/smartgrid/logging/smartgrid_logger.py | _log_episode_metrics | 589-727 | 139 |
 | envs/powerzoo/powerzoo_logger.py | episode_log | 288-425 | 138 |
 | runners/two_ts_runner.py | train | 74-210 | 137 |
 | envs/dsr/core/dsr_core.py | _initialize_loads_per_agent | 287-418 | 132 |
 | algorithms/actors/sn_mappo.py | update_leader | 111-239 | 129 |
-| envs/powerzoo_llm/base_env/powerzoo_env.py | step | 187-314 | 128 |
-| envs/powerzoo_llm/rewards/powerzoo_reward.py | calculate_total_reward | 89-213 | 125 |
+| envs/smartgrid/base_env/powerzoo_env.py | step | 187-314 | 128 |
+| envs/smartgrid/rewards/powerzoo_reward.py | calculate_total_reward | 89-213 | 125 |
 | algorithms/actors/hasac.py | train | 96-218 | 123 |
 | envs/powerzoo/powerzoo/env.py | reset | 267-388 | 122 |
 | runners/Qmix_base_runner.py | run | 301-420 | 120 |
@@ -119,7 +119,7 @@
 | algorithms/twots_vvc/coordinator.py | train_step | 122-234 | 113 |
 | envs/dsr/dsr_env.py | step | 171-282 | 112 |
 | runners/off_policy_ma_runner.py | train | 24-133 | 110 |
-| envs/powerzoo_llm/data_process/loadprofile_core.py | __init__ | 47-153 | 107 |
+| envs/smartgrid/data_process/loadprofile_core.py | __init__ | 47-153 | 107 |
 | algorithms/actors/sn_mappo.py | update_follower | 263-366 | 104 |
 | envs/dsr/core/dsr_core.py | reset | 96-197 | 102 |
 | common/buffers/on_policy_actor_buffer.py | feed_forward_generator | 210-308 | 99 |
@@ -135,11 +135,11 @@
 |------|--------|-------|------------|
 | algorithms/actors/happo.py | train | 140-231 | 92 |
 | algorithms/actors/mappo.py | train | 103-193 | 91 |
-| envs/powerzoo_llm/circuit_system/circuit.py | initialize | 145-234 | 90 |
+| envs/smartgrid/circuit_system/circuit.py | initialize | 145-234 | 90 |
 | runners/on_policy_base_runner.py | run | 262-350 | 89 |
 | envs/dsr/dsr_env.py | reset | 97-183 | 87 |
 | algorithms/twots_vvc/slow_sacd.py | update | 89-174 | 86 |
-| envs/powerzoo_llm/base_env/env.py | reset | 213-297 | 85 |
+| envs/smartgrid/base_env/env.py | reset | 213-297 | 85 |
 | algorithms/actors/haa2c.py | train | 82-165 | 84 |
 | runners/off_policy_base_runner.py | run | 242-324 | 83 |
 | envs/stackelberg/stackelberg_game/stackelberg_base_env.py | step | 167-248 | 82 |

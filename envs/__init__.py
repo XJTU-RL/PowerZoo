@@ -1,6 +1,6 @@
 from absl import flags
 from envs.powerzoo.powerzoo_logger import PowerZooLogger
-from envs.powerzoo_llm.logging.powerzoo_llm_logger import PowerZooLLMLogger
+from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
 from envs.dsr.dsr_logger import DSRLogger
 from envs.stackelberg.stackelberg_logger import StackelbergLogger
 from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
@@ -11,7 +11,7 @@ FLAGS(["train_sc.py"])
 # Logger registry - maps environment names to logger classes
 LOGGER_REGISTRY = {
 	"powerzoo": PowerZooLogger,
-	"powerzoo_llm": PowerZooLLMLogger,
+	"smartgrid": SmartGridLogger,
 	"dsr": DSRLogger,
 	"stackelberg": StackelbergLogger,
 	"stackelberg_13bus": StackelbergLogger,

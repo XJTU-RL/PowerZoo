@@ -26,7 +26,7 @@ class TestEnvRegistry:
 		from envs import ENV_REGISTRY
 
 		# Check for expected environment types
-		expected_envs = ["powerzoo", "powerzoo_llm", "dsr", "stackelberg"]
+		expected_envs = ["powerzoo", "smartgrid", "dsr", "stackelberg"]
 		for env_name in expected_envs:
 			assert env_name in ENV_REGISTRY, f"Missing environment: {env_name}"
 
@@ -124,29 +124,29 @@ class TestPowerZooEnv:
 
 
 @pytest.mark.unit
-class TestPowerZooLLMEnv:
-	"""Test PowerZoo LLM environment."""
+class TestSmartGridEnv:
+	"""Test SmartGrid environment."""
 
-	def test_powerzoo_llm_env_import(self):
-		"""Test PowerZooEnv (LLM) import."""
+	def test_smartgrid_env_import(self):
+		"""Test SmartGrid PowerZooEnv import."""
 		try:
-			from envs.powerzoo_llm.base_env.powerzoo_env import PowerZooEnv
+			from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
 			assert PowerZooEnv is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZooEnv: {e}")
 
-	def test_powerzoo_llm_base_env_import(self):
-		"""Test PowerZoo LLM base Env import."""
+	def test_smartgrid_base_env_import(self):
+		"""Test SmartGrid base Env import."""
 		try:
-			from envs.powerzoo_llm.base_env.env import Env
+			from envs.smartgrid.base_env.env import Env
 			assert Env is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo LLM Env: {e}")
 
-	def test_powerzoo_llm_reward_import(self):
+	def test_smartgrid_reward_import(self):
 		"""Test PowerZooReward import."""
 		try:
-			from envs.powerzoo_llm.rewards.powerzoo_reward import PowerZooReward
+			from envs.smartgrid.rewards.powerzoo_reward import PowerZooReward
 			assert PowerZooReward is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZooReward: {e}")
@@ -154,15 +154,15 @@ class TestPowerZooLLMEnv:
 	def test_lagrangian_updater_import(self):
 		"""Test LagrangianUpdater import."""
 		try:
-			from envs.powerzoo_llm.rewards.lagrangian import LagrangianUpdater
+			from envs.smartgrid.rewards.lagrangian import LagrangianUpdater
 			assert LagrangianUpdater is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import LagrangianUpdater: {e}")
 
-	def test_powerzoo_llm_circuit_import(self):
+	def test_smartgrid_circuit_import(self):
 		"""Test PowerZoo LLM Circuits import."""
 		try:
-			from envs.powerzoo_llm.circuit_system.circuit import Circuits
+			from envs.smartgrid.circuit_system.circuit import Circuits
 			assert Circuits is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo LLM Circuits: {e}")
@@ -175,7 +175,7 @@ class TestEnvComponents:
 	def test_node_components_import(self):
 		"""Test node components import."""
 		try:
-			from envs.powerzoo_llm.circuit_system.components.node_components import (
+			from envs.smartgrid.circuit_system.components.node_components import (
 				Battery, PVSystem
 			)
 			assert Battery is not None
@@ -186,7 +186,7 @@ class TestEnvComponents:
 	def test_line_components_import(self):
 		"""Test line components import."""
 		try:
-			from envs.powerzoo_llm.circuit_system.components.line_components import (
+			from envs.smartgrid.circuit_system.components.line_components import (
 				Line, Transformer
 			)
 			assert Line is not None
@@ -197,7 +197,7 @@ class TestEnvComponents:
 	def test_load_profile_import(self):
 		"""Test LoadProfile import."""
 		try:
-			from envs.powerzoo_llm.data_process.loadprofile import LoadProfile
+			from envs.smartgrid.data_process.loadprofile import LoadProfile
 			assert LoadProfile is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import LoadProfile: {e}")
@@ -210,12 +210,12 @@ class TestActionSpaces:
 	def test_action_selector_import(self):
 		"""Test ActionSelector import."""
 		try:
-			from envs.powerzoo_llm.base_env.env import PowerZooActionSelector
+			from envs.smartgrid.base_env.env import PowerZooActionSelector
 			assert PowerZooActionSelector is not None
 		except ImportError as e:
 			# Try alternate location
 			try:
-				from envs.powerzoo_llm import PowerZooActionSelector
+				from envs.smartgrid import PowerZooActionSelector
 				assert PowerZooActionSelector is not None
 			except ImportError:
 				pytest.skip("PowerZooActionSelector not found in expected locations")
@@ -228,7 +228,7 @@ class TestEnvConfigs:
 	def test_powerzoo_env_config_import(self):
 		"""Test PowerZooEnvConfig import."""
 		try:
-			from envs.powerzoo_llm.base_env.env_config import PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
 			assert PowerZooEnvConfig is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZooEnvConfig: {e}")

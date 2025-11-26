@@ -60,7 +60,7 @@
 ### 启动训练
 ```bash
 # 诊断功能已自动集成，无需额外配置
-bash examples/multi_agent/launchers/quick_train_powerzoo_pv.sh aggressive powerzoo_llm
+bash examples/multi_agent/launchers/quick_train_powerzoo_pv.sh aggressive smartgrid
 ```
 
 ### 查看诊断结果

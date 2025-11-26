@@ -11,8 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import opendssdirect as dss
 import pandas as pd
-from envs.powerzoo_llm.data_process.loadprofile import LoadProfile
-from envs.powerzoo_llm.data_process.loadprofile_config import ConfigGenerator
+from envs.smartgrid.data_process.loadprofile import LoadProfile
+from envs.smartgrid.data_process.loadprofile_config import ConfigGenerator
 
 
 def test_pv_injection(system_name="34Bus_PV_Aggressive", worker_id=0, episode_idx=1):

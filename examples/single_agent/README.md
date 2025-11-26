@@ -177,7 +177,7 @@ model.learn(
 
 ### 基础配置
 ```python
-from powerzoo_llm.single_agent import SingleAgentConfig
+from smartgrid.single_agent import SingleAgentConfig
 
 config = SingleAgentConfig(
     circuit_name="13Bus",       # 电路名称
@@ -274,5 +274,5 @@ for _ in range(1000):
 ## 📚 相关资源
 
 - [Stable Baselines3文档](https://stable-baselines3.readthedocs.io/)
-- [PowerZoo环境文档](../../envs/power_envs/powerzoo_llm/single_agent/README.md)
+- [PowerZoo环境文档](../../envs/power_envs/smartgrid/single_agent/README.md)
 - [强化学习算法比较](https://spinningup.openai.com/en/latest/)

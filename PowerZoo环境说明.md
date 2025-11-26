@@ -203,7 +203,7 @@ obs, reward, done, info = env.step(actions)
 ### PowerZoo_LLM环境
 
 ```python
-from envs.powerzoo_llm.base_env import PowerZooEnv
+from envs.smartgrid.base_env import PowerZooEnv
 
 # 创建完整环境
 config = {
@@ -229,7 +229,7 @@ obs, reward, done, info = env.step(actions)
 ### 单智能体环境（使用gymnasium）
 
 ```python
-from envs.powerzoo_llm.single_agent import SingleAgentPowerZooEnv
+from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
 
 # 创建单智能体环境
 config = {

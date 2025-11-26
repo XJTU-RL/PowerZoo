@@ -127,7 +127,7 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
-        if args["env"] in ["powerzoo", "powerzoo_llm"] and args["algo"] == "shom":
+        if args["env"] in ["powerzoo", "smartgrid"] and args["algo"] == "shom":
             if self.useS:
                 self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
                 self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)

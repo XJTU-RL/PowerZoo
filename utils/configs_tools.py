@@ -58,7 +58,7 @@ def update_args(unparsed_dict, *args):
 def get_task_name(env, env_args):
     if env == "powerzoo": 
         task = env_args["env_name"]
-    elif env == "powerzoo_llm":
+    elif env == "smartgrid":
         task = env_args["env_name"]
     else:
         task = "unknown"

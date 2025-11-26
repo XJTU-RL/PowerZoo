@@ -25,9 +25,9 @@
 ### PowerZoo LLM
 | Document | Location | Description |
 |----------|----------|-------------|
-| Code Review Report | [powerzoo_llm_code_review_report.md](./powerzoo_llm_code_review_report.md) | Deep code review findings |
-| Fix Summary | [powerzoo_llm_fix_summary.md](./powerzoo_llm_fix_summary.md) | Summary of applied fixes |
-| Single Agent README | [envs/powerzoo_llm/single_agent/README.md](../envs/powerzoo_llm/single_agent/README.md) | Single agent configuration |
+| Code Review Report | [smartgrid_code_review_report.md](./smartgrid_code_review_report.md) | Deep code review findings |
+| Fix Summary | [smartgrid_fix_summary.md](./smartgrid_fix_summary.md) | Summary of applied fixes |
+| Single Agent README | [envs/smartgrid/single_agent/README.md](../envs/smartgrid/single_agent/README.md) | Single agent configuration |
 
 ### DSR Environment
 | Document | Location | Description |
@@ -64,7 +64,7 @@
 | Document | Location | Description |
 |----------|----------|-------------|
 | Config System README | [configs/envs_cfgs/CONFIG_SYSTEM_README.md](../configs/envs_cfgs/CONFIG_SYSTEM_README.md) | Configuration system overview |
-| PV Plans README | [configs/envs_cfgs/powerzoo_llm_pv_plans/README.md](../configs/envs_cfgs/powerzoo_llm_pv_plans/README.md) | PV planning configurations |
+| PV Plans README | [configs/envs_cfgs/smartgrid_pv_plans/README.md](../configs/envs_cfgs/smartgrid_pv_plans/README.md) | PV planning configurations |
 
 ---
 
