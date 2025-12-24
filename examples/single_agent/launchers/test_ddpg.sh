@@ -10,7 +10,7 @@ echo "实验结果将保存到: /home/zhengxiaodong/exps/PowerZoo/results"
 echo ""
 
 # 运行DDPG训练
-python examples/single_agent/powerzoo_llm/train_single_agent.py \
+python examples/single_agent/scripts/train_single_agent.py \
     --algo ddpg \
     --env powerzoo_single \
     --circuit_name 13Bus \

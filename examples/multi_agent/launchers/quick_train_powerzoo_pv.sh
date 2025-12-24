@@ -7,8 +7,8 @@
 # ====================
 # 第一个参数选择PV方案，默认aggressive
 PV_PLAN="${1:-aggressive}"
-# 第二个参数选择系统配置，默认powerzoo_llm
-SYSTEM_CONFIG="${2:-powerzoo_llm}"
+# 第二个参数选择系统配置，默认smartgrid
+SYSTEM_CONFIG="${2:-smartgrid}"
 
 echo "🚀 启动HAPPO PowerZoo PV训练..."
 
@@ -26,15 +26,15 @@ case $PV_PLAN in
   *)
     echo "❌ 无效的PV方案: $PV_PLAN"
     echo "使用方法: $0 [conservative|optimized|aggressive] [system_config]"
-    echo "系统配置选项: powerzoo_llm, powerzoo, 或其他已配置的环境名"
+    echo "系统配置选项: smartgrid, powerzoo, 或其他已配置的环境名"
     exit 1
     ;;
 esac
 
 # 验证系统配置
 case $SYSTEM_CONFIG in
-  powerzoo_llm)
-    SYSTEM_DESC="PowerZoo LLM系统 (IEEE34 Bus with LLM optimization)"
+  smartgrid)
+    SYSTEM_DESC="SmartGrid系统 (IEEE34 Bus with LLM optimization)"
     ;;
   powerzoo)
     SYSTEM_DESC="PowerZoo基础系统 (IEEE34 Bus)"
