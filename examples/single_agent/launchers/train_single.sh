@@ -28,7 +28,7 @@ echo "======================================"
 # conda activate PowerZoo
 
 # 运行训练脚本
-python single_agent/powerzoo_llm/train_single.py \
+python examples/single_agent/scripts/train_single.py \
     --algo $ALGO \
     --env $ENV \
     --exp_name $EXP_NAME \
