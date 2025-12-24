@@ -15,7 +15,7 @@ export OMP_NUM_THREADS=1       # 设置OpenMP线程数
 # 训练参数
 ALGO="ppo"
 ENV="single_agent_powerzoo"
-EXP_NAME="$ENV _ $ALOG PV_discrete"
+EXP_NAME="${ENV}_${ALGO}_PV_discrete"
 CONFIG_FILE="configs/single_agent_cfgs/ppo_pv_discrete.yaml"
 
 # 检查配置文件是否存在
@@ -30,19 +30,18 @@ echo "开始训练..."
 echo ""
 
 # 执行训练
-python examples/train.py \
-    --algo $ALGO \
-    --env $ENV \
-    --exp_name $EXP_NAME \
-    --config_file $CONFIG_FILE \
-    --num_env_processes 4 \
-    --num_env_steps 100000 \
-    --episode_length 24 \
-    --log_interval 5 \
-    --eval_interval 10 \
-    --save_interval 25 \
-    --use_eval \
-    --eval_episodes 10
+python examples/single_agent/scripts/train_single_agent.py \
+    --algo "$ALGO" \
+    --env "$ENV" \
+    --exp_name "$EXP_NAME" \
+    --config_path "$CONFIG_FILE" \
+    --action_space_type discrete \
+    --circuit_name 13Bus \
+    --total_timesteps 100000 \
+    --n_envs 4 \
+    --max_episode_steps 24 \
+    --eval_freq 10 \
+    --seed 42
 
 echo ""
 echo "训练完成!"
