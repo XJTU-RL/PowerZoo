@@ -2,7 +2,7 @@ import os
 import gymnasium as gym
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, Union
-from envs.powerzoo.powerzoo.env import Env, ActionSpace
+from envs.smartgrid.base_env.core_env import Env, ActionSpace
 import logging
 
 logger = logging.getLogger(__name__)

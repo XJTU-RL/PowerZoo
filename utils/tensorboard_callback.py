@@ -14,20 +14,17 @@ import torch
 from datetime import datetime
 
 # Optional imports for extended functionality
-try:
-    from envs.smartgrid.logging.system_logger import SystemLogger, SystemState
-    SYSTEM_LOGGER_AVAILABLE = True
-except ImportError:
-    SYSTEM_LOGGER_AVAILABLE = False
-    SystemLogger = None
-    SystemState = None
+# SystemLogger已被移除，不再提供详细的系统状态记录
+SYSTEM_LOGGER_AVAILABLE = False
+SystemLogger = None
+SystemState = None
 
 try:
-    from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
-    POWERZOO_LOGGER_AVAILABLE = True
+	from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
+	POWERZOO_LOGGER_AVAILABLE = True
 except ImportError:
-    POWERZOO_LOGGER_AVAILABLE = False
-    SmartGridLogger = None
+	POWERZOO_LOGGER_AVAILABLE = False
+	SmartGridLogger = None
 
 
 class EnhancedTensorBoardCallback(BaseCallback):

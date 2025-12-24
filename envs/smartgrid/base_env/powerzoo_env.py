@@ -29,12 +29,11 @@ import os
 
 # 使用统一日志系统
 from envs.smartgrid.logging import (
-    get_logger,
-    log_training_step,
-    setup_training_logger,
-    get_system_logger
+	get_logger,
+	log_training_step,
+	setup_training_logger
 )
-from envs.smartgrid.logging.system_logger import SystemLogger
+# SystemLogger已被移除，功能已整合到smartgrid_logger
 
 logger = get_logger(__name__)
 

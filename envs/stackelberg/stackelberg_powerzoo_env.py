@@ -239,14 +239,15 @@ class StackelbergPowerZooEnv:
         uc_obs = observations.get(0, np.zeros(self.share_observation_space[0].shape))
         share_obs = [uc_obs.copy() for _ in range(self.n_agents)]
 
-        # Convert rewards to PowerZoo format [[reward]]
+        # Convert rewards to HAPPO-compatible numpy format (n_agents, 1)
         if isinstance(rewards, dict):
-            reward_list = [[rewards.get(i, 0.0)] for i in range(self.n_agents)]
+            reward_values = [rewards.get(i, 0.0) for i in range(self.n_agents)]
         else:
-            reward_list = [[r] for r in rewards]
+            reward_values = list(rewards) if hasattr(rewards, '__iter__') else [rewards] * self.n_agents
+        rewards_array = np.array([[float(r)] for r in reward_values], dtype=np.float32)
 
-        # Done flags (same for all agents in cooperative setting)
-        done_list = [done] * self.n_agents
+        # Done flags as numpy boolean array (n_agents,) - HAPPO requirement
+        dones_array = np.array([bool(done)] * self.n_agents, dtype=bool)
 
         # Info list
         if isinstance(infos, dict):
@@ -257,7 +258,7 @@ class StackelbergPowerZooEnv:
         # Get available actions
         avail_actions = self.get_avail_actions()
 
-        return local_obs, share_obs, reward_list, done_list, info_list, avail_actions
+        return local_obs, share_obs, rewards_array, dones_array, info_list, avail_actions
 
     def _execute_stackelberg_step(self, action_dict: Dict[int, np.ndarray]) -> Tuple:
         """

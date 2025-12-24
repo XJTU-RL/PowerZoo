@@ -4,8 +4,8 @@ PowerZoo - 电力系统多智能体强化学习环境
 该模块提供了基于OpenDSS的电力系统仿真环境，支持多智能体强化学习训练。
 """
 
-# 核心环境类
-from envs.powerzoo.powerzoo.env import Env, ActionSpace
+# 核心环境类（从本地core_env导入，不再依赖legacy powerzoo）
+from .base_env.core_env import Env, ActionSpace
 from .base_env.powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
 
 # 电路和负载管理

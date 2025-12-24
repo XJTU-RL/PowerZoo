@@ -238,25 +238,25 @@ class DSREnv:
         local_obs = self._convert_observations(obs_dict)
         global_state = self._convert_observations(state_dict)
         
-        # 转换奖励格式
-        rewards_list = [[reward] for reward in rewards]
-        
-        # 转换结束标志格式
-        dones_list = [done] * self.n_agents
-        
+        # 转换奖励格式 - HAPPO兼容的numpy数组 (n_agents, 1)
+        rewards_array = np.array([[float(reward)] for reward in rewards], dtype=np.float32)
+
+        # 转换结束标志格式 - HAPPO兼容的numpy布尔数组 (n_agents,)
+        dones_array = np.array([bool(done)] * self.n_agents, dtype=bool)
+
         # 转换信息格式
         infos_list = [info] * self.n_agents
-        
+
         # 获取可用动作
         available_actions = self.get_avail_actions()
-        
+
         # 处理时间截断
         if done and self.core_env.current_step >= self.config.max_episode_steps:
             for info_dict in infos_list:
                 info_dict["TimeLimit.truncated"] = True
                 info_dict["bad_transition"] = True
-        
-        return local_obs, global_state, rewards_list, dones_list, infos_list, available_actions
+
+        return local_obs, global_state, rewards_array, dones_array, infos_list, available_actions
     
     def _step_dan(self, actions):
         """DAN算法增强的环境步进"""
@@ -277,20 +277,23 @@ class DSREnv:
             
         # 检查终止条件
         should_terminate, termination_reason = self._check_termination_conditions()
-        dones = [should_terminate] * self.n_agents
-        
+
         # 添加终止原因到info
         if should_terminate:
             for info in infos:
                 info['termination_reason'] = termination_reason
-        
+
         # 转换为标准格式
         local_obs = self._convert_observations(observations)
         global_state = self._convert_observations(observations)
-        rewards_list = [[reward] for reward in rewards]
+
+        # HAPPO兼容的numpy数组格式
+        rewards_array = np.array([[float(reward)] for reward in rewards], dtype=np.float32)
+        dones_array = np.array([bool(should_terminate)] * self.n_agents, dtype=bool)
+
         available_actions = self.get_avail_actions()
-        
-        return local_obs, global_state, rewards_list, dones, infos, available_actions
+
+        return local_obs, global_state, rewards_array, dones_array, infos, available_actions
     
     def _calculate_dan_reward(self, agent_id):
         """计算DAN算法的优化奖励函数"""

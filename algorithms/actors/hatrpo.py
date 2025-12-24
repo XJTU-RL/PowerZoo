@@ -20,8 +20,11 @@
 """
 """HATRPO algorithm."""
 
+import logging
 import numpy as np
 import torch
+
+logger = logging.getLogger(__name__)
 from utils.envs_tools import check
 from utils.trpo_util import (
     flat_grad,
@@ -209,7 +212,7 @@ class HATRPO(OnPolicyBase):
         if not flag:
             params = flat_params(old_actor)
             update_model(self.actor, params)
-            print("policy update does not impove the surrogate")
+            logger.warning("HATRPO policy update rollback: surrogate loss did not improve after line search")
 
         return kl, loss_improve, expected_improve, dist_entropy, ratio
 
