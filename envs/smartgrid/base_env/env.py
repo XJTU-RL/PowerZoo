@@ -548,7 +548,7 @@ class Env(gym.Env):
             self.obs['pv_statuses'] = {}
 
         # 损耗（0~1 小数）
-        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0
+        self.obs['power_loss_ratio'] = self.circuit.calculate_loss_percentage() / 100.0
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t % self.horizon].to_dict()
@@ -784,7 +784,7 @@ class Env(gym.Env):
             self.obs['pv_statuses'] = {}
 
         ### total power loss - 使用正确的计算方法
-        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
+        self.obs['power_loss_ratio'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
         
         ### time step tracker
         self.obs['time'] = self.t
@@ -843,7 +843,7 @@ class Env(gym.Env):
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
         # 使用新的正确方法计算功率损失百分比
-        self.obs['power_loss'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
+        self.obs['power_loss_ratio'] = self.circuit.calculate_loss_percentage() / 100.0  # 转换为小数形式
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t%self.horizon].to_dict()

@@ -95,18 +95,9 @@ class PowerZooEnv:
         self._training_logger = get_training_logger()
         
         # 初始化系统参数记录器
-        self._enable_system_logging = getattr(config, 'enable_system_logging', False)  # 默认禁用，由adapter管理
-        if self._enable_system_logging:
-            # 如果在环境级别启用，使用统一的路径
-            log_dir = getattr(config, 'system_log_dir', "./results/system_params")
-            self._system_logger = get_system_logger(
-                log_dir=log_dir,
-                buffer_size=getattr(config, 'log_buffer_size', 5000),
-                save_interval=getattr(config, 'log_save_interval', 50),
-                enable_realtime_log=getattr(config, 'enable_realtime_log', True)
-            )
-        else:
-            self._system_logger = None
+        # NOTE: get_system_logger 已被移除，系统日志功能由 smartgrid_logger 统一管理
+        self._enable_system_logging = getattr(config, 'enable_system_logging', False)
+        self._system_logger = None  # 系统日志功能已整合到统一日志系统
         
         logger.info(f"PowerZoo环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
         self._training_logger.info(
@@ -136,7 +127,11 @@ class PowerZooEnv:
         self.cap_num = self.env.cap_num
         self.reg_num = self.env.reg_num
         self.bat_num = self.env.bat_num
-        
+
+        # 缓存动作数量信息（用于默认动作生成等）
+        self.bat_act_num = self.env.bat_act_num
+        self.reg_act_num = self.env.reg_act_num
+
         # 添加PV系统支持
         self.pv_num = self.env.pv_num
         self.pv_names = self.env.pv_names.copy()

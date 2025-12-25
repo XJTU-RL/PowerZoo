@@ -551,7 +551,7 @@ class SingleAgentPowerZooEnv(Env):
         # 获取系统指标 - 计算功率损耗比值（与父类格式保持一致）
         total_loss = self.circuit.total_loss()[0]  # 取第一个元素（有功损耗）
         total_power = self.circuit.total_power()[0]  # 取第一个元素（有功功率）
-        self.obs['power_loss'] = -total_loss / total_power  # 计算损耗比值
+        self.obs['power_loss_ratio'] = -total_loss / total_power  # 计算损耗比值
         
         # 时间步信息
         self.obs['time'] = self.t
