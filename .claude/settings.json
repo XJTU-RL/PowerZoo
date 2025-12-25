@@ -1,5 +1,9 @@
 {
   "enabledPlugins": {
-    "machine-learning-ops@claude-code-workflows": true
+    "code-review@claude-plugins-official": true,
+    "cicd-automation@claude-code-workflows": true,
+    "code-documentation@claude-code-workflows": true,
+    "agent-orchestration@claude-code-workflows": true,
+    "unit-testing@claude-code-workflows": true
   }
 }
