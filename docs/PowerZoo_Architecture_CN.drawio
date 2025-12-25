@@ -1,0 +1,280 @@
+<mxfile host="app.diagrams.net" modified="2025-01-01T00:00:00.000Z" agent="Claude" version="21.0.0">
+  <diagram name="PowerZoo Architecture" id="powerzoo-arch">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="950" background="#FAFAFA">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- 标题 -->
+        <mxCell id="title" value="PowerZoo 电力系统多智能体强化学习平台" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="200" y="10" width="700" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Multi-Agent Reinforcement Learning for Power System Control" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="300" y="50" width="500" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== 第一层：训练范式层 ========== -->
+        <mxCell id="layer1-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#7b1fa2;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="85" width="1000" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="layer1-title" value="训练范式" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#6a1b9a;" vertex="1" parent="1">
+          <mxGeometry x="480" y="88" width="140" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- 同策略训练 -->
+        <mxCell id="on-policy" value="&lt;b&gt;同策略训练 (On-Policy)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;采样 → 更新 → 丢弃 · 稳定性优先&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9c27b0;strokeWidth=1.5;fontSize=11;fontColor=#7b1fa2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="122" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- 异策略训练 -->
+        <mxCell id="off-policy" value="&lt;b&gt;异策略训练 (Off-Policy)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;经验回放 · 样本复用 · 效率优先&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9c27b0;strokeWidth=1.5;fontSize=11;fontColor=#7b1fa2;" vertex="1" parent="1">
+          <mxGeometry x="410" y="122" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- CTDE范式 -->
+        <mxCell id="ctde" value="&lt;b&gt;集中训练分布执行 (CTDE)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;全局信息训练 · 局部信息决策&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9c27b0;strokeWidth=1.5;fontSize=11;fontColor=#7b1fa2;" vertex="1" parent="1">
+          <mxGeometry x="740" y="122" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：训练层 → 算法层 -->
+        <mxCell id="arrow1-down" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="510" y="185" as="sourcePoint"/>
+            <mxPoint x="510" y="220" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow1-up" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="590" y="220" as="sourcePoint"/>
+            <mxPoint x="590" y="185" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow1-label1" value="调用" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="470" y="192" width="30" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow1-label2" value="梯度" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="600" y="192" width="30" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== 第二层：算法库层 ========== -->
+        <mxCell id="layer2-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="220" width="1000" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="layer2-title" value="多智能体强化学习算法" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#0d47a1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="223" width="260" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- 策略梯度类 -->
+        <mxCell id="policy-gradient" value="&lt;b&gt;策略梯度类&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;HAPPO · MAPPO · HATRPO · HAA2C&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;异构智能体 · 信任域优化&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1976d2;strokeWidth=1.5;fontSize=11;fontColor=#1565c0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="258" width="300" height="68" as="geometry"/>
+        </mxCell>
+
+        <!-- Actor-Critic类 -->
+        <mxCell id="actor-critic" value="&lt;b&gt;Actor-Critic类&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;HASAC · HATD3 · HADDPG · MADDPG&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;连续控制 · 确定性策略&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1976d2;strokeWidth=1.5;fontSize=11;fontColor=#1565c0;" vertex="1" parent="1">
+          <mxGeometry x="410" y="258" width="300" height="68" as="geometry"/>
+        </mxCell>
+
+        <!-- 特殊方法 -->
+        <mxCell id="special-methods" value="&lt;b&gt;值分解与特殊方法&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;QMIX · 2TS-VVC · SHOM&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;信用分配 · 双时间尺度&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1976d2;strokeWidth=1.5;fontSize=11;fontColor=#1565c0;" vertex="1" parent="1">
+          <mxGeometry x="740" y="258" width="280" height="68" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：算法层 → 模型层 -->
+        <mxCell id="arrow2-down" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="510" y="340" as="sourcePoint"/>
+            <mxPoint x="510" y="375" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow2-up" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="590" y="375" as="sourcePoint"/>
+            <mxPoint x="590" y="340" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow2-label1" value="前向" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="470" y="347" width="30" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow2-label2" value="损失" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="600" y="347" width="30" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== 第三层：模型架构层 ========== -->
+        <mxCell id="layer3-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8eaf6;strokeColor=#5e35b1;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="375" width="1000" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="layer3-title" value="神经网络架构" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="470" y="378" width="160" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- 策略网络 -->
+        <mxCell id="actor-network" value="&lt;b&gt;策略网络 (Actor)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7e57c2;strokeWidth=1.5;fontSize=11;fontColor=#5e35b1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="80" y="413" width="440" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="gaussian" value="高斯策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="100" y="445" width="120" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="discrete" value="离散策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="240" y="445" width="120" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="hybrid" value="混合策略" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="380" y="445" width="120" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- 价值网络 -->
+        <mxCell id="critic-network" value="&lt;b&gt;价值网络 (Critic)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7e57c2;strokeWidth=1.5;fontSize=11;fontColor=#5e35b1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="560" y="413" width="460" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="v-value" value="状态价值 V(s)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="590" y="445" width="130" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="q-value" value="动作价值 Q(s,a)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="740" y="445" width="130" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="decomp" value="值分解网络" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#7e57c2;strokeWidth=1;fontSize=10;fontColor=#4527a0;" vertex="1" parent="1">
+          <mxGeometry x="890" y="445" width="110" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：模型层 → 环境层 -->
+        <mxCell id="arrow3-down" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="510" y="495" as="sourcePoint"/>
+            <mxPoint x="510" y="530" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow3-up" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="590" y="530" as="sourcePoint"/>
+            <mxPoint x="590" y="495" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow3-label1" value="动作" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="470" y="502" width="30" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow3-label2" value="状态/奖励" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="595" y="502" width="50" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== 第四层：环境层 ========== -->
+        <mxCell id="layer4-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#388e3c;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="530" width="1000" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="layer4-title" value="控制场景与环境抽象" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="440" y="533" width="220" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- 电压无功控制 -->
+        <mxCell id="vvc" value="&lt;b&gt;电压无功控制&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Volt-VAR Optimization&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;电压调节 · 无功补偿 · 网损优化&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#43a047;strokeWidth=1.5;fontSize=11;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="80" y="570" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- 市场博弈优化 -->
+        <mxCell id="stackelberg" value="&lt;b&gt;市场博弈优化&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Stackelberg Game&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;主从博弈 · 双层优化 · 市场出清&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#43a047;strokeWidth=1.5;fontSize=11;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="330" y="570" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- 需求响应调度 -->
+        <mxCell id="dr" value="&lt;b&gt;需求响应调度&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Demand Response&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;负荷调度 · 价格弹性 · 激励设计&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#43a047;strokeWidth=1.5;fontSize=11;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="580" y="570" width="230" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- 自定义场景 -->
+        <mxCell id="custom" value="&lt;b&gt;自定义场景&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Custom Scenario&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#827717&quot;&gt;继承扩展 · 灵活定制&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#f57f17;strokeWidth=1.5;dashed=1;fontSize=11;fontColor=#f57f17;" vertex="1" parent="1">
+          <mxGeometry x="830" y="570" width="190" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- 环境要素条 -->
+        <mxCell id="env-features" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#388e3c;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="80" y="655" width="940" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="devices" value="&lt;b&gt;可控设备&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;电容器·调压器·储能·光伏&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#33691e;" vertex="1" parent="1">
+          <mxGeometry x="100" y="658" width="150" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="obs" value="&lt;b&gt;观测空间&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;节点电压·设备状态·负荷信息&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#33691e;" vertex="1" parent="1">
+          <mxGeometry x="320" y="658" width="170" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="reward" value="&lt;b&gt;奖励设计&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;电压越限·网损·控制代价&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#33691e;" vertex="1" parent="1">
+          <mxGeometry x="560" y="658" width="150" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="agent-arch" value="&lt;b&gt;智能体架构&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;同构/异构·顺序更新·CTDE&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#33691e;" vertex="1" parent="1">
+          <mxGeometry x="790" y="658" width="170" height="36" as="geometry"/>
+        </mxCell>
+
+        <!-- 箭头：环境层 → 仿真层 -->
+        <mxCell id="arrow4-down" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="510" y="710" as="sourcePoint"/>
+            <mxPoint x="510" y="745" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow4-up" value="" style="endArrow=classic;html=1;strokeColor=#546e7a;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="590" y="745" as="sourcePoint"/>
+            <mxPoint x="590" y="710" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow4-label1" value="控制指令" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="455" y="717" width="50" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow4-label2" value="电气状态" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="595" y="717" width="50" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== 第五层：电气仿真层 ========== -->
+        <mxCell id="layer5-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ef6c00;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="50" y="745" width="1000" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="layer5-title" value="电气仿真引擎 (OpenDSS)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#e65100;" vertex="1" parent="1">
+          <mxGeometry x="420" y="748" width="260" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- 潮流计算 -->
+        <mxCell id="powerflow" value="&lt;b&gt;潮流计算&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;三相不平衡交流潮流&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;牛顿-拉夫逊迭代求解&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff9800;strokeWidth=1.5;fontSize=11;fontColor=#ef6c00;" vertex="1" parent="1">
+          <mxGeometry x="80" y="785" width="280" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- 时序仿真 -->
+        <mxCell id="timeseries" value="&lt;b&gt;时序仿真&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;负荷曲线 · 光伏出力曲线&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;日前/日内多时间尺度&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff9800;strokeWidth=1.5;fontSize=11;fontColor=#ef6c00;" vertex="1" parent="1">
+          <mxGeometry x="410" y="785" width="280" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- 测试网络 -->
+        <mxCell id="testnetworks" value="&lt;b&gt;IEEE测试网络&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;13 · 34 · 123 · 8500节点&lt;/font&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;color:#78909c&quot;&gt;多规模配电网拓扑&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ff9800;strokeWidth=1.5;fontSize=11;fontColor=#ef6c00;" vertex="1" parent="1">
+          <mxGeometry x="740" y="785" width="280" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- 右侧数据流循环 -->
+        <mxCell id="flow-down" value="" style="curved=1;endArrow=classic;html=1;strokeColor=#1976d2;strokeWidth=2.5;dashed=1;dashPattern=6 3;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1060" y="130" as="sourcePoint"/>
+            <mxPoint x="1060" y="820" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="1085" y="450"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow-up" value="" style="curved=1;endArrow=classic;html=1;strokeColor=#43a047;strokeWidth=2.5;dashed=1;dashPattern=6 3;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1060" y="820" as="sourcePoint"/>
+            <mxPoint x="1060" y="130" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="1035" y="450"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="flow-label1" value="Forward" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;fontColor=#1976d2;rotation=90;" vertex="1" parent="1">
+          <mxGeometry x="1065" y="460" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-label2" value="Backward" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;fontColor=#43a047;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="1015" y="460" width="60" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- 底部说明 -->
+        <mxCell id="footer" value="PowerZoo: A Universal MARL Platform for Power System Control" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#9e9e9e;" vertex="1" parent="1">
+          <mxGeometry x="300" y="900" width="500" height="20" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
