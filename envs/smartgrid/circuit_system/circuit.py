@@ -38,11 +38,17 @@ class Circuits:
 	- OpenDSS使用全局COM对象，多worker训练时需要锁保护
 	- compile()方法使用_dss_compile_lock确保线程安全
 	- 建议每个worker使用独立的Circuits实例
+
+	参数说明:
+	- RBP_act_num: (reg_act_num, bat_act_num, pv_act_num) 三元组
+	  - reg_act_num: 调压器动作数量（整数，如33）
+	  - bat_act_num: 电池动作数量（整数或float('inf')表示连续）
+	  - pv_act_num: 光伏动作数量（整数或float('inf')表示连续）
 	"""
 
 	def __init__(self, dss_file,
 				batt_file='Battery.csv',
-				RB_act_num=(33, 33),
+				RBP_act_num=(33, 33, float('inf')),
 				dss_act=False,
 				worker_idx=None):
 		# DSS
@@ -53,16 +59,16 @@ class Circuits:
 		self.worker_idx = worker_idx  # worker index for multi-worker environments
 
 		self.batt_file = os.path.join(Path(self.dss_file).parent, batt_file)
-		if not os.path.exists(self.batt_file): 
+		if not os.path.exists(self.batt_file):
 			self.batt_file = ''
-		
+
 		self.topology = nx.Graph()
 		self.edge_obj = dict()  # map from frozenset({bus1, bus2}) to the (active) object on the edge
 		self.dup_edges = dict()  # map from duplicate edge (if any) to the objects on the edge
-		self.edge_weight = dict()  # map from edge to Ymatrix. Ymatrix is symmetric/tall if the number of phases is equal/different 
+		self.edge_weight = dict()  # map from edge to Ymatrix. Ymatrix is symmetric/tall if the number of phases is equal/different
 		self.bus_phase = dict()  # map from bus name to the number of phases.
 		self.bus_obj = dict()  # map from bus name to the objects(load,capacitor,batteries) on the bus
-		
+
 		# circuit element
 		self.lines = dict()
 		self.transformers = dict()
@@ -70,12 +76,17 @@ class Circuits:
 		self.loads = dict()
 		self.capacitors = dict()
 		self.batteries = dict()
-		
+
 		self.pvs = dict()
 
-		# regulator and battery action dim
-		self.reg_act_num, self.bat_act_num = RB_act_num
-		
+		# 设备动作维度 - 支持完整的 RBP 三元组
+		# 兼容旧的二元组格式 (reg, bat)
+		if len(RBP_act_num) == 2:
+			self.reg_act_num, self.bat_act_num = RBP_act_num
+			self.pv_act_num = float('inf')  # 默认连续控制
+		else:
+			self.reg_act_num, self.bat_act_num, self.pv_act_num = RBP_act_num
+
 		# initialization
 		self.initialize()
 	
@@ -1167,16 +1178,18 @@ class Circuits:
 	def add_pvsystems(self, pvname, bus, phases, feature):
 		'''
 		向电路添加光伏系统
-		
+
 		参数:
 			pvname: 光伏系统名称
 			bus: 母线
 			phases: 相位
 			feature: 光伏系统特性
-		
+
 		返回值: 无
 		'''
-		self.pvs[pvname] = PVSystem(self.dss, pvname, bus, phases, feature)
+		# 传递 pv_act_num 给 PVSystem，修复参数传递链断裂问题
+		self.pvs[pvname] = PVSystem(self.dss, pvname, bus, phases, feature,
+									pv_act_num=self.pv_act_num)
 		if bus not in self.bus_obj:
 			self.bus_obj[bus] = [pvname]
 		else:

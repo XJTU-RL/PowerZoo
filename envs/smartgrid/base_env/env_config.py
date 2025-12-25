@@ -1,57 +1,309 @@
 # -*- coding: utf-8 -*-
 """
-PowerZoo环境配置类和多智能体包装器
+SmartGrid 环境统一配置系统
+
+设计原则：
+1. 单一数据源 - 所有配置通过 SmartGridConfig 传递
+2. 类型安全 - 使用 dataclass 和类型注解
+3. 验证完整 - 在 __post_init__ 中验证所有参数
+4. 清晰层次 - DeviceConfig → SmartGridConfig → 环境/电路
 """
-from typing import Optional, Any, Dict
-from dataclasses import dataclass
-import numpy as np
+from dataclasses import dataclass, field
+from typing import Dict, Any, Optional, Union
+import math
+
 
 @dataclass
-class PowerZooConfig:
-    """PowerZoo环境配置类"""
-    
-    # 基础环境配置
-    env_name: str = 'default'
-    num_agents: int = 3
-    num_env: int = 1
-    seed: int = 0
-    
-    # 动作空间配置
-    action_space_mode: str = 'discrete'  # 'discrete' or 'continuous'
-    
-    # 观测配置
-    useS: bool = False  # 是否使用敏感性矩阵
-    
-    # 其他配置
-    max_episode_steps: int = 1000
-    reward_type: str = 'default'
-    
-    def __post_init__(self):
-        """后处理初始化"""
-        # 验证配置参数
-        if self.num_agents <= 0:
-            raise ValueError("num_agents must be positive")
-        
-        if self.action_space_mode not in ['discrete', 'continuous']:
-            raise ValueError("action_space_mode must be 'discrete' or 'continuous'")
-        
-        if self.seed < 0:
-            raise ValueError("seed must be non-negative")
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
-            'env_name': self.env_name,
-            'num_agents': self.num_agents,
-            'num_env': self.num_env,
-            'seed': self.seed,
-            'action_space_mode': self.action_space_mode,
-            'useS': self.useS,
-            'max_episode_steps': self.max_episode_steps,
-            'reward_type': self.reward_type
-        }
-    
-    @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> 'PowerZooConfig':
-        """从字典创建配置"""
-        return cls(**config_dict)
+class DeviceConfig:
+	"""设备控制配置
+
+	统一描述电容器、调压器、电池、光伏的控制参数
+	"""
+	action_num: Union[int, float] = 33  # 动作数量，float('inf') 表示连续控制
+	control_enabled: bool = True        # 是否启用控制
+
+	@property
+	def is_continuous(self) -> bool:
+		"""是否为连续控制模式"""
+		return self.action_num == float('inf') or self.action_num == math.inf
+
+	def validate(self, device_type: str) -> None:
+		"""验证配置有效性"""
+		if self.control_enabled:
+			if not self.is_continuous and self.action_num < 2:
+				raise ValueError(f"{device_type} action_num 必须 >= 2 或为 inf，当前值: {self.action_num}")
+
+
+@dataclass
+class RewardWeights:
+	"""奖励权重配置"""
+	power_loss: float = 1.0      # 功率损耗权重
+	capacitor: float = 0.0303    # 电容器切换权重
+	regulator: float = 0.0303    # 调压器调节权重
+	battery_soc: float = 0.0     # 电池SOC权重
+	battery_discharge: float = 0.303  # 电池放电权重
+	pv_control: float = 0.0606   # 光伏控制权重
+
+	def to_dict(self) -> Dict[str, float]:
+		"""转换为旧格式字典（兼容性）"""
+		return {
+			'power_w': self.power_loss,
+			'cap_w': self.capacitor,
+			'reg_w': self.regulator,
+			'soc_w': self.battery_soc,
+			'dis_w': self.battery_discharge,
+			'pv_w': self.pv_control,
+		}
+
+
+@dataclass
+class SmartGridConfig:
+	"""SmartGrid 环境统一配置
+
+	这是整个参数传递链的唯一数据源。
+	所有组件（Env, Circuits, 节点）都从这个配置获取参数。
+
+	使用示例:
+		config = SmartGridConfig.from_env_name('34Bus_pv')
+		env = Env(config)
+	"""
+	# === 基础环境配置 ===
+	env_name: str = '34Bus_pv'
+	system_name: str = '34Bus_PV'
+	dss_file: str = 'ieee34Mod1_duty.dss'
+	max_episode_steps: int = 360
+	seed: int = 123456
+
+	# === 设备控制配置 ===
+	# 使用 default_factory 避免可变默认值问题
+	capacitor: DeviceConfig = field(default_factory=lambda: DeviceConfig(action_num=2))
+	regulator: DeviceConfig = field(default_factory=lambda: DeviceConfig(action_num=33))
+	battery: DeviceConfig = field(default_factory=lambda: DeviceConfig(action_num=33))
+	pv: DeviceConfig = field(default_factory=lambda: DeviceConfig(action_num=float('inf'), control_enabled=True))
+
+	# === 奖励配置 ===
+	reward_weights: RewardWeights = field(default_factory=RewardWeights)
+
+	# === 约束配置 ===
+	voltage_min: float = 0.95
+	voltage_max: float = 1.05
+
+	# === 运行时配置 ===
+	for_LLM: bool = False
+	use_cmdp: bool = True
+	dss_act: bool = False  # 是否使用 OpenDSS 自动控制
+
+	# === 显示配置 ===
+	source_bus: str = 'sourcebus'
+	node_size: int = 300
+	shift: int = 50
+	show_node_labels: bool = False
+	scale: float = 1.0
+
+	# === Worker 配置 ===
+	worker_idx: Optional[int] = None
+
+	def __post_init__(self):
+		"""验证并处理配置"""
+		# 验证设备配置
+		self.capacitor.validate('Capacitor')
+		self.regulator.validate('Regulator')
+		self.battery.validate('Battery')
+		if self.pv.control_enabled:
+			self.pv.validate('PV')
+
+		# 验证时间步
+		if self.max_episode_steps < 1:
+			raise ValueError(f"max_episode_steps 必须 >= 1，当前值: {self.max_episode_steps}")
+
+		# 验证电压约束
+		if self.voltage_min >= self.voltage_max:
+			raise ValueError(f"voltage_min({self.voltage_min}) 必须小于 voltage_max({self.voltage_max})")
+
+	# === 便捷属性（兼容旧代码）===
+	@property
+	def reg_act_num(self) -> int:
+		"""调压器动作数量"""
+		return int(self.regulator.action_num) if not self.regulator.is_continuous else 33
+
+	@property
+	def bat_act_num(self) -> Union[int, float]:
+		"""电池动作数量"""
+		return self.battery.action_num
+
+	@property
+	def pv_act_num(self) -> Union[int, float]:
+		"""光伏动作数量"""
+		return self.pv.action_num
+
+	@property
+	def pv_control_enabled(self) -> bool:
+		"""是否启用光伏控制"""
+		return self.pv.control_enabled
+
+	@property
+	def RBP_act_num(self) -> tuple:
+		"""调压器、电池、光伏动作数量元组（用于 Circuits）"""
+		return (self.reg_act_num, self.bat_act_num, self.pv_act_num)
+
+	def to_info_dict(self) -> Dict[str, Any]:
+		"""转换为旧格式 info 字典（向后兼容）
+
+		这个方法用于兼容旧代码，新代码应直接使用 SmartGridConfig
+		"""
+		info = {
+			# 基础配置
+			'env_name': self.env_name,
+			'system_name': self.system_name,
+			'dss_file': self.dss_file,
+			'max_episode_steps': self.max_episode_steps,
+
+			# 设备动作配置
+			'reg_act_num': self.reg_act_num,
+			'bat_act_num': self.bat_act_num,
+			'pv_act_num': self.pv_act_num,
+			'pv_control': self.pv_control_enabled,
+
+			# 奖励权重
+			**self.reward_weights.to_dict(),
+
+			# 约束
+			'voltage_min': self.voltage_min,
+			'voltage_max': self.voltage_max,
+
+			# 运行时
+			'for_LLM': self.for_LLM,
+			'use_cmdp': self.use_cmdp,
+
+			# 显示
+			'source_bus': self.source_bus,
+			'node_size': self.node_size,
+			'shift': self.shift,
+			'show_node_labels': self.show_node_labels,
+			'scale': self.scale,
+
+			# Worker
+			'worker_idx': self.worker_idx,
+		}
+		return info
+
+	@classmethod
+	def from_dict(cls, config_dict: Dict[str, Any]) -> 'SmartGridConfig':
+		"""从字典创建配置（用于从旧配置迁移）"""
+		# 提取设备配置
+		capacitor = DeviceConfig(action_num=2)
+		regulator = DeviceConfig(action_num=config_dict.get('reg_act_num', 33))
+		battery = DeviceConfig(action_num=config_dict.get('bat_act_num', 33))
+		pv = DeviceConfig(
+			action_num=config_dict.get('pv_act_num', float('inf')),
+			control_enabled=config_dict.get('pv_control', False)
+		)
+
+		# 提取奖励权重
+		reward_weights = RewardWeights(
+			power_loss=config_dict.get('power_w', 1.0),
+			capacitor=config_dict.get('cap_w', 0.0303),
+			regulator=config_dict.get('reg_w', 0.0303),
+			battery_soc=config_dict.get('soc_w', 0.0),
+			battery_discharge=config_dict.get('dis_w', 0.303),
+			pv_control=config_dict.get('pv_w', 0.0606),
+		)
+
+		return cls(
+			env_name=config_dict.get('env_name', '34Bus_pv'),
+			system_name=config_dict.get('system_name', '34Bus_PV'),
+			dss_file=config_dict.get('dss_file', 'ieee34Mod1_duty.dss'),
+			max_episode_steps=config_dict.get('max_episode_steps', 360),
+			seed=config_dict.get('seed', 123456),
+			capacitor=capacitor,
+			regulator=regulator,
+			battery=battery,
+			pv=pv,
+			reward_weights=reward_weights,
+			voltage_min=config_dict.get('voltage_min', 0.95),
+			voltage_max=config_dict.get('voltage_max', 1.05),
+			for_LLM=config_dict.get('for_LLM', False),
+			use_cmdp=config_dict.get('use_cmdp', True),
+			dss_act=config_dict.get('dss_act', False),
+			source_bus=config_dict.get('source_bus', 'sourcebus'),
+			node_size=config_dict.get('node_size', 300),
+			shift=config_dict.get('shift', 50),
+			show_node_labels=config_dict.get('show_node_labels', False),
+			scale=config_dict.get('scale', 1.0),
+			worker_idx=config_dict.get('worker_idx'),
+		)
+
+	def with_worker_idx(self, worker_idx: int) -> 'SmartGridConfig':
+		"""创建带有 worker_idx 的新配置副本"""
+		import copy
+		new_config = copy.deepcopy(self)
+		new_config.worker_idx = worker_idx
+		return new_config
+
+	def __repr__(self) -> str:
+		return (
+			f"SmartGridConfig(\n"
+			f"  env_name='{self.env_name}',\n"
+			f"  system_name='{self.system_name}',\n"
+			f"  max_episode_steps={self.max_episode_steps},\n"
+			f"  devices=(\n"
+			f"    regulator: action_num={self.reg_act_num},\n"
+			f"    battery: action_num={self.bat_act_num},\n"
+			f"    pv: action_num={self.pv_act_num}, enabled={self.pv_control_enabled}\n"
+			f"  )\n"
+			f")"
+		)
+
+
+# === 预定义配置 ===
+# 这些配置可以直接使用，无需从文件加载
+
+PRESET_CONFIGS: Dict[str, SmartGridConfig] = {}
+
+
+def register_preset(name: str, config: SmartGridConfig) -> None:
+	"""注册预定义配置"""
+	PRESET_CONFIGS[name] = config
+
+
+def get_preset(name: str) -> SmartGridConfig:
+	"""获取预定义配置"""
+	if name not in PRESET_CONFIGS:
+		raise ValueError(f"未知的预定义配置: {name}，可用配置: {list(PRESET_CONFIGS.keys())}")
+	import copy
+	return copy.deepcopy(PRESET_CONFIGS[name])
+
+
+# 注册常用配置
+register_preset('34Bus_pv', SmartGridConfig(
+	env_name='34Bus_pv',
+	system_name='34Bus_PV',
+	dss_file='ieee34Mod1_duty.dss',
+	max_episode_steps=360,
+	regulator=DeviceConfig(action_num=33),
+	battery=DeviceConfig(action_num=33),
+	pv=DeviceConfig(action_num=float('inf'), control_enabled=True),
+	reward_weights=RewardWeights(power_loss=1.0, pv_control=0.0606),
+))
+
+register_preset('34Bus', SmartGridConfig(
+	env_name='34Bus',
+	system_name='34Bus',
+	dss_file='ieee34Mod1_duty.dss',
+	max_episode_steps=360,
+	regulator=DeviceConfig(action_num=33),
+	battery=DeviceConfig(action_num=33),
+	pv=DeviceConfig(control_enabled=False),
+	reward_weights=RewardWeights(power_loss=10.0),
+))
+
+register_preset('13Bus', SmartGridConfig(
+	env_name='13Bus',
+	system_name='13Bus',
+	dss_file='IEEE13Nodeckt_daily.dss',
+	max_episode_steps=24,
+	regulator=DeviceConfig(action_num=33),
+	battery=DeviceConfig(action_num=33),
+	pv=DeviceConfig(control_enabled=False),
+	reward_weights=RewardWeights(power_loss=10.0),
+))
