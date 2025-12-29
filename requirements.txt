@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 # Note: Both gym (0.26) and gymnasium (0.29) are required for compatibility
 gym==0.26.2                    # Classic Gym API for PowerZoo base environment
-gymnasium==0.29.1              # Modern Gym API for PowerZoo_LLM single-agent
+gymnasium==1.1.1              # Modern Gym API for PowerZoo_LLM single-agent
 
 # Power System Simulation
 # ----------------------------------------------------------------------------

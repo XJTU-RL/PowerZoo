@@ -12,7 +12,7 @@ setup(
     install_requires=[
         # Environment frameworks
         "gym==0.26.2",
-        "gymnasium==0.29.1",
+        "gymnasium==1.1.1",
         # Power system simulation
         "dss-python==0.15.7",
         # Numerical computing
