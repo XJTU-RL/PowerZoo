@@ -16,7 +16,7 @@ setup(
         # Power system simulation
         "dss-python==0.15.7",
         # Numerical computing
-        "numpy>=1.23.0,<1.25.0",
+        "numpy>=1.23.0,<1.27.0",
         "scipy>=1.13.0,<2.0.0",
         "pandas>=2.0.0,<3.0.0",
         # Deep learning
