@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#faad14;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff4d4f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <polygon points="50,10 90,85 10,85" fill="url(#grad)"/>
+  <text x="50" y="70" text-anchor="middle" fill="white" font-size="24" font-weight="bold">PZ</text>
+</svg>
