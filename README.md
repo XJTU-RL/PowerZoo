@@ -121,6 +121,26 @@ PowerZoo/
 - [多智能体训练](examples/multi_agent/README.md)
 - [测试文档](tests/README.md)
 
+## 贡献指南
+
+### 分支管理
+
+本项目使用规范的分支管理策略。在开发新功能或修复bug前，请先阅读：
+
+- **[分支管理文档](BRANCH_MANAGEMENT.md)** - 详细的分支管理指南和最佳实践
+- **[分支清理清单](BRANCH_CLEANUP_CHECKLIST.md)** - 当前分支状态和待处理事项
+
+**重要**: `fea/vvc` 分支是独立研发分支，不应合并到main。
+
+### 开发流程
+
+1. 从main分支创建功能分支：`git checkout -b feat/your-feature`
+2. 开发并提交代码
+3. 运行测试确保代码质量：`pytest`
+4. 提交Pull Request
+5. 代码审查通过后合并到main
+6. 及时删除已合并的分支
+
 ## Roadmap
 
 - [x] Volt-Var Regulation (SHOM)
