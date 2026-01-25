@@ -36,7 +36,7 @@ class OnPolicyBase:
         # save arguments
         self.args = args
         self.device = device
-        self.tpdv = dict(dtype=torch.float32, device=device) # 存放参数的 dict
+        self.tpdv = dict(dtype=torch.float32, device=device)
 
         self.data_chunk_length = args["data_chunk_length"]
         self.use_recurrent_policy = args["use_recurrent_policy"]
@@ -126,7 +126,6 @@ class OnPolicyBase:
                                     (if None, all actions available)
             deterministic: (bool) whether the action should be mode of distribution or should be sampled.
         """
-        #TODO:onpolicybase可用动作打印
         actions, _, rnn_states_actor = self.actor(
             obs, rnn_states_actor, masks, available_actions, deterministic
         )

@@ -84,9 +84,9 @@ class M_QMixer(nn.Module):
          :param states: (torch.Tensor) state input to the hypernetworks.
          :return Q_tot: (torch.Tensor) computed Q_tot values
          """
-        if type(agent_q_inps) == np.ndarray:
+        if isinstance(agent_q_inps, np.ndarray):
             agent_q_inps = torch.FloatTensor(agent_q_inps)
-        if type(states) == np.ndarray:
+        if isinstance(states, np.ndarray):
             states = torch.FloatTensor(states)
 
         agent_q_inps = agent_q_inps.to(self.device)
@@ -116,7 +116,7 @@ class M_QMixer(nn.Module):
         w2 = w2.view(-1, self.hidden_layer_dim, 1)
         # reshape to shape (batch_size x 1 x 1)
         b2 = b2.view(-1, 1, 1)
-        # pass the hidden layer results through output layer, with no activataion
+        # pass the hidden layer results through output layer, with no activation
         out = torch.bmm(hidden_layer, w2) + b2
         # reshape to (batch_size, 1, 1)
         q_tot = out.view(batch_size, -1, 1)

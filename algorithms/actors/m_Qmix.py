@@ -69,9 +69,6 @@ class M_QMix:#for train and update QMIX
                                   len(self.policy_agents[p_id]) for p_id in self.policy_ids]
 
         # mixer network
-        ##if self.vdn:
-        ##    self.mixer = VDNMixer(args, self.num_agents, self.policies['policy_0'].central_obs_dim, self.device, multidiscrete_list=multidiscrete_list)
-
         self.mixer = M_QMixer(args, self.num_agents, self.policies['policy_0'].central_obs_dim, self.device, multidiscrete_list=multidiscrete_list)
 
         # target policies/networks
@@ -136,8 +133,7 @@ class M_QMix:#for train and update QMIX
             # curr_obs_batch size : agent_num*batch_size*obs_shape
             batch_size = curr_obs_batch.shape[1]
 
-            pol_all_q_out = policy.get_q_values(stacked_obs_batch)#似乎q网络的输出恒定为2了，这可不行,维度不匹配，输出还是33的数值大小，是否应该转换为独热编码，输出应该为33，72，每个step，所有的动作都有一个q值，很
-            #print(policy.q_network)
+            pol_all_q_out = policy.get_q_values(stacked_obs_batch)
 
             if isinstance(pol_all_q_out, list):
                 # multidiscrete case
@@ -153,14 +149,10 @@ class M_QMix:#for train and update QMIX
                 Q_combined_parts = torch.cat(Q_per_part, dim=-1)
                 pol_agents_q_outs = Q_combined_parts.split(split_size=batch_size, dim=-2)
             else:
-                # get the q values associated with the action taken acording ot the batch
+                # get the q values associated with the action taken according to the batch
                 stacked_act_batch_ind = stacked_act_batch.max(dim=-1)[1]
-                # pol_q_outs : batch_size * 1
-                ###############################
-                #pol_all_q_out=torch.cat(pol_all_q_out, dim=-1)
-                ################################
-                pol_q_outs = torch.gather(pol_all_q_out, 1, stacked_act_batch_ind.unsqueeze(dim=-1))#这里报错的原因，索引维度和pol_all_q_out的维度不匹配,当索引维度为33时，pol_all_q_out的维度仍然为2
-                # separate into agent q sequences for each agent, then cat along the final dimension to prepare for mixer input
+                pol_q_outs = torch.gather(pol_all_q_out, 1, stacked_act_batch_ind.unsqueeze(dim=-1))
+                # separate into agent q sequences for each agent
                 pol_agents_q_outs = pol_q_outs.split(split_size=batch_size, dim=-2)
 
             agent_qs.append(torch.cat(pol_agents_q_outs, dim=-1))
@@ -168,12 +160,10 @@ class M_QMix:#for train and update QMIX
             with torch.no_grad():
                 if self.args.use_double_q:
                     # actions come from live q; get the q values for the final nobs
-                    #####################################################
-                    stacked_nobs_batch=stacked_nobs_batch.numpy()
-                    #######################################################
+                    stacked_nobs_batch = stacked_nobs_batch.numpy()
                     pol_next_qs = policy.get_q_values(stacked_nobs_batch)
 
-                    if type(pol_next_qs) == list:
+                    if isinstance(pol_next_qs, list):
                         # multidiscrete case
                         assert stacked_navail_act_batch is None, "Available actions not supported for multidiscrete"
                         pol_nacts = []
@@ -187,10 +177,7 @@ class M_QMix:#for train and update QMIX
                         # mask out the unavailable actions
                         if stacked_navail_act_batch is not None:
                             pol_next_qs[stacked_navail_act_batch == 0.0] = -1e10
-                        # greedily choose actions which maximize the q values and convert these actions to onehot
-                        ###############################
-                        #pol_next_qs=torch.cat(pol_next_qs, dim=-1)
-                        #################################
+                        # greedily choose actions which maximize the q values
                         pol_nacts = pol_next_qs.max(dim=-1)[1]
                         # q values given by target but evaluated at actions taken by live
                         targ_pol_next_qs = target_policy.get_q_values(stacked_nobs_batch, action_batch=pol_nacts)
