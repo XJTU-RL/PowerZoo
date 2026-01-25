@@ -31,7 +31,7 @@ print_error() {
 
 # 函数：检查命令是否存在
 check_command() {
-	if ! command -v $1 &> /dev/null; then
+	if ! command -v "$1" &> /dev/null; then
 		print_error "命令 $1 未找到，请先安装"
 		exit 1
 	fi
@@ -93,7 +93,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 	# CI相关PR
 	for pr in 27 26 25; do
 		print_info "正在合并 PR #$pr..."
-		if gh pr merge $pr --merge --auto; then
+		if gh pr merge $pr --merge; then
 			print_success "PR #$pr 已合并"
 		else
 			print_error "PR #$pr 合并失败"
@@ -103,7 +103,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 	# Python依赖PR
 	for pr in 30 29 28; do
 		print_info "正在合并 PR #$pr..."
-		if gh pr merge $pr --merge --auto; then
+		if gh pr merge $pr --merge; then
 			print_success "PR #$pr 已合并"
 		else
 			print_error "PR #$pr 合并失败"
@@ -123,9 +123,9 @@ echo ""
 print_info "测试步骤："
 echo "  1. git fetch origin"
 echo "  2. git checkout dependabot/pip/gymnasium-1.1.1"
-echo "  3. pip install -e ."
-echo "  4. pytest tests/"
-echo "  5. python examples/multi_agent/scripts/happo_powerzoo.py --test"
+echo "  3. pip install --upgrade pip"
+echo "  4. pip install -e ."
+echo "  5. pytest tests/"
 echo "  6. 如果测试通过: gh pr merge 31 --merge"
 echo ""
 
@@ -136,7 +136,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 	git fetch origin
 	git checkout dependabot/pip/gymnasium-1.1.1
 	
-	print_info "安装依赖..."
+	print_info "升级pip并安装依赖..."
+	pip install --upgrade pip
 	pip install -e .
 	
 	print_info "运行测试..."
