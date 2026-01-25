@@ -121,6 +121,4 @@ class M_QMixer(nn.Module):
         # reshape to (batch_size, 1, 1)
         q_tot = out.view(batch_size, -1, 1)
 
-        q_tot = q_tot.cpu()
-
         return q_tot

@@ -160,7 +160,6 @@ class M_QMix:#for train and update QMIX
             with torch.no_grad():
                 if self.args.use_double_q:
                     # actions come from live q; get the q values for the final nobs
-                    stacked_nobs_batch = stacked_nobs_batch.numpy()
                     pol_next_qs = policy.get_q_values(stacked_nobs_batch)
 
                     if isinstance(pol_next_qs, list):
@@ -207,11 +206,9 @@ class M_QMix:#for train and update QMIX
                 self.value_normalizer[p_id].denormalize(next_step_Q_tot)
             Q_tot_targets = self.value_normalizer[p_id](Q_tot_targets)
         else:
-            next_step_Q_tot=next_step_Q_tot.to(self.device)
             Q_tot_targets = rewards + (1 - dones_env_batch) * self.args.gamma * next_step_Q_tot
 
         # loss is MSE Bellman Error
-        curr_Q_tot=curr_Q_tot.to(self.device)
         
         error = curr_Q_tot - Q_tot_targets.detach()
         if self.use_per:
