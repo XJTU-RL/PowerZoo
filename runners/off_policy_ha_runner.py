@@ -188,6 +188,10 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
                         if sp_available_actions is not None
                         else None,
                     )
+                # HASAC actor soft update - 修复：之前被跳过导致target网络永不更新
+                for agent_id in range(self.num_agents):
+                    if hasattr(self.actor[agent_id], 'soft_update'):
+                        self.actor[agent_id].soft_update()
                 # train critic's alpha
                 if self.algo_args["algo"]["auto_alpha"]:
                     self.critic.update_alpha(logp_actions, np.sum(self.target_entropy))

@@ -78,17 +78,21 @@ class DAN_HAPPO(OnPolicyBase):
                 weight_decay=getattr(args, 'dan_weight_decay', 1e-5)
             )
             
-    def get_actions(self, cent_obs, obs, rnn_states_actor, rnn_states_critic, masks, available_actions=None,
+    def get_actions(self, obs, rnn_states_actor, masks, available_actions=None,
                    neighbor_obs=None, agent_mask=None, deterministic=False):
-        """Get actions for all agents with DAN encoding."""
+        """Get actions for all agents with DAN encoding.
+
+        Note: DAN-HAPPO作为actor，不负责计算values。values由runner中的critic计算。
+        这与基类OnPolicyBase的接口保持一致。
+        """
         if self.use_dan and neighbor_obs is not None:
             # 分离环境观测和其他观测
             env_obs = obs[..., :self.env_obs_dim]
-            
+
             # 使用DAN编码观测
             with torch.no_grad():
                 encoded_obs, _ = self.dan(env_obs, neighbor_obs, agent_mask)
-            
+
             # 使用编码后的观测获取动作
             actions, action_log_probs, rnn_states_actor = self.actor(
                 encoded_obs, rnn_states_actor, masks, available_actions, deterministic
@@ -98,22 +102,24 @@ class DAN_HAPPO(OnPolicyBase):
             actions, action_log_probs, rnn_states_actor = self.actor(
                 obs, rnn_states_actor, masks, available_actions, deterministic
             )
+
+        return actions, action_log_probs, rnn_states_actor
         
-        # 获取价值估计
-        values, rnn_states_critic = self.critic(cent_obs, rnn_states_critic, masks)
-        
-        return values, actions, action_log_probs, rnn_states_actor, rnn_states_critic
-        
-    def evaluate_actions(self, cent_obs, obs, rnn_states_actor, rnn_states_critic, actions, masks,
+    def evaluate_actions(self, obs, rnn_states_actor, actions, masks,
                         available_actions=None, active_masks=None, neighbor_obs=None, agent_mask=None):
-        """Evaluate actions with DAN encoding."""
+        """Evaluate actions with DAN encoding.
+
+        Note: DAN-HAPPO作为actor，不负责计算values。与基类OnPolicyBase接口一致。
+        返回: (action_log_probs, dist_entropy, attention_weights)
+        """
+        attention_weights = None
         if self.use_dan and neighbor_obs is not None:
             # 分离环境观测
             env_obs = obs[..., :self.env_obs_dim]
-            
+
             # 使用DAN编码观测
             encoded_obs, attention_weights = self.dan(env_obs, neighbor_obs, agent_mask)
-            
+
             # 评估动作
             action_log_probs, dist_entropy = self.actor.evaluate_actions(
                 encoded_obs, rnn_states_actor, actions, masks, available_actions, active_masks
@@ -123,11 +129,8 @@ class DAN_HAPPO(OnPolicyBase):
             action_log_probs, dist_entropy = self.actor.evaluate_actions(
                 obs, rnn_states_actor, actions, masks, available_actions, active_masks
             )
-        
-        # 获取价值估计
-        values = self.critic.get_values(cent_obs, rnn_states_critic, masks)
-        
-        return values, action_log_probs, dist_entropy
+
+        return action_log_probs, dist_entropy, attention_weights
             
     def update(self, sample):
         """更新actor网络。
@@ -164,12 +167,10 @@ class DAN_HAPPO(OnPolicyBase):
         active_masks_batch = check(active_masks_batch).to(**self.tpdv)
         factor_batch = check(factor_batch).to(**self.tpdv)
         
-        # 使用DAN评估动作
-        values, action_log_probs, dist_entropy = self.evaluate_actions(
-            obs_batch,  # 这里传入完整观测，evaluate_actions内部会处理
-            obs_batch,  # cent_obs
+        # 使用DAN评估动作（不再需要values，与基类接口一致）
+        action_log_probs, dist_entropy, _ = self.evaluate_actions(
+            obs_batch,
             rnn_states_batch,
-            rnn_states_batch,  # rnn_states_critic
             actions_batch,
             masks_batch,
             available_actions_batch,
@@ -244,7 +245,7 @@ class DAN_HAPPO(OnPolicyBase):
             data_generator = actor_buffer.recurrent_generator_actor(
                 advantages, self.actor_num_mini_batch
             )
-        elif self.use_naive_recurrent:
+        elif self.use_naive_recurrent_policy:
             data_generator = actor_buffer.naive_recurrent_generator_actor(
                 advantages, self.actor_num_mini_batch
             )

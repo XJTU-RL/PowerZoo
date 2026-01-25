@@ -19,7 +19,13 @@
 
 工作流程：初始化后，可选择渲染或热身，之后根据不同模式收集回合，存储数据并训练，同时记录信息。
 """
-#import wandb
+# wandb导入：条件导入以避免运行时错误
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    wandb = None
+    WANDB_AVAILABLE = False
 import numpy as np
 from itertools import chain
 import torch
@@ -388,7 +394,7 @@ class QMIXRunner(MlpRunner):
                 for k, v in render_infos.items():
                     suffix_k = k if suffix is None else suffix + k
                     print(suffix_k + " is " + str(v))
-                    if self.use_wandb:
+                    if self.use_wandb and WANDB_AVAILABLE:
                         wandb.log({suffix_k: v}, step=step)
                     else:
                         self.writer.add_scalar(suffix_k, v, step)
@@ -582,7 +588,7 @@ class QMIXRunner(MlpRunner):
                 v = np.mean(v)
                 suffix_k = k if suffix is None else suffix + k 
                 print(suffix_k + " is " + str(v))
-                if self.use_wandb:
+                if self.use_wandb and WANDB_AVAILABLE:
                     wandb.log({suffix_k: v}, step=self.total_env_steps)
                 else:
                     self.writer.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)

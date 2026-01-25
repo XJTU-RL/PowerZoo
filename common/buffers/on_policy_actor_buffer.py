@@ -118,8 +118,8 @@ class OnPolicyActorBuffer:
         if active_masks is not None:
             self.active_masks[self.step + 1] = active_masks.copy()
         if available_actions is not None:
-            #self.available_actions[self.step + 1] = available_actions.copy()
-            self.available_actions[self.step + 1] = np.array(available_actions).tolist().copy()
+            # 保持numpy数组类型，避免类型不一致问题
+            self.available_actions[self.step + 1] = np.array(available_actions, dtype=np.float32).copy()
         self.step = (self.step + 1) % self.episode_length
 
     def after_update(self):

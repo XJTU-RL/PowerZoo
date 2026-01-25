@@ -417,15 +417,15 @@ class DSREnv:
                 for detail in self.dsr_core.overload_details:
                     current = detail['current']
                     ratio = detail['ratio']
-                
-                # 异常过载电流终止
-                if current > self.max_overload_current:
-                    return True, "abnormal_overload_current"
-                    
-                # 严重过载终止
-                if ratio >= self.severe_overload_threshold:
-                    return True, "severe_overload"
-                    
+
+                    # 异常过载电流终止 - 在循环内检查每条线路
+                    if current > self.max_overload_current:
+                        return True, "abnormal_overload_current"
+
+                    # 严重过载终止 - 在循环内检查每条线路
+                    if ratio >= self.severe_overload_threshold:
+                        return True, "severe_overload"
+
         return False, None
     
     def reset(self) -> Tuple[List[np.ndarray], List[np.ndarray], List[List[int]]]:
