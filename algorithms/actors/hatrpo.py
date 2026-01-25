@@ -240,6 +240,11 @@ class HATRPO(OnPolicyBase):
             advantages_copy[actor_buffer.active_masks[:-1] == 0.0] = np.nan
             mean_advantages = np.nanmean(advantages_copy)
             std_advantages = np.nanstd(advantages_copy)
+            # 数值稳定性保护：处理NaN和极小std情况
+            if np.isnan(mean_advantages) or np.isnan(std_advantages) or std_advantages < 1e-8:
+                mean_advantages = np.mean(advantages)
+                std_advantages = np.std(advantages)
+                std_advantages = max(std_advantages, 1e-3)
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
 
         if self.use_recurrent_policy:

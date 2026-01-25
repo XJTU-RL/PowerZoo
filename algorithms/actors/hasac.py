@@ -77,7 +77,9 @@ class HASAC(OffPolicyBase):
             actions = gumbel_softmax(
                 logits, hard=True, device=self.device
             )  # onehot actions
-            logp_actions = torch.sum(actions * logits, dim=-1, keepdim=True)
+            # 使用log_softmax计算真正的log概率，而不是直接使用logits
+            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            logp_actions = torch.sum(actions * log_probs, dim=-1, keepdim=True)
         elif self.action_type == "MultiDiscrete":
             logits = self.actor.get_logits(obs, available_actions)
             actions = []

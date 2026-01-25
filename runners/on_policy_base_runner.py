@@ -69,6 +69,9 @@ class OnPolicyBaseRunner:
         self.action_aggregation = algo_args["algo"]["action_aggregation"]
         self.state_type = env_args.get("state_type", "EP")
         self.share_param = algo_args["algo"]["share_param"]
+        # 初始化异构环境标志，避免渲染模式下AttributeError
+        self._is_heterogeneous = False
+        self.is_heterogeneous = False
         # 如果是shom算法才加载这些参数
         if args["algo"] == "shom":
             self.ordered = algo_args["algo"]["ordered"]

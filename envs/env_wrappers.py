@@ -452,17 +452,23 @@ class ShareSubprocVecEnv(ShareVecEnv):
     
     def _get_safe_step_results(self, n_envs):
         """在错误情况下返回安全的结果"""
-        # 假设13智能体环境（根据34Bus_pv配置）
-        n_agents = 13
-        obs_dim = 100  # 假设观测维度
-        
+        # 动态获取智能体数量，避免硬编码
+        n_agents = getattr(self, 'n_agents', 1)
+
+        # 动态获取观测维度
+        if hasattr(self, 'observation_space') and len(self.observation_space) > 0:
+            obs_space = self.observation_space[0]
+            obs_dim = obs_space.shape[0] if hasattr(obs_space, 'shape') else 10
+        else:
+            obs_dim = 10  # 最小安全默认值
+
         safe_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
         safe_share_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
         safe_rewards = [[[0.0]] for _ in range(n_envs)]
         safe_dones = [np.array([False] * n_agents, dtype=bool) for _ in range(n_envs)]
         safe_infos = [{"error": True} for _ in range(n_envs)]
         safe_avail_actions = [None for _ in range(n_envs)]
-        
+
         return (
             np.stack(safe_obs),
             np.stack(safe_share_obs),
