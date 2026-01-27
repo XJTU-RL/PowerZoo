@@ -20,7 +20,7 @@ setup(
         "scipy>=1.13.0,<2.0.0",
         "pandas>=2.0.0,<3.0.0",
         # Deep learning
-        "torch>=2.0.0,<2.4.0",
+        "torch>=2.0.0,<2.9.0",
         "stable-baselines3>=1.8.0",
         # Visualization
         "matplotlib>=3.7.0,<4.0.0",
