@@ -16,7 +16,7 @@ dss-python==0.15.7             # OpenDSS Python bindings (exact version required
 
 # Numerical Computing & Linear Algebra
 # ----------------------------------------------------------------------------
-numpy>=1.23.0,<1.25.0          # Array operations, matrix computations
+numpy>=1.23.0,<1.27.0          # Array operations, matrix computations
 scipy>=1.13.0,<2.0.0           # Sparse matrix operations, linear algebra
 pandas>=2.0.0,<3.0.0           # Data processing, time series analysis
 
