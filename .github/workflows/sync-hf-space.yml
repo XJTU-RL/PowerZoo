@@ -1,0 +1,38 @@
+# Sync HuggingFace Space
+# ============================================================================
+# Automatically pushes huggingface_space/ contents to the HF Space repo
+# whenever changes are pushed to main.
+# ============================================================================
+
+name: Sync HuggingFace Space
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "huggingface_space/**"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Push to HuggingFace Space
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Push to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Configure git for HF push
+          cd huggingface_space
+          git init
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git remote add hf https://huggingface.co:${HF_TOKEN}@huggingface.co/spaces/XJTU-RL/PowerZoo
+          git add .
+          git commit -m "Sync from GitHub $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push hf main --force
