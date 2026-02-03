@@ -12,7 +12,7 @@ import random
 import os
 
 try:
-    from envs.dsr.core.circuit import Circuits
+    from envs.powerzoo.powerzoo.circuit import Circuits
     from envs.dsr.core.loadprofile import LoadProfile
     POWERZOO_AVAILABLE = True
 except ImportError as e:
@@ -58,14 +58,13 @@ class DSRCoreEnv:
     
     def _init_opendss_circuit(self):
         """初始化OpenDSS电路"""
+        from utils.path_utils import get_system_folder
+
         # 获取PowerZoo配置
         powerzoo_config = self.config.to_powerzoo_config()
-        
-        # 构建DSS文件路径
-        dss_folder = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'powerzoo', 'systems', self.config.system_name
-        )
+
+        # 构建DSS文件路径（使用统一路径工具）
+        dss_folder = str(get_system_folder(self.config.system_name))
         dss_file_path = os.path.join(dss_folder, powerzoo_config['dss_file'])
         
         # 创建Circuits对象
@@ -90,13 +89,10 @@ class DSRCoreEnv:
             self.config.max_episode_steps,
             dss_folder,
             powerzoo_config['dss_file'],
-            self.config.load_noise,
             worker_idx=self.worker_idx
         )
-        self.num_profiles = self.load_profile.gen_loadprofile(
-            use_noise=self.config.load_noise,
-            scale=self.config.scale
-        )
+        # DSR LoadProfile 不生成动态负荷曲线，使用静态文件数
+        self.num_profiles = max(len(self.load_profile.get_loadshape_files()), 1)
         
         logger.info(f"OpenDSS电路初始化完成: {self.n_bus}个母线, {len(self.line_info)}条线路")
         
@@ -446,9 +442,7 @@ class DSRCoreEnv:
         self.current_step = 0
         self.done = False
         
-        # 选择负荷配置文件
-        profile_idx = self.worker_idx if self.worker_idx is not None else 0
-        self.load_profile.choose_loadprofile(profile_idx, self.config.load_noise)
+        # DSR 使用静态负荷，不切换 loadprofile
         
         # 重置电路
         self.circuit.reset()

@@ -158,6 +158,10 @@ class Circuits:
 				self.dss.Text.Command = "Set Maxiterations=50"
 				self.dss.Text.Command = "Set Maxcontroliter=100"
 
+				# PV变压器在主DSS文件之后由pv_data加载，
+				# 需要重新计算电压基准以将trafo_pv*母线纳入YNodeOrder
+				self.dss.Text.Command = "CalcVoltageBases"
+
 				# 删除临时文件
 				if os.path.exists(temp_compile_file):
 					os.remove(temp_compile_file)
@@ -219,7 +223,21 @@ class Circuits:
 		temp_content.append(f"redirect {dss_filename}\n")
 		
 		# 添加PV数据文件（如果存在）
+		# 检查pv_data文件是否包含完整的PVSystem定义
+		# 如果只有曲线定义（无PVSystem），需要先加载pv_systems_base.dss提供PV系统和变压器
 		if os.path.exists(pv_data_file):
+			pv_has_system_def = False
+			with open(pv_data_file, 'r') as f:
+				for line in f:
+					if 'pvsystem' in line.lower() and line.strip().lower().startswith('new'):
+						pv_has_system_def = True
+						break
+
+			if not pv_has_system_def and os.path.exists("pv_systems_base.dss"):
+				# 先加载PV系统和变压器的基础定义，再加载worker的曲线文件
+				temp_content.append("redirect pv_systems_base.dss\n")
+				logger.info(f"Worker {self.worker_idx}: 加载PV基础定义 pv_systems_base.dss")
+
 			temp_content.append(f"redirect {pv_data_file}\n")
 			logger.info(f"Worker {self.worker_idx}: 加载PV文件 {pv_data_file}")
 		
@@ -767,10 +785,17 @@ class Circuits:
 				bus = BusNames[0]
 				if len(BusNames) > 1:
 					phases = BusNames[1:]
-				else: 
+				else:
 				# if not specifying the phases, use all phases at the bus
-					phases = self.bus_phase[bus]
-				
+					if bus in self.bus_phase:
+						phases = self.bus_phase[bus]
+					else:
+						# 虚拟母线（如PV升压变压器创建的trafo_pv*）不在YNodeOrder中
+						# 直接从OpenDSS查询该母线的相位信息
+						self.dss.Circuits.SetActiveBus(bus)
+						phases = [str(i) for i in self.dss.Circuits.Buses.Nodes]
+						self.bus_phase[bus] = phases  # 缓存以备后续使用
+
 				if type == 'Load':
 					fea = [dssObj.kV, dssObj.kW, dssObj.kvar]
 					self.add_loads(objname, bus, phases, fea)
@@ -809,9 +834,15 @@ class Circuits:
 				bus = BusNames[0]
 				if len(BusNames) > 1:
 					phases = BusNames[1:]
-				else: 
+				else:
 				# if not specifying the phases, use all phases at the bus
-					phases = self.bus_phase[bus]
+					if bus in self.bus_phase:
+						phases = self.bus_phase[bus]
+					else:
+						# 虚拟母线不在YNodeOrder中，直接从OpenDSS查询
+						self.dss.Circuits.SetActiveBus(bus)
+						phases = [str(i) for i in self.dss.Circuits.Buses.Nodes]
+						self.bus_phase[bus] = phases
 				self.add_batteries('Battery.' + name, bus, phases, feature)
 			if dssGen.Next == 0: 
 				break

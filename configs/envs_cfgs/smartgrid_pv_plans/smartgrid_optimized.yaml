@@ -1,6 +1,9 @@
 # PV优化方案 - 最优配置 (900kW, 50.8%渗透率)
 # 适用于34Bus_PV_Optimized网络配置
 
+# ===== 系统引用 =====
+system_ref: 34Bus_PV_Optimized
+
 env_name: "34Bus_pv"
 num_agents: 10  # 3个原有PV + 4个新增PV + 3个调压器
 

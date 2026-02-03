@@ -1,27 +1,30 @@
+# PowerZoo VVC Environment Configuration
+# 纯 RL 参数配置，系统配置通过 system_ref 引用加载
 
-env_name: 13Bus # choose from 13Bus 34Bus 123Bus 8500Node
-#random seed
+# ===== 系统引用 =====
+# 可选: 13Bus, 34Bus, 34Bus_PV, 34Bus_PV_Aggressive, 34Bus_PV_Conservative, 34Bus_PV_Optimized, 123Bus, 8500Node
+system_ref: 13Bus
+
+# ===== 基础配置 (向后兼容) =====
+env_name: 13Bus
 seed: 123456
-#maximum number of steps
-num_steps: 24
-#number of parallel processes
-num_workers: None
-use_plot: False
-do_testing: False
-#running mode, random, parallele, episodic or dss
-mode: single
-#whether to use S
-useS: False
-# whether to order S from big to small
-# big2small参数仅用于SHOM算法
-big2small: False
-# whether to convey the information of the voltage node
-use_render: False
-record_node: False # 添加一个记录节点信息的开关
 
-# 系统参数记录配置
-enable_system_logging: True  # 是否启用系统参数记录
-system_log_dir: "./logs/system_params"  # 系统日志存储目录
-log_buffer_size: 5000  # 内存缓冲区大小
-log_save_interval: 50  # 数据保存间隔(steps)
-enable_realtime_log: True  # 是否启用实时日志输出
+# ===== RL 环境参数 =====
+episode_length: 24
+num_workers: null
+
+# ===== 运行时标志 =====
+mode: single
+useS: false
+big2small: false
+use_render: false
+use_plot: false
+do_testing: false
+record_node: false
+
+# ===== 日志配置 =====
+enable_system_logging: true
+system_log_dir: "./logs/system_params"
+log_buffer_size: 5000
+log_save_interval: 50
+enable_realtime_log: true

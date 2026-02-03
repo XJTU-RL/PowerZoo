@@ -17,7 +17,7 @@ from envs.smartgrid.base_env.env_config import SmartGridConfig
 
 def get_data_root() -> Path:
 	"""获取数据根目录（项目根目录）"""
-	return Path(__file__).resolve().parent.parent.parent.parent.parent
+	return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def get_node_systems_path() -> Path:

@@ -1,6 +1,9 @@
 # DSR Environment Configuration for IEEE 13-Bus System
 # 配电网恢复环境配置 - 13节点系统
 
+# ===== 系统引用 =====
+system_ref: 13Bus
+
 env_name: "dsr"
 scenario_name: "ieee13_restoration"
 

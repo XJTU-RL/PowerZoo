@@ -1,6 +1,9 @@
 # PV激进方案 - 高渗透率配置 (1080kW, 61%渗透率)
 # 适用于34Bus_PV_Aggressive网络配置
 
+# ===== 系统引用 =====
+system_ref: 34Bus_PV_Aggressive
+
 env_name: "34Bus_pv"
 num_agents: 12  # 3个原有PV + 6个新增PV + 3个调压器
 

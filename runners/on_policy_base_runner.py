@@ -634,11 +634,10 @@ class OnPolicyBaseRunner:
             action_log_prob_collector[agent_id] = _t2n(action_log_prob)
             rnn_state_collector[agent_id] = _t2n(rnn_state)
         
-        # 高效转置：(n_agents, n_threads, dim) -> (n_threads, n_agents, dim)
-        # 使用numpy的高效数组操作
-        actions = np.stack(action_collector, axis=1).transpose(1, 0, 2) 
-        action_log_probs = np.stack(action_log_prob_collector, axis=1).transpose(1, 0, 2)
-        rnn_states = np.stack(rnn_state_collector, axis=1).transpose(1, 0, 2, 3)
+        # np.stack(..., axis=1) 已经产生正确的 (n_threads, n_agents, dim) shape
+        actions = np.stack(action_collector, axis=1)
+        action_log_probs = np.stack(action_log_prob_collector, axis=1)
+        rnn_states = np.stack(rnn_state_collector, axis=1)
         
         return (
             self._collect_critic_values(step), 
@@ -938,13 +937,14 @@ class OnPolicyBaseRunner:
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
                 # 提取当前智能体的可用动作
+                # 异构动作空间：离散智能体有掩码列表，连续智能体返回None
+                agent_available_actions = None
                 if eval_available_actions[0] is not None:
-                    agent_available_actions = []
-                    for env_idx in range(len(eval_available_actions)):
-                        agent_available_actions.append(eval_available_actions[env_idx][agent_id])
-                    agent_available_actions = np.array(agent_available_actions)
-                else:
-                    agent_available_actions = None
+                    per_env = [eval_available_actions[env_idx][agent_id]
+                               for env_idx in range(len(eval_available_actions))]
+                    # 只有当该智能体在所有环境中都有可用动作时才转为数组
+                    if per_env[0] is not None:
+                        agent_available_actions = np.array(per_env, dtype=np.float32)
                     
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],

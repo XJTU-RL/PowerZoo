@@ -413,21 +413,30 @@ class ShareSubprocVecEnv(ShareVecEnv):
         return processed_obs
     
     def _standardize_rewards(self, rewards):
-        """标准化奖励数据为HAPPO兼容格式"""
+        """标准化奖励数据为HAPPO兼容格式
+
+        每个环境返回的奖励应为 (n_agents, 1) 形状的 numpy 数组。
+        最终 stack 后形状为 (n_envs, n_agents, 1)。
+        """
         processed_rewards = []
-        
+
         for rew in rewards:
-            if isinstance(rew, (list, tuple)):
-                # 确保奖励是2D结构 [[reward]]
-                if len(rew) > 0 and not isinstance(rew[0], (list, tuple)):
-                    # 转换为嵌套列表格式
-                    processed_rewards.append([rew])
-                else:
-                    processed_rewards.append(rew)
+            rew_arr = np.asarray(rew)
+            if rew_arr.ndim == 2:
+                # 已经是 (n_agents, 1) 格式，直接使用
+                processed_rewards.append(rew_arr)
+            elif rew_arr.ndim == 1:
+                # (n_agents,) 格式，扩展为 (n_agents, 1)
+                processed_rewards.append(rew_arr[:, np.newaxis])
+            elif rew_arr.ndim == 0:
+                # 标量奖励，扩展为 (1, 1)
+                processed_rewards.append(rew_arr.reshape(1, 1))
             else:
-                # 标量奖励，转换为标准格式
-                processed_rewards.append([[rew]])
-        
+                # 高维数组，压缩多余维度
+                processed_rewards.append(rew_arr.squeeze())
+                if processed_rewards[-1].ndim < 2:
+                    processed_rewards[-1] = processed_rewards[-1].reshape(-1, 1)
+
         return processed_rewards
     
     def _validate_shapes(self, obs, share_obs, rewards, dones):

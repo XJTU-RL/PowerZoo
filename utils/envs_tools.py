@@ -78,9 +78,15 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
-                
+
                 env = DSREnv(env_args, rank)
-                
+
+            elif env_name.startswith("stackelberg"):
+                from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+
+                stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
+                env = StackelbergPowerZooEnv(stackelberg_args)
+
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -129,6 +135,13 @@ def make_eval_env(env_name, seed, n_threads, env_args):
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
                 env = DSREnv(env_args, rank)
+
+            elif env_name.startswith("stackelberg"):
+                from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+
+                stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
+                env = StackelbergPowerZooEnv(stackelberg_args)
+
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -186,11 +199,21 @@ def make_render_env(env_name, seed, env_args):
         from envs.dsr.dsr_env import DSREnv
 
         env = DSREnv(env_args, rank=4)
-        manual_render = False  
+        manual_render = False
         manual_expand_dims = False
         manual_delay = False
         env.seed(seed * 60000)
-        
+
+    elif env_name.startswith("stackelberg"):
+        from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+
+        stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': 4}
+        env = StackelbergPowerZooEnv(stackelberg_args)
+        manual_render = False
+        manual_expand_dims = False
+        manual_delay = False
+        env.seed(seed * 60000)
+
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError

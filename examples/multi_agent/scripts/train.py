@@ -24,7 +24,7 @@ import yaml
 import sys 
 import os
 # 将项目根目录添加到系统路径中
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(project_root)
 
 from utils.configs_tools import get_defaults_yaml_args, update_args
@@ -65,8 +65,11 @@ def main():
             "powerzoo",
             "smartgrid",
             "dsr",
+            "stackelberg_13bus",
+            "stackelberg_34bus",
+            "stackelberg_123bus",
         ],
-        help="选择环境: powerzoo, smartgrid, dsr.",
+        help="选择环境: powerzoo, smartgrid, dsr, stackelberg_13bus/34bus/123bus.",
     )
     # 添加实验名称参数，默认为"test"
     parser.add_argument(

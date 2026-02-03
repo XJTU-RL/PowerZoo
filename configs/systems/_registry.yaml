@@ -1,0 +1,68 @@
+# PowerZoo System Registry
+# OpenDSS 电力系统配置注册表
+#
+# 使用方式：
+#   在 envs_cfgs/*.yaml 中通过 system_ref 引用系统名
+#   例如: system_ref: 34Bus_PV
+
+version: "1.0"
+
+# 基础系统列表
+base_systems:
+  - 13Bus
+  - 34Bus
+  - 123Bus
+  - 8500Node
+
+# PV 扩展系统
+pv_systems:
+  - 34Bus_PV
+  - 34Bus_PV_Aggressive
+  - 34Bus_PV_Conservative
+  - 34Bus_PV_Optimized
+
+# 系统元数据
+metadata:
+  13Bus:
+    description: "IEEE 13-bus test feeder base configuration"
+    node_count: 13
+    typical_episode_length: 24
+
+  34Bus:
+    description: "IEEE 34-bus test feeder base configuration"
+    node_count: 34
+    typical_episode_length: 360
+
+  34Bus_PV:
+    description: "IEEE 34-bus with PV control (continuous)"
+    node_count: 34
+    pv_count: 3
+    typical_episode_length: 360
+
+  34Bus_PV_Aggressive:
+    description: "IEEE 34-bus with aggressive PV expansion (1080kW, 61% penetration)"
+    node_count: 34
+    pv_count: 9
+    penetration_rate: 0.61
+
+  34Bus_PV_Conservative:
+    description: "IEEE 34-bus with conservative PV expansion (720kW, 40.7% penetration)"
+    node_count: 34
+    pv_count: 6
+    penetration_rate: 0.407
+
+  34Bus_PV_Optimized:
+    description: "IEEE 34-bus with optimized PV expansion (900kW, 50.8% penetration)"
+    node_count: 34
+    pv_count: 7
+    penetration_rate: 0.508
+
+  123Bus:
+    description: "IEEE 123-bus test feeder base configuration"
+    node_count: 123
+    typical_episode_length: 24
+
+  8500Node:
+    description: "IEEE 8500-node test feeder base configuration"
+    node_count: 8500
+    typical_episode_length: 24

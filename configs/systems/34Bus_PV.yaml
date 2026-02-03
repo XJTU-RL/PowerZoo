@@ -1,0 +1,49 @@
+# IEEE 34-Bus with PV Control Configuration
+# OpenDSS 系统配置 - 基础 PV 版本
+
+system:
+  name: 34Bus_PV
+  base_system: 34Bus
+  dss_folder: node_systems/34Bus_PV
+  dss_file: ieee34Mod1_duty.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 360
+
+# 设备清单
+devices:
+  capacitors:
+    count: 2
+    action_space: discrete
+  regulators:
+    count: 2
+    action_num: 33
+  batteries:
+    count: 2
+    action_num: 33
+  pv_systems:
+    count: 3
+    control_enabled: true
+    action_space: continuous  # 连续控制
+
+# 物理约束
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+
+# 默认奖励权重
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 0.303
+  pv_control: 0.0606
+
+# 显示配置
+display:
+  node_size: 500
+  shift: 80
+  show_labels: false

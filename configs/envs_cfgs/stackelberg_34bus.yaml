@@ -1,5 +1,8 @@
 # Stackelberg Game Environment Configuration for 34Bus System
 
+# ===== 系统引用 =====
+system_ref: 34Bus
+
 # Basic environment settings
 env_name: stackelberg_34bus
 system_name: 34Bus

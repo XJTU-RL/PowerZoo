@@ -59,10 +59,14 @@ class StackelbergPowerZooEnv:
         self.base_env = StackelbergBaseEnv(self.env_config)
         
         # Create load aggregator
+        load_agg_config = self.env_config.get('load_aggregation', {
+            'method': 'zone',
+            'max_loads_per_agent': 5,
+        })
         self.load_aggregator = IntelligentLoadAggregator(
             self.base_env.circuit,
-            method=self.env_config['load_aggregation']['method'],
-            config=self.env_config['load_aggregation']
+            method=load_agg_config.get('method', 'bus_proximity'),
+            config=load_agg_config
         )
         
         # Perform load aggregation
@@ -102,29 +106,41 @@ class StackelbergPowerZooEnv:
     
     def _parse_config(self, args: Dict[str, Any]):
         """Parse configuration from PowerZoo args."""
+        from utils.path_utils import get_project_root
+
+        # 默认 DSS 文件映射
+        default_dss_files = {
+            '13bus': 'IEEE13Nodeckt_daily.dss',
+            '34bus': 'ieee34Mod1_daily.dss',
+            '123bus': 'IEEE123Master_daily.dss',
+        }
+
+        system_name = args.get('env_name', '13Bus').replace('stackelberg_', '')
+        default_dss = default_dss_files.get(system_name.lower(), 'IEEE13Nodeckt_daily.dss')
+
         # Build environment configuration
         self.env_config = {
-            'system_name': args.get('env_name', '13Bus').replace('stackelberg_', ''),
-            'dss_file': args.get('dss_file', 'Master_noPV_1.dss'),
+            'system_name': system_name,
+            'dss_file': args.get('dss_file', default_dss),
             'max_episode_steps': args.get('num_steps', 24),
-            'base_path': args.get('base_path', 'envs/powerzoo/systems'),
             'seed': args.get('seed', 123456),
             'worker_idx': args.get('worker_idx'),
         }
-        
+
         # Load system-specific configuration if available
         config_file = f"stackelberg_{self.env_config['system_name'].lower()}.yaml"
-        config_path = os.path.join('configs/envs_cfgs', config_file)
-        
-        if os.path.exists(config_path):
+        project_root = get_project_root()
+        config_path = project_root / 'configs' / 'envs_cfgs' / config_file
+
+        if config_path.exists():
             import yaml
             with open(config_path, 'r') as f:
                 system_config = yaml.safe_load(f)
-            
-            # Merge configurations
+
+            # Merge configurations（YAML配置覆盖默认值）
             self.env_config.update(system_config)
-        
-        # Override with args
+
+        # Override with args（命令行参数覆盖YAML）
         for key in ['n_consumer_agents', 'use_load_noise', 'scale', 'use_render']:
             if key in args:
                 self.env_config[key] = args[key]
@@ -409,7 +425,7 @@ class StackelbergPowerZooEnv:
     # Additional methods for PowerZoo compatibility
     def seed(self, seed=None):
         """Set random seed."""
-        if hasattr(self.base_env, 'seed'):
+        if hasattr(self.base_env, 'seed') and callable(self.base_env.seed):
             self.base_env.seed(seed)
     
     def render(self, mode='human'):

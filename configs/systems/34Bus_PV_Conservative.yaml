@@ -1,0 +1,52 @@
+# IEEE 34-Bus with Conservative PV Expansion
+# OpenDSS 系统配置 - 保守渗透率 PV (720kW, 40.7%)
+
+system:
+  name: 34Bus_PV_Conservative
+  base_system: 34Bus_PV
+  dss_folder: node_systems/34Bus_PV_Conservative
+  dss_file: ieee34Mod1_duty.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 360
+
+# 设备清单
+devices:
+  capacitors:
+    count: 2
+    action_space: discrete
+  regulators:
+    count: 2
+    action_num: 33
+  batteries:
+    count: 0
+    action_num: 0
+  pv_systems:
+    count: 6
+    control_enabled: true
+    action_space: continuous
+    total_capacity_kw: 720
+    penetration_rate: 0.407
+
+# 物理约束
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+
+# 默认奖励权重
+default_rewards:
+  power_loss: 0.6
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 1.5
+  pv_control: 0.2
+  import_power: 0.15
+
+# 显示配置
+display:
+  node_size: 500
+  shift: 80
+  show_labels: false

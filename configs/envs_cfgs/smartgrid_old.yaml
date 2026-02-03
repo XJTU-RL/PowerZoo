@@ -1,0 +1,107 @@
+# PowerZoo LLM Environment Configuration
+# 基于powerzoo.yaml，专门为LLM增强的PowerZoo环境配置
+
+# 基础环境配置
+env_name: 34Bus_pv # choose from 13Bus 34Bus 123Bus 8500Node, 34Bus_pv for PV control
+seed: 123456  # 环境随机种子
+num_steps: 360  # 每个episode的最大步数（与episode_length统一）
+num_workers: None  # 并行进程数
+use_plot: False
+do_testing: False
+mode: single  # 运行模式: single, parallel, episodic, dss
+useS: False  # 是否使用S矩阵
+big2small: False  # 是否从大到小排序（SHOM算法专用）
+use_render: False  # 是否渲染
+record_node: False  # 是否记录节点信息
+dss_act: False  # 是否使用OpenDSS自动控制（打开则算法控制失效）
+
+# 系统日志配置
+enable_system_logging: True  # 是否启用系统参数记录
+system_log_dir: "./logs/system_params"  # 系统日志存储目录
+log_buffer_size: 5000  # 内存缓冲区大小
+log_save_interval: 50  # 数据保存间隔(steps)
+enable_realtime_log: True  # 是否启用实时日志输出
+
+# LLM增强功能配置
+llm_enhanced: True
+use_natural_language_obs: False
+use_action_explanation: False
+
+# 环境特定配置（从happo_powerzoo_pv.yaml迁移）
+environment_specific:
+  # 系统配置
+  system_name: "34Bus_PV_Aggressive"  
+  dss_file: "ieee34Mod1_duty.dss"
+  
+  # 设备控制配置
+  devices:
+    # 电容器配置
+    capacitors:
+      num: 2  # 电容器数量
+      action_space: "discrete"  # 动作空间类型
+      
+    # 调压器配置
+    regulators:
+      num: 2  # 调压器数量（实际系统有6个调压器）
+      action_space: "discrete"
+      action_num: 33  # 离散动作数量
+      
+    # 电池配置
+    batteries:
+      num: 2  # 电池数量
+      action_space: "discrete"
+      action_num: 33  # 离散动作数量
+      
+    # 光伏系统配置
+    pv_systems:
+      num: 3  # 光伏系统数量（34Bus_PV系统中有3个PVSystem：PV834, PV890, PV864）
+      control_enabled: true  # 启用控制以利用PV系统
+      action_space: "continuous"  # 连续控制
+      
+  # 奖励权重配置（可调节）- 修复scale问题
+  reward_weights:
+    power_loss: 1.0           # 功率损耗权重（从10.0降至1.0）
+    capacitor: 0.0303         # 电容器切换权重 (1.0/33)
+    regulator: 0.0303         # 调压器调节权重 (1.0/33)
+    battery_soc: 0.0          # 电池SOC权重 (0.0/33)
+    battery_discharge: 0.303   # 电池放电权重 (10.0/33)
+    pv_control: 0.0606        # 光伏控制权重 (2.0/33)
+    
+  # 约束配置
+  constraints:
+    voltage_min: 0.95         # 最小电压限制 (p.u.)
+    voltage_max: 1.05         # 最大电压限制 (p.u.)
+    voltage_penalty_scale: 1.0  # 电压违约惩罚缩放
+    constraint_aware: true     # 是否启用约束感知训练
+
+# 电力系统特定训练配置
+power_system:
+  # 约束惩罚 - 平衡稳定收敛
+  voltage_violation_penalty: 50.0     # 适度惩罚避免策略崩溃
+  power_loss_weight: 5.0              # 降低权重以平衡优化
+  control_cost_weight: 0.05           # 很小的惩罚以实现平滑控制
+  
+  # 训练阶段 - 简化的课程学习
+  curriculum_learning: true
+  phases:
+    - name: "exploration_phase"
+      steps: 800000
+      voltage_penalty_scale: 0.3     # 初始轻约束以促进探索
+      exploration_bonus: 0.03
+    
+    - name: "optimization_phase"  
+      steps: 800000
+      voltage_penalty_scale: 0.7     # 逐步增加约束
+      exploration_bonus: 0.015
+      
+    - name: "refinement_phase"
+      steps: 400000
+      voltage_penalty_scale: 1.0     # 完全约束以最终优化
+      exploration_bonus: 0.005
+  
+  # 收敛标准
+  convergence:
+    voltage_compliance_threshold: 0.95  # 95%的时间步必须满足电压约束
+    power_loss_improvement: 0.15        # 15%功率损耗改进目标
+    policy_stability_window: 100000     # 检查策略稳定性的步数
+    reward_std_threshold: 0.1           # 收敛的奖励标准差阈值

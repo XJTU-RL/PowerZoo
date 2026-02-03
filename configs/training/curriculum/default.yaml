@@ -1,0 +1,51 @@
+# Default Curriculum Learning Strategy
+# 默认课程学习训练策略
+
+strategy:
+  name: default
+  description: "Standard curriculum learning with exploration-optimization-refinement phases"
+
+# 课程学习配置
+curriculum_learning: true
+
+# 训练阶段
+phases:
+  # Phase 1: 探索阶段 - 轻约束促进探索
+  - name: exploration_phase
+    steps: 800000
+    voltage_penalty_scale: 0.3
+    exploration_bonus: 0.03
+    description: "Light constraints to encourage exploration"
+
+  # Phase 2: 优化阶段 - 逐步增加约束
+  - name: optimization_phase
+    steps: 800000
+    voltage_penalty_scale: 0.7
+    exploration_bonus: 0.015
+    description: "Gradually increase constraints"
+
+  # Phase 3: 精炼阶段 - 完全约束进行最终优化
+  - name: refinement_phase
+    steps: 400000
+    voltage_penalty_scale: 1.0
+    exploration_bonus: 0.005
+    description: "Full constraints for final optimization"
+
+# 惩罚参数
+penalties:
+  voltage_violation: 50.0
+  power_loss_weight: 5.0
+  control_cost_weight: 0.05
+
+# 收敛标准
+convergence:
+  voltage_compliance_threshold: 0.95   # 95% 时间步必须满足电压约束
+  power_loss_improvement: 0.15         # 15% 功率损耗改进目标
+  policy_stability_window: 100000      # 检查策略稳定性的步数
+  reward_std_threshold: 0.1            # 收敛的奖励标准差阈值
+
+# 早停配置 (可选)
+early_stopping:
+  enabled: false
+  patience: 50000                       # 无改进步数后停止
+  min_improvement: 0.01                 # 最小改进阈值

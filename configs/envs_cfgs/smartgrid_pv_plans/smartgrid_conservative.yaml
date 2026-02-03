@@ -1,6 +1,9 @@
 # PV保守方案 - 适度扩展配置 (720kW, 40.7%渗透率)
 # 适用于34Bus_PV_Conservative网络配置
 
+# ===== 系统引用 =====
+system_ref: 34Bus_PV_Conservative
+
 env_name: "34Bus_pv"
 num_agents: 8  # 3个原有PV + 2个新增PV + 3个调压器
 

@@ -1,6 +1,9 @@
 # DSR Environment Configuration for IEEE 8500-Node System
 # 配电网恢复环境配置 - 8500节点大系统
 
+# ===== 系统引用 =====
+system_ref: 8500Node
+
 env_name: "dsr"
 scenario_name: "ieee8500_restoration"
 

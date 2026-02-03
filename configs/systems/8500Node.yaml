@@ -1,0 +1,46 @@
+# IEEE 8500-Node Test Feeder Configuration
+# OpenDSS 系统配置 - 大规模系统
+
+system:
+  name: 8500Node
+  dss_folder: node_systems/8500-Node
+  dss_file: Master_daily.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 24
+
+# 设备清单
+devices:
+  capacitors:
+    count: 4
+    action_space: discrete
+  regulators:
+    count: 4
+    action_num: 33
+  batteries:
+    count: 4
+    action_num: 33
+  pv_systems:
+    count: 0
+    control_enabled: false
+
+# 物理约束
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+
+# 默认奖励权重
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 6.0606
+
+# 显示配置
+display:
+  node_size: 50
+  shift: 20
+  show_labels: false

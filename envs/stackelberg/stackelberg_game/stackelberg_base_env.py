@@ -38,6 +38,7 @@ except ImportError:
 from envs.powerzoo.powerzoo.circuit import Circuits
 from envs.powerzoo.powerzoo.loadprofile import LoadProfile
 from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
+from utils.path_utils import get_system_folder
 
 logger = logging.getLogger('StackelbergBaseEnv')
 
@@ -70,15 +71,33 @@ class StackelbergBaseEnv:
         self.dss_file = config['dss_file']
         self.max_episode_steps = config.get('max_episode_steps', 24)
         
-        base_path = config.get('base_path', 'envs/powerzoo/systems')
-        self.dss_folder_path = os.path.join(base_path, self.system_name)
-        config['dss_file_abs_path'] = os.path.abspath(os.path.join(self.dss_folder_path, self.dss_file))
+        # 使用统一路径工具定位系统目录
+        self.dss_folder_path = str(get_system_folder(self.system_name))
+        config['dss_file_abs_path'] = os.path.join(self.dss_folder_path, self.dss_file)
 
         # Agent configuration
         self.n_uc_agents = 1  # Single UC agent
         self.n_consumer_agents = self._get_consumer_count(config)
         self.n_agents = self.n_uc_agents + self.n_consumer_agents
-        
+
+        # Stackelberg game parameters (must be before _init_action_spaces)
+        self.stackelberg_config = config.get('stackelberg_config', {})
+        self.price_bounds = self.stackelberg_config.get('price_bounds', (0.5, 2.0))
+        self.dr_incentive_bounds = self.stackelberg_config.get('dr_incentive_bounds', (0.0, 0.5))
+
+        # ESS (Energy Storage System) parameters
+        ess_config = config.get('ess_config', {})
+        self.ess_config = ess_config
+        self.ess_capacity = ess_config.get('capacity', ess_config.get('total_capacity', 100.0))
+        self.ess_max_power = ess_config.get('max_power', 20.0)
+        self.ess_efficiency_charge = ess_config.get('eta_c', ess_config.get('efficiency_charge', 0.95))
+        self.ess_efficiency_discharge = ess_config.get('eta_o', ess_config.get('efficiency_discharge', 0.95))
+        self.ess_decay_rate = ess_config.get('eta_s', ess_config.get('self_discharge_rate', 0.99))
+        self.ess_soc = ess_config.get('initial_soc', 0.5)
+
+        # DER generation profile
+        self.der_profile = config.get('der_profile', None)
+
         # Initialize circuit and load profile
         self._init_circuit(config)
         self._init_load_profile(config)
@@ -105,26 +124,9 @@ class StackelbergBaseEnv:
         self.consumer_actions_buffer = {}
         self.action_history = deque(maxlen=config.get('history_length', 5))
         
-        # Stackelberg game parameters
-        self.stackelberg_config = config.get('stackelberg_config', {})
-        self.price_bounds = self.stackelberg_config.get('price_bounds', (0.5, 2.0))
-        self.dr_incentive_bounds = self.stackelberg_config.get('dr_incentive_bounds', (0.0, 0.5))
-        
         # System state tracking
         self.system_state = {}
         self.agent_states = {}
-        
-        # ESS (Energy Storage System) parameters
-        self.ess_config = config.get('ess_config', {})
-        self.ess_capacity = self.ess_config.get('capacity', 100.0)  # MWh
-        self.ess_max_power = self.ess_config.get('max_power', 20.0)  # MW
-        self.ess_efficiency_charge = self.ess_config.get('eta_c', 0.95)
-        self.ess_efficiency_discharge = self.ess_config.get('eta_o', 0.95)
-        self.ess_decay_rate = self.ess_config.get('eta_s', 0.99)
-        self.ess_soc = 0.5  # Initial State of Charge (50%)
-        
-        # DER generation profile
-        self.der_profile = config.get('der_profile', None)
         
     def _get_consumer_count(self, config: Dict[str, Any]) -> int:
         """Determine number of consumer agents based on system size."""
@@ -174,21 +176,74 @@ class StackelbergBaseEnv:
         logger.info(f"Circuit initialized: {self.n_buses} buses, {len(self.circuit.loads)} loads")
         
     def _init_load_profile(self, config: Dict[str, Any]):
-        """Initialize load profile."""
+        """Initialize load profile.
+
+        使用 PowerZoo LoadProfile 类加载负荷曲线数据。
+        LoadProfile.find_load_names 需要包含 'New Load.' 定义的 DSS 文件。
+        Stackelberg 的自定义 DSS 文件通过 Redirect 引用基础系统文件，
+        因此需要解析 redirect 链找到包含负荷定义的基础文件。
+        """
         abs_path = config['dss_file_abs_path']
         assert os.path.exists(abs_path), f"DSS file not found at: {abs_path}"
-        with open(abs_path, 'r') as f:
-            dss_content = f.read()
 
+        # 解析 redirect 链找到包含 load 定义的基础 DSS 文件
+        base_dss_file = self._find_base_dss_with_loads(self.dss_file)
+
+        use_noise = config.get('use_load_noise', False)
         self.load_profile = LoadProfile(
             self.max_episode_steps,
             self.dss_folder_path,
-            dss_content,
-            dss_path=abs_path,
-            use_noise=config.get('use_load_noise', True),
+            base_dss_file,
+            use_noise=use_noise,
             worker_idx=config.get('worker_idx', None)
         )
+        # gen_loadprofile 生成 profile 数据并返回 episode 数量
+        self.load_profile.num_profiles = self.load_profile.gen_loadprofile(
+            use_noise=use_noise, scale=config.get('scale', 1.0)
+        )
         self.all_load_profiles = self.load_profile.get_loadprofile(0)
+
+    def _find_base_dss_with_loads(self, dss_file: str) -> str:
+        """沿 Redirect 链查找包含 daily loadshape 的 DSS 文件。
+
+        优先使用已有的 _daily.dss 版本（包含 daily=loadshape_xxx），
+        避免 find_load_names 在 inline loads 场景下的 re-parse 缺陷。
+
+        Args:
+            dss_file: 起始 DSS 文件名
+
+        Returns:
+            包含负荷定义的 DSS 文件名
+        """
+        visited = set()
+        current = dss_file
+        while current and current not in visited:
+            visited.add(current)
+            file_path = os.path.join(self.dss_folder_path, current)
+            if not os.path.exists(file_path):
+                break
+            has_loads = False
+            redirect_target = None
+            with open(file_path, 'r') as f:
+                for line in f:
+                    low = line.strip().lower()
+                    if low.startswith('new load.'):
+                        has_loads = True
+                        break
+                    if low.startswith('redirect '):
+                        redirect_target = line.strip().split(None, 1)[1]
+            if has_loads:
+                # 优先使用 _daily 版本（已含 daily loadshape 引用）
+                daily_name = current[:-4] + '_daily.dss'
+                daily_path = os.path.join(self.dss_folder_path, daily_name)
+                if os.path.exists(daily_path):
+                    return daily_name
+                return current
+            if redirect_target:
+                current = redirect_target
+            else:
+                break
+        return dss_file
         
     def _init_agents(self):
         """Initialize agent structures."""

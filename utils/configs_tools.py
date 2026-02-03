@@ -8,6 +8,11 @@ import yaml
 
 def get_defaults_yaml_args(algo, env):
     """加载用户指定的算法和环境的配置文件.
+
+    自动检测配置格式:
+    - 新格式 (v2): 包含 system_ref 字段，使用 ConfigLoader 解析引用
+    - 旧格式 (v1): 传统扁平配置，直接解析
+
     Args:
         algo: (str) Algorithm name.
         env: (str) Environment name.
@@ -16,23 +21,34 @@ def get_defaults_yaml_args(algo, env):
         env_args: (dict) Environment config.
     """
     base_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
-    algo_cfg_path = os.path.join(base_path, "configs", "algos_cfgs", f"{algo}.yaml")
     env_cfg_path = os.path.join(base_path, "configs", "envs_cfgs", f"{env}.yaml")
+
+    # 检测是否使用新格式 (system_ref)
+    with open(env_cfg_path, "r", encoding="utf-8") as f:
+        env_config_peek = yaml.load(f, Loader=yaml.FullLoader) or {}
+
+    if 'system_ref' in env_config_peek:
+        # v2 格式: 使用 ConfigLoader 加载并解析引用
+        from utils.unified_config_loader import ConfigLoader
+        loader = ConfigLoader(base_path)
+        config = loader.load(algo, env)
+        return config.algo_args, config.env_args
+
+    # v1 格式: 旧格式直接解析
+    algo_cfg_path = os.path.join(base_path, "configs", "algos_cfgs", f"{algo}.yaml")
 
     with open(algo_cfg_path, "r", encoding="utf-8") as file:
         algo_args = yaml.load(file, Loader=yaml.FullLoader)
-    with open(env_cfg_path, "r", encoding="utf-8") as file:
-        env_config = yaml.load(file, Loader=yaml.FullLoader)
-        # 提取环境参数（不包含environment_specific等嵌套配置）
-        env_args = {}
-        for key, value in env_config.items():
-            if key not in ['environment_specific', 'power_system']:
-                env_args[key] = value
-        
-        # 将environment_specific配置单独传递
-        if 'environment_specific' in env_config:
-            env_args['env_specific_config'] = env_config['environment_specific']
-            
+
+    env_args = {}
+    for key, value in env_config_peek.items():
+        if key == 'environment_specific':
+            env_args['env_specific_config'] = value
+        elif key == 'power_system':
+            env_args['power_system'] = value
+        else:
+            env_args[key] = value
+
     return algo_args, env_args
 
 
@@ -56,13 +72,13 @@ def update_args(unparsed_dict, *args):
 
 
 def get_task_name(env, env_args):
-    if env == "powerzoo": 
-        task = env_args["env_name"]
-    elif env == "smartgrid":
-        task = env_args["env_name"]
-    else:
-        task = "unknown"
-    return task
+    """获取任务名称用于结果目录"""
+    # 优先使用 system_name，其次使用 env_name
+    if 'system_name' in env_args and env_args['system_name']:
+        return env_args['system_name']
+    if 'env_name' in env_args:
+        return env_args['env_name']
+    return env
 
 
 def init_dir(env, env_args, algo, exp_name, seed, logger_path):

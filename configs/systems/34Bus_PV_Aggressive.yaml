@@ -1,0 +1,54 @@
+# IEEE 34-Bus with Aggressive PV Expansion
+# OpenDSS 系统配置 - 高渗透率 PV (1080kW, 61%)
+
+system:
+  name: 34Bus_PV_Aggressive
+  base_system: 34Bus_PV
+  dss_folder: node_systems/34Bus_PV_Aggressive
+  dss_file: ieee34Mod1_duty.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 360
+
+# 设备清单
+devices:
+  capacitors:
+    count: 2
+    action_space: discrete
+  regulators:
+    count: 2
+    action_num: 33
+  batteries:
+    count: 0  # 无电池
+    action_num: 0
+  pv_systems:
+    count: 9  # 高渗透率
+    control_enabled: true
+    action_space: continuous
+    total_capacity_kw: 1080
+    penetration_rate: 0.61
+
+# 物理约束 (放宽以适应高渗透率)
+constraints:
+  voltage_min: 0.93
+  voltage_max: 1.07
+
+# 默认奖励权重 (针对高渗透率优化)
+default_rewards:
+  power_loss: 0.4
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 3.0
+  pv_control: 0.4
+  import_power: 0.05
+  curtailment: 0.2
+  reverse_flow: 0.5
+
+# 显示配置
+display:
+  node_size: 500
+  shift: 80
+  show_labels: false

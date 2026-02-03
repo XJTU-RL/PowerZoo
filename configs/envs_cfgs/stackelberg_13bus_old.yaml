@@ -1,16 +1,23 @@
-# Stackelberg Game Environment Configuration for 123Bus System
-
-# ===== 系统引用 =====
-system_ref: 123Bus
+# Stackelberg Game Environment Configuration for 13Bus System
 
 # Basic environment settings
-env_name: stackelberg_123bus
-system_name: 123Bus
-dss_file: IEEE123Master.dss
+env_name: stackelberg_13bus
+system_name: 13Bus
+dss_file: IEEE13bus_battery_adaptive.dss
 max_episode_steps: 24  # 24-hour episodes
 
 # Agent configuration
-n_consumer_agents: 20  # Number of consumer agents (paper example uses 8+1)
+n_consumer_agents: 8  # Number of consumer agents
+consumer_bus_mapping:
+  # Map consumer agents to buses
+  0: [671, 675]     # Consumer 0 controls buses 671, 675
+  1: [692, 611]     # Consumer 1 controls buses 692, 611  
+  2: [652, 632]     # Consumer 2 controls buses 652, 632
+  3: [633, 634]     # Consumer 3 controls buses 633, 634
+  4: [645, 646]     # Consumer 4 controls buses 645, 646
+  5: [680]          # Consumer 5 controls bus 680
+  6: [684]          # Consumer 6 controls bus 684
+  7: [650]          # Consumer 7 controls bus 650
 
 # UC action space configuration
 uc_action_space:
@@ -111,9 +118,9 @@ tou_config:
 
 # Tiered pricing configuration
 tier_config:
-  tier_1_limit: 2.0              # First tier limit (MWh)
-  tier_2_limit: 4.0              # Second tier limit (MWh)
-  tier_3_limit: 8.0              # Third tier limit (MWh)
+  tier_1_limit: 0.5              # First tier limit (MWh)
+  tier_2_limit: 1.0              # Second tier limit (MWh)
+  tier_3_limit: 2.0              # Third tier limit (MWh)
   tier_1_multiplier: 1.0         # First tier price multiplier
   tier_2_multiplier: 1.2         # Second tier price multiplier
   tier_3_multiplier: 1.5         # Third tier price multiplier
@@ -121,18 +128,18 @@ tier_config:
 
 # ESS configuration per paper
 ess_config:
-  total_capacity: 10.0           # Total ESS capacity (MWh)
+  total_capacity: 2.0            # Total ESS capacity (MWh)
   initial_soc: 0.5               # Initial state of charge
   efficiency_charge: 0.95        # Charging efficiency
   efficiency_discharge: 0.95     # Discharging efficiency
   self_discharge_rate: 0.001     # Self-discharge rate per hour
   min_soc: 0.2                   # Minimum SOC
   max_soc: 0.9                   # Maximum SOC
-  max_power: 2.0                 # Maximum charge/discharge power (MW)
+  max_power: 0.5                 # Maximum charge/discharge power (MW)
 
 # DER configuration
 der_config:
-  total_capacity: 12.0           # Total DER capacity (MW)
+  total_capacity: 3.0            # Total DER capacity (MW)
   availability_profile: solar    # DER availability profile type
   forecast_error_std: 0.1        # DER forecast error std dev
   curtailment_cost: 0.02         # Cost of curtailing DER ($/kWh)
@@ -147,7 +154,7 @@ dr_config:
 # Monitoring configuration
 monitoring_config:
   enable: True
-  log_dir: logs/stackelberg_123bus
+  log_dir: logs/stackelberg_13bus
   save_interval: 100
   plot_interval: 50
   experiment_name: null          # Will be auto-generated if null
@@ -162,17 +169,6 @@ async_config:
   enable_action_prediction: False
   partial_observability: False
   observation_noise: 0.0
-
-# Load aggregation configuration
-load_aggregation:
-  method: priority               # zone, priority, graph, adaptive
-  use_electrical_distance: True
-  zone_definitions: null         # Auto-detect zones
-  priority_weights:
-    residential: 1.0
-    commercial: 2.0
-    industrial: 3.0
-    critical: 10.0
 
 # Random seed
 seed: 42
@@ -192,7 +188,7 @@ load_profile_config:
 # N-1 security configuration
 n1_security:
   enable: True
-  critical_lines: []             # Auto-detect critical lines
+  critical_lines: [650632, 632670, 670671]
   contingency_probability: 0.001
   recovery_time: 4               # Hours to recover from contingency
 

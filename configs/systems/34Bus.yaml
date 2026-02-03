@@ -1,0 +1,46 @@
+# IEEE 34-Bus Test Feeder Configuration
+# OpenDSS 系统配置
+
+system:
+  name: 34Bus
+  dss_folder: node_systems/34Bus
+  dss_file: ieee34Mod1_duty.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 360
+
+# 设备清单
+devices:
+  capacitors:
+    count: 2
+    action_space: discrete
+  regulators:
+    count: 2
+    action_num: 33
+  batteries:
+    count: 2
+    action_num: 33
+  pv_systems:
+    count: 0
+    control_enabled: false
+
+# 物理约束
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+
+# 默认奖励权重
+default_rewards:
+  power_loss: 10.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 0.303
+
+# 显示配置
+display:
+  node_size: 400
+  shift: 60
+  show_labels: false
