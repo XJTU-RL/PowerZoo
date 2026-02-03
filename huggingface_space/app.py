@@ -48,7 +48,12 @@ with open(DATA_DIR / "sample_training.json") as f:
 
 # Architecture diagram JSON data (Plotly figures)
 ARCH_FIGS = {}
-for fig_name in ["algorithm_hierarchy", "training_pipeline", "runner_algorithm_matrix"]:
+_ARCH_NAMES = [
+	"algorithm_hierarchy", "training_pipeline", "runner_algorithm_matrix",
+	"happo_family", "mappo_family", "dan_happo",
+	"ddpg_family", "hasac", "value_decomposition", "twots_vvc",
+]
+for fig_name in _ARCH_NAMES:
 	fig_path = DATA_DIR / f"{fig_name}.json"
 	if fig_path.exists():
 		ARCH_FIGS[fig_name] = go.Figure(json.loads(fig_path.read_text()))
@@ -630,6 +635,22 @@ def build_app() -> gr.Blocks:
 				if "runner_algorithm_matrix" in ARCH_FIGS:
 					gr.Markdown("### Runner-Algorithm Compatibility Matrix")
 					gr.Plot(value=ARCH_FIGS["runner_algorithm_matrix"])
+
+				gr.Markdown("---\n## Algorithm Internal Architectures")
+
+				_algo_details = [
+					("happo_family", "HAPPO / HATRPO / HAA2C"),
+					("mappo_family", "MAPPO / SN-MAPPO"),
+					("dan_happo", "DAN-HAPPO"),
+					("ddpg_family", "DDPG Family (HADDPG / HATD3 / MADDPG / MATD3)"),
+					("hasac", "HASAC"),
+					("value_decomposition", "QMIX / HAD3QN"),
+					("twots_vvc", "2TS-VVC"),
+				]
+				for key, label in _algo_details:
+					if key in ARCH_FIGS:
+						gr.Markdown(f"### {label}")
+						gr.Plot(value=ARCH_FIGS[key])
 
 		# Footer
 		gr.Markdown(

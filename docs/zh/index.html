@@ -107,6 +107,41 @@
       <div class="diagram-content" id="tab-matrix" style="display:none;">
         <iframe src="../assets/runner_algorithm_matrix.html" style="width:100%;height:530px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
       </div>
+
+      <h2 style="margin-top:60px;">各算法内部架构</h2>
+      <p class="section-desc">各算法族的详细数据流图，展示网络组件、前向传播和训练机制。</p>
+
+      <div class="diagram-tabs" id="algo-detail-tabs">
+        <button class="diagram-tab active" data-target="tab-happo">HAPPO族</button>
+        <button class="diagram-tab" data-target="tab-mappo">MAPPO</button>
+        <button class="diagram-tab" data-target="tab-dan">DAN-HAPPO</button>
+        <button class="diagram-tab" data-target="tab-ddpg">DDPG族</button>
+        <button class="diagram-tab" data-target="tab-hasac">HASAC</button>
+        <button class="diagram-tab" data-target="tab-qmix">QMIX / HAD3QN</button>
+        <button class="diagram-tab" data-target="tab-twots">2TS-VVC</button>
+      </div>
+
+      <div class="diagram-content" id="tab-happo">
+        <iframe src="../assets/happo_family.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-mappo" style="display:none;">
+        <iframe src="../assets/mappo_family.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-dan" style="display:none;">
+        <iframe src="../assets/dan_happo.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-ddpg" style="display:none;">
+        <iframe src="../assets/ddpg_family.html" style="width:100%;height:620px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-hasac" style="display:none;">
+        <iframe src="../assets/hasac.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-qmix" style="display:none;">
+        <iframe src="../assets/value_decomposition.html" style="width:100%;height:620px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-twots" style="display:none;">
+        <iframe src="../assets/twots_vvc.html" style="width:100%;height:620px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
     </div>
   </section>
 

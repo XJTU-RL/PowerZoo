@@ -44,24 +44,31 @@
     });
   }
 
-  // Diagram tab switching
-  var diagramTabs = document.querySelectorAll(".diagram-tab");
-  if (diagramTabs.length) {
-    diagramTabs.forEach(function (tab) {
+  // Diagram tab switching (scoped per tab group)
+  var tabGroups = document.querySelectorAll(".diagram-tabs");
+  tabGroups.forEach(function (group) {
+    var tabs = group.querySelectorAll(".diagram-tab");
+    // Collect all content panels that belong to this tab group
+    var contentIds = [];
+    tabs.forEach(function (t) { contentIds.push(t.getAttribute("data-target")); });
+
+    tabs.forEach(function (tab) {
       tab.addEventListener("click", function () {
         var target = this.getAttribute("data-target");
-        // Deactivate all tabs and hide all content
-        diagramTabs.forEach(function (t) { t.classList.remove("active"); });
-        document.querySelectorAll(".diagram-content").forEach(function (c) {
-          c.style.display = "none";
+        // Deactivate only tabs in this group
+        tabs.forEach(function (t) { t.classList.remove("active"); });
+        // Hide only content panels belonging to this group
+        contentIds.forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = "none";
         });
-        // Activate clicked tab and show content
+        // Activate clicked tab and show its content
         this.classList.add("active");
         var el = document.getElementById(target);
         if (el) el.style.display = "block";
       });
     });
-  }
+  });
 
   // Navbar background on scroll
   var navbar = document.getElementById("navbar");
