@@ -1,5 +1,6 @@
 ##### Project Specification #####
 **/results/**
+docs/archive/
 .VSCodeCounter/
 
 ##### Python.gitignore #####
