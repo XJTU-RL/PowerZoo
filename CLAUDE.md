@@ -281,9 +281,9 @@ IEEE标准测试系统的OpenDSS模型：
 * `huggingface_space/`: HuggingFace Space Gradio应用
   * `app.py`: 5标签页交互式应用
   * `data/`: 预处理JSON数据
-* `docs/github_pages/`: GitHub Pages静态站点
+* `docs/`: GitHub Pages静态站点（从 /docs 部署）
   * `index.html`, `css/style.css`, `js/main.js`
-  * `assets/architecture.svg`
+  * `assets/`: 架构图SVG + Plotly交互式HTML/PNG
 * `training_frontend/`: 训练配置前端（TypeScript + React + Vite）
 
 ### 其他

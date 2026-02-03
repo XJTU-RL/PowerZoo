@@ -516,7 +516,7 @@ def main():
 	fig_matrix = create_runner_algorithm_matrix()
 
 	# Export standalone HTML files for GitHub Pages
-	gh_pages_dir = output_dir / "docs" / "github_pages" / "assets"
+	gh_pages_dir = output_dir / "docs" / "assets"
 	gh_pages_dir.mkdir(parents=True, exist_ok=True)
 
 	fig_hierarchy.write_html(
