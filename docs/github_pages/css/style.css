@@ -269,6 +269,44 @@ body {
   color: var(--text-light);
 }
 
+/* === Diagram Tabs === */
+.diagram-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.diagram-tab {
+  padding: 10px 24px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-light);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.diagram-tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.diagram-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.diagram-content {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
 /* === Environments === */
 .env-grid {
   display: grid;

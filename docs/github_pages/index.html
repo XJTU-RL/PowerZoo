@@ -16,6 +16,7 @@
       </button>
       <ul class="nav-links" id="nav-links">
         <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#diagrams">Diagrams</a></li>
         <li><a href="#environments">Environments</a></li>
         <li><a href="#algorithms">Algorithms</a></li>
         <li><a href="#getting-started">Get Started</a></li>
@@ -80,6 +81,30 @@
           <h3>Environment Layer</h3>
           <p>4 power system environments with OpenDSS co-simulation, supporting 9 IEEE test feeders.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2.5: Interactive Architecture Diagrams -->
+  <section class="section section-alt" id="diagrams">
+    <div class="container">
+      <h2>Interactive Architecture Diagrams</h2>
+      <p class="section-desc">Explore the algorithm inheritance hierarchy, training pipeline, and runner-algorithm mappings interactively.</p>
+
+      <div class="diagram-tabs">
+        <button class="diagram-tab active" data-target="tab-hierarchy">Algorithm Hierarchy</button>
+        <button class="diagram-tab" data-target="tab-pipeline">Training Pipeline</button>
+        <button class="diagram-tab" data-target="tab-matrix">Runner-Algorithm Matrix</button>
+      </div>
+
+      <div class="diagram-content" id="tab-hierarchy">
+        <iframe src="assets/algorithm_hierarchy.html" style="width:100%;height:680px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-pipeline" style="display:none;">
+        <iframe src="assets/training_pipeline.html" style="width:100%;height:730px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-matrix" style="display:none;">
+        <iframe src="assets/runner_algorithm_matrix.html" style="width:100%;height:530px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
       </div>
     </div>
   </section>

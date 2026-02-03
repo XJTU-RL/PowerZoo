@@ -44,6 +44,25 @@
     });
   }
 
+  // Diagram tab switching
+  var diagramTabs = document.querySelectorAll(".diagram-tab");
+  if (diagramTabs.length) {
+    diagramTabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var target = this.getAttribute("data-target");
+        // Deactivate all tabs and hide all content
+        diagramTabs.forEach(function (t) { t.classList.remove("active"); });
+        document.querySelectorAll(".diagram-content").forEach(function (c) {
+          c.style.display = "none";
+        });
+        // Activate clicked tab and show content
+        this.classList.add("active");
+        var el = document.getElementById(target);
+        if (el) el.style.display = "block";
+      });
+    });
+  }
+
   // Navbar background on scroll
   var navbar = document.getElementById("navbar");
   if (navbar) {

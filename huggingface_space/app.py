@@ -46,6 +46,13 @@ with open(DATA_DIR / "algorithms.json") as f:
 with open(DATA_DIR / "sample_training.json") as f:
 	TRAINING = json.load(f)
 
+# Architecture diagram JSON data (Plotly figures)
+ARCH_FIGS = {}
+for fig_name in ["algorithm_hierarchy", "training_pipeline", "runner_algorithm_matrix"]:
+	fig_path = DATA_DIR / f"{fig_name}.json"
+	if fig_path.exists():
+		ARCH_FIGS[fig_name] = go.Figure(json.loads(fig_path.read_text()))
+
 # === Color Palette ===
 COLORS = {
 	"primary": "#1565c0",
@@ -599,6 +606,30 @@ def build_app() -> gr.Blocks:
 					label="Algorithm Feature Matrix",
 					interactive=False,
 				)
+
+			# --------------------------------------------------------
+			# Tab 6: Architecture Diagrams
+			# --------------------------------------------------------
+			with gr.Tab("Architecture Diagrams"):
+				gr.Markdown(
+					"""
+					## Interactive Architecture Diagrams
+					Explore the algorithm inheritance hierarchy, training pipeline flow,
+					and runner-algorithm compatibility matrix.
+					"""
+				)
+
+				if "algorithm_hierarchy" in ARCH_FIGS:
+					gr.Markdown("### Algorithm Inheritance Hierarchy")
+					gr.Plot(value=ARCH_FIGS["algorithm_hierarchy"])
+
+				if "training_pipeline" in ARCH_FIGS:
+					gr.Markdown("### Training Pipeline Flow")
+					gr.Plot(value=ARCH_FIGS["training_pipeline"])
+
+				if "runner_algorithm_matrix" in ARCH_FIGS:
+					gr.Markdown("### Runner-Algorithm Compatibility Matrix")
+					gr.Plot(value=ARCH_FIGS["runner_algorithm_matrix"])
 
 		# Footer
 		gr.Markdown(
