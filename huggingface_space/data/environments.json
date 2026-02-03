@@ -1,0 +1,156 @@
+{
+  "PowerZoo VVC": {
+    "id": "powerzoo",
+    "description": "Volt-VAR Control environment using OpenDSS simulation with capacitors, regulators, and batteries",
+    "features": [
+      "Capacitor switching",
+      "Voltage regulator tap control",
+      "Battery dispatch",
+      "Real-time OpenDSS co-simulation"
+    ],
+    "action_space": "Hybrid (Discrete + Continuous)",
+    "observation": "Bus voltages, power flows, device states, load profiles",
+    "reward": "Power loss minimization + voltage violation penalty + control cost",
+    "systems": {
+      "13Bus": {
+        "name": "IEEE 13-Bus",
+        "buses": 13,
+        "capacitors": 2,
+        "regulators": 3,
+        "batteries": 2,
+        "agents": 6,
+        "episode_length": 24,
+        "action_type": "Discrete (33 levels)",
+        "description": "Small-scale distribution feeder for rapid prototyping"
+      },
+      "34Bus": {
+        "name": "IEEE 34-Bus",
+        "buses": 34,
+        "capacitors": 2,
+        "regulators": 2,
+        "batteries": 2,
+        "agents": 6,
+        "episode_length": 360,
+        "action_type": "Discrete (33 levels)",
+        "description": "Medium-scale feeder with long rural laterals"
+      },
+      "123Bus": {
+        "name": "IEEE 123-Bus",
+        "buses": 123,
+        "capacitors": 4,
+        "regulators": 4,
+        "batteries": 4,
+        "agents": 8,
+        "episode_length": 24,
+        "action_type": "Discrete (33 levels)",
+        "description": "Large-scale unbalanced distribution system"
+      },
+      "8500Node": {
+        "name": "IEEE 8500-Node",
+        "buses": 8500,
+        "capacitors": 9,
+        "regulators": 4,
+        "batteries": 4,
+        "agents": 12,
+        "episode_length": 24,
+        "action_type": "Discrete (33 levels)",
+        "description": "Largest IEEE test feeder for scalability testing"
+      }
+    }
+  },
+  "SmartGrid": {
+    "id": "smartgrid",
+    "description": "Modular smart grid environment with PV integration and curriculum learning support",
+    "features": [
+      "PV curtailment control",
+      "Curriculum learning phases",
+      "Modular component architecture",
+      "Configurable PV penetration levels"
+    ],
+    "action_space": "Hybrid (Discrete + Continuous)",
+    "observation": "Voltage profiles, PV generation, load demand, weather data",
+    "reward": "Power loss + PV utilization + voltage quality",
+    "systems": {
+      "34Bus_PV_Conservative": {
+        "name": "34-Bus PV Conservative",
+        "buses": 34,
+        "pv_capacity_kw": 720,
+        "pv_penetration": "40.7%",
+        "pv_systems": 3,
+        "episode_length": 360,
+        "action_type": "Continuous",
+        "description": "Low PV penetration scenario for baseline comparison"
+      },
+      "34Bus_PV_Optimized": {
+        "name": "34-Bus PV Optimized",
+        "buses": 34,
+        "pv_capacity_kw": 900,
+        "pv_penetration": "50.8%",
+        "pv_systems": 3,
+        "episode_length": 360,
+        "action_type": "Continuous",
+        "description": "Balanced PV deployment with optimized placement"
+      },
+      "34Bus_PV_Aggressive": {
+        "name": "34-Bus PV Aggressive",
+        "buses": 34,
+        "pv_capacity_kw": 1080,
+        "pv_penetration": "61.0%",
+        "pv_systems": 3,
+        "episode_length": 360,
+        "action_type": "Continuous",
+        "description": "High PV penetration stress test scenario"
+      }
+    }
+  },
+  "Stackelberg Game": {
+    "id": "stackelberg",
+    "description": "Leader-follower game between utility company and consumers with TOU pricing",
+    "features": [
+      "UC vs Consumer game structure",
+      "Time-of-Use pricing",
+      "ESS management",
+      "N-1 security analysis"
+    ],
+    "action_space": "Continuous",
+    "observation": "Market signals, load profiles, DER status, price history",
+    "reward": "UC: revenue maximization; Consumer: cost minimization + comfort",
+    "systems": {
+      "13Bus": {
+        "name": "IEEE 13-Bus Stackelberg",
+        "buses": 13,
+        "uc_agents": 1,
+        "consumer_agents": 8,
+        "total_agents": 9,
+        "episode_length": 24,
+        "action_type": "Continuous",
+        "description": "Small-scale market simulation with 8 consumer zones"
+      }
+    }
+  },
+  "DSR": {
+    "id": "dsr",
+    "description": "Distribution System Restoration environment with fault recovery and action masking",
+    "features": [
+      "Dynamic network topology",
+      "Action masking for invalid operations",
+      "Load priority levels",
+      "Fault scenario generation"
+    ],
+    "action_space": "Discrete (with action mask)",
+    "observation": "Network topology, DG status, PV output, load priorities, switch states",
+    "reward": "Load restoration + voltage quality - overload penalty",
+    "systems": {
+      "123Bus": {
+        "name": "IEEE 123-Bus DSR",
+        "buses": 123,
+        "diesel_generators": 7,
+        "pv_systems": 9,
+        "switches": 20,
+        "episode_length": 15,
+        "action_type": "Discrete (with mask)",
+        "description": "Large-scale fault recovery with 7 DGs and 9 PVs"
+      }
+    }
+  }
+}

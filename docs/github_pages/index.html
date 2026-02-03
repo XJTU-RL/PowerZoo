@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PowerZoo: A Universal MARL Platform for Power System Control</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#hero" class="nav-logo">⚡ PowerZoo</a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#environments">Environments</a></li>
+        <li><a href="#algorithms">Algorithms</a></li>
+        <li><a href="#getting-started">Get Started</a></li>
+        <li><a href="#citation">Citation</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Section 1: Hero -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <h1>PowerZoo</h1>
+      <p class="hero-subtitle">A Universal Multi-Agent Reinforcement Learning Platform<br>for Power System Control</p>
+      <p class="hero-tagline">IEEE Transactions on Smart Grid, 2025</p>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number">4</span>
+          <span class="stat-label">Environments</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">15</span>
+          <span class="stat-label">Algorithms</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">9</span>
+          <span class="stat-label">IEEE Systems</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">MIT</span>
+          <span class="stat-label">License</span>
+        </div>
+      </div>
+      <div class="hero-buttons">
+        <a href="#getting-started" class="btn btn-primary">Get Started</a>
+        <a href="https://github.com/XJTU-RL/PowerZoo" class="btn btn-outline" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2: Architecture -->
+  <section class="section" id="architecture">
+    <div class="container">
+      <h2>Architecture</h2>
+      <p class="section-desc">PowerZoo employs a layered architecture that cleanly separates training orchestration, algorithm implementation, neural network models, and environment simulation.</p>
+      <div class="architecture-img">
+        <img src="assets/architecture.svg" alt="PowerZoo Architecture Diagram" loading="lazy">
+      </div>
+      <div class="arch-layers">
+        <div class="arch-card">
+          <h3>Training Layer</h3>
+          <p>On-policy and off-policy runners with shared buffer management, logging, and evaluation loops.</p>
+        </div>
+        <div class="arch-card">
+          <h3>Algorithm Layer</h3>
+          <p>15 MARL algorithms including HAPPO, MAPPO, MADDPG, QMIX, and two-timescale VVC methods.</p>
+        </div>
+        <div class="arch-card">
+          <h3>Model Layer</h3>
+          <p>Flexible policy and value function networks with MLP, RNN, and attention-based architectures.</p>
+        </div>
+        <div class="arch-card">
+          <h3>Environment Layer</h3>
+          <p>4 power system environments with OpenDSS co-simulation, supporting 9 IEEE test feeders.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Environments -->
+  <section class="section section-alt" id="environments">
+    <div class="container">
+      <h2>Environments</h2>
+      <p class="section-desc">Four diverse power system environments covering voltage control, renewable integration, electricity markets, and fault recovery.</p>
+      <div class="env-grid">
+        <div class="env-card">
+          <div class="env-icon">🔌</div>
+          <h3>PowerZoo VVC</h3>
+          <p class="env-desc">Volt-VAR Control with capacitor switching, regulator tap adjustment, and battery dispatch via real-time OpenDSS co-simulation.</p>
+          <div class="env-tags">
+            <span class="tag">Capacitors</span>
+            <span class="tag">Regulators</span>
+            <span class="tag">Batteries</span>
+          </div>
+          <p class="env-systems">Systems: 13-Bus, 34-Bus, 123-Bus, 8500-Node</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">☀️</div>
+          <h3>SmartGrid</h3>
+          <p class="env-desc">Modular smart grid environment with high-penetration PV integration, curriculum learning, and configurable PV expansion scenarios.</p>
+          <div class="env-tags">
+            <span class="tag">PV Control</span>
+            <span class="tag">Curriculum Learning</span>
+            <span class="tag">Modular</span>
+          </div>
+          <p class="env-systems">Systems: 34-Bus PV (Conservative / Optimized / Aggressive)</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">📊</div>
+          <h3>Stackelberg Game</h3>
+          <p class="env-desc">Leader-follower game between a utility company and consumers with TOU pricing, ESS management, and N-1 security analysis.</p>
+          <div class="env-tags">
+            <span class="tag">UC Leader</span>
+            <span class="tag">8 Consumers</span>
+            <span class="tag">TOU Pricing</span>
+          </div>
+          <p class="env-systems">Systems: 13-Bus</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">🔧</div>
+          <h3>DSR</h3>
+          <p class="env-desc">Distribution System Restoration with diesel generators, PV systems, and switches for post-fault service recovery with action masking.</p>
+          <div class="env-tags">
+            <span class="tag">7 DGs</span>
+            <span class="tag">9 PVs</span>
+            <span class="tag">20 Switches</span>
+          </div>
+          <p class="env-systems">Systems: 123-Bus</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4: Algorithms -->
+  <section class="section" id="algorithms">
+    <div class="container">
+      <h2>Algorithms</h2>
+      <p class="section-desc">A comprehensive suite of 15 multi-agent reinforcement learning algorithms.</p>
+      <div class="table-wrapper">
+        <table class="algo-table">
+          <thead>
+            <tr>
+              <th>Algorithm</th>
+              <th>Type</th>
+              <th>Policy</th>
+              <th>Action Space</th>
+              <th>Key Feature</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>HAPPO</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>Heterogeneous-Agent PPO with sequential update</td></tr>
+            <tr><td>HATRPO</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>Trust region optimization with Krylov subspace</td></tr>
+            <tr><td>HAA2C</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>Advantage Actor-Critic for heterogeneous agents</td></tr>
+            <tr><td>MAPPO</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>Multi-Agent PPO with centralized value function</td></tr>
+            <tr><td>SN-MAPPO</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>MAPPO with stochastic network architecture</td></tr>
+            <tr><td>DAN-HAPPO</td><td>On-Policy</td><td>Stochastic</td><td>Discrete/Continuous</td><td>Dynamic attention network for agent communication</td></tr>
+            <tr><td>HADDPG</td><td>Off-Policy</td><td>Deterministic</td><td>Continuous</td><td>Heterogeneous-Agent DDPG with experience replay</td></tr>
+            <tr><td>HATD3</td><td>Off-Policy</td><td>Deterministic</td><td>Continuous</td><td>Twin delayed DDPG for reduced overestimation</td></tr>
+            <tr><td>HASAC</td><td>Off-Policy</td><td>Stochastic</td><td>Continuous</td><td>Maximum entropy RL with auto temperature tuning</td></tr>
+            <tr><td>MADDPG</td><td>Off-Policy</td><td>Deterministic</td><td>Continuous</td><td>Centralized critic with decentralized actors</td></tr>
+            <tr><td>MATD3</td><td>Off-Policy</td><td>Deterministic</td><td>Continuous</td><td>Multi-Agent TD3 with clipped double Q-learning</td></tr>
+            <tr><td>QMIX</td><td>Value-Based</td><td>Greedy</td><td>Discrete</td><td>Monotonic value factorization via mixing network</td></tr>
+            <tr><td>HAD3QN</td><td>Value-Based</td><td>Greedy</td><td>Discrete</td><td>Dueling Double DQN for heterogeneous agents</td></tr>
+            <tr><td>SHOM</td><td>Hybrid</td><td>Mixed</td><td>Hybrid</td><td>Shared heterogeneous observation model</td></tr>
+            <tr><td>2TS-VVC</td><td>Two-Timescale</td><td>Mixed</td><td>Hybrid</td><td>Slow SACD + Fast DDPG for VVC coordination</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5: Getting Started -->
+  <section class="section section-alt" id="getting-started">
+    <div class="container">
+      <h2>Getting Started</h2>
+      <p class="section-desc">Set up PowerZoo in minutes with conda and pip.</p>
+
+      <h3>Installation</h3>
+      <div class="code-block">
+        <pre><code># Clone the repository
+git clone https://github.com/XJTU-RL/PowerZoo.git
+cd PowerZoo
+
+# Create conda environment
+conda env create -f environment.yml
+conda activate powerzoo
+
+# Or install via pip
+pip install -r requirements.txt</code></pre>
+      </div>
+
+      <h3>Quick Start</h3>
+      <div class="code-block">
+        <pre><code># Train HAPPO on IEEE 13-Bus VVC environment
+python examples/multi_agent/scripts/train.py \
+    --env powerzoo \
+    --algo happo \
+    --system 13Bus \
+    --num_env_steps 100000 \
+    --experiment_name my_first_run</code></pre>
+      </div>
+
+      <div class="demo-link">
+        <p>Try the interactive demo on HuggingFace Spaces:</p>
+        <a href="https://huggingface.co/spaces/XJTU-RL/PowerZoo" class="btn btn-primary" target="_blank" rel="noopener">Launch Demo</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 6: Citation -->
+  <section class="section" id="citation">
+    <div class="container">
+      <h2>Paper &amp; Citation</h2>
+      <p class="section-desc">If you use PowerZoo in your research, please cite our paper.</p>
+      <div class="citation-box">
+        <p class="paper-title">PowerZoo: A Universal Multi-Agent Reinforcement Learning Platform for Power System Control</p>
+        <p class="paper-venue">IEEE Transactions on Smart Grid, 2025</p>
+      </div>
+      <h3>BibTeX</h3>
+      <div class="code-block">
+        <pre><code>@article{powerzoo2025,
+  title={PowerZoo: A Universal Multi-Agent Reinforcement Learning
+         Platform for Power System Control},
+  author={XJTU-RL Group},
+  journal={IEEE Transactions on Smart Grid},
+  year={2025},
+  publisher={IEEE}
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>PowerZoo &mdash; MIT License &mdash; <a href="https://github.com/XJTU-RL" target="_blank" rel="noopener">XJTU-RL</a></p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
