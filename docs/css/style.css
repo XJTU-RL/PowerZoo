@@ -90,6 +90,22 @@ body {
   border-bottom-color: var(--primary);
 }
 
+/* Language Switch */
+.lang-switch {
+  background: var(--primary);
+  color: #fff !important;
+  padding: 4px 12px !important;
+  border-radius: 4px;
+  font-size: 0.8rem !important;
+  border-bottom: none !important;
+}
+
+.lang-switch:hover {
+  background: var(--primary-dark);
+  color: #fff !important;
+  border-bottom: none !important;
+}
+
 /* Hamburger */
 .hamburger {
   display: none;

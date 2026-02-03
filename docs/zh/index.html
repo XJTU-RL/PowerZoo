@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PowerZoo：面向电力系统控制的通用多智能体强化学习平台</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#hero" class="nav-logo">⚡ PowerZoo</a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#architecture">架构</a></li>
+        <li><a href="#diagrams">交互图表</a></li>
+        <li><a href="#environments">环境</a></li>
+        <li><a href="#algorithms">算法</a></li>
+        <li><a href="#getting-started">快速开始</a></li>
+        <li><a href="#citation">引用</a></li>
+        <li><a href="../index.html" class="lang-switch">EN</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Section 1: Hero -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <h1>PowerZoo</h1>
+      <p class="hero-subtitle">面向电力系统控制的通用多智能体强化学习平台</p>
+      <p class="hero-tagline">IEEE Transactions on Smart Grid, 2025</p>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number">4</span>
+          <span class="stat-label">仿真环境</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">15</span>
+          <span class="stat-label">MARL算法</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">9</span>
+          <span class="stat-label">IEEE测试系统</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">MIT</span>
+          <span class="stat-label">开源协议</span>
+        </div>
+      </div>
+      <div class="hero-buttons">
+        <a href="#getting-started" class="btn btn-primary">快速开始</a>
+        <a href="https://github.com/XJTU-RL/PowerZoo" class="btn btn-outline" target="_blank" rel="noopener">GitHub 仓库</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2: Architecture -->
+  <section class="section" id="architecture">
+    <div class="container">
+      <h2>系统架构</h2>
+      <p class="section-desc">PowerZoo 采用分层架构设计，将训练编排、算法实现、神经网络模型与环境仿真清晰解耦。</p>
+      <div class="architecture-img">
+        <img src="../assets/architecture.svg" alt="PowerZoo 架构图" loading="lazy">
+      </div>
+      <div class="arch-layers">
+        <div class="arch-card">
+          <h3>训练层</h3>
+          <p>On-policy 与 Off-policy 运行器，提供统一的缓冲区管理、日志记录和评估循环。</p>
+        </div>
+        <div class="arch-card">
+          <h3>算法层</h3>
+          <p>15种MARL算法，涵盖 HAPPO、MAPPO、MADDPG、QMIX 及双时间尺度VVC方法。</p>
+        </div>
+        <div class="arch-card">
+          <h3>模型层</h3>
+          <p>灵活的策略网络和价值函数网络，支持 MLP、RNN 和注意力机制架构。</p>
+        </div>
+        <div class="arch-card">
+          <h3>环境层</h3>
+          <p>4个电力系统环境，基于 OpenDSS 联合仿真，支持9个IEEE标准测试馈线。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2.5: Interactive Architecture Diagrams -->
+  <section class="section section-alt" id="diagrams">
+    <div class="container">
+      <h2>交互式架构图表</h2>
+      <p class="section-desc">交互探索算法继承体系、训练流水线以及运行器-算法映射关系。</p>
+
+      <div class="diagram-tabs">
+        <button class="diagram-tab active" data-target="tab-hierarchy">算法继承体系</button>
+        <button class="diagram-tab" data-target="tab-pipeline">训练流水线</button>
+        <button class="diagram-tab" data-target="tab-matrix">运行器-算法矩阵</button>
+      </div>
+
+      <div class="diagram-content" id="tab-hierarchy">
+        <iframe src="../assets/algorithm_hierarchy.html" style="width:100%;height:680px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-pipeline" style="display:none;">
+        <iframe src="../assets/training_pipeline.html" style="width:100%;height:730px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+      <div class="diagram-content" id="tab-matrix" style="display:none;">
+        <iframe src="../assets/runner_algorithm_matrix.html" style="width:100%;height:530px;border:none;border-radius:8px;background:#fff;" loading="lazy"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Environments -->
+  <section class="section section-alt" id="environments">
+    <div class="container">
+      <h2>仿真环境</h2>
+      <p class="section-desc">四个多样化的电力系统环境，覆盖电压控制、新能源接入、电力市场和故障恢复。</p>
+      <div class="env-grid">
+        <div class="env-card">
+          <div class="env-icon">🔌</div>
+          <h3>PowerZoo VVC</h3>
+          <p class="env-desc">电压无功控制环境：通过电容器投切、调压器分接头调节和储能调度，基于 OpenDSS 实时联合仿真实现配电网电压无功优化。</p>
+          <div class="env-tags">
+            <span class="tag">电容器</span>
+            <span class="tag">调压器</span>
+            <span class="tag">储能</span>
+          </div>
+          <p class="env-systems">测试系统：13节点、34节点、123节点、8500节点</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">☀️</div>
+          <h3>SmartGrid</h3>
+          <p class="env-desc">模块化智能电网环境：支持高渗透率光伏接入、课程学习策略及可配置的光伏扩展场景。</p>
+          <div class="env-tags">
+            <span class="tag">光伏控制</span>
+            <span class="tag">课程学习</span>
+            <span class="tag">模块化</span>
+          </div>
+          <p class="env-systems">测试系统：34节点光伏（保守型 / 优化型 / 激进型）</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">📊</div>
+          <h3>Stackelberg 博弈</h3>
+          <p class="env-desc">电力公司与消费者之间的领导者-跟随者博弈，包含分时电价、储能管理和 N-1 安全分析。</p>
+          <div class="env-tags">
+            <span class="tag">电力公司（领导者）</span>
+            <span class="tag">8个消费者</span>
+            <span class="tag">分时电价</span>
+          </div>
+          <p class="env-systems">测试系统：13节点</p>
+        </div>
+        <div class="env-card">
+          <div class="env-icon">🔧</div>
+          <h3>DSR 配网重构</h3>
+          <p class="env-desc">配电系统故障恢复环境：通过柴油发电机、光伏系统和开关操作实现故障后负荷恢复，支持动作掩码机制。</p>
+          <div class="env-tags">
+            <span class="tag">7台柴发</span>
+            <span class="tag">9个光伏</span>
+            <span class="tag">20个开关</span>
+          </div>
+          <p class="env-systems">测试系统：123节点</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4: Algorithms -->
+  <section class="section" id="algorithms">
+    <div class="container">
+      <h2>算法库</h2>
+      <p class="section-desc">涵盖15种多智能体强化学习算法的完整工具集。</p>
+      <div class="table-wrapper">
+        <table class="algo-table">
+          <thead>
+            <tr>
+              <th>算法</th>
+              <th>类型</th>
+              <th>策略</th>
+              <th>动作空间</th>
+              <th>核心特性</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>HAPPO</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>异构智能体PPO，顺序更新策略</td></tr>
+            <tr><td>HATRPO</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>基于Krylov子空间的信赖域优化</td></tr>
+            <tr><td>HAA2C</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>面向异构智能体的优势Actor-Critic</td></tr>
+            <tr><td>MAPPO</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>多智能体PPO，集中式价值函数</td></tr>
+            <tr><td>SN-MAPPO</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>随机网络架构的MAPPO</td></tr>
+            <tr><td>DAN-HAPPO</td><td>On-Policy</td><td>随机</td><td>离散/连续</td><td>动态注意力网络实现智能体通信</td></tr>
+            <tr><td>HADDPG</td><td>Off-Policy</td><td>确定性</td><td>连续</td><td>异构智能体DDPG，经验回放</td></tr>
+            <tr><td>HATD3</td><td>Off-Policy</td><td>确定性</td><td>连续</td><td>双延迟DDPG，降低过估计</td></tr>
+            <tr><td>HASAC</td><td>Off-Policy</td><td>随机</td><td>连续</td><td>最大熵RL，自动温度调节</td></tr>
+            <tr><td>MADDPG</td><td>Off-Policy</td><td>确定性</td><td>连续</td><td>集中式Critic，分散式Actor</td></tr>
+            <tr><td>MATD3</td><td>Off-Policy</td><td>确定性</td><td>连续</td><td>多智能体TD3，裁剪双Q学习</td></tr>
+            <tr><td>QMIX</td><td>值分解</td><td>贪心</td><td>离散</td><td>单调值分解，混合网络</td></tr>
+            <tr><td>HAD3QN</td><td>值分解</td><td>贪心</td><td>离散</td><td>异构智能体Dueling Double DQN</td></tr>
+            <tr><td>SHOM</td><td>混合</td><td>混合</td><td>混合</td><td>共享异构观测模型</td></tr>
+            <tr><td>2TS-VVC</td><td>双时间尺度</td><td>混合</td><td>混合</td><td>慢SACD + 快DDPG 协调VVC</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5: Getting Started -->
+  <section class="section section-alt" id="getting-started">
+    <div class="container">
+      <h2>快速开始</h2>
+      <p class="section-desc">通过 conda 和 pip 快速搭建 PowerZoo 环境。</p>
+
+      <h3>安装</h3>
+      <div class="code-block">
+        <pre><code># 克隆仓库
+git clone https://github.com/XJTU-RL/PowerZoo.git
+cd PowerZoo
+
+# 创建 conda 环境
+conda env create -f environment.yml
+conda activate powerzoo
+
+# 或通过 pip 安装
+pip install -r requirements.txt</code></pre>
+      </div>
+
+      <h3>快速启动</h3>
+      <div class="code-block">
+        <pre><code># 在 IEEE 13节点 VVC 环境上训练 HAPPO 算法
+python examples/multi_agent/scripts/train.py \
+    --env powerzoo \
+    --algo happo \
+    --system 13Bus \
+    --num_env_steps 100000 \
+    --experiment_name my_first_run</code></pre>
+      </div>
+
+      <div class="demo-link">
+        <p>在 HuggingFace Spaces 体验交互式演示：</p>
+        <a href="https://huggingface.co/spaces/XJTU-RL/PowerZoo" class="btn btn-primary" target="_blank" rel="noopener">启动演示</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 6: Citation -->
+  <section class="section" id="citation">
+    <div class="container">
+      <h2>论文与引用</h2>
+      <p class="section-desc">如果您在研究中使用了 PowerZoo，请引用我们的论文。</p>
+      <div class="citation-box">
+        <p class="paper-title">PowerZoo: A Universal Multi-Agent Reinforcement Learning Platform for Power System Control</p>
+        <p class="paper-venue">IEEE Transactions on Smart Grid, 2025</p>
+      </div>
+      <h3>BibTeX</h3>
+      <div class="code-block">
+        <pre><code>@article{powerzoo2025,
+  title={PowerZoo: A Universal Multi-Agent Reinforcement Learning
+         Platform for Power System Control},
+  author={XJTU-RL Group},
+  journal={IEEE Transactions on Smart Grid},
+  year={2025},
+  publisher={IEEE}
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>PowerZoo &mdash; MIT 协议 &mdash; <a href="https://github.com/XJTU-RL" target="_blank" rel="noopener">XJTU-RL</a></p>
+    </div>
+  </footer>
+
+  <script src="../js/main.js"></script>
+</body>
+</html>
