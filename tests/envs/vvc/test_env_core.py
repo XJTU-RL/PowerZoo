@@ -27,7 +27,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestActionSpaceImport:
 	"""测试 ActionSpace 模块导入"""
 
@@ -44,7 +44,7 @@ class TestActionSpaceImport:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestActionSpaceDiscrete:
 	"""测试离散 ActionSpace"""
 
@@ -138,7 +138,7 @@ class TestActionSpaceDiscrete:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestActionSpaceContinuous:
 	"""测试连续 ActionSpace"""
 
@@ -202,7 +202,7 @@ class TestActionSpaceContinuous:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestActionSpaceEdgeCases:
 	"""测试 ActionSpace 边界条件"""
 
@@ -263,7 +263,7 @@ class TestActionSpaceEdgeCases:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestEnvAttributes:
 	"""测试 Env 类属性"""
 
@@ -290,7 +290,7 @@ class TestEnvAttributes:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvInitialization:
 	"""测试 Env 类初始化（需要 OpenDSS）"""
@@ -367,7 +367,7 @@ class TestEnvInitialization:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvReset:
 	"""测试 Env reset 功能"""
@@ -431,7 +431,7 @@ class TestEnvReset:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvStep:
 	"""测试 Env step 功能"""
@@ -533,7 +533,7 @@ class TestEnvStep:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvReward:
 	"""测试 Env 奖励函数"""
@@ -603,7 +603,7 @@ class TestEnvReward:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvHelperFunctions:
 	"""测试 Env 辅助函数"""
@@ -664,7 +664,7 @@ class TestEnvHelperFunctions:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestEnvObservation:
 	"""测试 Env 观测相关功能"""
@@ -733,7 +733,7 @@ class TestEnvObservation:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestHelperFunctions:
 	"""测试辅助函数"""
 
@@ -763,7 +763,7 @@ class TestHelperFunctions:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestFFTSelection:
 	"""测试 FFT_selection 函数"""
 

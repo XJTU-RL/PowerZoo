@@ -323,25 +323,30 @@ class StackelbergBaseEnv:
             )
     
     def _init_observation_spaces(self):
-        """Initialize observation spaces for UC and consumers."""
+        """Initialize observation spaces for UC and consumers.
+
+        所有 agent 使用统一的观测维度（=UC obs_dim），consumer 观测通过零填充对齐。
+        这避免了 ShareDummyVecEnv 中 np.array(obs) 因异构形状失败的问题。
+        """
         self.observation_spaces = {}
-        
+
         # UC observation: system-wide information
         uc_obs_dim = 10 + self.n_buses * 2  # System stats + bus voltages/powers
+        self.max_obs_dim = uc_obs_dim  # 统一的观测维度，consumer 将零填充到此维度
+
         self.observation_spaces[self.uc_agent_id] = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
             shape=(uc_obs_dim,),
             dtype=np.float32
         )
-        
-        # Consumer observations: local information + UC signals
-        consumer_obs_dim = 15  # Local state + price signals + comfort
+
+        # Consumer observations: 使用与 UC 相同的维度（零填充对齐）
         for agent_id in self.consumer_agent_ids:
             self.observation_spaces[agent_id] = gym.spaces.Box(
                 low=-np.inf,
                 high=np.inf,
-                shape=(consumer_obs_dim,),
+                shape=(uc_obs_dim,),
                 dtype=np.float32
             )
     
@@ -391,6 +396,12 @@ class StackelbergBaseEnv:
         self.uc_action_buffer = None
         self.consumer_actions_buffer.clear()
         self.action_history.clear()
+
+        # Reset ESS SOC to initial value (episode independence)
+        self.ess_soc = self.ess_config.get('initial_soc', 0.5)
+
+        # Reset agent states (cumulative_consumption etc.)
+        self.agent_states = {}
         
         # Get initial system state
         self._update_system_state()
@@ -601,12 +612,12 @@ class StackelbergBaseEnv:
         else:
             obs_components.extend([0.0, 0.0, 0.0])
         
-        # Pad to fixed size
+        # Pad to unified obs dimension (=max_obs_dim, same as UC)
         obs_array = np.array(obs_components, dtype=np.float32)
-        if len(obs_array) < 15:
-            obs_array = np.pad(obs_array, (0, 15 - len(obs_array)), 'constant')
-        
-        return obs_array[:15]
+        if len(obs_array) < self.max_obs_dim:
+            obs_array = np.pad(obs_array, (0, self.max_obs_dim - len(obs_array)), 'constant')
+
+        return obs_array[:self.max_obs_dim]
     
     def _execute_circuit_actions(self):
         """

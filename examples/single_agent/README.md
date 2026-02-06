@@ -12,7 +12,7 @@ single_agent/
 │   ├── train_with_enhanced_callback.py # 增强回调训练
 │   └── enhanced_tensorboard_callback.py # TensorBoard回调
 └── launchers/                   # Shell启动脚本
-    ├── train_single_agent_powerzoo_pv.sh # PowerZoo PV训练
+    ├── train_single_agent_vvc_pv.sh # PowerZoo PV训练
     ├── train_single_pv_discrete.sh       # 离散PV控制训练
     ├── train_single.sh                   # 通用单智能体训练
     └── test_ddpg.sh                      # DDPG测试脚本
@@ -25,7 +25,7 @@ single_agent/
 ```bash
 # 使用PPO算法训练
 cd launchers
-./train_single_agent_powerzoo_pv.sh
+./train_single_agent_vvc_pv.sh
 
 # 使用Python脚本直接训练
 python scripts/train_single_agent.py
@@ -163,7 +163,7 @@ callback = EnhancedTensorBoardCallback(
     log_freq=100,
     save_freq=10000,
     save_path="./models/",
-    name_prefix="ppo_powerzoo"
+    name_prefix="ppo_vvc"
 )
 
 # 训练时使用
@@ -216,7 +216,7 @@ config = SingleAgentConfig(
 ### 保存模型
 ```python
 # 训练后保存
-model.save("models/ppo_powerzoo_final")
+model.save("models/ppo_vvc_final")
 
 # 训练中定期保存（使用回调）
 callback = CheckpointCallback(
@@ -231,7 +231,7 @@ callback = CheckpointCallback(
 from stable_baselines3 import PPO
 
 # 加载已训练模型
-model = PPO.load("models/ppo_powerzoo_final")
+model = PPO.load("models/ppo_vvc_final")
 
 # 继续训练
 model.set_env(env)

@@ -61,16 +61,16 @@ class DSRCoreEnv:
         from utils.path_utils import get_system_folder
 
         # 获取PowerZoo配置
-        powerzoo_config = self.config.to_powerzoo_config()
+        vvc_config = self.config.to_vvc_config()
 
         # 构建DSS文件路径（使用统一路径工具）
         dss_folder = str(get_system_folder(self.config.system_name))
-        dss_file_path = os.path.join(dss_folder, powerzoo_config['dss_file'])
+        dss_file_path = os.path.join(dss_folder, vvc_config['dss_file'])
         
         # 创建Circuits对象
         self.circuit = Circuits(
             dss_file_path,
-            RB_act_num=(powerzoo_config['reg_act_num'], powerzoo_config['bat_act_num']),
+            RB_act_num=(vvc_config['reg_act_num'], vvc_config['bat_act_num']),
             dss_act=False
         )
         
@@ -88,7 +88,7 @@ class DSRCoreEnv:
         self.load_profile = LoadProfile(
             self.config.max_episode_steps,
             dss_folder,
-            powerzoo_config['dss_file'],
+            vvc_config['dss_file'],
             worker_idx=self.worker_idx
         )
         # DSR LoadProfile 不生成动态负荷曲线，使用静态文件数
@@ -571,102 +571,7 @@ class DSRCoreEnv:
         )
         
         return obs, state, rewards, self.done, info
-    
-    def _execute_actions(self, actions: List[int]):
-        """执行智能体动作"""
-        # 开关智能体动作
-        switch_action = actions[0]
-        # 确保switch_action是标量值
-        if hasattr(switch_action, 'item'):
-            switch_action = switch_action.item()
-        switch_action = int(switch_action)
-        
-        if switch_action > 0 and switch_action <= len(self.faultable_lines):
-            action_results['switch']['attempted'] = 1
-            # 选择操作的线路（排除故障线路）
-            available_lines = [line for line in self.faultable_lines 
-                             if line not in self.fault_lines]
-            if available_lines and switch_action <= len(available_lines):
-                line_name = available_lines[switch_action - 1]
-                # 切换线路状态
-                current_state = self.line_info[line_name]['enabled']
-                new_state = not current_state
-                
-                try:
-                    # 使用DSS文本命令设置线路启用/禁用状态
-                    enabled_str = 'yes' if new_state else 'no'
-                    self.circuit.dss.Text.Command = f'line.{line_name}.enabled={enabled_str}'
-                    self.line_info[line_name]['enabled'] = new_state
-                    action_results['switch']['successful'] = 1
-                    action_results['switch']['line_name'] = line_name
-                    action_results['switch']['new_state'] = new_state
-                except:
-                    action_results['switch']['failed'] = 1
-        
-        # PV智能体动作
-        for i, pv_agent in enumerate(self.pv_agents):
-            if 1 + i < len(actions):
-                pv_action = actions[1 + i]
-                # 确保pv_action是标量值
-                if hasattr(pv_action, 'item'):
-                    pv_action = pv_action.item()
-                pv_action = int(pv_action)
-                
-                # 设置PV输出功率（配置的等级范围）
-                max_level = self.config.pv_power_levels - 1
-                if 0 <= pv_action <= max_level:
-                    power_ratio = pv_action / max_level
-                    old_power = pv_agent['current_power']
-                    new_power = power_ratio * pv_agent['max_power']
-                    pv_agent['current_power'] = new_power
-                    
-                    power_change = new_power - old_power
-                    action_results['pv']['adjustments'].append({
-                        'agent_id': 1 + i,
-                        'old_power': old_power,
-                        'new_power': new_power,
-                        'change': power_change
-                    })
-                    action_results['pv']['total_power_change'] += power_change
-        
-        # 负荷智能体动作
-        for i, load_agent in enumerate(self.load_agents):
-            action_idx = 1 + self.n_pv_agents + i
-            if action_idx < len(actions):
-                load_action = actions[action_idx]
-                # 确保load_action是标量值
-                if hasattr(load_action, 'item'):
-                    load_action = load_action.item()
-                load_action = int(load_action)
-                
-                # 处理聚合负荷智能体管理的所有负荷
-                managed_loads = load_agent.get('managed_loads', [load_agent['load_name']])
-                
-                for load_name in managed_loads:
-                    if load_name not in self.load_info:
-                        continue
-                        
-                    if load_action == 1:  # 尝试恢复负荷
-                        action_results['load']['attempted_restore'] += 1
-                        # 检查负荷所在母线是否通电
-                        load_bus = self.load_info[load_name]['bus']
-                        if load_bus in self.energized_buses:
-                            try:
-                                # 使用DSS文本命令设置负荷启用状态
-                                self.circuit.dss.Text.Command = f'load.{load_name}.enabled=yes'
-                                self.load_info[load_name]['enabled'] = True
-                                action_results['load']['successful_restore'] += 1
-                            except:
-                                action_results['load']['failed_restore'] += 1
-                        else:
-                            action_results['load']['failed_restore'] += 1
-                    elif load_action == 0:  # 断开负荷
-                        # 使用DSS文本命令设置负荷禁用状态
-                        self.circuit.dss.Text.Command = f'load.{load_name}.enabled=no'
-                        self.load_info[load_name]['enabled'] = False
-        
-        return action_results
-    
+
     def _calculate_rewards(self, converged: bool) -> List[float]:
         """计算奖励"""
         if not converged:

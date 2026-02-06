@@ -1,10 +1,13 @@
 
 import os
-import gym
+try:
+    import gymnasium as gym
+except ImportError:
+    import gym
 import numpy as np
 from envs.smartgrid.circuit_system import Circuits
 from envs.smartgrid.data_process.loadprofile import LoadProfile
-from envs.smartgrid.rewards.powerzoo_reward import PowerZooReward
+from envs.smartgrid.rewards.vvc_reward import VVCReward
 from envs.smartgrid.rewards.lagrangian import LagrangianUpdater
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -263,7 +266,7 @@ class Env(gym.Env):
                self.cap_num + self.reg_num + self.bat_num + self.pv_num >= 1, 'invalid CRBP_num'
 
         self.topology = self.build_graph()
-        self.reward_func = PowerZooReward(self, info)
+        self.reward_func = VVCReward(self, info)
         self.t = 0
 
         # CMDP和Lagrangian配置

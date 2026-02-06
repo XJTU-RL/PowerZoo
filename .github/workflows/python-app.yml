@@ -109,7 +109,7 @@ jobs:
         with:
           files: ./coverage.xml
           flags: unittests
-          name: codecov-powerzoo
+          name: codecov-vvc
           fail_ci_if_error: false
         continue-on-error: true
 

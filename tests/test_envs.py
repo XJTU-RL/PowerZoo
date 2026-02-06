@@ -26,7 +26,7 @@ class TestEnvRegistry:
 		from envs import ENV_REGISTRY
 
 		# Check for expected environment types
-		expected_envs = ["powerzoo", "smartgrid", "dsr", "stackelberg"]
+		expected_envs = ["vvc", "smartgrid", "dsr", "stackelberg"]
 		for env_name in expected_envs:
 			assert env_name in ENV_REGISTRY, f"Missing environment: {env_name}"
 
@@ -106,7 +106,7 @@ class TestVVCEnv:
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo Env: {e}")
 
-	def test_powerzoo_circuit_import(self):
+	def test_vvc_circuit_import(self):
 		"""Test PowerZoo circuit import."""
 		try:
 			from envs.vvc.vvc.circuit import Circuits
@@ -144,12 +144,12 @@ class TestSmartGridEnv:
 			pytest.fail(f"Failed to import PowerZoo LLM Env: {e}")
 
 	def test_smartgrid_reward_import(self):
-		"""Test PowerZooReward import."""
+		"""Test VVCReward import."""
 		try:
-			from envs.smartgrid.rewards.powerzoo_reward import PowerZooReward
-			assert PowerZooReward is not None
+			from envs.smartgrid.rewards.vvc_reward import VVCReward
+			assert VVCReward is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooReward: {e}")
+			pytest.fail(f"Failed to import VVCReward: {e}")
 
 	def test_lagrangian_updater_import(self):
 		"""Test LagrangianUpdater import."""
@@ -210,15 +210,15 @@ class TestActionSpaces:
 	def test_action_selector_import(self):
 		"""Test ActionSelector import."""
 		try:
-			from envs.smartgrid.base_env.env import PowerZooActionSelector
-			assert PowerZooActionSelector is not None
+			from envs.smartgrid.base_env.vvc_config import VVCActionSelector
+			assert VVCActionSelector is not None
 		except ImportError as e:
 			# Try alternate location
 			try:
-				from envs.smartgrid import PowerZooActionSelector
-				assert PowerZooActionSelector is not None
+				from envs.smartgrid import VVCActionSelector
+				assert VVCActionSelector is not None
 			except ImportError:
-				pytest.skip("PowerZooActionSelector not found in expected locations")
+				pytest.skip("VVCActionSelector not found in expected locations")
 
 
 @pytest.mark.unit

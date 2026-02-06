@@ -93,7 +93,7 @@ max_reverse_flow: 200  # kW
 ### 1. 在训练脚本中使用
 ```python
 # PowerZoo专用训练脚本
-python train_powerzoo.py --pv_plan optimized
+python train_vvc.py --pv_plan optimized
 
 # 通用训练脚本
 python train.py \

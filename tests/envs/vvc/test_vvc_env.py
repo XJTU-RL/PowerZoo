@@ -11,11 +11,11 @@ import gym
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestVVCEnvBasics:
 	"""Test basic PowerZoo environment functionality."""
 
-	def test_import_powerzoo(self):
+	def test_import_vvc(self):
 		"""Test that PowerZoo module can be imported."""
 		try:
 			from envs.vvc import VVCEnv
@@ -41,7 +41,7 @@ class TestVVCEnvBasics:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvCreation:
 	"""Test PowerZoo environment creation and initialization."""
@@ -54,26 +54,26 @@ class TestVVCEnvCreation:
 		with pytest.raises(Exception):
 			env = VVCEnv()
 
-	def test_env_creation_with_config(self, powerzoo_config, skip_if_no_opendss):
+	def test_env_creation_with_config(self, vvc_config, skip_if_no_opendss):
 		"""Test environment creation with valid configuration."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 		assert env is not None
 		assert hasattr(env, "reset")
 		assert hasattr(env, "step")
 
-	def test_observation_space(self, powerzoo_config, skip_if_no_opendss):
+	def test_observation_space(self, vvc_config, skip_if_no_opendss):
 		"""Test that observation space is properly defined."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 
 		assert hasattr(env, "observation_space")
 		assert isinstance(env.observation_space, (gym.Space, list))
@@ -83,14 +83,14 @@ class TestVVCEnvCreation:
 			for space in env.observation_space:
 				assert isinstance(space, gym.Space)
 
-	def test_action_space(self, powerzoo_config, skip_if_no_opendss):
+	def test_action_space(self, vvc_config, skip_if_no_opendss):
 		"""Test that action space is properly defined."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 
 		assert hasattr(env, "action_space")
 		assert isinstance(env.action_space, (gym.Space, list))
@@ -102,19 +102,19 @@ class TestVVCEnvCreation:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvReset:
 	"""Test PowerZoo environment reset functionality."""
 
-	def test_reset_returns_observation(self, powerzoo_config, skip_if_no_opendss):
+	def test_reset_returns_observation(self, vvc_config, skip_if_no_opendss):
 		"""Test that reset returns valid observations."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 		observations = env.reset()
 
 		assert observations is not None
@@ -126,16 +126,16 @@ class TestVVCEnvReset:
 		else:
 			assert isinstance(observations, np.ndarray)
 
-	def test_reset_reproducibility(self, powerzoo_config, skip_if_no_opendss):
+	def test_reset_reproducibility(self, vvc_config, skip_if_no_opendss):
 		"""Test that reset with same seed produces same initial state."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
 		# Create two environments with same seed
-		env1 = VVCEnv(**powerzoo_config)
-		env2 = VVCEnv(**powerzoo_config)
+		env1 = VVCEnv(**vvc_config)
+		env2 = VVCEnv(**vvc_config)
 
 		obs1 = env1.reset()
 		obs2 = env2.reset()
@@ -147,20 +147,20 @@ class TestVVCEnvReset:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 @pytest.mark.slow
 class TestVVCEnvStep:
 	"""Test PowerZoo environment step functionality."""
 
-	def test_step_returns_tuple(self, powerzoo_config, skip_if_no_opendss):
+	def test_step_returns_tuple(self, vvc_config, skip_if_no_opendss):
 		"""Test that step returns (obs, reward, done, info) tuple."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 		env.reset()
 
 		# Sample a random action
@@ -179,14 +179,14 @@ class TestVVCEnvStep:
 		assert isinstance(done, (bool, dict))
 		assert isinstance(info, dict) or isinstance(info, list)
 
-	def test_step_multiple_times(self, powerzoo_config, skip_if_no_opendss):
+	def test_step_multiple_times(self, vvc_config, skip_if_no_opendss):
 		"""Test that environment can step multiple times."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
-		env = VVCEnv(**powerzoo_config)
+		env = VVCEnv(**vvc_config)
 		env.reset()
 
 		num_steps = 10
@@ -206,15 +206,15 @@ class TestVVCEnvStep:
 			elif isinstance(done, dict) and all(done.values()):
 				break
 
-	def test_episode_termination(self, powerzoo_config, skip_if_no_opendss):
+	def test_episode_termination(self, vvc_config, skip_if_no_opendss):
 		"""Test that episodes terminate correctly."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc import VVCEnv
 
 		# Set short episode length for testing
-		config = powerzoo_config.copy()
+		config = vvc_config.copy()
 		config["episode_length"] = 5
 		config["max_steps"] = 5
 
@@ -245,7 +245,7 @@ class TestVVCEnvStep:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestCircuitModule:
 	"""Test Circuit module functionality."""
 
@@ -255,19 +255,19 @@ class TestCircuitModule:
 		assert Circuits is not None
 
 	@pytest.mark.requires_opendss
-	def test_circuit_creation(self, powerzoo_config, skip_if_no_opendss):
+	def test_circuit_creation(self, vvc_config, skip_if_no_opendss):
 		"""Test circuit creation with DSS file."""
-		if powerzoo_config["dss_file"] is None:
+		if vvc_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
 		from envs.vvc.vvc.circuit import Circuits
 
-		circuit = Circuits(dss_file=powerzoo_config["dss_file"])
+		circuit = Circuits(dss_file=vvc_config["dss_file"])
 		assert circuit is not None
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileModule:
 	"""Test LoadProfile module functionality."""
 

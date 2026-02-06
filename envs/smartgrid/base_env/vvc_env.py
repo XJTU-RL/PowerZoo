@@ -6,8 +6,12 @@
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
 """
 import copy
-import gym
-from gym.spaces import Discrete, Box, MultiDiscrete
+try:
+    import gymnasium as gym
+    from gymnasium.spaces import Discrete, Box, MultiDiscrete
+except ImportError:
+    import gym
+    from gym.spaces import Discrete, Box, MultiDiscrete
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -44,7 +48,7 @@ def get_training_logger() -> logging.Logger:
     """获取训练专用日志记录器"""
     global _training_logger
     if _training_logger is None:
-        _training_logger = setup_training_logger("powerzoo_training")
+        _training_logger = setup_training_logger("vvc_training")
     return _training_logger
 
 
@@ -60,7 +64,7 @@ def seeding(seed: int) -> None:
 
 
 class VVCEnv:
-    """PowerZoo环境类（集成优化功能）"""
+    """VVC环境类（集成优化功能）"""
     
     def __init__(self, env, config, rank: Optional[int] = None):
         """
@@ -99,7 +103,7 @@ class VVCEnv:
         self._enable_system_logging = getattr(config, 'enable_system_logging', False)
         self._system_logger = None  # 系统日志功能已整合到统一日志系统
         
-        logger.info(f"PowerZoo环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
+        logger.info(f"VVC环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
         self._training_logger.info(
             f"环境初始化 | 智能体数: {self.n_agents} | 环境数: {self.num_env} | "
             f"电容器: {self.cap_num} | 调压器: {self.reg_num} | 电池: {self.bat_num} | "
@@ -716,7 +720,7 @@ class VVCEnv:
         return (
             safe_obs,                                             # local_obs
             safe_obs,                                             # global_state
-            [[0.0]],                                              # rewards
+            np.zeros((self.n_agents, 1)),                          # rewards
             np.array([True] * self.n_agents, dtype=bool),         # dones (numpy array)
             [{"error": True, "safe_mode": True}],                 # infos
             self.get_avail_actions()                              # available_actions

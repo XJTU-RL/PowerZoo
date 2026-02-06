@@ -1,7 +1,10 @@
 """Tools."""
 import torch
 import numpy as np
-from gym.spaces import Box, Discrete, Tuple
+try:
+    from gymnasium.spaces import Box, Discrete, Tuple
+except ImportError:
+    from gym.spaces import Box, Discrete, Tuple
 
 
 def _t2n(value):

@@ -15,7 +15,10 @@
 
 import torch
 import numpy as np
-from gym.spaces import Discrete, Box, Tuple as SpaceTuple, MultiDiscrete
+try:
+    from gymnasium.spaces import Discrete, Box, Tuple as SpaceTuple, MultiDiscrete
+except ImportError:
+    from gym.spaces import Discrete, Box, Tuple as SpaceTuple, MultiDiscrete
 from utils.trans_tools import _flatten, _sa_cast
 from utils.envs_tools import get_shape_from_obs_space
 

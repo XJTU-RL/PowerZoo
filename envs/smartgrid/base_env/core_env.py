@@ -24,7 +24,10 @@
   - Support random action sampling and dummy action generation
 """
 import os
-import gym
+try:
+    import gymnasium as gym
+except ImportError:
+    import gym
 import numpy as np
 from envs.smartgrid.circuit_system import Circuits
 from envs.smartgrid.data_process.loadprofile import LoadProfile
@@ -348,7 +351,7 @@ class Env(gym.Env):
 			obs_dict = {
 				'bus_voltages': gym.spaces.Box(0.8, 1.2, shape=(nnode,)),
 				'cap_statuses': gym.spaces.MultiDiscrete([2]*self.cap_num),
-				'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.cap_num),
+				'reg_statuses': gym.spaces.MultiDiscrete([self.reg_act_num]*self.reg_num),
 				'bat_statuses': gym.spaces.Dict(bat_dict)
 			}
 			if observe_load: obs_dict['load_profile_t'] = gym.spaces.Box(0.0, 1.0, shape=(nload,))

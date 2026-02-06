@@ -66,7 +66,7 @@ use_feature_normalization: true  # 使用特征归一化
 use_popart: false  # 不使用PopArt
 
 # 环境特定设置
-env_name: "single_agent_powerzoo"  # 环境名称
+env_name: "single_agent_vvc"  # 环境名称
 scenario_name: "13Bus_pv_discrete"  # 场景名称
 
 # 单智能体环境配置

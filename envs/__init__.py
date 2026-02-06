@@ -19,7 +19,7 @@ LOGGER_REGISTRY = {
 	"stackelberg_34bus": StackelbergLogger,
 	"stackelberg_123bus": StackelbergLogger,
 	# Backward compatibility - these were incorrectly mapped to Env/factory in main
-	"stackelberg_powerzoo": StackelbergLogger,
+	"stackelberg_vvc": StackelbergLogger,
 }
 
 # Environment registry - maps environment names to environment classes (Stackelberg only)
@@ -28,11 +28,11 @@ ENV_REGISTRY = {
 	"stackelberg_13bus": StackelbergVVCEnv,
 	"stackelberg_34bus": StackelbergVVCEnv,
 	"stackelberg_123bus": StackelbergVVCEnv,
-	"stackelberg_powerzoo": StackelbergVVCEnv,
+	"stackelberg_vvc": StackelbergVVCEnv,
 }
 
 # Environment factory functions (Stackelberg only)
 ENV_FACTORY = {
 	"stackelberg": make_stackelberg_env,
-	"stackelberg_powerzoo": make_stackelberg_env,
+	"stackelberg_vvc": make_stackelberg_env,
 }

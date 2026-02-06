@@ -158,7 +158,7 @@ def analyze_project():
 
 	# Directories to analyze
 	dirs_to_analyze = [
-		PROJECT_ROOT / "envs" / "powerzoo",
+		PROJECT_ROOT / "envs" / "vvc",
 		PROJECT_ROOT / "envs" / "smartgrid",
 		PROJECT_ROOT / "algorithms",
 		PROJECT_ROOT / "runners",

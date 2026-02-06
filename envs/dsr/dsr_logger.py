@@ -178,7 +178,7 @@ class DSRLogger:
         ) = data
         
         # 如果启用了监控器，更新可视化
-        if self.monitor and infos:
+        if self.monitor and infos is not None:
             # 使用第一个环境的信息
             self.monitor.update(infos[0], self.total_env_steps)
         

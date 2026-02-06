@@ -96,7 +96,7 @@ class DSRConfig:
     # IEEE 123节点系统配置
     ieee123_load_count: int = 85  # IEEE 123节点系统的典型负荷数量
     
-    def to_powerzoo_config(self) -> Dict[str, Any]:
+    def to_vvc_config(self) -> Dict[str, Any]:
         """转换为PowerZoo格式的配置"""
         # 根据系统名称自动选择DSS文件
         dss_files = {

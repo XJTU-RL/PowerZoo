@@ -196,7 +196,7 @@ exploration_decay: 0.995
 
 # Logging and debugging
 use_wandb: False  # Weights & Biases logging
-wandb_project: stackelberg_powerzoo
+wandb_project: stackelberg_vvc
 wandb_entity: null
 verbose: True
 debug: False

@@ -269,7 +269,7 @@ def main():
     parser = argparse.ArgumentParser(description="通用增强训练脚本（增强版）")
     
     # 环境参数
-    parser.add_argument('--env-type', type=str, choices=['vvc', 'powerzoo', 'gym'], 
+    parser.add_argument('--env-type', type=str, choices=['vvc', 'gym'], 
                        default='gym', help='环境类型')
     parser.add_argument('--config', type=str, help='PowerZoo配置文件路径（支持相对路径和绝对路径）')
     parser.add_argument('--gym-env', type=str, default='CartPole-v1', 
@@ -295,7 +295,7 @@ def main():
     args = parser.parse_args()
     
     # 处理配置文件路径
-    if args.config and args.env_type in ('vvc', 'powerzoo'):
+    if args.config and args.env_type == 'vvc':
         config_path = Path(args.config)
         if not config_path.is_absolute():
             # 如果是相对路径，尝试在标准配置目录中查找
@@ -316,7 +316,7 @@ def main():
             print(f"使用绝对路径配置文件: {args.config}")
     
     # 验证参数
-    if args.env_type in ('vvc', 'powerzoo'):
+    if args.env_type == 'vvc':
         if not args.config:
             print("Error: PowerZoo environment requires --config parameter")
             return

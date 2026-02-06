@@ -355,7 +355,7 @@ def test_nash_gap_tracking():
 		return False
 
 
-def test_powerzoo_compatibility():
+def test_vvc_compatibility():
 	"""Test PowerZoo interface compatibility."""
 	logger.info("=" * 50)
 	logger.info("Testing PowerZoo interface compatibility...")
@@ -435,7 +435,7 @@ def run_all_tests():
 		("Step Execution", test_step_execution),
 		("Async Wrapper", test_async_wrapper),
 		("Episode Completion", test_episode_completion),
-		("PowerZoo Compatibility", test_powerzoo_compatibility),
+		("VVC Compatibility", test_vvc_compatibility),
 		("Monitoring", test_monitoring),
 		("Nash Gap Tracking", test_nash_gap_tracking)
 	]

@@ -43,7 +43,7 @@ envs/stackelberg/
 - Provides visualization capabilities.
 
 ### 5. **circuit_adapter.py**
-- Acts as a bridge to the underlying `powerzoo` circuit simulation.
+- Acts as a bridge to the underlying VVC circuit simulation.
 - Translates high-level actions into low-level OpenDSS commands.
 - Fetches system state data from the simulation.
 

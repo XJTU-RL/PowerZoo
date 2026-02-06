@@ -88,7 +88,7 @@ class StackelbergVVCEnv:
         
         # Create monitor if enabled
         self.monitor = None
-        if self.env_config.get('monitoring_config', {}).get('enabled', True):
+        if self.env_config.get('monitoring_config', {}).get('enable', True):
             monitor_config = self.env_config['monitoring_config']
             monitor_config['experiment_name'] = args.get('exp_name', None)
             self.monitor = StackelbergMonitor(
@@ -98,7 +98,7 @@ class StackelbergVVCEnv:
             )
         
         # Set environment properties for PowerZoo compatibility
-        self._setup_powerzoo_compatibility()
+        self._setup_vvc_compatibility()
         
         # Episode tracking
         self.current_episode = 0
@@ -145,7 +145,7 @@ class StackelbergVVCEnv:
             if key in args:
                 self.env_config[key] = args[key]
     
-    def _setup_powerzoo_compatibility(self):
+    def _setup_vvc_compatibility(self):
         """Setup properties for PowerZoo compatibility."""
         # Number of agents
         self.n_agents = self.base_env.n_agents
@@ -380,18 +380,8 @@ class StackelbergVVCEnv:
             return self.observation_spaces[0].n
     
     def get_state_size(self):
-        """Get global state size."""
-        # Global state could be concatenation of all observations
-        # plus additional system information
-        total_obs_size = sum(
-            space.shape[0] if hasattr(space, 'shape') else space.n
-            for space in self.observation_spaces.values()
-        )
-        
-        # Add system state dimensions
-        system_state_size = 10  # Placeholder
-        
-        return total_obs_size + system_state_size
+        """Get global state size (consistent with share_observation_space)."""
+        return self.share_observation_space[0].shape[0]
     
     def get_total_actions(self):
         """Get total number of actions (for discrete action spaces)."""

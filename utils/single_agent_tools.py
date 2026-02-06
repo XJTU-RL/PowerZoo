@@ -466,7 +466,7 @@ def load_model_and_config(
         # 重建配置对象
         config = SingleAgentTrainingConfig(
             algorithm=config_dict.get("algorithm", algorithm),
-            environment=config_dict.get("environment", "powerzoo_single"),
+            environment=config_dict.get("environment", "vvc_single"),
             experiment_name=config_dict.get("experiment_name", "loaded_model")
         )
         logger.info(f"成功加载配置: {config_path}")

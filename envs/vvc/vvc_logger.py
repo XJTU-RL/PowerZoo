@@ -225,15 +225,15 @@ class VVCLogger(BaseLogger):
 
         # 更新训练奖励
         self.train_episode_rewards += reward_env
-        self.train_episode_powerloss_reward += powerloss_reward_env/24
+        self.train_episode_powerloss_reward += powerloss_reward_env
         self.train_episode_voltage_reward += voltage_reward_env
         self.train_episode_ctrl_reward += ctrl_reward_env
-        
-        # 更新 power_loss 奖励
-        self.train_episode_power_loss_kw += power_loss_kw_env/24
-        self.train_episode_power_loss_kvar += power_loss_kvar_env/24
-        self.train_episode_total_power_kw += total_power_kw_env/24
-        self.train_episode_total_power_kvar += total_power_kvar_env/24
+
+        # 更新 power_loss 物理量（累加原始值，在 episode_log 中归一化）
+        self.train_episode_power_loss_kw += power_loss_kw_env
+        self.train_episode_power_loss_kvar += power_loss_kvar_env
+        self.train_episode_total_power_kw += total_power_kw_env
+        self.train_episode_total_power_kvar += total_power_kvar_env
         self.train_episode_capacitor_control += capacitor_ctrl_env
         self.train_episode_regulator_control += regulator_ctrl_env
         self.train_episode_discharge_control += discharge_ctrl_env
@@ -800,7 +800,7 @@ class VVCLogger(BaseLogger):
 
     def close(self):
         """Close the logger."""
-        self.log_file.close()
+        super().close()
 
     def get_result(self):
         """获取训练和评估的结果"""

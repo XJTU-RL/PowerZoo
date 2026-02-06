@@ -6,8 +6,12 @@
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
 """
 import copy
-import gym
-from gym.spaces import Discrete, Box, MultiDiscrete
+try:
+    import gymnasium as gym
+    from gymnasium.spaces import Discrete, Box, MultiDiscrete
+except ImportError:
+    import gym
+    from gym.spaces import Discrete, Box, MultiDiscrete
 import matplotlib.pyplot as plt
 import numpy as np
 import imageio
@@ -87,7 +91,11 @@ class VVCEnv:
             ):
                 info["bad_transition"] = True
         
-        return self.unwrap(obs), self.unwrap(obs), [[rew]], self.unwrap(done), [info], self.get_avail_actions()
+        # 统一返回格式: rewards (n_agents, 1), dones (n_agents,), infos list of n_agents dicts
+        rewards = np.array([[float(rew)]] * self.n_agents, dtype=np.float32)
+        dones = np.array([bool(done)] * self.n_agents, dtype=bool)
+        infos = [info] * self.n_agents
+        return self.unwrap(obs), self.unwrap(obs), rewards, dones, infos, self.get_avail_actions()
     
     def _convert_actions_to_env_format(self, actions):
         """

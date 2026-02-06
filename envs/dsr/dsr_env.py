@@ -5,9 +5,15 @@ DSR Environment
 """
 
 import copy
-import gym
 import numpy as np
-from gym.spaces import Discrete, Box
+
+# Conditional gym/gymnasium import
+try:
+	import gymnasium as gym
+	from gymnasium.spaces import Discrete, Box
+except ImportError:
+	import gym
+	from gym.spaces import Discrete, Box
 from typing import List, Dict, Any, Tuple, Optional
 
 from envs.dsr.core.dsr_core import DSRCoreEnv
@@ -259,13 +265,17 @@ class DSREnv:
         return local_obs, global_state, rewards_array, dones_array, infos_list, available_actions
     
     def _step_dan(self, actions):
-        """DAN算法增强的环境步进"""
-        # 执行动作
-        self.dsr_core.step(actions)
+        """DAN算法增强的环境步进
+
+        使用 dsr_core.step() 推进仿真（动作执行 + 潮流计算），
+        但用 DAN 特有的奖励函数替代标准奖励。
+        """
+        # 执行动作并获取仿真结果（利用 core 的返回值避免重复计算）
+        obs_result, _, _, _, _ = self.dsr_core.step(actions)
         self.current_step += 1
-        
-        # 获取观测
-        observations = self.dsr_core._get_observations()
+
+        # 使用 core.step() 返回的观测（避免冗余调用 _get_observations）
+        observations = obs_result
         
         # 计算奖励
         rewards = []

@@ -25,7 +25,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestEnvRegisterImport:
 	"""测试 env_register 模块导入"""
 
@@ -54,7 +54,7 @@ class TestEnvRegisterImport:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestEnvInfoDictionaries:
 	"""测试环境信息字典"""
 
@@ -105,7 +105,7 @@ class TestEnvInfoDictionaries:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestGetInfoAndFolder:
 	"""测试 get_info_and_folder 函数"""
 
@@ -153,7 +153,7 @@ class TestGetInfoAndFolder:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestMakeBaseEnv:
 	"""测试 make_base_env 工厂函数"""
@@ -208,7 +208,7 @@ class TestMakeBaseEnv:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestMakeBaseEnv13Bus:
 	"""测试 13Bus 环境创建"""
@@ -253,7 +253,7 @@ class TestMakeBaseEnv13Bus:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestRemoveParallelDSS:
 	"""测试 remove_parallel_dss 清理函数"""
 
@@ -284,7 +284,7 @@ class TestRemoveParallelDSS:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestEnvironmentVariants:
 	"""测试不同环境变体的配置"""
 
@@ -325,7 +325,7 @@ class TestEnvironmentVariants:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestConfigValidation:
 	"""测试配置验证"""
 

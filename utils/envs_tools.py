@@ -62,7 +62,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 
             elif env_name == "smartgrid":
                 # Use VVCEnv for smartgrid environment
-                from envs.smartgrid.base_env.powerzoo_env import VVCEnv
+                from envs.smartgrid.base_env.vvc_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
@@ -118,7 +118,7 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 env = VVCEnv(env_args,rank)
                 
             elif env_name == "smartgrid":
-                from envs.smartgrid.base_env.powerzoo_env import VVCEnv
+                from envs.smartgrid.base_env.vvc_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
@@ -178,7 +178,7 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "smartgrid": #smartgrid环境渲染支持
-        from envs.smartgrid.base_env.powerzoo_env import VVCEnv
+        from envs.smartgrid.base_env.vvc_env import VVCEnv
         from envs.smartgrid.base_env.env_register import make_base_env
         
         # 简化的配置传递
@@ -240,6 +240,8 @@ def get_num_agents(env, env_args, envs):
         return envs.n_agents
     elif env == "dsr":
         return envs.n_agents
+    elif env.startswith("stackelberg"):
+        return envs.n_agents
 
 # def get_agents_orders(env, env_args, envs):
 #     """Get the update_orders of agents in the environment."""
@@ -247,15 +249,17 @@ def get_num_agents(env, env_args, envs):
 #         return envs.update_orders
 def get_ordered_agents_pairs(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env in ("vvc", "powerzoo", "smartgrid"):  # powerzoo is backward compat
+    if env in ("vvc", "powerzoo", "smartgrid", "dsr"):  # powerzoo is backward compat
        if env_args.get("useS", False):
            return envs.ordered_agents_pairs
        else:
            return None
+    else:
+        return None
 
 def get_agents_bus(env, env_args, envs):
-    """Get the update_orders of agents in the environment."""
-    if env in ("vvc", "powerzoo", "smartgrid"):  # powerzoo is backward compat
+    """Get the agents_bus mapping in the environment."""
+    if env in ("vvc", "powerzoo", "smartgrid", "dsr"):  # powerzoo is backward compat
        if env_args.get("useS", False):
            return envs.agents_bus
        else:

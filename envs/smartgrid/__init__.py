@@ -1,12 +1,12 @@
 """
-PowerZoo - 电力系统多智能体强化学习环境
+SmartGrid - 电力系统多智能体强化学习环境
 
 该模块提供了基于OpenDSS的电力系统仿真环境，支持多智能体强化学习训练。
 """
 
-# 核心环境类（从本地core_env导入，不再依赖legacy powerzoo）
+# 核心环境类
 from .base_env.core_env import Env, ActionSpace
-from .base_env.powerzoo_env import VVCEnv, OptimizedVVCEnv
+from .base_env.vvc_env import VVCEnv, OptimizedVVCEnv
 
 # 电路和负载管理
 from .circuit_system import Circuits
@@ -17,14 +17,14 @@ from .base_env.env_register import make_base_env, remove_parallel_dss
 
 
 # 配置类
-from .base_env.powerzoo_config import (
+from .base_env.vvc_config import (
     OpenDSSScenario,
     OpenDSSConstraints,
     OpenDSSMetrics,
     VVCEnvConfig,
     OpenDSSExpertRules,
     OpenDSSStateAnalyzer,
-    PowerZooActionSelector,
+    VVCActionSelector,
 )
 
 # 版本信息
@@ -56,7 +56,7 @@ __all__ = [
     "VVCEnvConfig",
     "OpenDSSExpertRules",
     "OpenDSSStateAnalyzer",
-    "PowerZooActionSelector",
+    "VVCActionSelector",
 ]
 
 # 环境配置常量

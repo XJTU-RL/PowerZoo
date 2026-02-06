@@ -32,7 +32,7 @@ pytest -m unit
 pytest -m integration
 
 # PowerZoo environment tests
-pytest -m powerzoo
+pytest -m vvc
 
 # PowerZoo_LLM environment tests
 pytest -m smartgrid
@@ -57,7 +57,7 @@ pytest tests/envs/smartgrid/
 pytest tests/envs/vvc/test_vvc_env.py
 
 # Specific test function
-pytest tests/envs/vvc/test_vvc_env.py::TestVVCEnvBasics::test_import_powerzoo
+pytest tests/envs/vvc/test_vvc_env.py::TestVVCEnvBasics::test_import_vvc
 ```
 
 ### Code Coverage
@@ -85,7 +85,7 @@ tests/
 ├── conftest.py                    # Shared fixtures and configuration
 ├── pytest.ini                     # Pytest configuration (in project root)
 ├── envs/
-│   ├── powerzoo/
+│   ├── vvc/
 │   │   └── test_vvc_env.py   # PowerZoo environment tests
 │   └── smartgrid/
 │       └── test_smartgrid_env.py  # PowerZoo_LLM environment tests
@@ -99,7 +99,7 @@ Tests are categorized using pytest markers:
 - `@pytest.mark.unit`: Fast unit tests, no external dependencies
 - `@pytest.mark.integration`: Integration tests, may require system setup
 - `@pytest.mark.slow`: Slow tests, full environment simulation
-- `@pytest.mark.powerzoo`: Tests specific to PowerZoo environment
+- `@pytest.mark.vvc`: Tests specific to PowerZoo environment
 - `@pytest.mark.smartgrid`: Tests specific to PowerZoo_LLM environment
 - `@pytest.mark.requires_opendss`: Tests requiring OpenDSS installation
 - `@pytest.mark.requires_gpu`: Tests requiring GPU/CUDA

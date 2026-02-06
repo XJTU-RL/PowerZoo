@@ -4,7 +4,7 @@
 Test imports for all PowerZoo modules.
 
 This script systematically tests imports for all Python modules in the project,
-focusing on powerzoo and smartgrid environments.
+focusing on vvc and smartgrid environments.
 """
 
 import sys
@@ -108,7 +108,7 @@ def test_core_imports() -> Dict[str, Tuple[bool, str]]:
 		"envs.smartgrid.data_process.loadprofile",
 		"envs.smartgrid.data_process.loadprofile_core",
 		"envs.smartgrid.rewards",
-		"envs.smartgrid.rewards.powerzoo_reward",
+		"envs.smartgrid.rewards.vvc_reward",
 		"envs.smartgrid.rewards.lagrangian",
 		"envs.smartgrid.logging",
 		"envs.smartgrid.logging.base_logger",
@@ -199,14 +199,14 @@ def main():
 	core_results = test_core_imports()
 	core_success, core_failure = print_results(core_results, "Core Module Imports")
 
-	# Test powerzoo directory
+	# Test vvc directory
 	print(f"\n{YELLOW}Testing envs/vvc imports...{RESET}")
-	powerzoo_dir = PROJECT_ROOT / "envs" / "powerzoo"
-	if powerzoo_dir.exists():
-		powerzoo_results = test_all_imports(powerzoo_dir)
-		pz_success, pz_failure = print_results(powerzoo_results, "PowerZoo Environment Imports")
+	vvc_dir = PROJECT_ROOT / "envs" / "vvc"
+	if vvc_dir.exists():
+		vvc_results = test_all_imports(vvc_dir)
+		pz_success, pz_failure = print_results(vvc_results, "VVC Environment Imports")
 	else:
-		print(f"{RED}Directory not found: {powerzoo_dir}{RESET}")
+		print(f"{RED}Directory not found: {vvc_dir}{RESET}")
 		pz_success, pz_failure = 0, 0
 
 	# Test smartgrid directory

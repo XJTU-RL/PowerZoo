@@ -1,4 +1,4 @@
-# PowerZoo单智能体环境配置
+# VVC单智能体环境配置
 system_ref: 13Bus  # 系统引用（v2格式）
 env_name: 13Bus # 选择电力系统：13Bus, 34Bus, 123Bus, 8500Node
 

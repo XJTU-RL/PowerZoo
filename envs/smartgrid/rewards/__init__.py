@@ -1,10 +1,10 @@
 """
-PowerZoo CMDP奖励系统包
+VVC CMDP奖励系统包
 
 提供约束马尔可夫决策过程（CMDP）的奖励计算、拉格朗日更新、权重标定和可视化功能
 """
 
-from envs.smartgrid.rewards.powerzoo_reward import PowerZooReward
+from envs.smartgrid.rewards.vvc_reward import VVCReward
 from envs.smartgrid.rewards.lagrangian import (
 	LagrangianUpdater, 
 	MultiConstraintLagrangian
@@ -17,7 +17,7 @@ from envs.smartgrid.rewards.calibration import (
 from envs.smartgrid.rewards.visualize import RewardVisualizer
 
 __all__ = [
-	'PowerZooReward',
+	'VVCReward',
 	'LagrangianUpdater',
 	'MultiConstraintLagrangian',
 	'RewardCalibrator',

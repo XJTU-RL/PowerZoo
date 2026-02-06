@@ -5,7 +5,7 @@ SmartGrid base_env 模块
 """
 
 from envs.smartgrid.base_env.env import Env, ActionSpace
-from envs.smartgrid.base_env.powerzoo_env import VVCEnv, OptimizedVVCEnv
+from envs.smartgrid.base_env.vvc_env import VVCEnv, OptimizedVVCEnv
 from envs.smartgrid.base_env.env_register import make_base_env, make_env, remove_parallel_dss
 from envs.smartgrid.base_env.config_loader import load_config
 from envs.smartgrid.base_env.env_config import SmartGridConfig

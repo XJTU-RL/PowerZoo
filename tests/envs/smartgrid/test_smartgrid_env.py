@@ -42,10 +42,10 @@ class TestPowerZooLLMImports:
 	def test_import_rewards(self):
 		"""Test importing reward module."""
 		try:
-			from envs.smartgrid.rewards import PowerZooReward
-			assert PowerZooReward is not None
+			from envs.smartgrid.rewards import VVCReward
+			assert VVCReward is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooReward: {e}")
+			pytest.fail(f"Failed to import VVCReward: {e}")
 
 	def test_import_logging(self):
 		"""Test importing logging module."""
@@ -261,8 +261,8 @@ class TestRewardModule:
 
 	def test_reward_import(self):
 		"""Test reward module import."""
-		from envs.smartgrid.rewards import PowerZooReward
-		assert PowerZooReward is not None
+		from envs.smartgrid.rewards import VVCReward
+		assert VVCReward is not None
 
 	def test_lagrangian_import(self):
 		"""Test Lagrangian updater import."""

@@ -8,7 +8,7 @@
 multi_agent/
 ├── scripts/              # Python训练脚本
 │   ├── train.py         # 通用多智能体训练脚本
-│   ├── train_powerzoo.py # PowerZoo专用训练脚本
+│   ├── train_vvc.py # PowerZoo专用训练脚本
 │   ├── train_dsr_aggregation.py # DSR聚合训练
 │   ├── train_stackelberg.py # Stackelberg博弈训练
 │   ├── train_dan_happo.py # DAN-HAPPO训练
@@ -17,7 +17,7 @@ multi_agent/
     ├── quick_train_happo_pv.sh # 快速HAPPO训练
     ├── train_happo_pv_full.sh  # 完整参数HAPPO训练
     ├── train_marl_pv_.sh        # MARL PV训练
-    ├── train_powerzoo.sh        # PowerZoo通用训练
+    ├── train_vvc.sh        # PowerZoo通用训练
     └── run_dsr_aggregation.sh  # DSR聚合运行
 ```
 
@@ -27,7 +27,7 @@ multi_agent/
 
 ```bash
 # 使用Python脚本直接训练
-python scripts/train_powerzoo.py --pv_plan optimized --algo happo
+python scripts/train_vvc.py --pv_plan optimized --algo happo
 
 # 参数说明
 --pv_plan: [conservative|optimized|aggressive] # PV方案选择

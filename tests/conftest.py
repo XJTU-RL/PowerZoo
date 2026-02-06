@@ -84,7 +84,7 @@ def mock_config() -> Dict[str, Any]:
 # ==============================================================================
 
 @pytest.fixture
-def powerzoo_config(node_systems_dir: Path) -> Dict[str, Any]:
+def vvc_config(node_systems_dir: Path) -> Dict[str, Any]:
 	"""Return configuration for PowerZoo environment."""
 	system_13bus = node_systems_dir / "13Bus"
 
@@ -126,7 +126,7 @@ def smartgrid_config(node_systems_dir: Path) -> Dict[str, Any]:
 		"episode_length": 96,
 		"max_steps": 96,
 		"seed": 42,
-		"reward_type": "powerzoo",
+		"reward_type": "vvc",
 		"use_sparse_matrix": True,
 		"enable_logging": False,  # Disable logging in tests
 	}
@@ -194,7 +194,7 @@ def pytest_configure(config):
 		"markers", "slow: Slow tests"
 	)
 	config.addinivalue_line(
-		"markers", "powerzoo: PowerZoo environment tests"
+		"markers", "vvc: VVC environment tests"
 	)
 	config.addinivalue_line(
 		"markers", "smartgrid: SmartGrid environment tests"
@@ -213,8 +213,8 @@ def pytest_collection_modifyitems(config, items):
 		# Add markers based on test path
 		if "smartgrid" in str(item.fspath):
 			item.add_marker(pytest.mark.smartgrid)
-		elif "powerzoo" in str(item.fspath):
-			item.add_marker(pytest.mark.powerzoo)
+		elif "vvc" in str(item.fspath):
+			item.add_marker(pytest.mark.vvc)
 
 		# Mark slow tests
 		if "integration" in item.nodeid or "test_full" in item.nodeid:

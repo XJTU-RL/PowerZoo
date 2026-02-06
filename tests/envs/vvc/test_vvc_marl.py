@@ -10,7 +10,7 @@ PowerZoo MARL 包装器 (VVCEnv) 详细测试
 - reset/step 多智能体接口
 - 奖励分发
 
-@File      : test_powerzoo_marl.py
+@File      : test_vvc_marl.py
 @Author    : PowerZoo Test Suite
 """
 
@@ -26,7 +26,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestVVCEnvImport:
 	"""测试 VVCEnv 模块导入"""
 
@@ -58,7 +58,7 @@ class TestVVCEnvImport:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvInitialization:
 	"""测试 VVCEnv 初始化"""
@@ -121,7 +121,7 @@ class TestVVCEnvInitialization:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvSpaces:
 	"""测试 VVCEnv 空间定义"""
@@ -168,7 +168,7 @@ class TestVVCEnvSpaces:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvReset:
 	"""测试 VVCEnv reset 功能"""
@@ -216,7 +216,7 @@ class TestVVCEnvReset:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvStep:
 	"""测试 VVCEnv step 功能"""
@@ -283,7 +283,7 @@ class TestVVCEnvStep:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVVCEnvAvailActions:
 	"""测试 VVCEnv 可用动作功能"""
@@ -333,7 +333,7 @@ class TestVVCEnvAvailActions:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 @pytest.mark.slow
 class TestVVCEnvEpisode:
@@ -410,7 +410,7 @@ class TestVVCEnvEpisode:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestAgentDeviceMapping:
 	"""测试智能体-设备映射"""

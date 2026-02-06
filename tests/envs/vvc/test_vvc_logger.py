@@ -27,7 +27,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestVVCLoggerImport:
 	"""测试 VVCLogger 模块导入"""
 
@@ -62,7 +62,7 @@ class TestVVCLoggerImport:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestVVCLoggerInheritance:
 	"""测试 VVCLogger 继承关系"""
 
@@ -79,7 +79,7 @@ class TestVVCLoggerInheritance:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestVVCLoggerInit:
 	"""测试 VVCLogger 初始化"""
 
@@ -125,7 +125,7 @@ class TestVVCLoggerInit:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerArraysInit:
 	"""测试日志数组初始化"""
 
@@ -165,7 +165,7 @@ class TestLoggerArraysInit:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerEpisodeLog:
 	"""测试 Episode 日志功能"""
 
@@ -238,7 +238,7 @@ class TestLoggerEpisodeLog:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerEvalLog:
 	"""测试评估日志功能"""
 
@@ -309,7 +309,7 @@ class TestLoggerEvalLog:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerTensorBoard:
 	"""测试 TensorBoard 日志功能"""
 
@@ -364,7 +364,7 @@ class TestLoggerTensorBoard:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerFormat:
 	"""测试日志格式"""
 
@@ -408,7 +408,7 @@ class TestLoggerFormat:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerEdgeCases:
 	"""测试 Logger 边界条件"""
 
@@ -471,7 +471,7 @@ class TestLoggerEdgeCases:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoggerMetrics:
 	"""测试日志记录的指标"""
 

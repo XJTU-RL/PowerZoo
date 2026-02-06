@@ -245,7 +245,7 @@ def log_training_summary(logger: logging.Logger, episode: int, total_reward: flo
         logger.info(" | ".join(summary_items))
 
 
-def create_training_debug_logger(env_name: str = "powerzoo") -> logging.Logger:
+def create_training_debug_logger(env_name: str = "vvc") -> logging.Logger:
     """
     创建专门用于训练调试的日志记录器
     

@@ -1,7 +1,7 @@
 """
-PowerZoo环境配置系统
+VVC环境配置系统
 
-针对PowerZoo电力系统环境的特定配置、约束和枚举类型
+针对VVC电力系统环境的特定配置、约束和枚举类型
 """
 
 from typing import Dict, Any, Optional, List, Tuple
@@ -90,7 +90,7 @@ class OpenDSSMetrics:
 
 @dataclass
 class VVCEnvConfig:
-    """PowerZoo环境配置"""
+    """VVC环境配置"""
     # 基础环境配置
     env_name: str = "13Bus"
     scenario: OpenDSSScenario = OpenDSSScenario.NORMAL
@@ -425,8 +425,8 @@ class OpenDSSStateAnalyzer:
         return 0.0
 
 
-class PowerZooActionSelector:
-    """PowerZoo动作选择器"""
+class VVCActionSelector:
+    """VVC动作选择器"""
     
     def __init__(self, env, config: 'VVCEnvConfig'):
         self.env = env

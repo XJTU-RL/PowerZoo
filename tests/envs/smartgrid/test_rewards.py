@@ -3,7 +3,7 @@
 SmartGrid rewards 模块详细测试
 
 测试覆盖:
-- PowerZooReward CMDP 奖励函数
+- VVCReward CMDP 奖励函数
 - LagrangianUpdater 拉格朗日乘子更新
 - 奖励组件计算
 - 约束成本计算
@@ -27,20 +27,20 @@ from unittest.mock import Mock, patch, MagicMock
 class TestRewardsImport:
 	"""测试 rewards 模块导入"""
 
-	def test_powerzoo_reward_import(self):
-		"""测试 PowerZooReward 类导入"""
-		from envs.smartgrid.rewards import PowerZooReward
-		assert PowerZooReward is not None
+	def test_vvc_reward_import(self):
+		"""测试 VVCReward 类导入"""
+		from envs.smartgrid.rewards import VVCReward
+		assert VVCReward is not None
 
 	def test_lagrangian_updater_import(self):
 		"""测试 LagrangianUpdater 类导入"""
 		from envs.smartgrid.rewards import LagrangianUpdater
 		assert LagrangianUpdater is not None
 
-	def test_powerzoo_reward_from_module(self):
-		"""测试从模块导入 PowerZooReward"""
-		from envs.smartgrid.rewards.powerzoo_reward import PowerZooReward
-		assert PowerZooReward is not None
+	def test_vvc_reward_from_module(self):
+		"""测试从模块导入 VVCReward"""
+		from envs.smartgrid.rewards.vvc_reward import VVCReward
+		assert VVCReward is not None
 
 	def test_lagrangian_from_module(self):
 		"""测试从模块导入 LagrangianUpdater"""
@@ -49,17 +49,17 @@ class TestRewardsImport:
 
 
 # ==============================================================================
-# 单元测试 - PowerZooReward 类
+# 单元测试 - VVCReward 类
 # ==============================================================================
 
 @pytest.mark.unit
 @pytest.mark.smartgrid
-class TestPowerZooRewardInit:
-	"""测试 PowerZooReward 初始化"""
+class TestVVCRewardInit:
+	"""测试 VVCReward 初始化"""
 
-	def test_powerzoo_reward_has_required_methods(self):
-		"""验证 PowerZooReward 具有所有必需的方法"""
-		from envs.smartgrid.rewards import PowerZooReward
+	def test_vvc_reward_has_required_methods(self):
+		"""验证 VVCReward 具有所有必需的方法"""
+		from envs.smartgrid.rewards import VVCReward
 
 		required_methods = [
 			'voltage_cost',
@@ -68,11 +68,11 @@ class TestPowerZooRewardInit:
 		]
 
 		for method in required_methods:
-			assert hasattr(PowerZooReward, method), f"PowerZooReward 缺少方法: {method}"
+			assert hasattr(VVCReward, method), f"VVCReward 缺少方法: {method}"
 
-	def test_powerzoo_reward_creation(self):
-		"""测试 PowerZooReward 创建"""
-		from envs.smartgrid.rewards import PowerZooReward
+	def test_vvc_reward_creation(self):
+		"""测试 VVCReward 创建"""
+		from envs.smartgrid.rewards import VVCReward
 
 		# 创建 mock 环境
 		mock_env = Mock()
@@ -88,12 +88,12 @@ class TestPowerZooRewardInit:
 
 		info = {}
 
-		reward_func = PowerZooReward(mock_env, info)
+		reward_func = VVCReward(mock_env, info)
 		assert reward_func is not None
 
-	def test_powerzoo_reward_with_custom_weights(self):
-		"""测试使用自定义权重的 PowerZooReward"""
-		from envs.smartgrid.rewards import PowerZooReward
+	def test_vvc_reward_with_custom_weights(self):
+		"""测试使用自定义权重的 VVCReward"""
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {'bus_voltages': {'bus1': [1.0]}}
@@ -107,7 +107,7 @@ class TestPowerZooRewardInit:
 			'voltage_threshold': 0.03,
 		}
 
-		reward_func = PowerZooReward(mock_env, info)
+		reward_func = VVCReward(mock_env, info)
 
 		assert reward_func.weights['powerloss'] == 2.0
 		assert reward_func.weights['control'] == 0.8
@@ -121,8 +121,8 @@ class TestVoltageCost:
 
 	@pytest.fixture
 	def reward_func(self):
-		"""创建 PowerZooReward 实例"""
-		from envs.smartgrid.rewards import PowerZooReward
+		"""创建 VVCReward 实例"""
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {
@@ -135,7 +135,7 @@ class TestVoltageCost:
 		mock_env.reg_num = 3
 		mock_env.pv_num = 0
 
-		return PowerZooReward(mock_env, {})
+		return VVCReward(mock_env, {})
 
 	def test_voltage_cost_no_violation(self, reward_func):
 		"""测试无电压违规时的成本"""
@@ -172,8 +172,8 @@ class TestPowerlossReward:
 
 	@pytest.fixture
 	def reward_func(self):
-		"""创建 PowerZooReward 实例"""
-		from envs.smartgrid.rewards import PowerZooReward
+		"""创建 VVCReward 实例"""
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {
@@ -184,7 +184,7 @@ class TestPowerlossReward:
 		mock_env.reg_num = 3
 		mock_env.pv_num = 0
 
-		return PowerZooReward(mock_env, {})
+		return VVCReward(mock_env, {})
 
 	def test_powerloss_reward_returns_float(self, reward_func):
 		"""测试网损奖励返回浮点数"""
@@ -210,8 +210,8 @@ class TestControlReward:
 
 	@pytest.fixture
 	def reward_func(self):
-		"""创建 PowerZooReward 实例"""
-		from envs.smartgrid.rewards import PowerZooReward
+		"""创建 VVCReward 实例"""
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {'bus_voltages': {'bus1': [1.0]}}
@@ -219,7 +219,7 @@ class TestControlReward:
 		mock_env.reg_num = 3
 		mock_env.pv_num = 0
 
-		return PowerZooReward(mock_env, {})
+		return VVCReward(mock_env, {})
 
 	def test_control_reward_returns_float(self, reward_func):
 		"""测试控制奖励返回浮点数"""
@@ -330,7 +330,7 @@ class TestRewardWithEnvironment:
 
 	def test_reward_with_real_obs_structure(self):
 		"""测试使用真实观测结构的奖励计算"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		# 创建更真实的观测结构
 		mock_env = Mock()
@@ -347,7 +347,7 @@ class TestRewardWithEnvironment:
 		mock_env.reg_num = 2
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 
 		# 计算各组件
 		v_cost = reward_func.voltage_cost()
@@ -368,7 +368,7 @@ class TestRewardCombination:
 
 	def test_reward_main_exists(self):
 		"""测试 reward_main 方法存在"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		# 创建 mock 环境
 		mock_env = Mock()
@@ -377,13 +377,13 @@ class TestRewardCombination:
 		mock_env.reg_num = 3
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 
 		assert hasattr(reward_func, 'reward_main') or hasattr(reward_func, 'compute_reward')
 
 	def test_all_components_contribute(self):
 		"""测试所有组件都贡献奖励"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {
@@ -394,7 +394,7 @@ class TestRewardCombination:
 		mock_env.reg_num = 3
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 
 		# 计算各组件
 		v_cost = reward_func.voltage_cost()
@@ -443,7 +443,7 @@ class TestRewardEdgeCases:
 
 	def test_empty_bus_voltages(self):
 		"""测试空母线电压"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {'bus_voltages': {}}
@@ -451,14 +451,14 @@ class TestRewardEdgeCases:
 		mock_env.reg_num = 0
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 		v_cost = reward_func.voltage_cost()
 
 		assert v_cost == 0.0  # 空电压应该没有成本
 
 	def test_extreme_voltage_values(self):
 		"""测试极端电压值"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {
@@ -471,7 +471,7 @@ class TestRewardEdgeCases:
 		mock_env.reg_num = 0
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 		v_cost = reward_func.voltage_cost()
 
 		assert v_cost > 0  # 极端电压应该有高成本
@@ -479,7 +479,7 @@ class TestRewardEdgeCases:
 
 	def test_zero_power_loss(self):
 		"""测试零功率损耗"""
-		from envs.smartgrid.rewards import PowerZooReward
+		from envs.smartgrid.rewards import VVCReward
 
 		mock_env = Mock()
 		mock_env.obs = {
@@ -490,7 +490,7 @@ class TestRewardEdgeCases:
 		mock_env.reg_num = 0
 		mock_env.pv_num = 0
 
-		reward_func = PowerZooReward(mock_env, {})
+		reward_func = VVCReward(mock_env, {})
 		p_reward = reward_func.powerloss_reward()
 
 		assert np.isfinite(p_reward)

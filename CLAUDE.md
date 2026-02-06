@@ -178,14 +178,14 @@ PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框�
 ### `envs/` - 强化学习环境
 四个主要环境 + 统一包装器：
 * `env_wrappers.py`: MARL框架兼容层（`ShareSubprocVecEnv`, `ShareDummyVecEnv`）
-* `powerzoo/`: PowerZoo VVC环境（基于OpenDSS的电压无功控制）
+* `vvc/`: VVC环境（基于OpenDSS的电压无功控制）
   * `vvc_env.py`: 顶层环境入口
-  * `powerzoo/`: 核心实现（`circuit.py`, `env.py`, `env_register.py`, `loadprofile.py`）
+  * `vvc/`: 核心实现（`circuit.py`, `env.py`, `env_register.py`, `loadprofile.py`）
 * `smartgrid/`: SmartGrid环境（模块化电网仿真）
   * `base_env/`: 基础环境（`core_env.py`, `env.py`, `env_config.py`, `config_loader.py`）
   * `circuit_system/`: 电路系统（`circuit.py`, `components/`）
   * `data_process/`: 负荷曲线处理（`loadprofile.py` + 解析/配置/核心模块）
-  * `rewards/`: 奖励函数（`powerzoo_reward.py`, `lagrangian.py`, `calibration.py`）
+  * `rewards/`: 奖励函数（`vvc_reward.py`, `lagrangian.py`, `calibration.py`）
   * `logging/`: 日志系统（`unified_logger.py`, `visualization_manager.py`）
   * `model_utils/`: 模型工具（`model_manager.py`, `system_analyzer.py`）
   * `single_agent/`: 单智能体包装器
@@ -240,7 +240,7 @@ PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框�
 ### `configs/` - 配置文件
 **注意：环境配置目录名是 `envs_cfgs` 不是 `envs_configs`**
 * `envs_cfgs/`: 环境配置
-  * `vvc.yaml`, `powerzoo_single.yaml`: PowerZoo环境
+  * `vvc.yaml`, `vvc_single.yaml`: VVC环境
   * `smartgrid.yaml`: SmartGrid环境
   * `smartgrid_pv_plans/`: SmartGrid PV变体（aggressive/conservative/optimized）
   * `stackelberg_13bus.yaml`, `stackelberg_34bus.yaml`, `stackelberg_123bus.yaml`: Stackelberg环境

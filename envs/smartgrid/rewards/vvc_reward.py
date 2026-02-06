@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PowerZoo CMDP (Constrained Markov Decision Process) 奖励函数模块
+VVC CMDP (Constrained Markov Decision Process) 奖励函数模块
 
 该模块实现了基于约束马尔可夫决策过程范式的奖励函数，
 将电压安全转换为约束成本，主奖励专注于经济性优化。
@@ -11,7 +11,7 @@ PowerZoo CMDP (Constrained Markov Decision Process) 奖励函数模块
 - 主奖励：网损最小化 + 控制平滑 + PV合理利用
 - 所有组件规模归一化，移除不可导项
 
-@File      : powerzoo_reward.py
+@File      : vvc_reward.py
 @Time      : 2025-08-08
 @Author    : Xiaodong Zheng (with Claude Code)
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
@@ -53,9 +53,9 @@ def performance_monitor(func):
 	return wrapper
 
 
-class PowerZooReward:
+class VVCReward:
 	"""
-	PowerZoo环境的CMDP奖励函数类
+	VVC环境的CMDP奖励函数类
 	
 	基于约束马尔可夫决策过程范式设计，将电压安全转换为约束成本，
 	主奖励聚焦于经济性目标（网损、控制平滑、PV利用）。
@@ -189,7 +189,7 @@ class PowerZooReward:
 		Returns:
 			float: 网损奖励（负值），网损越低奖励越高
 		"""
-		current_loss = self.env.obs.get('power_loss', 0)
+		current_loss = self.env.obs.get('power_loss_ratio', 0)
 		
 		# 处理标量和数组类型
 		if hasattr(current_loss, '__len__'):

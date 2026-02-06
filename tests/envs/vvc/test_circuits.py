@@ -28,7 +28,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestCircuitsImport:
 	"""测试 Circuits 模块导入"""
 
@@ -71,7 +71,7 @@ class TestCircuitsImport:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestCircuitsAttributes:
 	"""测试 Circuits 类属性"""
 
@@ -101,7 +101,7 @@ class TestCircuitsAttributes:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestEdgeClass:
 	"""测试 Edge 基类和子类"""
 
@@ -145,7 +145,7 @@ class TestEdgeClass:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestNodeClass:
 	"""测试 Node 基类和子类"""
 
@@ -198,7 +198,7 @@ class TestNodeClass:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestCircuitsInitialization:
 	"""测试 Circuits 类初始化（需要 OpenDSS）"""
@@ -254,7 +254,7 @@ class TestCircuitsInitialization:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestCircuitsCompileReset:
 	"""测试 Circuits 编译和重置功能"""
@@ -302,7 +302,7 @@ class TestCircuitsCompileReset:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestRegulatorOperations:
 	"""测试调压器操作"""
@@ -359,7 +359,7 @@ class TestRegulatorOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestCapacitorOperations:
 	"""测试电容器操作"""
@@ -412,7 +412,7 @@ class TestCapacitorOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestBatteryOperations:
 	"""测试电池操作"""
@@ -466,7 +466,7 @@ class TestBatteryOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestVoltageCurrentOperations:
 	"""测试电压和电流操作"""
@@ -528,7 +528,7 @@ class TestVoltageCurrentOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestTopologyOperations:
 	"""测试拓扑结构操作"""
@@ -569,7 +569,7 @@ class TestTopologyOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestYMatrixOperations:
 	"""测试导纳矩阵操作"""
@@ -610,7 +610,7 @@ class TestYMatrixOperations:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestSensitivityOperations:
 	"""测试敏感度矩阵操作"""
@@ -652,7 +652,7 @@ class TestSensitivityOperations:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestCircuitsEdgeCases:
 	"""测试边界条件和错误处理"""
 
@@ -672,7 +672,7 @@ class TestCircuitsEdgeCases:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestCircuitsRobustness:
 	"""测试 Circuits 健壮性"""

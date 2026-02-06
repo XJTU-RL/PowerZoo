@@ -27,7 +27,7 @@ from unittest.mock import Mock, patch, MagicMock
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileImport:
 	"""测试 LoadProfile 模块导入"""
 
@@ -61,7 +61,7 @@ class TestLoadProfileImport:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileStaticMethods:
 	"""测试 LoadProfile 静态方法"""
 
@@ -101,7 +101,7 @@ class TestLoadProfileStaticMethods:
 # ==============================================================================
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileInitialization:
 	"""测试 LoadProfile 初始化"""
 
@@ -199,7 +199,7 @@ class TestLoadProfileInitialization:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileDSSFileCreation:
 	"""测试 LoadProfile DSS 文件创建功能"""
 
@@ -275,7 +275,7 @@ class TestLoadProfileDSSFileCreation:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileGeneration:
 	"""测试 LoadProfile 生成功能"""
 
@@ -349,7 +349,7 @@ class TestLoadProfileGeneration:
 
 
 @pytest.mark.integration
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 @pytest.mark.requires_opendss
 class TestLoadProfileWithRealSystem:
 	"""使用真实系统测试 LoadProfile"""
@@ -425,7 +425,7 @@ class TestLoadProfileWithRealSystem:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileEdgeCases:
 	"""测试 LoadProfile 边界条件"""
 
@@ -484,7 +484,7 @@ class TestLoadProfileEdgeCases:
 
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestLoadProfileMultiWorker:
 	"""测试 LoadProfile 多 worker 支持"""
 
@@ -546,7 +546,7 @@ class TestLoadProfileMultiWorker:
 # ==============================================================================
 
 @pytest.mark.unit
-@pytest.mark.powerzoo
+@pytest.mark.vvc
 class TestFindLoadNames:
 	"""测试负荷名称提取功能"""
 

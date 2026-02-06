@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
-import gym
+try:
+    import gymnasium as gym
+except ImportError:
+    import gym
 from utils.envs_tools import check, get_shape_from_obs_space
 from models.base.mlp import MLPBase
 from models.base.qmix_act import ACTLayer

@@ -135,14 +135,14 @@ class EnhancedTensorBoardCallback(BaseCallback):
         # 初始化PowerZoo LLM日志记录器
         if self.enable_vvc_logging and VVC_LOGGER_AVAILABLE:
             try:
-                powerzoo_log_dir = os.path.join(self.log_dir, "powerzoo_logs")
-                os.makedirs(powerzoo_log_dir, exist_ok=True)
+                vvc_log_dir = os.path.join(self.log_dir, "vvc_logs")
+                os.makedirs(vvc_log_dir, exist_ok=True)
                 self.vvc_logger = SmartGridLogger(
-                    log_dir=powerzoo_log_dir,
+                    log_dir=vvc_log_dir,
                     experiment_name=f"{self.algorithm_name}_training"
                 )
                 if self.verbose > 0:
-                    print(f"PowerZoo LLM logger initialized at: {powerzoo_log_dir}")
+                    print(f"VVC LLM logger initialized at: {vvc_log_dir}")
             except Exception as e:
                 if self.verbose > 0:
                     print(f"Failed to initialize PowerZoo LLM logger: {e}")
@@ -287,8 +287,8 @@ class EnhancedTensorBoardCallback(BaseCallback):
             return
         
         # 记录PowerZoo LLM环境特定指标
-        if 'powerzoo_metrics' in info:
-            metrics = info['powerzoo_metrics']
+        if 'vvc_metrics' in info:
+            metrics = info['vvc_metrics']
             
             # 功率相关指标
             if 'power_loss' in metrics:
@@ -326,7 +326,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
                 log_data = {
                     'timestep': self.num_timesteps,
                     'episode_count': self.episode_count,
-                    **info.get('powerzoo_metrics', {})
+                    **info.get('vvc_metrics', {})
                 }
                 self.vvc_logger.log_step(log_data)
             except Exception as e:
