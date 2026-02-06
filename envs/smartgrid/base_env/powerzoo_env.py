@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@File      : powerzoo_env.py
+@File      : vvc_env.py
 @Time      : 2025-04-08 17:51
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
@@ -59,7 +59,7 @@ def seeding(seed: int) -> None:
     os.environ['PYTHONHASHSEED'] = str(seed)
 
 
-class PowerZooEnv:
+class VVCEnv:
     """PowerZoo环境类（集成优化功能）"""
     
     def __init__(self, env, config, rank: Optional[int] = None):
@@ -940,8 +940,8 @@ class PowerZooEnv:
 
 
 # === 向后兼容性别名 ===
-# 保持与powerzoo_env_optimized.py的兼容性
-OptimizedPowerZooEnv = PowerZooEnv
+# 保持与vvc_env_optimized.py的兼容性
+OptimizedVVCEnv = VVCEnv
 
 
 

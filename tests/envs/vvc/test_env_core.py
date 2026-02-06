@@ -33,12 +33,12 @@ class TestActionSpaceImport:
 
 	def test_actionspace_class_import(self):
 		"""测试 ActionSpace 类可以正确导入"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 		assert ActionSpace is not None
 
 	def test_env_class_import(self):
 		"""测试 Env 类可以正确导入"""
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 		assert Env is not None
 		assert issubclass(Env, gym.Env)
 
@@ -50,7 +50,7 @@ class TestActionSpaceDiscrete:
 
 	def test_discrete_actionspace_creation(self):
 		"""测试创建离散动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		reg_act_num, bat_act_num = 33, 33
@@ -68,7 +68,7 @@ class TestActionSpaceDiscrete:
 
 	def test_discrete_actionspace_is_multidiscrete(self):
 		"""测试离散动作空间是 MultiDiscrete"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(2, 3, 4),
@@ -79,7 +79,7 @@ class TestActionSpaceDiscrete:
 
 	def test_discrete_actionspace_sample(self):
 		"""测试离散动作空间采样"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		action_space = ActionSpace(
@@ -106,7 +106,7 @@ class TestActionSpaceDiscrete:
 
 	def test_discrete_actionspace_dim(self):
 		"""测试离散动作空间维度"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		action_space = ActionSpace(
@@ -118,7 +118,7 @@ class TestActionSpaceDiscrete:
 
 	def test_discrete_actionspace_seed(self):
 		"""测试离散动作空间种子设置"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(2, 3, 4),
@@ -144,7 +144,7 @@ class TestActionSpaceContinuous:
 
 	def test_continuous_actionspace_creation(self):
 		"""测试创建连续动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		reg_act_num = 33
@@ -159,7 +159,7 @@ class TestActionSpaceContinuous:
 
 	def test_continuous_actionspace_is_tuple(self):
 		"""测试连续动作空间是 Tuple"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(2, 3, 4),
@@ -170,7 +170,7 @@ class TestActionSpaceContinuous:
 
 	def test_continuous_actionspace_sample(self):
 		"""测试连续动作空间采样"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		action_space = ActionSpace(
@@ -190,7 +190,7 @@ class TestActionSpaceContinuous:
 
 	def test_continuous_actionspace_dim(self):
 		"""测试连续动作空间维度"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		cap_num, reg_num, bat_num = 2, 3, 4
 		action_space = ActionSpace(
@@ -208,7 +208,7 @@ class TestActionSpaceEdgeCases:
 
 	def test_actionspace_zero_capacitors(self):
 		"""测试没有电容器的动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(0, 3, 4),
@@ -221,7 +221,7 @@ class TestActionSpaceEdgeCases:
 
 	def test_actionspace_zero_regulators(self):
 		"""测试没有调压器的动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(2, 0, 4),
@@ -234,7 +234,7 @@ class TestActionSpaceEdgeCases:
 
 	def test_actionspace_zero_batteries(self):
 		"""测试没有电池的动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(2, 3, 0),
@@ -247,7 +247,7 @@ class TestActionSpaceEdgeCases:
 
 	def test_actionspace_all_zero(self):
 		"""测试所有设备为零的动作空间"""
-		from envs.powerzoo.powerzoo.env import ActionSpace
+		from envs.vvc.vvc.env import ActionSpace
 
 		action_space = ActionSpace(
 			CRB_num=(0, 0, 0),
@@ -269,7 +269,7 @@ class TestEnvAttributes:
 
 	def test_env_has_required_attributes(self):
 		"""验证 Env 类具有所有必需的属性和方法"""
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		required_methods = [
 			'__init__', 'reset', 'step', 'seed', 'render', 'close',
@@ -281,7 +281,7 @@ class TestEnvAttributes:
 
 	def test_env_inherits_gym_env(self):
 		"""测试 Env 继承自 gym.Env"""
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 		assert issubclass(Env, gym.Env)
 
 
@@ -323,7 +323,7 @@ class TestEnvInitialization:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		env = Env(folder_path=str(dss_folder), info=env_info_13bus)
 
@@ -340,7 +340,7 @@ class TestEnvInitialization:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		env = Env(folder_path=str(dss_folder), info=env_info_13bus)
 
@@ -356,7 +356,7 @@ class TestEnvInitialization:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		env = Env(folder_path=str(dss_folder), info=env_info_13bus)
 
@@ -379,7 +379,7 @@ class TestEnvReset:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		info = {
 			'scale': 1.0,
@@ -443,7 +443,7 @@ class TestEnvStep:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		info = {
 			'scale': 1.0,
@@ -545,7 +545,7 @@ class TestEnvReward:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		info = {
 			'scale': 1.0,
@@ -615,7 +615,7 @@ class TestEnvHelperFunctions:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		info = {
 			'scale': 1.0,
@@ -676,7 +676,7 @@ class TestEnvObservation:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env import Env
+		from envs.vvc.vvc.env import Env
 
 		info = {
 			'scale': 1.0,
@@ -739,25 +739,25 @@ class TestHelperFunctions:
 
 	def test_plotting_function_import(self):
 		"""测试 plotting 函数可以导入"""
-		from envs.powerzoo.powerzoo.env import plotting
+		from envs.vvc.vvc.env import plotting
 		assert plotting is not None
 		assert callable(plotting)
 
 	def test_fft_selection_function_import(self):
 		"""测试 FFT_selection 函数可以导入"""
-		from envs.powerzoo.powerzoo.env import FFT_selection
+		from envs.vvc.vvc.env import FFT_selection
 		assert FFT_selection is not None
 		assert callable(FFT_selection)
 
 	def test_choose_batteries_function_import(self):
 		"""测试 choose_batteries 函数可以导入"""
-		from envs.powerzoo.powerzoo.env import choose_batteries
+		from envs.vvc.vvc.env import choose_batteries
 		assert choose_batteries is not None
 		assert callable(choose_batteries)
 
 	def test_get_basekv_function_import(self):
 		"""测试 get_basekv 函数可以导入"""
-		from envs.powerzoo.powerzoo.env import get_basekv
+		from envs.vvc.vvc.env import get_basekv
 		assert get_basekv is not None
 		assert callable(get_basekv)
 
@@ -769,7 +769,7 @@ class TestFFTSelection:
 
 	def test_fft_selection_basic(self):
 		"""测试 FFT_selection 基本功能"""
-		from envs.powerzoo.powerzoo.env import FFT_selection
+		from envs.vvc.vvc.env import FFT_selection
 
 		vio_nodes = ['node1', 'node2', 'node3', 'node4']
 		dist_matrix = np.array([
@@ -786,7 +786,7 @@ class TestFFTSelection:
 
 	def test_fft_selection_k_larger_than_nodes(self):
 		"""测试 k 大于节点数的情况"""
-		from envs.powerzoo.powerzoo.env import FFT_selection
+		from envs.vvc.vvc.env import FFT_selection
 
 		vio_nodes = ['node1', 'node2']
 		dist_matrix = np.array([
@@ -801,7 +801,7 @@ class TestFFTSelection:
 
 	def test_fft_selection_single_node(self):
 		"""测试单节点情况"""
-		from envs.powerzoo.powerzoo.env import FFT_selection
+		from envs.vvc.vvc.env import FFT_selection
 
 		vio_nodes = ['node1']
 		dist_matrix = np.array([[0]])
@@ -812,7 +812,7 @@ class TestFFTSelection:
 
 	def test_fft_selection_empty_nodes(self):
 		"""测试空节点列表"""
-		from envs.powerzoo.powerzoo.env import FFT_selection
+		from envs.vvc.vvc.env import FFT_selection
 
 		vio_nodes = []
 		dist_matrix = np.array([]).reshape(0, 0)

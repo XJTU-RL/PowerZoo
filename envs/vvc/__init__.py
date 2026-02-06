@@ -8,16 +8,16 @@
 This module provides power system environments for multi-agent reinforcement learning.
 """
 
-from .powerzoo_env import PowerZooEnv
-from .powerzoo_logger import PowerZooLogger
-from .powerzoo.env import Env
-from .powerzoo.circuit import Circuits
-from .powerzoo.loadprofile import LoadProfile
-from .powerzoo.env_register import make_base_env, remove_parallel_dss
+from .vvc_env import VVCEnv
+from .vvc_logger import VVCLogger
+from .vvc.env import Env
+from .vvc.circuit import Circuits
+from .vvc.loadprofile import LoadProfile
+from .vvc.env_register import make_base_env, remove_parallel_dss
 
 __all__ = [
-    'PowerZooEnv',
-    'PowerZooLogger', 
+    'VVCEnv',
+    'VVCLogger', 
     'Env',
     'Circuits',
     'LoadProfile',

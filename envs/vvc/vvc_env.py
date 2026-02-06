@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@File      : powerzoo_env.py
+@File      : vvc_env.py
 @Time      : 2025-04-08 17:51
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import imageio
 import glob
-from envs.powerzoo.powerzoo.env_register import make_base_env, remove_parallel_dss
+from envs.vvc.vvc.env_register import make_base_env, remove_parallel_dss
 
 import argparse
 import random
@@ -26,7 +26,7 @@ def seeding(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
 
 
-class PowerZooEnv:
+class VVCEnv:
     def __init__(self, args,rank=None):#TODO: ranks是线程数 
         
         self.args = copy.deepcopy(args)

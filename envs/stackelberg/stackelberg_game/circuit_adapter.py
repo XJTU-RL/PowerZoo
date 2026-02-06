@@ -9,7 +9,7 @@ environment and the PowerZoo circuit simulation.
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 import logging
-from envs.powerzoo.powerzoo.circuit import Circuits
+from envs.vvc.vvc.circuit import Circuits
 
 
 class StackelbergCircuitAdapter:

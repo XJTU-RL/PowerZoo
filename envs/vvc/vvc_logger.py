@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-@File      : powerzoo_logger.py
+@File      : vvc_logger.py
 @Time      : 2025-04-08 17:51
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 此文件定义了 PowerZooLogger 类，用于记录和管理电力系统强化学习训练与评估过程中的信息。
+@Description: 此文件定义了 VVCLogger 类，用于记录和管理电力系统强化学习训练与评估过程中的信息。
 - 继承 BaseLogger 类，在初始化时接收多种参数。
 - get_task_name 方法：返回环境名称。
 - init 方法：初始化记录器，包括记录时间、剧集数和各类奖励、物理量数组。
@@ -27,9 +27,9 @@ import time
 from textwrap import dedent
 import numpy as np
 
-class PowerZooLogger(BaseLogger):
+class VVCLogger(BaseLogger):
     def __init__(self, args, algo_args, env_args, num_agents, writer, run_dir):
-        super(PowerZooLogger, self).__init__(
+        super(VVCLogger, self).__init__(
             args, algo_args, env_args, num_agents, writer, run_dir
         )
         

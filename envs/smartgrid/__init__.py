@@ -6,7 +6,7 @@ PowerZoo - 电力系统多智能体强化学习环境
 
 # 核心环境类（从本地core_env导入，不再依赖legacy powerzoo）
 from .base_env.core_env import Env, ActionSpace
-from .base_env.powerzoo_env import PowerZooEnv, OptimizedPowerZooEnv
+from .base_env.powerzoo_env import VVCEnv, OptimizedVVCEnv
 
 # 电路和负载管理
 from .circuit_system import Circuits
@@ -21,7 +21,7 @@ from .base_env.powerzoo_config import (
     OpenDSSScenario,
     OpenDSSConstraints,
     OpenDSSMetrics,
-    PowerZooEnvConfig,
+    VVCEnvConfig,
     OpenDSSExpertRules,
     OpenDSSStateAnalyzer,
     PowerZooActionSelector,
@@ -36,8 +36,8 @@ __email__ = "zxd_xjtu@stu.xjtu.edu.cn"
 __all__ = [
     # 核心环境
     "Env",
-    "PowerZooEnv", 
-    "OptimizedPowerZooEnv",
+    "VVCEnv", 
+    "OptimizedVVCEnv",
     
     # 辅助类
     "ActionSpace",
@@ -53,7 +53,7 @@ __all__ = [
     "OpenDSSScenario",
     "OpenDSSConstraints",
     "OpenDSSMetrics",
-    "PowerZooEnvConfig",
+    "VVCEnvConfig",
     "OpenDSSExpertRules",
     "OpenDSSStateAnalyzer",
     "PowerZooActionSelector",

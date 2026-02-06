@@ -31,7 +31,7 @@ from envs.stackelberg.stackelberg_game.async_wrapper import AsyncMultiAgentWrapp
 from envs.stackelberg.stackelberg_game.stackelberg_monitor import StackelbergMonitor
 from envs.stackelberg.stackelberg_game.load_aggregator import IntelligentLoadAggregator
 
-class StackelbergPowerZooEnv:
+class StackelbergVVCEnv:
     """
     Main wrapper class for Stackelberg game environment in PowerZoo.
     
@@ -450,4 +450,4 @@ def make_stackelberg_env(args):
     
     This function is called by PowerZoo's environment creation logic.
     """
-    return StackelbergPowerZooEnv(args)
+    return StackelbergVVCEnv(args)

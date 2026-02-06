@@ -1,6 +1,6 @@
 {
-  "PowerZoo VVC": {
-    "id": "powerzoo",
+  "VVC (Volt-VAR Control)": {
+    "id": "vvc",
     "description": "Volt-VAR Control environment using OpenDSS simulation with capacitors, regulators, and batteries",
     "features": [
       "Capacitor switching",

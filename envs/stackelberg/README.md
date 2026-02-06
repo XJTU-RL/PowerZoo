@@ -27,7 +27,7 @@ envs/stackelberg/
 ├── README_STACKELBERG.md                 # 详细技术文档
 ├── OPTIMIZATION_SUMMARY.md              # 优化总结
 ├── STRUCTURE.md                          # 架构说明
-├── stackelberg_powerzoo_env.py           # 主环境接口
+├── stackelberg_vvc_env.py           # 主环境接口
 ├── test_stackelberg_integration.py      # 集成测试
 └── stackelberg_game/                     # 核心游戏逻辑
     ├── __init__.py                       # 子包初始化
@@ -89,17 +89,17 @@ envs/stackelberg/
 conda activate powerzoo
 
 # 验证环境
-python -c "from envs.stackelberg import StackelbergPowerZooEnv; print('环境导入成功')"
+python -c "from envs.stackelberg import StackelbergVVCEnv; print('环境导入成功')"
 ```
 
 ### 基础使用示例
 
 ```python
 import numpy as np
-from envs.stackelberg import StackelbergPowerZooEnv
+from envs.stackelberg import StackelbergVVCEnv
 
 # 创建环境
-env = StackelbergPowerZooEnv(
+env = StackelbergVVCEnv(
     system_name="13Bus",
     n_consumer_agents=5,
     case_path="node_systems/13Bus/IEEE13Nodeckt.dss"
@@ -133,7 +133,7 @@ print(f"消费者奖励: {[f'{rewards[i]:.3f}' for i in range(1, 6)]}")
 from algorithms.actors.sn_mappo import SN_MAPPO
 
 # 创建环境
-env = StackelbergPowerZooEnv(system_name="13Bus")
+env = StackelbergVVCEnv(system_name="13Bus")
 
 # 创建UC智能体
 uc_agent = SN_MAPPO(
@@ -295,7 +295,7 @@ python examples/train.py --algo dan_happo --env stackelberg_13bus --exp_name tes
 
 ```python
 # 启用详细监控
-env = StackelbergPowerZooEnv(
+env = StackelbergVVCEnv(
     system_name="13Bus",
     enable_monitoring=True,
     log_level="DEBUG"
@@ -328,8 +328,8 @@ python envs/stackelberg/test_stackelberg_integration.py
 
 # 验证环境创建
 python -c "
-from envs.stackelberg import StackelbergPowerZooEnv
-env = StackelbergPowerZooEnv('13Bus')
+from envs.stackelberg import StackelbergVVCEnv
+env = StackelbergVVCEnv('13Bus')
 print('环境创建成功')
 print(f'UC观测空间: {env.uc_observation_space}')
 print(f'消费者观测空间: {env.consumer_observation_space}')
@@ -357,7 +357,7 @@ python examples/benchmark_stackelberg.py --system 13Bus --episodes 100
 
 ```python
 # 自定义奖励函数
-class CustomStackelbergEnv(StackelbergPowerZooEnv):
+class CustomStackelbergEnv(StackelbergVVCEnv):
     def _calculate_uc_reward(self):
         base_reward = super()._calculate_uc_reward()
         # 添加自定义奖励项

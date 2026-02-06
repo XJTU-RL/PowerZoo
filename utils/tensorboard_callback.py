@@ -21,9 +21,9 @@ SystemState = None
 
 try:
 	from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
-	POWERZOO_LOGGER_AVAILABLE = True
+	VVC_LOGGER_AVAILABLE = True
 except ImportError:
-	POWERZOO_LOGGER_AVAILABLE = False
+	VVC_LOGGER_AVAILABLE = False
 	SmartGridLogger = None
 
 
@@ -48,7 +48,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
         verbose: int = 0,
         algorithm_name: str = "unknown",
         enable_system_logging: bool = True,
-        enable_powerzoo_logging: bool = True
+        enable_vvc_logging: bool = True
     ):
         """
         初始化增强TensorBoard回调
@@ -61,7 +61,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
             verbose: 详细程度
             algorithm_name: 算法名称
             enable_system_logging: 是否启用系统日志记录
-            enable_powerzoo_logging: 是否启用PowerZoo LLM日志记录
+            enable_vvc_logging: 是否启用PowerZoo LLM日志记录
         """
         super().__init__(verbose)
         
@@ -71,7 +71,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
         self.model_save_path = model_save_path or os.path.join(log_dir, "models")
         self.algorithm_name = algorithm_name
         self.enable_system_logging = enable_system_logging
-        self.enable_powerzoo_logging = enable_powerzoo_logging
+        self.enable_vvc_logging = enable_vvc_logging
         
         # 创建保存目录
         os.makedirs(self.log_dir, exist_ok=True)
@@ -79,7 +79,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
         
         # 初始化日志记录器
         self.system_logger = None
-        self.powerzoo_logger = None
+        self.vvc_logger = None
         self.tensorboard_writer = None
         
         # 训练统计
@@ -133,11 +133,11 @@ class EnhancedTensorBoardCallback(BaseCallback):
                 print("System logger module not available")
         
         # 初始化PowerZoo LLM日志记录器
-        if self.enable_powerzoo_logging and POWERZOO_LOGGER_AVAILABLE:
+        if self.enable_vvc_logging and VVC_LOGGER_AVAILABLE:
             try:
                 powerzoo_log_dir = os.path.join(self.log_dir, "powerzoo_logs")
                 os.makedirs(powerzoo_log_dir, exist_ok=True)
-                self.powerzoo_logger = SmartGridLogger(
+                self.vvc_logger = SmartGridLogger(
                     log_dir=powerzoo_log_dir,
                     experiment_name=f"{self.algorithm_name}_training"
                 )
@@ -146,10 +146,10 @@ class EnhancedTensorBoardCallback(BaseCallback):
             except Exception as e:
                 if self.verbose > 0:
                     print(f"Failed to initialize PowerZoo LLM logger: {e}")
-                self.enable_powerzoo_logging = False
+                self.enable_vvc_logging = False
         else:
-            self.enable_powerzoo_logging = False
-            if self.verbose > 0 and not POWERZOO_LOGGER_AVAILABLE:
+            self.enable_vvc_logging = False
+            if self.verbose > 0 and not VVC_LOGGER_AVAILABLE:
                 print("PowerZoo LLM logger module not available")
     
     def _on_step(self) -> bool:
@@ -320,7 +320,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
                 )
         
         # 记录到PowerZoo LLM日志记录器
-        if self.enable_powerzoo_logging and self.powerzoo_logger:
+        if self.enable_vvc_logging and self.vvc_logger:
             try:
                 # 构造日志数据
                 log_data = {
@@ -328,7 +328,7 @@ class EnhancedTensorBoardCallback(BaseCallback):
                     'episode_count': self.episode_count,
                     **info.get('powerzoo_metrics', {})
                 }
-                self.powerzoo_logger.log_step(log_data)
+                self.vvc_logger.log_step(log_data)
             except Exception as e:
                 if self.verbose > 0:
                     print(f"Failed to log to PowerZoo logger: {e}")
@@ -411,9 +411,9 @@ class EnhancedTensorBoardCallback(BaseCallback):
                 if self.verbose > 0:
                     print(f"Failed to close system logger: {e}")
         
-        if self.powerzoo_logger:
+        if self.vvc_logger:
             try:
-                self.powerzoo_logger.close()
+                self.vvc_logger.close()
             except Exception as e:
                 if self.verbose > 0:
                     print(f"Failed to close PowerZoo logger: {e}")

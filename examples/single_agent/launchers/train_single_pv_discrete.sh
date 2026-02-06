@@ -14,7 +14,7 @@ export OMP_NUM_THREADS=1       # 设置OpenMP线程数
 
 # 训练参数
 ALGO="ppo"
-ENV="single_agent_powerzoo"
+ENV="single_agent_vvc"
 EXP_NAME="${ENV}_${ALGO}_PV_discrete"
 CONFIG_FILE="configs/single_agent_cfgs/ppo_pv_discrete.yaml"
 

@@ -48,16 +48,16 @@ pytest -m "not requires_opendss"
 
 ```bash
 # PowerZoo environment tests
-pytest tests/envs/powerzoo/
+pytest tests/envs/vvc/
 
 # PowerZoo_LLM environment tests
 pytest tests/envs/smartgrid/
 
 # Specific test file
-pytest tests/envs/powerzoo/test_powerzoo_env.py
+pytest tests/envs/vvc/test_vvc_env.py
 
 # Specific test function
-pytest tests/envs/powerzoo/test_powerzoo_env.py::TestPowerZooEnvBasics::test_import_powerzoo
+pytest tests/envs/vvc/test_vvc_env.py::TestVVCEnvBasics::test_import_powerzoo
 ```
 
 ### Code Coverage
@@ -86,7 +86,7 @@ tests/
 ├── pytest.ini                     # Pytest configuration (in project root)
 ├── envs/
 │   ├── powerzoo/
-│   │   └── test_powerzoo_env.py   # PowerZoo environment tests
+│   │   └── test_vvc_env.py   # PowerZoo environment tests
 │   └── smartgrid/
 │       └── test_smartgrid_env.py  # PowerZoo_LLM environment tests
 └── README.md                      # This file
@@ -120,8 +120,8 @@ import pytest
 @pytest.mark.smartgrid
 def test_example():
     """Test description."""
-    from envs.smartgrid import PowerZooEnv
-    assert PowerZooEnv is not None
+    from envs.smartgrid import VVCEnv
+    assert VVCEnv is not None
 ```
 
 ### Using Fixtures

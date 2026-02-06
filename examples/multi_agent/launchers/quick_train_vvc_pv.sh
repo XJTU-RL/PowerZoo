@@ -26,7 +26,7 @@ case $PV_PLAN in
   *)
     echo "❌ 无效的PV方案: $PV_PLAN"
     echo "使用方法: $0 [conservative|optimized|aggressive] [system_config]"
-    echo "系统配置选项: smartgrid, powerzoo, 或其他已配置的环境名"
+    echo "系统配置选项: smartgrid, vvc, 或其他已配置的环境名"
     exit 1
     ;;
 esac
@@ -36,7 +36,7 @@ case $SYSTEM_CONFIG in
   smartgrid)
     SYSTEM_DESC="SmartGrid系统 (IEEE34 Bus with LLM optimization)"
     ;;
-  powerzoo)
+  vvc)
     SYSTEM_DESC="PowerZoo基础系统 (IEEE34 Bus)"
     ;;
   *)
@@ -68,7 +68,7 @@ echo ""
 
 # 启动训练
 # 使用PowerZoo专用训练脚本
-python examples/multi_agent/scripts/train_powerzoo.py \
+python examples/multi_agent/scripts/train_vvc.py \
   --system "$SYSTEM_CONFIG" \
   --pv_plan "$PV_PLAN" \
   --algo happo \

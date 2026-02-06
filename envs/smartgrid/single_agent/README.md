@@ -49,7 +49,7 @@ single_agent/
 ### 基本使用
 
 ```python
-from smartgrid.single_agent import SingleAgentPowerZooEnv, SingleAgentConfig
+from smartgrid.single_agent import SingleAgentVVCEnv, SingleAgentConfig
 
 # 创建环境配置
 config = SingleAgentConfig(
@@ -59,7 +59,7 @@ config = SingleAgentConfig(
 )
 
 # 创建环境
-env = SingleAgentPowerZooEnv(config=config)
+env = SingleAgentVVCEnv(config=config)
 
 # 训练循环
 obs = env.reset()
@@ -75,11 +75,11 @@ env.close()
 ### 使用预定义配置
 
 ```python
-from smartgrid.single_agent import SingleAgentPowerZooEnv
+from smartgrid.single_agent import SingleAgentVVCEnv
 from smartgrid.single_agent.single_agent_config import TRAINING_CONFIG
 
 # 使用训练配置
-env = SingleAgentPowerZooEnv(config=TRAINING_CONFIG)
+env = SingleAgentVVCEnv(config=TRAINING_CONFIG)
 ```
 
 ## 环境详细说明
@@ -239,7 +239,7 @@ reward = -(voltage_penalty_weight * voltage_penalty +
 ### 自定义奖励函数
 
 ```python
-class CustomSingleAgentEnv(SingleAgentPowerZooEnv):
+class CustomSingleAgentEnv(SingleAgentVVCEnv):
     def _calculate_reward(self, info):
         # 自定义奖励计算逻辑
         custom_reward = ...

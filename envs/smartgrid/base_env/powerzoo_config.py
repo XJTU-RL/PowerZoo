@@ -89,7 +89,7 @@ class OpenDSSMetrics:
 
 
 @dataclass
-class PowerZooEnvConfig:
+class VVCEnvConfig:
     """PowerZoo环境配置"""
     # 基础环境配置
     env_name: str = "13Bus"
@@ -428,7 +428,7 @@ class OpenDSSStateAnalyzer:
 class PowerZooActionSelector:
     """PowerZoo动作选择器"""
     
-    def __init__(self, env, config: 'PowerZooEnvConfig'):
+    def __init__(self, env, config: 'VVCEnvConfig'):
         self.env = env
         self.config = config
         self.action_space = env.action_space

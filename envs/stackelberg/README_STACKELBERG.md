@@ -19,17 +19,17 @@ Stackelberg环境模型模拟了电力公司（UC）作为领导者与多个消�
 
 ### 核心组件 (Core Components)
 
-#### 1. **StackelbergBaseEnv** (`envs/powerzoo/powerzoo/stackelberg_base_env.py`)
+#### 1. **StackelbergBaseEnv** (`envs/vvc/vvc/stackelberg_base_env.py`)
 - 实现Stackelberg博弈机制的基础环境。
 - 为了最大的灵活性，不继承自现有的 `Env` 类。
 - 管理UC与消费者之间的交互和系统状态。
 
-#### 2. **AsyncMultiAgentWrapper** (`envs/powerzoo/powerzoo/async_wrapper.py`)
+#### 2. **AsyncMultiAgentWrapper** (`envs/vvc/vvc/async_wrapper.py`)
 - 处理UC和消费者动作的异步执行。
 - 维护动作历史和时间关系。
 - 支持可配置的延迟和部分可观察性。
 
-#### 3. **IntelligentLoadAggregator** (`envs/powerzoo/powerzoo/load_aggregator.py`)
+#### 3. **IntelligentLoadAggregator** (`envs/vvc/vvc/load_aggregator.py`)
 - 将物理负荷映射到消费者智能体。
 - 支持多种聚合方法:
   - **基于区域 (Zone-based)**: 按电气邻近度对负荷进行分组。
@@ -37,7 +37,7 @@ Stackelberg环境模型模拟了电力公司（UC）作为领导者与多个消�
   - **基于图 (Graph-based)**: 使用网络拓扑进行聚类。
   - **自适应 (Adaptive)**: 基于负荷模式进行动态重聚合。
 
-#### 4. **StackelbergMonitor** (`envs/powerzoo/powerzoo/stackelberg_monitor.py`)
+#### 4. **StackelbergMonitor** (`envs/vvc/vvc/stackelberg_monitor.py`)
 - 全面的监控和可视化系统。
 - 跟踪收敛性、纳什均衡和系统指标。
 - 支持TensorBoard集成。
@@ -261,7 +261,7 @@ python tests/test_stackelberg_env.py
 ### Common Issues
 
 1. **Import Errors**: Ensure PowerZoo is properly installed and PYTHONPATH includes the project root
-2. **OpenDSS Errors**: Verify DSS files exist in `envs/powerzoo/systems/<system>/`
+2. **OpenDSS Errors**: Verify DSS files exist in `envs/vvc/systems/<system>/`
 3. **Memory Issues**: Reduce buffer sizes or disable some monitoring metrics for large systems
 4. **Convergence Issues**: Adjust learning rates or use curriculum learning
 

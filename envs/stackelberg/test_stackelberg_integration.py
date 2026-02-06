@@ -361,14 +361,14 @@ def test_powerzoo_compatibility():
 	logger.info("Testing PowerZoo interface compatibility...")
 
 	try:
-		from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv, make_stackelberg_env
+		from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv, make_stackelberg_env
 
 		# Create environment using factory
 		args = {
 			'env_name': 'stackelberg_13bus',
 			'seed': 42,
 		}
-		env = StackelbergPowerZooEnv(args)
+		env = StackelbergVVCEnv(args)
 
 		# Test required attributes
 		assert hasattr(env, 'n_agents'), "Missing n_agents"

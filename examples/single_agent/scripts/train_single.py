@@ -46,7 +46,7 @@ except ImportError:
     print("Warning: HER is not available. Please install stable-baselines3[extra] for HER support.")
 
 # PowerZoo imports
-from envs.smartgrid.single_agent.single_agent_env import SingleAgentPowerZooEnv
+from envs.smartgrid.single_agent.single_agent_env import SingleAgentVVCEnv
 from utils.tensorboard_callback import EnhancedTensorBoardCallback
 from envs.smartgrid.model_utils.model_manager import ModelManager
 
@@ -94,7 +94,7 @@ def create_environment(env_config: Dict[str, Any], seed: Optional[int] = None):
     )
     
     # 创建环境
-    env = SingleAgentPowerZooEnv(config=config)
+    env = SingleAgentVVCEnv(config=config)
     
     # 使用Monitor包装环境以记录统计信息
     env = Monitor(env)
@@ -115,7 +115,7 @@ def setup_callbacks(algo_config: Dict[str, Any], env_config: Dict[str, Any],
         verbose=1,
         algorithm_name=algorithm_name,
         enable_system_logging=True,
-        enable_powerzoo_logging=True
+        enable_vvc_logging=True
     )
     callbacks.append(tensorboard_callback)
     
@@ -291,7 +291,7 @@ def main():
     parser.add_argument(
         "--env",
         type=str,
-        default="powerzoo_single",
+        default="vvc_single",
         help="环境配置名称"
     )
     

@@ -12,7 +12,7 @@ import random
 import os
 
 try:
-    from envs.powerzoo.powerzoo.circuit import Circuits
+    from envs.vvc.vvc.circuit import Circuits
     from envs.dsr.core.loadprofile import LoadProfile
     POWERZOO_AVAILABLE = True
 except ImportError as e:

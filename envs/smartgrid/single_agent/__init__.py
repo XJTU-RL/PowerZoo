@@ -6,17 +6,17 @@
 包含环境定义、配置管理、日志记录等功能。
 
 主要组件:
-- SingleAgentPowerZooEnv: 单智能体环境主类
+- SingleAgentVVCEnv: 单智能体环境主类
 - 配置管理: 环境参数和训练配置
 - 日志系统: 专门的单智能体训练日志
 """
 
-from .single_agent_env import SingleAgentPowerZooEnv
+from .single_agent_env import SingleAgentVVCEnv
 from .single_agent_config import SingleAgentConfig
 from .single_agent_logger import SingleAgentLogger
 
 __all__ = [
-    'SingleAgentPowerZooEnv',
+    'SingleAgentVVCEnv',
     'SingleAgentConfig', 
     'SingleAgentLogger'
 ]

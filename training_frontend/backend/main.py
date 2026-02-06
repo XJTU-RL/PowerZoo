@@ -267,8 +267,8 @@ SINGLE_AGENT_ALGORITHMS: list[AlgorithmInfo] = [
 
 ENVIRONMENTS: list[EnvironmentInfo] = [
 	EnvironmentInfo(
-		name="powerzoo", display_name="PowerZoo VVC", type="vvc",
-		config_file="powerzoo.yaml",
+		name="vvc", display_name="VVC (Volt-VAR Control)", type="vvc",
+		config_file="vvc.yaml",
 		description="电压无功控制环境，基于OpenDSS仿真",
 		default_agents=6
 	),
@@ -395,7 +395,7 @@ PRESETS: list[PresetConfig] = [
 		description="Off-Policy训练 - 实时控制场景",
 		config=TrainingConfig(
 			algo="hasac",
-			env="powerzoo",
+			env="vvc",
 			exp_name="off_policy_training",
 			n_rollout_threads=4,
 			num_env_steps=1000000,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-PowerZoo专用训练脚本
+VVC (Volt-VAR Control) 专用训练脚本
 专门针对电力系统强化学习环境优化的训练工具
 
 特点：
@@ -28,8 +28,8 @@ from utils.configs_tools import get_defaults_yaml_args, update_args
 from runners import RUNNER_REGISTRY
 
 
-class PowerZooTrainer:
-	"""PowerZoo专用训练器"""
+class VVCTrainer:
+	"""VVC (Volt-VAR Control) 专用训练器"""
 	
 	def __init__(self):
 		self.project_root = project_root
@@ -39,7 +39,7 @@ class PowerZooTrainer:
 	def setup_parser(self):
 		"""设置命令行参数解析器"""
 		self.parser = argparse.ArgumentParser(
-			description="PowerZoo电力系统强化学习训练工具",
+			description="VVC 电力系统强化学习训练工具",
 			formatter_class=argparse.ArgumentDefaultsHelpFormatter
 		)
 		
@@ -48,7 +48,7 @@ class PowerZooTrainer:
 			"--system",
 			type=str,
 			default="smartgrid",
-			help="电力系统环境配置 (smartgrid, powerzoo, 等)"
+			help="电力系统环境配置 (smartgrid, vvc, 等)"
 		)
 		
 		self.parser.add_argument(
@@ -330,7 +330,7 @@ class PowerZooTrainer:
 	def print_banner(self, args, pv_config, result_dir):
 		"""打印训练开始横幅"""
 		print("\n" + "="*60)
-		print("🚀 PowerZoo 强化学习训练系统")
+		print("🚀 VVC 强化学习训练系统")
 		print("="*60)
 		print(f"📋 配置信息:")
 		print(f"   系统环境: {args.system}")
@@ -477,7 +477,7 @@ class PowerZooTrainer:
 		hours = int(elapsed_time // 3600)
 		minutes = int((elapsed_time % 3600) // 60)
 		
-		report = f"""# PowerZoo训练报告
+		report = f"""# VVC训练报告
 
 ## 基本信息
 - **完成时间**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -525,7 +525,7 @@ class PowerZooTrainer:
 
 def main():
 	"""主函数"""
-	trainer = PowerZooTrainer()
+	trainer = VVCTrainer()
 	trainer.run()
 
 

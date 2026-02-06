@@ -197,7 +197,7 @@ jobs:
           sys.path.insert(0, '.')
           # Test core module imports
           try:
-              from envs.smartgrid.base_env import Env, PowerZooEnv
+              from envs.smartgrid.base_env import Env, VVCEnv
               print('✅ SmartGrid imports OK')
           except ImportError as e:
               print(f'⚠️ SmartGrid import warning: {e}')

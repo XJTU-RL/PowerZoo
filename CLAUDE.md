@@ -179,7 +179,7 @@ PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框�
 四个主要环境 + 统一包装器：
 * `env_wrappers.py`: MARL框架兼容层（`ShareSubprocVecEnv`, `ShareDummyVecEnv`）
 * `powerzoo/`: PowerZoo VVC环境（基于OpenDSS的电压无功控制）
-  * `powerzoo_env.py`: 顶层环境入口
+  * `vvc_env.py`: 顶层环境入口
   * `powerzoo/`: 核心实现（`circuit.py`, `env.py`, `env_register.py`, `loadprofile.py`）
 * `smartgrid/`: SmartGrid环境（模块化电网仿真）
   * `base_env/`: 基础环境（`core_env.py`, `env.py`, `env_config.py`, `config_loader.py`）
@@ -190,7 +190,7 @@ PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框�
   * `model_utils/`: 模型工具（`model_manager.py`, `system_analyzer.py`）
   * `single_agent/`: 单智能体包装器
 * `stackelberg/`: Stackelberg博弈环境
-  * `stackelberg_powerzoo_env.py`: 顶层入口
+  * `stackelberg_vvc_env.py`: 顶层入口
   * `stackelberg_game/`: 博弈核心（`stackelberg_base_env.py`, `circuit_adapter.py`, `env_factory.py`, `load_aggregator.py`）
 * `dsr/`: 需求侧响应环境
   * `dsr_env.py`: 顶层入口
@@ -240,7 +240,7 @@ PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框�
 ### `configs/` - 配置文件
 **注意：环境配置目录名是 `envs_cfgs` 不是 `envs_configs`**
 * `envs_cfgs/`: 环境配置
-  * `powerzoo.yaml`, `powerzoo_single.yaml`: PowerZoo环境
+  * `vvc.yaml`, `powerzoo_single.yaml`: PowerZoo环境
   * `smartgrid.yaml`: SmartGrid环境
   * `smartgrid_pv_plans/`: SmartGrid PV变体（aggressive/conservative/optimized）
   * `stackelberg_13bus.yaml`, `stackelberg_34bus.yaml`, `stackelberg_123bus.yaml`: Stackelberg环境
@@ -274,7 +274,7 @@ IEEE标准测试系统的OpenDSS模型：
 * `PV/`: 光伏发电数据（csv/, txt/, daily_data/, hourly_segments/, batch_visualizations/）
 
 ### `models/` / `tests/` / `tools/`
-* `tests/`: pytest测试（`conftest.py` + 各模块测试 + `envs/powerzoo/`, `envs/smartgrid/` 专项测试）
+* `tests/`: pytest测试（`conftest.py` + 各模块测试 + `envs/vvc/`, `envs/smartgrid/` 专项测试）
 * `tools/`: 工具脚本（`analyze_imports.py`, `test_imports.py`, `test_pv_injection.py`）
 
 ### 部署与展示
@@ -302,7 +302,7 @@ IEEE标准测试系统的OpenDSS模型：
 
 | 环境名 | 配置文件 | 说明 |
 |--------|----------|------|
-| `powerzoo` | `configs/envs_cfgs/powerzoo.yaml` | PowerZoo VVC环境 |
+| `powerzoo` | `configs/envs_cfgs/vvc.yaml` | PowerZoo VVC环境 |
 | `smartgrid` | `configs/envs_cfgs/smartgrid.yaml` | SmartGrid模块化环境 |
 | `stackelberg` | `configs/envs_cfgs/stackelberg_*.yaml` | Stackelberg博弈环境 |
 | `dsr` | `configs/envs_cfgs/dsr*.yaml` | 需求侧响应环境 |

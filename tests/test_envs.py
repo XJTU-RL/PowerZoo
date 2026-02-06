@@ -95,13 +95,13 @@ class TestStackelbergEnv:
 
 
 @pytest.mark.unit
-class TestPowerZooEnv:
+class TestVVCEnv:
 	"""Test PowerZoo environment."""
 
-	def test_powerzoo_env_import(self):
+	def test_vvc_env_import(self):
 		"""Test PowerZoo env import."""
 		try:
-			from envs.powerzoo.powerzoo.env import Env
+			from envs.vvc.vvc.env import Env
 			assert Env is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo Env: {e}")
@@ -109,18 +109,18 @@ class TestPowerZooEnv:
 	def test_powerzoo_circuit_import(self):
 		"""Test PowerZoo circuit import."""
 		try:
-			from envs.powerzoo.powerzoo.circuit import Circuits
+			from envs.vvc.vvc.circuit import Circuits
 			assert Circuits is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo Circuits: {e}")
 
-	def test_powerzoo_logger_import(self):
+	def test_vvc_logger_import(self):
 		"""Test PowerZoo logger import."""
 		try:
-			from envs.powerzoo.powerzoo_logger import PowerZooLogger
-			assert PowerZooLogger is not None
+			from envs.vvc.vvc_logger import VVCLogger
+			assert VVCLogger is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooLogger: {e}")
+			pytest.fail(f"Failed to import VVCLogger: {e}")
 
 
 @pytest.mark.unit
@@ -128,12 +128,12 @@ class TestSmartGridEnv:
 	"""Test SmartGrid environment."""
 
 	def test_smartgrid_env_import(self):
-		"""Test SmartGrid PowerZooEnv import."""
+		"""Test SmartGrid VVCEnv import."""
 		try:
-			from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
-			assert PowerZooEnv is not None
+			from envs.smartgrid.base_env.vvc_env import VVCEnv
+			assert VVCEnv is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooEnv: {e}")
+			pytest.fail(f"Failed to import VVCEnv: {e}")
 
 	def test_smartgrid_base_env_import(self):
 		"""Test SmartGrid base Env import."""
@@ -225,13 +225,13 @@ class TestActionSpaces:
 class TestEnvConfigs:
 	"""Test environment configuration classes."""
 
-	def test_powerzoo_env_config_import(self):
-		"""Test PowerZooEnvConfig import."""
+	def test_vvc_env_config_import(self):
+		"""Test VVCEnvConfig import."""
 		try:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			assert PowerZooEnvConfig is not None
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			assert VVCEnvConfig is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooEnvConfig: {e}")
+			pytest.fail(f"Failed to import VVCEnvConfig: {e}")
 
 	def test_dsr_env_args_import(self):
 		"""Test DSR environment args import."""

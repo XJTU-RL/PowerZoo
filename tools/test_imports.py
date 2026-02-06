@@ -87,18 +87,18 @@ def test_core_imports() -> Dict[str, Tuple[bool, str]]:
 		"common",
 
 		# PowerZoo environment
-		"envs.powerzoo",
-		"envs.powerzoo.powerzoo_env",
-		"envs.powerzoo.powerzoo_logger",
-		"envs.powerzoo.powerzoo.env",
-		"envs.powerzoo.powerzoo.circuit",
-		"envs.powerzoo.powerzoo.loadprofile",
-		"envs.powerzoo.powerzoo.env_register",
+		"envs.vvc",
+		"envs.vvc.vvc_env",
+		"envs.vvc.vvc_logger",
+		"envs.vvc.vvc.env",
+		"envs.vvc.vvc.circuit",
+		"envs.vvc.vvc.loadprofile",
+		"envs.vvc.vvc.env_register",
 
 		# PowerZoo_LLM environment
 		"envs.smartgrid",
 		"envs.smartgrid.base_env",
-		"envs.smartgrid.base_env.powerzoo_env",
+		"envs.smartgrid.base_env.vvc_env",
 		"envs.smartgrid.base_env.env",
 		"envs.smartgrid.base_env.env_register",
 		"envs.smartgrid.circuit_system",
@@ -200,7 +200,7 @@ def main():
 	core_success, core_failure = print_results(core_results, "Core Module Imports")
 
 	# Test powerzoo directory
-	print(f"\n{YELLOW}Testing envs/powerzoo imports...{RESET}")
+	print(f"\n{YELLOW}Testing envs/vvc imports...{RESET}")
 	powerzoo_dir = PROJECT_ROOT / "envs" / "powerzoo"
 	if powerzoo_dir.exists():
 		powerzoo_results = test_all_imports(powerzoo_dir)

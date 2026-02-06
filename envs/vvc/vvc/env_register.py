@@ -19,7 +19,7 @@
 import os
 import inspect
 import re
-from envs.powerzoo.powerzoo.env import Env
+from envs.vvc.vvc.env import Env
 
 # map from system_name to fixed information of the system
 

@@ -11,7 +11,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 
 # 默认参数
 ALGO="ppo"
-ENV="powerzoo_single"
+ENV="vvc_single"
 CIRCUIT="13Bus"
 TOTAL_TIMESTEPS=100000
 SEED=42
@@ -34,7 +34,7 @@ show_help() {
     echo ""
     echo "选项:"
     echo "  -a, --algo ALGO           算法 (ppo, dqn, sac, a2c, ddpg, td3, her) [默认: ppo]"
-    echo "  -e, --env ENV             环境 [默认: powerzoo_single]"
+    echo "  -e, --env ENV             环境 [默认: vvc_single]"
     echo "  -c, --circuit CIRCUIT     电路名称 (13Bus, 34Bus, 123Bus, 8500Node) [默认: 13Bus]"
     echo "  -t, --timesteps STEPS     总训练步数 [默认: 100000]"
     echo "  -s, --seed SEED           随机种子 [默认: 42]"

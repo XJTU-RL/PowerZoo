@@ -112,7 +112,7 @@ training_frontend/
 | high_performance | MAPPO | smartgrid | 高性能 (5M steps) |
 | stackelberg_game | SN-MAPPO | stackelberg_34bus | Stackelberg博弈 |
 | dsr_restoration | HAPPO | dsr | 配电网恢复 |
-| off_policy_training | HASAC | powerzoo | Off-Policy训练 |
+| off_policy_training | HASAC | vvc | Off-Policy训练 |
 
 ## 技术栈
 

@@ -5,7 +5,7 @@ SmartGrid base_env 模块详细测试
 测试覆盖:
 - ActionSpace 类
 - Env 类 (env.py 和 core_env.py)
-- PowerZooEnv MARL包装器 (powerzoo_env.py)
+- VVCEnv MARL包装器 (vvc_env.py)
 - 辅助函数 (plotting, FFT_selection, choose_batteries)
 
 @File      : test_base_env.py
@@ -50,14 +50,14 @@ class TestBaseEnvImport:
 		assert choose_batteries is not None
 		assert get_basekv is not None
 
-	def test_powerzoo_env_import(self):
-		"""测试 PowerZooEnv 导入"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
-		assert PowerZooEnv is not None
+	def test_vvc_env_import(self):
+		"""测试 VVCEnv 导入"""
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
+		assert VVCEnv is not None
 
 	def test_seeding_function_import(self):
 		"""测试 seeding 函数导入"""
-		from envs.smartgrid.base_env.powerzoo_env import seeding
+		from envs.smartgrid.base_env.vvc_env import seeding
 		assert seeding is not None
 
 
@@ -317,7 +317,7 @@ class TestSeeding:
 
 	def test_seeding_sets_numpy_seed(self):
 		"""测试 seeding 设置 numpy 种子"""
-		from envs.smartgrid.base_env.powerzoo_env import seeding
+		from envs.smartgrid.base_env.vvc_env import seeding
 
 		seeding(42)
 
@@ -330,7 +330,7 @@ class TestSeeding:
 
 	def test_seeding_different_seeds(self):
 		"""测试不同种子产生不同结果"""
-		from envs.smartgrid.base_env.powerzoo_env import seeding
+		from envs.smartgrid.base_env.vvc_env import seeding
 
 		seeding(42)
 		val1 = np.random.rand()
@@ -566,18 +566,18 @@ class TestEnvIntegration:
 
 
 # ==============================================================================
-# 集成测试 - PowerZooEnv 类
+# 集成测试 - VVCEnv 类
 # ==============================================================================
 
 @pytest.mark.integration
 @pytest.mark.smartgrid
 @pytest.mark.requires_opendss
-class TestPowerZooEnvIntegration:
-	"""测试 PowerZooEnv MARL 包装器"""
+class TestVVCEnvIntegration:
+	"""测试 VVCEnv MARL 包装器"""
 
-	def test_powerzoo_env_creation(self, node_systems_dir, skip_if_no_opendss, project_root):
-		"""测试 PowerZooEnv 创建"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+	def test_vvc_env_creation(self, node_systems_dir, skip_if_no_opendss, project_root):
+		"""测试 VVCEnv 创建"""
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
 		from envs.smartgrid.base_env.env import Env
 
 		for variant in ['34Bus_PV_Aggressive', '34Bus_PV', '34Bus']:
@@ -617,15 +617,15 @@ class TestPowerZooEnvIntegration:
 			config.useS = False
 			config.enable_system_logging = False
 
-			pz_env = PowerZooEnv(base_env, config, rank=0)
+			pz_env = VVCEnv(base_env, config, rank=0)
 			assert pz_env is not None
 			assert pz_env.n_agents > 0
 		except Exception as e:
-			pytest.skip(f"PowerZooEnv 创建失败: {e}")
+			pytest.skip(f"VVCEnv 创建失败: {e}")
 
-	def test_powerzoo_env_reset(self, node_systems_dir, skip_if_no_opendss, project_root):
-		"""测试 PowerZooEnv 重置"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+	def test_vvc_env_reset(self, node_systems_dir, skip_if_no_opendss, project_root):
+		"""测试 VVCEnv 重置"""
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
 		from envs.smartgrid.base_env.env import Env
 
 		for variant in ['34Bus_PV_Aggressive', '34Bus_PV', '34Bus']:
@@ -664,18 +664,18 @@ class TestPowerZooEnvIntegration:
 			config.useS = False
 			config.enable_system_logging = False
 
-			pz_env = PowerZooEnv(base_env, config, rank=0)
+			pz_env = VVCEnv(base_env, config, rank=0)
 			obs, state, avail_actions = pz_env.reset()
 
 			assert obs is not None
 			assert len(obs) == pz_env.n_agents
 			assert avail_actions is not None
 		except Exception as e:
-			pytest.skip(f"PowerZooEnv 重置失败: {e}")
+			pytest.skip(f"VVCEnv 重置失败: {e}")
 
-	def test_powerzoo_env_step(self, node_systems_dir, skip_if_no_opendss, project_root):
-		"""测试 PowerZooEnv 步进"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+	def test_vvc_env_step(self, node_systems_dir, skip_if_no_opendss, project_root):
+		"""测试 VVCEnv 步进"""
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
 		from envs.smartgrid.base_env.env import Env
 
 		for variant in ['34Bus_PV_Aggressive', '34Bus_PV', '34Bus']:
@@ -714,7 +714,7 @@ class TestPowerZooEnvIntegration:
 			config.useS = False
 			config.enable_system_logging = False
 
-			pz_env = PowerZooEnv(base_env, config, rank=0)
+			pz_env = VVCEnv(base_env, config, rank=0)
 			pz_env.reset()
 
 			# 创建动作
@@ -727,11 +727,11 @@ class TestPowerZooEnvIntegration:
 			assert rewards is not None
 			assert dones is not None
 		except Exception as e:
-			pytest.skip(f"PowerZooEnv 步进失败: {e}")
+			pytest.skip(f"VVCEnv 步进失败: {e}")
 
-	def test_powerzoo_env_get_avail_actions(self, node_systems_dir, skip_if_no_opendss, project_root):
-		"""测试 PowerZooEnv 可用动作"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+	def test_vvc_env_get_avail_actions(self, node_systems_dir, skip_if_no_opendss, project_root):
+		"""测试 VVCEnv 可用动作"""
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
 		from envs.smartgrid.base_env.env import Env
 
 		for variant in ['34Bus_PV_Aggressive', '34Bus_PV', '34Bus']:
@@ -770,28 +770,28 @@ class TestPowerZooEnvIntegration:
 			config.useS = False
 			config.enable_system_logging = False
 
-			pz_env = PowerZooEnv(base_env, config, rank=0)
+			pz_env = VVCEnv(base_env, config, rank=0)
 			pz_env.reset()
 
 			avail_actions = pz_env.get_avail_actions()
 			assert avail_actions is not None
 			assert len(avail_actions) == pz_env.n_agents
 		except Exception as e:
-			pytest.skip(f"PowerZooEnv 可用动作测试失败: {e}")
+			pytest.skip(f"VVCEnv 可用动作测试失败: {e}")
 
 
 # ==============================================================================
-# 单元测试 - PowerZooEnv 内部方法
+# 单元测试 - VVCEnv 内部方法
 # ==============================================================================
 
 @pytest.mark.unit
 @pytest.mark.smartgrid
-class TestPowerZooEnvMethods:
-	"""测试 PowerZooEnv 内部方法"""
+class TestVVCEnvMethods:
+	"""测试 VVCEnv 内部方法"""
 
 	def test_format_actions_summary_list(self):
 		"""测试动作摘要格式化 - 列表"""
-		from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+		from envs.smartgrid.base_env.vvc_env import VVCEnv
 
 		# 创建 mock 环境
 		mock_env = Mock()

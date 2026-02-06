@@ -56,7 +56,7 @@ cd examples/single_agent/launchers
 ### Python脚本训练
 
 ```python
-from envs.smartgrid.base_env import PowerZooEnv
+from envs.smartgrid.base_env import VVCEnv
 from stable_baselines3 import PPO
 
 # 创建环境
@@ -66,7 +66,7 @@ config = {
 	"num_agents": 10,
 	"episode_length": 96
 }
-env = PowerZooEnv(**config)
+env = VVCEnv(**config)
 
 # 训练模型
 model = PPO("MlpPolicy", env, verbose=1)

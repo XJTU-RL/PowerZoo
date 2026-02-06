@@ -6,7 +6,7 @@
 
 # 设置默认参数
 ALGO=${1:-"ppo"}           # 默认算法: PPO
-ENV=${2:-"powerzoo_single"}  # 默认环境: powerzoo_single
+ENV=${2:-"vvc_single"}  # 默认环境: vvc_single
 EXP_NAME=${3:-"test"}       # 默认实验名称: test
 
 # 检查是否提供了额外参数

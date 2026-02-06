@@ -214,7 +214,7 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             fr = env.render_vulnerability(data)
             remote.send((fr))
         elif cmd == "get_num_agents":
-            # 兼容不同环境类型，优先使用powerzoo_env.py的PowerZooEnv包装器
+            # 兼容不同环境类型，优先使用vvc_env.py的VVCEnv包装器
             if hasattr(env, 'n_agents'):
                 remote.send((env.n_agents))
             else:

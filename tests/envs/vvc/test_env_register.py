@@ -31,24 +31,24 @@ class TestEnvRegisterImport:
 
 	def test_module_import(self):
 		"""测试模块可以正确导入"""
-		from envs.powerzoo.powerzoo import env_register
+		from envs.vvc.vvc import env_register
 		assert env_register is not None
 
 	def test_get_info_and_folder_import(self):
 		"""测试 get_info_and_folder 函数可以导入"""
-		from envs.powerzoo.powerzoo.env_register import get_info_and_folder
+		from envs.vvc.vvc.env_register import get_info_and_folder
 		assert get_info_and_folder is not None
 		assert callable(get_info_and_folder)
 
 	def test_make_base_env_import(self):
 		"""测试 make_base_env 函数可以导入"""
-		from envs.powerzoo.powerzoo.env_register import make_base_env
+		from envs.vvc.vvc.env_register import make_base_env
 		assert make_base_env is not None
 		assert callable(make_base_env)
 
 	def test_remove_parallel_dss_import(self):
 		"""测试 remove_parallel_dss 函数可以导入"""
-		from envs.powerzoo.powerzoo.env_register import remove_parallel_dss
+		from envs.vvc.vvc.env_register import remove_parallel_dss
 		assert remove_parallel_dss is not None
 		assert callable(remove_parallel_dss)
 
@@ -60,19 +60,19 @@ class TestEnvInfoDictionaries:
 
 	def test_sys_info_exists(self):
 		"""测试 _SYS_INFO 字典存在"""
-		from envs.powerzoo.powerzoo.env_register import _SYS_INFO
+		from envs.vvc.vvc.env_register import _SYS_INFO
 		assert _SYS_INFO is not None
 		assert isinstance(_SYS_INFO, dict)
 
 	def test_env_info_exists(self):
 		"""测试 _ENV_INFO 字典存在"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 		assert _ENV_INFO is not None
 		assert isinstance(_ENV_INFO, dict)
 
 	def test_sys_info_contains_standard_systems(self):
 		"""测试 _SYS_INFO 包含标准系统"""
-		from envs.powerzoo.powerzoo.env_register import _SYS_INFO
+		from envs.vvc.vvc.env_register import _SYS_INFO
 
 		expected_systems = ['13Bus', '34Bus', '123Bus']
 		for sys_name in expected_systems:
@@ -81,7 +81,7 @@ class TestEnvInfoDictionaries:
 
 	def test_env_info_contains_standard_envs(self):
 		"""测试 _ENV_INFO 包含标准环境"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		expected_envs = ['13Bus', '34Bus']
 		for env_name in expected_envs:
@@ -90,7 +90,7 @@ class TestEnvInfoDictionaries:
 
 	def test_env_info_structure(self):
 		"""测试环境信息结构"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		if len(_ENV_INFO) > 0:
 			# 获取第一个环境的配置
@@ -111,7 +111,7 @@ class TestGetInfoAndFolder:
 
 	def test_get_info_and_folder_returns_tuple(self):
 		"""测试函数返回元组"""
-		from envs.powerzoo.powerzoo.env_register import get_info_and_folder, _ENV_INFO
+		from envs.vvc.vvc.env_register import get_info_and_folder, _ENV_INFO
 
 		if len(_ENV_INFO) == 0:
 			pytest.skip("没有可用的环境配置")
@@ -127,7 +127,7 @@ class TestGetInfoAndFolder:
 
 	def test_get_info_and_folder_with_scale(self):
 		"""测试带 scale 参数的函数调用"""
-		from envs.powerzoo.powerzoo.env_register import get_info_and_folder, _ENV_INFO
+		from envs.vvc.vvc.env_register import get_info_and_folder, _ENV_INFO
 
 		if len(_ENV_INFO) == 0:
 			pytest.skip("没有可用的环境配置")
@@ -142,7 +142,7 @@ class TestGetInfoAndFolder:
 
 	def test_get_info_and_folder_invalid_env(self):
 		"""测试无效环境名称"""
-		from envs.powerzoo.powerzoo.env_register import get_info_and_folder
+		from envs.vvc.vvc.env_register import get_info_and_folder
 
 		with pytest.raises((KeyError, ValueError, Exception)):
 			get_info_and_folder("NonExistentEnvironment")
@@ -160,7 +160,7 @@ class TestMakeBaseEnv:
 
 	def test_make_base_env_creates_env(self, skip_if_no_opendss):
 		"""测试工厂函数创建环境"""
-		from envs.powerzoo.powerzoo.env_register import make_base_env, _ENV_INFO
+		from envs.vvc.vvc.env_register import make_base_env, _ENV_INFO
 
 		if len(_ENV_INFO) == 0:
 			pytest.skip("没有可用的环境配置")
@@ -177,7 +177,7 @@ class TestMakeBaseEnv:
 
 	def test_make_base_env_with_worker_idx(self, skip_if_no_opendss):
 		"""测试带 worker_idx 的环境创建"""
-		from envs.powerzoo.powerzoo.env_register import make_base_env, _ENV_INFO
+		from envs.vvc.vvc.env_register import make_base_env, _ENV_INFO
 
 		if len(_ENV_INFO) == 0:
 			pytest.skip("没有可用的环境配置")
@@ -193,7 +193,7 @@ class TestMakeBaseEnv:
 	def test_make_base_env_returns_gym_env(self, skip_if_no_opendss):
 		"""测试工厂函数返回 Gym 环境"""
 		import gym
-		from envs.powerzoo.powerzoo.env_register import make_base_env, _ENV_INFO
+		from envs.vvc.vvc.env_register import make_base_env, _ENV_INFO
 
 		if len(_ENV_INFO) == 0:
 			pytest.skip("没有可用的环境配置")
@@ -219,7 +219,7 @@ class TestMakeBaseEnv13Bus:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env_register import make_base_env
+		from envs.vvc.vvc.env_register import make_base_env
 
 		try:
 			env = make_base_env("13Bus")
@@ -238,7 +238,7 @@ class TestMakeBaseEnv13Bus:
 		if not dss_folder.exists():
 			pytest.skip("13Bus 系统不存在")
 
-		from envs.powerzoo.powerzoo.env_register import make_base_env, _ENV_INFO
+		from envs.vvc.vvc.env_register import make_base_env, _ENV_INFO
 
 		if "13Bus_cbat" not in _ENV_INFO:
 			pytest.skip("13Bus_cbat 环境配置不存在")
@@ -259,7 +259,7 @@ class TestRemoveParallelDSS:
 
 	def test_remove_parallel_dss_function(self, tmp_path):
 		"""测试清理函数不会引发异常"""
-		from envs.powerzoo.powerzoo.env_register import remove_parallel_dss
+		from envs.vvc.vvc.env_register import remove_parallel_dss
 
 		# 创建临时文件
 		dss_folder = tmp_path / "test_system"
@@ -290,7 +290,7 @@ class TestEnvironmentVariants:
 
 	def test_discrete_battery_variants(self):
 		"""测试离散电池变体配置"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		# 检查标准环境配置
 		for env_name, info in _ENV_INFO.items():
@@ -301,7 +301,7 @@ class TestEnvironmentVariants:
 
 	def test_continuous_battery_variants(self):
 		"""测试连续电池变体配置"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		for env_name, info in _ENV_INFO.items():
 			if '_cbat' in env_name:
@@ -311,7 +311,7 @@ class TestEnvironmentVariants:
 
 	def test_soc_variants(self):
 		"""测试 SOC 变体配置"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		for env_name, info in _ENV_INFO.items():
 			if '_soc' in env_name:
@@ -331,7 +331,7 @@ class TestConfigValidation:
 
 	def test_all_env_configs_have_required_keys(self):
 		"""测试所有环境配置都有必需的键"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		required_keys = ['horizon', 'reg_act_num', 'bat_act_num']
 
@@ -341,7 +341,7 @@ class TestConfigValidation:
 
 	def test_reward_weights_are_positive(self):
 		"""测试奖励权重为正"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		weight_keys = ['power_w', 'cap_w', 'reg_w', 'dis_w']
 
@@ -352,7 +352,7 @@ class TestConfigValidation:
 
 	def test_action_nums_are_valid(self):
 		"""测试动作数量有效"""
-		from envs.powerzoo.powerzoo.env_register import _ENV_INFO
+		from envs.vvc.vvc.env_register import _ENV_INFO
 
 		for env_name, info in _ENV_INFO.items():
 			if 'reg_act_num' in info:

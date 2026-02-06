@@ -35,8 +35,8 @@ except ImportError:
 	import gym
 	from gym.spaces import Box, Discrete
 
-from envs.powerzoo.powerzoo.circuit import Circuits
-from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+from envs.vvc.vvc.circuit import Circuits
+from envs.vvc.vvc.loadprofile import LoadProfile
 from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
 from utils.path_utils import get_system_folder
 

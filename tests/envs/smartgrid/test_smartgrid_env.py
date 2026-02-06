@@ -18,10 +18,10 @@ class TestPowerZooLLMImports:
 	def test_import_base_env(self):
 		"""Test importing base environment module."""
 		try:
-			from envs.smartgrid.base_env import PowerZooEnv
-			assert PowerZooEnv is not None
+			from envs.smartgrid.base_env import VVCEnv
+			assert VVCEnv is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import PowerZooEnv: {e}")
+			pytest.fail(f"Failed to import VVCEnv: {e}")
 
 	def test_import_circuit_system(self):
 		"""Test importing circuit system module."""
@@ -58,10 +58,10 @@ class TestPowerZooLLMImports:
 	def test_import_single_agent(self):
 		"""Test importing single agent module."""
 		try:
-			from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
-			assert SingleAgentPowerZooEnv is not None
+			from envs.smartgrid.single_agent import SingleAgentVVCEnv
+			assert SingleAgentVVCEnv is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import SingleAgentPowerZooEnv: {e}")
+			pytest.fail(f"Failed to import SingleAgentVVCEnv: {e}")
 
 
 @pytest.mark.integration
@@ -72,20 +72,20 @@ class TestPowerZooLLMEnvCreation:
 
 	def test_env_creation_without_config(self, skip_if_no_opendss):
 		"""Test environment creation fails gracefully without config."""
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
 		# Should fail or warn when no DSS file is provided
 		with pytest.raises(Exception):
-			env = PowerZooEnv()
+			env = VVCEnv()
 
 	def test_env_creation_with_config(self, smartgrid_config, skip_if_no_opendss):
 		"""Test environment creation with valid configuration."""
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 		assert env is not None
 		assert hasattr(env, "reset")
 		assert hasattr(env, "step")
@@ -95,9 +95,9 @@ class TestPowerZooLLMEnvCreation:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 
 		assert hasattr(env, "observation_space")
 		assert isinstance(env.observation_space, (gym.Space, list, dict))
@@ -107,9 +107,9 @@ class TestPowerZooLLMEnvCreation:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 
 		assert hasattr(env, "action_space")
 		assert isinstance(env.action_space, (gym.Space, list, dict))
@@ -126,9 +126,9 @@ class TestPowerZooLLMReset:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 		observations = env.reset()
 
 		assert observations is not None
@@ -138,9 +138,9 @@ class TestPowerZooLLMReset:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 
 		obs1 = env.reset()
 		obs2 = env.reset()
@@ -164,9 +164,9 @@ class TestPowerZooLLMStep:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
-		env = PowerZooEnv(**smartgrid_config)
+		env = VVCEnv(**smartgrid_config)
 		env.reset()
 
 		# Sample actions
@@ -192,14 +192,14 @@ class TestPowerZooLLMStep:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.base_env import PowerZooEnv
+		from envs.smartgrid.base_env import VVCEnv
 
 		# Short episode for testing
 		config = smartgrid_config.copy()
 		config["episode_length"] = 10
 		config["max_steps"] = 10
 
-		env = PowerZooEnv(**config)
+		env = VVCEnv(**config)
 		env.reset()
 
 		done = False
@@ -320,8 +320,8 @@ class TestSingleAgentEnv:
 
 	def test_single_agent_import(self):
 		"""Test single agent environment import."""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
-		assert SingleAgentPowerZooEnv is not None
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
+		assert SingleAgentVVCEnv is not None
 
 	@pytest.mark.requires_opendss
 	@pytest.mark.slow
@@ -330,13 +330,13 @@ class TestSingleAgentEnv:
 		if smartgrid_config["dss_folder_path"] is None:
 			pytest.skip("34Bus system not found")
 
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 		config = smartgrid_config.copy()
 		config["enable_logging"] = False
 
 		try:
-			env = SingleAgentPowerZooEnv(**config)
+			env = SingleAgentVVCEnv(**config)
 			assert env is not None
 		except Exception as e:
 			# Single agent might have different config requirements

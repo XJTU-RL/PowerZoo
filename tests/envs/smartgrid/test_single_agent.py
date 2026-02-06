@@ -3,7 +3,7 @@
 SmartGrid single_agent 模块详细测试
 
 测试覆盖:
-- SingleAgentPowerZooEnv 单智能体环境
+- SingleAgentVVCEnv 单智能体环境
 - SingleAgentConfig 配置类
 - SingleAgentLogger 日志器
 - SingleAgentTrainingConfig 训练配置
@@ -31,9 +31,9 @@ class TestSingleAgentImports:
 	"""测试 single_agent 模块导入"""
 
 	def test_single_agent_env_import(self):
-		"""测试 SingleAgentPowerZooEnv 导入"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
-		assert SingleAgentPowerZooEnv is not None
+		"""测试 SingleAgentVVCEnv 导入"""
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
+		assert SingleAgentVVCEnv is not None
 
 	def test_single_agent_config_import(self):
 		"""测试 SingleAgentConfig 导入"""
@@ -48,11 +48,11 @@ class TestSingleAgentImports:
 	def test_package_init_exports(self):
 		"""测试包导出"""
 		from envs.smartgrid.single_agent import (
-			SingleAgentPowerZooEnv,
+			SingleAgentVVCEnv,
 			SingleAgentConfig,
 			SingleAgentLogger
 		)
-		assert all([SingleAgentPowerZooEnv, SingleAgentConfig, SingleAgentLogger])
+		assert all([SingleAgentVVCEnv, SingleAgentConfig, SingleAgentLogger])
 
 	def test_training_config_import(self):
 		"""测试 SingleAgentTrainingConfig 导入"""
@@ -541,39 +541,39 @@ class TestSingleAgentTrainingConfigPresets:
 
 
 # ==============================================================================
-# 单元测试 - SingleAgentPowerZooEnv (Mocked)
+# 单元测试 - SingleAgentVVCEnv (Mocked)
 # ==============================================================================
 
 @pytest.mark.unit
 @pytest.mark.smartgrid
-class TestSingleAgentPowerZooEnvAttributes:
-	"""测试 SingleAgentPowerZooEnv 属性"""
+class TestSingleAgentVVCEnvAttributes:
+	"""测试 SingleAgentVVCEnv 属性"""
 
 	def test_env_has_required_methods(self):
 		"""测试环境有必需方法"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
-		assert hasattr(SingleAgentPowerZooEnv, 'step')
-		assert hasattr(SingleAgentPowerZooEnv, 'reset')
-		assert hasattr(SingleAgentPowerZooEnv, 'render')
-		assert hasattr(SingleAgentPowerZooEnv, 'close')
+		assert hasattr(SingleAgentVVCEnv, 'step')
+		assert hasattr(SingleAgentVVCEnv, 'reset')
+		assert hasattr(SingleAgentVVCEnv, 'render')
+		assert hasattr(SingleAgentVVCEnv, 'close')
 
 	def test_env_has_action_conversion_methods(self):
 		"""测试环境有动作转换方法"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
-		assert hasattr(SingleAgentPowerZooEnv, '_convert_discrete_to_multi_discrete')
-		assert hasattr(SingleAgentPowerZooEnv, '_convert_continuous_to_discrete')
-		assert hasattr(SingleAgentPowerZooEnv, '_parse_single_agent_action')
+		assert hasattr(SingleAgentVVCEnv, '_convert_discrete_to_multi_discrete')
+		assert hasattr(SingleAgentVVCEnv, '_convert_continuous_to_discrete')
+		assert hasattr(SingleAgentVVCEnv, '_parse_single_agent_action')
 
 	def test_env_has_space_setup_methods(self):
 		"""测试环境有空间设置方法"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
-		assert hasattr(SingleAgentPowerZooEnv, '_setup_single_agent_action_space')
-		assert hasattr(SingleAgentPowerZooEnv, '_setup_single_agent_observation_space')
-		assert hasattr(SingleAgentPowerZooEnv, '_setup_discrete_action_space')
-		assert hasattr(SingleAgentPowerZooEnv, '_setup_continuous_action_space')
+		assert hasattr(SingleAgentVVCEnv, '_setup_single_agent_action_space')
+		assert hasattr(SingleAgentVVCEnv, '_setup_single_agent_observation_space')
+		assert hasattr(SingleAgentVVCEnv, '_setup_discrete_action_space')
+		assert hasattr(SingleAgentVVCEnv, '_setup_continuous_action_space')
 
 
 @pytest.mark.unit
@@ -615,7 +615,7 @@ class TestActionConversion:
 
 
 # ==============================================================================
-# 集成测试 - SingleAgentPowerZooEnv
+# 集成测试 - SingleAgentVVCEnv
 # ==============================================================================
 
 @pytest.mark.integration
@@ -638,10 +638,10 @@ class TestSingleAgentEnvIntegration:
 
 	def test_env_creation_with_config(self, node_systems_dir, skip_if_no_opendss, env_config):
 		"""测试使用配置创建环境"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 		try:
-			env = SingleAgentPowerZooEnv(config=env_config)
+			env = SingleAgentVVCEnv(config=env_config)
 			assert env is not None
 			assert hasattr(env, 'action_space')
 			assert hasattr(env, 'observation_space')
@@ -650,10 +650,10 @@ class TestSingleAgentEnvIntegration:
 
 	def test_env_reset(self, node_systems_dir, skip_if_no_opendss, env_config):
 		"""测试环境重置"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 		try:
-			env = SingleAgentPowerZooEnv(config=env_config)
+			env = SingleAgentVVCEnv(config=env_config)
 			obs, info = env.reset()
 
 			assert obs is not None
@@ -663,10 +663,10 @@ class TestSingleAgentEnvIntegration:
 
 	def test_env_step(self, node_systems_dir, skip_if_no_opendss, env_config):
 		"""测试环境步进"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 		try:
-			env = SingleAgentPowerZooEnv(config=env_config)
+			env = SingleAgentVVCEnv(config=env_config)
 			obs, info = env.reset()
 
 			# 采样动作并执行
@@ -682,10 +682,10 @@ class TestSingleAgentEnvIntegration:
 
 	def test_env_episode(self, node_systems_dir, skip_if_no_opendss, env_config):
 		"""测试完整 Episode"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 		try:
-			env = SingleAgentPowerZooEnv(config=env_config)
+			env = SingleAgentVVCEnv(config=env_config)
 			obs, info = env.reset()
 
 			total_reward = 0
@@ -712,13 +712,13 @@ class TestSingleAgentActionSpace:
 
 	def test_discrete_action_space(self, node_systems_dir, skip_if_no_opendss):
 		"""测试离散动作空间"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv, SingleAgentConfig
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv, SingleAgentConfig
 		import gymnasium as gym
 
 		config = SingleAgentConfig(circuit_name="13Bus", max_episode_steps=10)
 
 		try:
-			env = SingleAgentPowerZooEnv(config=config, action_space_type="discrete")
+			env = SingleAgentVVCEnv(config=config, action_space_type="discrete")
 
 			assert isinstance(env.action_space, gym.spaces.Discrete)
 			assert env.action_space.n > 0
@@ -727,13 +727,13 @@ class TestSingleAgentActionSpace:
 
 	def test_continuous_action_space(self, node_systems_dir, skip_if_no_opendss):
 		"""测试连续动作空间"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv, SingleAgentConfig
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv, SingleAgentConfig
 		import gymnasium as gym
 
 		config = SingleAgentConfig(circuit_name="13Bus", max_episode_steps=10)
 
 		try:
-			env = SingleAgentPowerZooEnv(config=config, action_space_type="continuous")
+			env = SingleAgentVVCEnv(config=config, action_space_type="continuous")
 
 			assert isinstance(env.action_space, gym.spaces.Box)
 		except Exception as e:
@@ -741,12 +741,12 @@ class TestSingleAgentActionSpace:
 
 	def test_get_action_meanings(self, node_systems_dir, skip_if_no_opendss):
 		"""测试获取动作含义"""
-		from envs.smartgrid.single_agent import SingleAgentPowerZooEnv, SingleAgentConfig
+		from envs.smartgrid.single_agent import SingleAgentVVCEnv, SingleAgentConfig
 
 		config = SingleAgentConfig(circuit_name="13Bus", max_episode_steps=10)
 
 		try:
-			env = SingleAgentPowerZooEnv(config=config)
+			env = SingleAgentVVCEnv(config=config)
 			meanings = env.get_action_meanings()
 
 			assert isinstance(meanings, dict)
@@ -919,10 +919,10 @@ class TestTrainingConfigEdgeCases:
 class TestConvenienceFunctions:
 	"""测试便捷函数"""
 
-	def test_create_single_agent_powerzoo_env_function(self):
+	def test_create_single_agent_vvc_env_function(self):
 		"""测试创建环境便捷函数"""
-		from envs.smartgrid.single_agent.single_agent_env import create_single_agent_powerzoo_env
-		assert create_single_agent_powerzoo_env is not None
+		from envs.smartgrid.single_agent.single_agent_env import create_single_agent_vvc_env
+		assert create_single_agent_vvc_env is not None
 
 	def test_get_config_function(self):
 		"""测试获取配置便捷函数"""

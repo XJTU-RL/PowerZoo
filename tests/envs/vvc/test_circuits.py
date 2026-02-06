@@ -34,7 +34,7 @@ class TestCircuitsImport:
 
 	def test_circuits_class_import(self):
 		"""测试 Circuits 类可以正确导入"""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		assert Circuits is not None
 		assert hasattr(Circuits, '__init__')
 		assert hasattr(Circuits, 'compile')
@@ -43,7 +43,7 @@ class TestCircuitsImport:
 
 	def test_edge_classes_import(self):
 		"""测试边类（Line, Transformer, Regulator）可以正确导入"""
-		from envs.powerzoo.powerzoo.circuit import Edge, Line, Transformer, Regulator
+		from envs.vvc.vvc.circuit import Edge, Line, Transformer, Regulator
 		assert Edge is not None
 		assert Line is not None
 		assert Transformer is not None
@@ -56,7 +56,7 @@ class TestCircuitsImport:
 
 	def test_node_classes_import(self):
 		"""测试节点类（Load, Capacitor, Battery, PVSystem）可以正确导入"""
-		from envs.powerzoo.powerzoo.circuit import Node, Load, Capacitor, Battery, PVSystem
+		from envs.vvc.vvc.circuit import Node, Load, Capacitor, Battery, PVSystem
 		assert Node is not None
 		assert Load is not None
 		assert Capacitor is not None
@@ -77,7 +77,7 @@ class TestCircuitsAttributes:
 
 	def test_circuits_has_required_attributes(self):
 		"""验证 Circuits 类具有所有必需的属性"""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		# 检查类方法
 		required_methods = [
@@ -107,7 +107,7 @@ class TestEdgeClass:
 
 	def test_edge_base_class(self):
 		"""测试 Edge 基类"""
-		from envs.powerzoo.powerzoo.circuit import Edge
+		from envs.vvc.vvc.circuit import Edge
 
 		edge = Edge()
 		# Edge 应该有 name, bus1, bus2 等属性
@@ -115,7 +115,7 @@ class TestEdgeClass:
 
 	def test_line_class_creation(self):
 		"""测试 Line 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Line
+		from envs.vvc.vvc.circuit import Line
 
 		line = Line()
 		assert line is not None
@@ -123,7 +123,7 @@ class TestEdgeClass:
 
 	def test_transformer_class_creation(self):
 		"""测试 Transformer 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Transformer
+		from envs.vvc.vvc.circuit import Transformer
 
 		transformer = Transformer()
 		assert transformer is not None
@@ -131,7 +131,7 @@ class TestEdgeClass:
 
 	def test_regulator_class_creation(self):
 		"""测试 Regulator 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Regulator
+		from envs.vvc.vvc.circuit import Regulator
 
 		regulator = Regulator()
 		assert regulator is not None
@@ -151,14 +151,14 @@ class TestNodeClass:
 
 	def test_node_base_class(self):
 		"""测试 Node 基类"""
-		from envs.powerzoo.powerzoo.circuit import Node
+		from envs.vvc.vvc.circuit import Node
 
 		node = Node()
 		assert node is not None
 
 	def test_load_class_creation(self):
 		"""测试 Load 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Load
+		from envs.vvc.vvc.circuit import Load
 
 		load = Load()
 		assert load is not None
@@ -166,7 +166,7 @@ class TestNodeClass:
 
 	def test_capacitor_class_creation(self):
 		"""测试 Capacitor 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Capacitor
+		from envs.vvc.vvc.circuit import Capacitor
 
 		capacitor = Capacitor()
 		assert capacitor is not None
@@ -176,7 +176,7 @@ class TestNodeClass:
 
 	def test_battery_class_creation(self):
 		"""测试 Battery 类创建"""
-		from envs.powerzoo.powerzoo.circuit import Battery
+		from envs.vvc.vvc.circuit import Battery
 
 		battery = Battery()
 		assert battery is not None
@@ -186,7 +186,7 @@ class TestNodeClass:
 
 	def test_pvsystem_class_creation(self):
 		"""测试 PVSystem 类创建"""
-		from envs.powerzoo.powerzoo.circuit import PVSystem
+		from envs.vvc.vvc.circuit import PVSystem
 
 		pv = PVSystem()
 		assert pv is not None
@@ -210,7 +210,7 @@ class TestCircuitsInitialization:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		circuit = Circuits(dss_file=str(dss_file))
 
@@ -232,7 +232,7 @@ class TestCircuitsInitialization:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		reg_act_num = 17
 		bat_act_num = 21
@@ -247,7 +247,7 @@ class TestCircuitsInitialization:
 
 	def test_circuits_init_with_invalid_dss_file(self, skip_if_no_opendss):
 		"""测试使用无效 DSS 文件初始化应该失败"""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		with pytest.raises(Exception):
 			Circuits(dss_file="/nonexistent/path/invalid.dss")
@@ -266,7 +266,7 @@ class TestCircuitsCompileReset:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_compile_basic(self, circuit_13bus):
@@ -314,7 +314,7 @@ class TestRegulatorOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_set_regulator_parameters(self, circuit_13bus):
@@ -371,7 +371,7 @@ class TestCapacitorOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_get_all_capacitor_statuses(self, circuit_13bus):
@@ -425,7 +425,7 @@ class TestBatteryOperations:
 		if not dss_file.exists():
 			pytest.skip("DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		circuit = Circuits(dss_file=str(dss_file))
 		return circuit
 
@@ -478,7 +478,7 @@ class TestVoltageCurrentOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		circuit = Circuits(dss_file=str(dss_file))
 		circuit.compile()
 		circuit.dss.ActiveCircuit.Solution.SolveNoControl()
@@ -540,7 +540,7 @@ class TestTopologyOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_topology_is_networkx_graph(self, circuit_13bus):
@@ -581,7 +581,7 @@ class TestYMatrixOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_get_Y_matrix(self, circuit_13bus):
@@ -622,7 +622,7 @@ class TestSensitivityOperations:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_get_node_sensity(self, circuit_13bus):
@@ -658,14 +658,14 @@ class TestCircuitsEdgeCases:
 
 	def test_circuits_with_empty_dss_file_path(self):
 		"""测试使用空 DSS 文件路径"""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		with pytest.raises(Exception):
 			Circuits(dss_file="")
 
 	def test_circuits_with_none_dss_file(self):
 		"""测试使用 None DSS 文件"""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		with pytest.raises((TypeError, Exception)):
 			Circuits(dss_file=None)
@@ -684,7 +684,7 @@ class TestCircuitsRobustness:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		return Circuits(dss_file=str(dss_file))
 
 	def test_multiple_compile_calls(self, circuit_13bus):

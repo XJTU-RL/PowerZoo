@@ -33,12 +33,12 @@ class TestLoadProfileImport:
 
 	def test_loadprofile_class_import(self):
 		"""测试 LoadProfile 类可以正确导入"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 		assert LoadProfile is not None
 
 	def test_loadprofile_has_required_methods(self):
 		"""验证 LoadProfile 类具有所有必需的方法"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		required_methods = [
 			'__init__',
@@ -77,7 +77,7 @@ class TestLoadProfileStaticMethods:
 		dss_file = tmp_path / "test.dss"
 		dss_file.write_text(dss_content)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		# 使用类方法提取负荷名称
 		# 注意：find_load_names 是实例方法，需要创建实例或 mock
@@ -134,7 +134,7 @@ class TestLoadProfileInitialization:
 
 	def test_loadprofile_init_basic(self, mock_dss_folder):
 		"""测试 LoadProfile 基本初始化"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		dss_file = mock_dss_folder / "IEEE13Nodeckt.dss"
 
@@ -152,7 +152,7 @@ class TestLoadProfileInitialization:
 
 	def test_loadprofile_init_with_worker_idx(self, mock_dss_folder):
 		"""测试带 worker_idx 的 LoadProfile 初始化"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		dss_file = mock_dss_folder / "IEEE13Nodeckt.dss"
 
@@ -168,7 +168,7 @@ class TestLoadProfileInitialization:
 
 	def test_loadprofile_finds_csv_files(self, mock_dss_folder):
 		"""测试 LoadProfile 发现 CSV 文件"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		dss_file = mock_dss_folder / "IEEE13Nodeckt.dss"
 
@@ -184,7 +184,7 @@ class TestLoadProfileInitialization:
 
 	def test_loadprofile_finds_load_names(self, mock_dss_folder):
 		"""测试 LoadProfile 提取负荷名称"""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		dss_file = mock_dss_folder / "IEEE13Nodeckt.dss"
 
@@ -234,7 +234,7 @@ class TestLoadProfileDSSFileCreation:
 		csv_content = "Load1,Load2\n1.0,1.0\n0.9,0.95\n"
 		loadshape_csv.write_text(csv_content)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		return LoadProfile(
 			steps=24,
@@ -302,7 +302,7 @@ class TestLoadProfileGeneration:
 			csv_content = "Load1,Load2\n" + "\n".join([f"{0.8+0.1*np.random.rand()},{0.8+0.1*np.random.rand()}" for _ in range(24)])
 			csv_file.write_text(csv_content)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		return LoadProfile(
 			steps=24,
@@ -362,7 +362,7 @@ class TestLoadProfileWithRealSystem:
 		if not dss_file.exists():
 			pytest.skip("13Bus DSS 文件不存在")
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		# 如果 loadshape 目录存在
 		loadshape_dir = dss_folder / "loadshape" / "data_without_noise"
@@ -403,7 +403,7 @@ class TestLoadProfileWithRealSystem:
 		if main_dss is None:
 			pytest.skip("未找到主 DSS 文件")
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		# 检查 loadshape 目录
 		loadshape_dir = dss_folder / "loadshape" / "data_without_noise"
@@ -442,7 +442,7 @@ class TestLoadProfileEdgeCases:
 		loadshape_dir = dss_folder / "loadshape" / "data_without_noise"
 		loadshape_dir.mkdir(parents=True)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		lp = LoadProfile(
 			steps=24,
@@ -471,7 +471,7 @@ class TestLoadProfileEdgeCases:
 		csv_file = loadshape_dir / "loadshape_001.csv"
 		csv_file.write_text("Load1\n1.0\n0.9\n0.8")
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		lp = LoadProfile(
 			steps=24,
@@ -499,7 +499,7 @@ class TestLoadProfileMultiWorker:
 		loadshape_dir = dss_folder / "loadshape" / "data_without_noise"
 		loadshape_dir.mkdir(parents=True)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		lp0 = LoadProfile(
 			steps=24,
@@ -529,7 +529,7 @@ class TestLoadProfileMultiWorker:
 		loadshape_dir = dss_folder / "loadshape" / "data_without_noise"
 		loadshape_dir.mkdir(parents=True)
 
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 
 		lp = LoadProfile(
 			steps=24,

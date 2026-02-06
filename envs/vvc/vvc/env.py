@@ -22,8 +22,8 @@
 import os
 import gym
 import numpy as np
-from envs.powerzoo.powerzoo.circuit import Circuits
-from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+from envs.vvc.vvc.circuit import Circuits
+from envs.vvc.vvc.loadprofile import LoadProfile
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd

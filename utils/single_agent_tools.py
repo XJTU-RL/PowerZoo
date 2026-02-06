@@ -38,7 +38,7 @@ from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.logger import configure
 
 # PowerZoo imports
-from envs.smartgrid.single_agent.single_agent_env import SingleAgentPowerZooEnv
+from envs.smartgrid.single_agent.single_agent_env import SingleAgentVVCEnv
 from envs.smartgrid.single_agent.single_agent_config import SingleAgentConfig
 from envs.smartgrid.single_agent.single_agent_training_config import SingleAgentTrainingConfig
 
@@ -133,7 +133,7 @@ def create_single_agent_env(
         """创建单个环境的工厂函数"""
         def _init():
             # 创建环境
-            env = SingleAgentPowerZooEnv(
+            env = SingleAgentVVCEnv(
                 config=config.single_agent_env_config,
                 action_space_type=config.action_space_type
             )

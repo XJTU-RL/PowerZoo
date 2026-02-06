@@ -28,7 +28,7 @@ class SingleAgentTrainingConfig:
     
     # 基础配置
     algorithm: str = "ppo"  # 算法名称
-    environment: str = "powerzoo_single"  # 环境名称
+    environment: str = "vvc_single"  # 环境名称
     experiment_name: str = "single_agent_exp"  # 实验名称
     
     # 路径配置
@@ -368,7 +368,7 @@ class SingleAgentTrainingConfig:
         """从命令行参数创建配置"""
         config = cls(
             algorithm=getattr(args, 'algorithm', 'ppo'),
-            environment=getattr(args, 'environment', 'powerzoo_single'),
+            environment=getattr(args, 'environment', 'vvc_single'),
             experiment_name=getattr(args, 'experiment_name', 'single_agent_exp'),
             total_timesteps=getattr(args, 'total_timesteps', 100000),
             device=getattr(args, 'device', 'auto'),
@@ -380,52 +380,52 @@ class SingleAgentTrainingConfig:
 # 预定义配置
 DEFAULT_PPO_CONFIG = SingleAgentTrainingConfig(
     algorithm="ppo",
-    environment="powerzoo_single",
-    experiment_name="ppo_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="ppo_vvc_default",
     total_timesteps=100000
 )
 
 DEFAULT_DQN_CONFIG = SingleAgentTrainingConfig(
     algorithm="dqn",
-    environment="powerzoo_single",
-    experiment_name="dqn_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="dqn_vvc_default",
     total_timesteps=100000
 )
 
 DEFAULT_SAC_CONFIG = SingleAgentTrainingConfig(
     algorithm="sac",
-    environment="powerzoo_single",
-    experiment_name="sac_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="sac_vvc_default",
     total_timesteps=100000
 )
 
 DEFAULT_A2C_CONFIG = SingleAgentTrainingConfig(
     algorithm="a2c",
-    environment="powerzoo_single",
-    experiment_name="a2c_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="a2c_vvc_default",
     total_timesteps=100000
 )
 
 DEFAULT_DDPG_CONFIG = SingleAgentTrainingConfig(
     algorithm="ddpg",
-    environment="powerzoo_single",
-    experiment_name="ddpg_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="ddpg_vvc_default",
     total_timesteps=100000,
     action_space_type="continuous"
 )
 
 DEFAULT_TD3_CONFIG = SingleAgentTrainingConfig(
     algorithm="td3",
-    environment="powerzoo_single",
-    experiment_name="td3_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="td3_vvc_default",
     total_timesteps=100000,
     action_space_type="continuous"
 )
 
 DEFAULT_HER_CONFIG = SingleAgentTrainingConfig(
     algorithm="her",
-    environment="powerzoo_single",
-    experiment_name="her_powerzoo_default",
+    environment="vvc_single",
+    experiment_name="her_vvc_default",
     total_timesteps=100000,
     action_space_type="continuous"
 )

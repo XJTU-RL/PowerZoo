@@ -5,7 +5,7 @@
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
 @Description: PowerZooLLM专属Logger类，用于记录和管理PowerZoo LLM环境的训练与评估过程。
-             相比于原始PowerZooLogger，增加了对PV系统、电池系统的详细监控。
+             相比于原始VVCLogger，增加了对PV系统、电池系统的详细监控。
 
 主要功能：
 - 继承BaseLogger类，提供基础日志功能

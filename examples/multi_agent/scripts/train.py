@@ -56,20 +56,21 @@ def main():
         ],
         help="算法名称。选择：: happo, hatrpo, haa2c, haddpg, hatd3, hasac, had3qn, maddpg, matd3, mappo, shom.",
     )
-    # 添加环境名称参数，默认为"powerzoo"，可选值为 "powerzoo"
+    # 添加环境名称参数，默认为"vvc"，可选值为 "vvc", "smartgrid" 等
     parser.add_argument(
         "--env",
         type=str,
         default="smartgrid",
         choices=[
-            "powerzoo",
+            "vvc",
+            "powerzoo",  # backward compatibility alias for vvc
             "smartgrid",
             "dsr",
             "stackelberg_13bus",
             "stackelberg_34bus",
             "stackelberg_123bus",
         ],
-        help="选择环境: powerzoo, smartgrid, dsr, stackelberg_13bus/34bus/123bus.",
+        help="选择环境: vvc, smartgrid, dsr, stackelberg_13bus/34bus/123bus.",
     )
     # 添加实验名称参数，默认为"test"
     parser.add_argument(

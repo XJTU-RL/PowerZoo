@@ -181,7 +181,7 @@ total_reward = ctrl_reward + voltage_reward + powerloss_reward * 0.1 +
 ### PowerZoo环境
 
 ```python
-from envs.powerzoo import PowerZooEnv
+from envs.vvc import VVCEnv
 
 # 创建基础环境
 config = {
@@ -189,7 +189,7 @@ config = {
 	"num_agents": 3,
 	"episode_length": 96
 }
-env = PowerZooEnv(**config)
+env = VVCEnv(**config)
 
 # 环境交互
 obs = env.reset()
@@ -203,7 +203,7 @@ obs, reward, done, info = env.step(actions)
 ### PowerZoo_LLM环境
 
 ```python
-from envs.smartgrid.base_env import PowerZooEnv
+from envs.smartgrid.base_env import VVCEnv
 
 # 创建完整环境
 config = {
@@ -213,7 +213,7 @@ config = {
 	"episode_length": 96,
 	"reward_type": "powerzoo"
 }
-env = PowerZooEnv(**config)
+env = VVCEnv(**config)
 
 # 环境交互
 obs = env.reset()
@@ -229,14 +229,14 @@ obs, reward, done, info = env.step(actions)
 ### 单智能体环境（使用gymnasium）
 
 ```python
-from envs.smartgrid.single_agent import SingleAgentPowerZooEnv
+from envs.smartgrid.single_agent import SingleAgentVVCEnv
 
 # 创建单智能体环境
 config = {
 	"dss_folder_path": "path/to/34Bus_PV_Aggressive",
 	"max_episode_steps": 96
 }
-env = SingleAgentPowerZooEnv(**config)
+env = SingleAgentVVCEnv(**config)
 
 # 使用Stable-Baselines3训练
 from stable_baselines3 import PPO

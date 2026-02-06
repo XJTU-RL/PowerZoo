@@ -9,7 +9,7 @@ envs/stackelberg/
 ├── README_STACKELBERG.md                 # Detailed technical documentation
 ├── OPTIMIZATION_SUMMARY.md               # Summary of implementation optimizations
 ├── STRUCTURE.md                          # This file, explaining the structure
-├── stackelberg_powerzoo_env.py           # Main environment entry point, compatible with PowerZoo
+├── stackelberg_vvc_env.py           # Main environment entry point, compatible with PowerZoo
 ├── test_stackelberg_integration.py       # Integration tests for the environment
 └── stackelberg_game/                     # Core game logic module
     ├── __init__.py                       # Core module initialization
@@ -23,7 +23,7 @@ envs/stackelberg/
 
 ## Key Components
 
-### 1. **stackelberg_powerzoo_env.py**
+### 1. **stackelberg_vvc_env.py**
 - Main entry point for the Stackelberg environment.
 - Ensures compatibility with the broader PowerZoo framework.
 - Handles environment creation and registration.
@@ -60,8 +60,8 @@ envs/stackelberg/
 ### Basic Usage
 ```python
 # Recommended way using the main entry point
-from envs.stackelberg import StackelbergPowerZooEnv
-env = StackelbergPowerZooEnv(system_name='13Bus')
+from envs.stackelberg import StackelbergVVCEnv
+env = StackelbergVVCEnv(system_name='13Bus')
 
 # Or using the factory for more control
 from envs.stackelberg.stackelberg_game.env_factory import make_stackelberg_env

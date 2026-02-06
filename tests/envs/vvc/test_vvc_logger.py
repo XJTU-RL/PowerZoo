@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-PowerZoo Logger (PowerZooLogger) 详细测试
+PowerZoo Logger (VVCLogger) 详细测试
 
 测试覆盖:
-- PowerZooLogger 初始化
+- VVCLogger 初始化
 - 训练日志记录
 - 评估日志记录
 - Episode 日志
 - 步骤日志
 - TensorBoard 集成
 
-@File      : test_powerzoo_logger.py
+@File      : test_vvc_logger.py
 @Author    : PowerZoo Test Suite
 """
 
@@ -28,22 +28,22 @@ from unittest.mock import Mock, patch, MagicMock
 
 @pytest.mark.unit
 @pytest.mark.powerzoo
-class TestPowerZooLoggerImport:
-	"""测试 PowerZooLogger 模块导入"""
+class TestVVCLoggerImport:
+	"""测试 VVCLogger 模块导入"""
 
-	def test_powerzoo_logger_import(self):
-		"""测试 PowerZooLogger 类可以正确导入"""
-		from envs.powerzoo import PowerZooLogger
-		assert PowerZooLogger is not None
+	def test_vvc_logger_import(self):
+		"""测试 VVCLogger 类可以正确导入"""
+		from envs.vvc import VVCLogger
+		assert VVCLogger is not None
 
-	def test_powerzoo_logger_from_module(self):
-		"""测试从模块导入 PowerZooLogger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
-		assert PowerZooLogger is not None
+	def test_vvc_logger_from_module(self):
+		"""测试从模块导入 VVCLogger"""
+		from envs.vvc.vvc_logger import VVCLogger
+		assert VVCLogger is not None
 
-	def test_powerzoo_logger_has_required_methods(self):
-		"""验证 PowerZooLogger 类具有所有必需的方法"""
-		from envs.powerzoo import PowerZooLogger
+	def test_vvc_logger_has_required_methods(self):
+		"""验证 VVCLogger 类具有所有必需的方法"""
+		from envs.vvc import VVCLogger
 
 		required_methods = [
 			'__init__',
@@ -58,20 +58,20 @@ class TestPowerZooLoggerImport:
 		]
 
 		for method in required_methods:
-			assert hasattr(PowerZooLogger, method), f"PowerZooLogger 缺少方法: {method}"
+			assert hasattr(VVCLogger, method), f"VVCLogger 缺少方法: {method}"
 
 
 @pytest.mark.unit
 @pytest.mark.powerzoo
-class TestPowerZooLoggerInheritance:
-	"""测试 PowerZooLogger 继承关系"""
+class TestVVCLoggerInheritance:
+	"""测试 VVCLogger 继承关系"""
 
 	def test_inherits_from_base_logger(self):
-		"""测试 PowerZooLogger 继承自 BaseLogger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		"""测试 VVCLogger 继承自 BaseLogger"""
+		from envs.vvc.vvc_logger import VVCLogger
 		from common.base_logger import BaseLogger
 
-		assert issubclass(PowerZooLogger, BaseLogger)
+		assert issubclass(VVCLogger, BaseLogger)
 
 
 # ==============================================================================
@@ -80,12 +80,12 @@ class TestPowerZooLoggerInheritance:
 
 @pytest.mark.unit
 @pytest.mark.powerzoo
-class TestPowerZooLoggerInit:
-	"""测试 PowerZooLogger 初始化"""
+class TestVVCLoggerInit:
+	"""测试 VVCLogger 初始化"""
 
 	def test_logger_creation_with_minimal_args(self, tmp_path):
 		"""测试使用最少参数创建 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		# 创建 mock 参数
 		args = Mock()
@@ -99,13 +99,13 @@ class TestPowerZooLoggerInit:
 		n_agents = 3
 		num_env_steps = 1000
 
-		logger = PowerZooLogger(args, algo, env_name, n_agents, num_env_steps)
+		logger = VVCLogger(args, algo, env_name, n_agents, num_env_steps)
 
 		assert logger is not None
 
 	def test_logger_has_task_name(self, tmp_path):
 		"""测试 logger 有任务名称"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -113,7 +113,7 @@ class TestPowerZooLoggerInit:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 
 		assert hasattr(logger, 'get_task_name')
 		task_name = logger.get_task_name()
@@ -132,7 +132,7 @@ class TestLoggerArraysInit:
 	@pytest.fixture
 	def logger(self, tmp_path):
 		"""创建 logger 实例"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -140,7 +140,7 @@ class TestLoggerArraysInit:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		return PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		return VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 
 	def test_init_creates_reward_arrays(self, logger):
 		"""测试 init 创建奖励数组"""
@@ -172,7 +172,7 @@ class TestLoggerEpisodeLog:
 	@pytest.fixture
 	def initialized_logger(self, tmp_path):
 		"""创建并初始化 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -180,7 +180,7 @@ class TestLoggerEpisodeLog:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 		return logger
 
@@ -245,7 +245,7 @@ class TestLoggerEvalLog:
 	@pytest.fixture
 	def initialized_logger(self, tmp_path):
 		"""创建并初始化 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -254,7 +254,7 @@ class TestLoggerEvalLog:
 		args.run_dir = str(tmp_path)
 		args.n_eval_rollout_threads = 2
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 		return logger
 
@@ -316,7 +316,7 @@ class TestLoggerTensorBoard:
 	@pytest.fixture
 	def logger_with_writer(self, tmp_path):
 		"""创建带 TensorBoard writer 的 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -326,7 +326,7 @@ class TestLoggerTensorBoard:
 		args.use_wandb = False
 		args.use_tensorboard = True
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 
 		# Mock TensorBoard writer
@@ -371,7 +371,7 @@ class TestLoggerFormat:
 	@pytest.fixture
 	def logger(self, tmp_path):
 		"""创建 logger 实例"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -379,7 +379,7 @@ class TestLoggerFormat:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		return PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		return VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 
 	def test_get_task_name_format(self, logger):
 		"""测试任务名称格式"""
@@ -414,7 +414,7 @@ class TestLoggerEdgeCases:
 
 	def test_logger_with_zero_agents(self, tmp_path):
 		"""测试零智能体的 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -424,14 +424,14 @@ class TestLoggerEdgeCases:
 
 		# 零智能体应该不会崩溃
 		try:
-			logger = PowerZooLogger(args, "HAPPO", "13Bus", 0, 1000)
+			logger = VVCLogger(args, "HAPPO", "13Bus", 0, 1000)
 			logger.init(2)
 		except Exception:
 			pass  # 可能会失败，但不应该崩溃
 
 	def test_logger_with_single_thread(self, tmp_path):
 		"""测试单线程的 logger"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -439,7 +439,7 @@ class TestLoggerEdgeCases:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(1)  # 单线程
 
 		# 应该正常工作
@@ -447,7 +447,7 @@ class TestLoggerEdgeCases:
 
 	def test_logger_handles_empty_infos(self, tmp_path):
 		"""测试空 infos 的处理"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -455,7 +455,7 @@ class TestLoggerEdgeCases:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 		logger.episode_init(0)
 
@@ -477,7 +477,7 @@ class TestLoggerMetrics:
 
 	def test_power_loss_metrics_tracked(self, tmp_path):
 		"""测试功率损耗指标被跟踪"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -485,7 +485,7 @@ class TestLoggerMetrics:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 
 		# 验证功率损耗相关属性存在
@@ -500,7 +500,7 @@ class TestLoggerMetrics:
 
 	def test_voltage_metrics_tracked(self, tmp_path):
 		"""测试电压指标被跟踪"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -508,7 +508,7 @@ class TestLoggerMetrics:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 
 		# 验证电压相关属性存在
@@ -521,7 +521,7 @@ class TestLoggerMetrics:
 
 	def test_control_metrics_tracked(self, tmp_path):
 		"""测试控制指标被跟踪"""
-		from envs.powerzoo.powerzoo_logger import PowerZooLogger
+		from envs.vvc.vvc_logger import VVCLogger
 
 		args = Mock()
 		args.env_name = "test_env"
@@ -529,7 +529,7 @@ class TestLoggerMetrics:
 		args.seed = 42
 		args.run_dir = str(tmp_path)
 
-		logger = PowerZooLogger(args, "HAPPO", "13Bus", 3, 1000)
+		logger = VVCLogger(args, "HAPPO", "13Bus", 3, 1000)
 		logger.init(2)
 
 		# 验证控制相关属性存在

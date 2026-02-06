@@ -12,21 +12,21 @@ import gym
 
 @pytest.mark.unit
 @pytest.mark.powerzoo
-class TestPowerZooEnvBasics:
+class TestVVCEnvBasics:
 	"""Test basic PowerZoo environment functionality."""
 
 	def test_import_powerzoo(self):
 		"""Test that PowerZoo module can be imported."""
 		try:
-			from envs.powerzoo import PowerZooEnv
-			assert PowerZooEnv is not None
+			from envs.vvc import VVCEnv
+			assert VVCEnv is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import PowerZoo: {e}")
 
 	def test_import_circuit(self):
 		"""Test that Circuit module can be imported."""
 		try:
-			from envs.powerzoo.powerzoo.circuit import Circuits
+			from envs.vvc.vvc.circuit import Circuits
 			assert Circuits is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import Circuits: {e}")
@@ -34,7 +34,7 @@ class TestPowerZooEnvBasics:
 	def test_import_loadprofile(self):
 		"""Test that LoadProfile module can be imported."""
 		try:
-			from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+			from envs.vvc.vvc.loadprofile import LoadProfile
 			assert LoadProfile is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import LoadProfile: {e}")
@@ -43,25 +43,25 @@ class TestPowerZooEnvBasics:
 @pytest.mark.integration
 @pytest.mark.powerzoo
 @pytest.mark.requires_opendss
-class TestPowerZooEnvCreation:
+class TestVVCEnvCreation:
 	"""Test PowerZoo environment creation and initialization."""
 
 	def test_env_creation_without_config(self, skip_if_no_opendss):
 		"""Test environment creation fails gracefully without config."""
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
 		# Should fail or warn when no DSS file is provided
 		with pytest.raises(Exception):
-			env = PowerZooEnv()
+			env = VVCEnv()
 
 	def test_env_creation_with_config(self, powerzoo_config, skip_if_no_opendss):
 		"""Test environment creation with valid configuration."""
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 		assert env is not None
 		assert hasattr(env, "reset")
 		assert hasattr(env, "step")
@@ -71,9 +71,9 @@ class TestPowerZooEnvCreation:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 
 		assert hasattr(env, "observation_space")
 		assert isinstance(env.observation_space, (gym.Space, list))
@@ -88,9 +88,9 @@ class TestPowerZooEnvCreation:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 
 		assert hasattr(env, "action_space")
 		assert isinstance(env.action_space, (gym.Space, list))
@@ -104,7 +104,7 @@ class TestPowerZooEnvCreation:
 @pytest.mark.integration
 @pytest.mark.powerzoo
 @pytest.mark.requires_opendss
-class TestPowerZooEnvReset:
+class TestVVCEnvReset:
 	"""Test PowerZoo environment reset functionality."""
 
 	def test_reset_returns_observation(self, powerzoo_config, skip_if_no_opendss):
@@ -112,9 +112,9 @@ class TestPowerZooEnvReset:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 		observations = env.reset()
 
 		assert observations is not None
@@ -131,11 +131,11 @@ class TestPowerZooEnvReset:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
 		# Create two environments with same seed
-		env1 = PowerZooEnv(**powerzoo_config)
-		env2 = PowerZooEnv(**powerzoo_config)
+		env1 = VVCEnv(**powerzoo_config)
+		env2 = VVCEnv(**powerzoo_config)
 
 		obs1 = env1.reset()
 		obs2 = env2.reset()
@@ -150,7 +150,7 @@ class TestPowerZooEnvReset:
 @pytest.mark.powerzoo
 @pytest.mark.requires_opendss
 @pytest.mark.slow
-class TestPowerZooEnvStep:
+class TestVVCEnvStep:
 	"""Test PowerZoo environment step functionality."""
 
 	def test_step_returns_tuple(self, powerzoo_config, skip_if_no_opendss):
@@ -158,9 +158,9 @@ class TestPowerZooEnvStep:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 		env.reset()
 
 		# Sample a random action
@@ -184,9 +184,9 @@ class TestPowerZooEnvStep:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
-		env = PowerZooEnv(**powerzoo_config)
+		env = VVCEnv(**powerzoo_config)
 		env.reset()
 
 		num_steps = 10
@@ -211,14 +211,14 @@ class TestPowerZooEnvStep:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo import PowerZooEnv
+		from envs.vvc import VVCEnv
 
 		# Set short episode length for testing
 		config = powerzoo_config.copy()
 		config["episode_length"] = 5
 		config["max_steps"] = 5
 
-		env = PowerZooEnv(**config)
+		env = VVCEnv(**config)
 		env.reset()
 
 		done = False
@@ -251,7 +251,7 @@ class TestCircuitModule:
 
 	def test_circuit_import(self):
 		"""Test that Circuit module can be imported."""
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 		assert Circuits is not None
 
 	@pytest.mark.requires_opendss
@@ -260,7 +260,7 @@ class TestCircuitModule:
 		if powerzoo_config["dss_file"] is None:
 			pytest.skip("13Bus system not found")
 
-		from envs.powerzoo.powerzoo.circuit import Circuits
+		from envs.vvc.vvc.circuit import Circuits
 
 		circuit = Circuits(dss_file=powerzoo_config["dss_file"])
 		assert circuit is not None
@@ -273,5 +273,5 @@ class TestLoadProfileModule:
 
 	def test_loadprofile_import(self):
 		"""Test that LoadProfile module can be imported."""
-		from envs.powerzoo.powerzoo.loadprofile import LoadProfile
+		from envs.vvc.vvc.loadprofile import LoadProfile
 		assert LoadProfile is not None

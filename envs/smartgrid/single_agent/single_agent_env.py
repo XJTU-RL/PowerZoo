@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class SingleAgentPowerZooEnv(Env):
+class SingleAgentVVCEnv(Env):
     """单智能体PowerZoo环境
     
     基于原有的多智能体PowerZoo环境，创建单智能体版本。
@@ -699,7 +699,7 @@ class SingleAgentPowerZooEnv(Env):
         return meanings
 
 
-def create_single_agent_powerzoo_env(folder_path: str, info: Dict[str, Any], **kwargs):
+def create_single_agent_vvc_env(folder_path: str, info: Dict[str, Any], **kwargs):
     """创建单智能体PowerZoo环境的便捷函数
     
     Args:
@@ -708,9 +708,9 @@ def create_single_agent_powerzoo_env(folder_path: str, info: Dict[str, Any], **k
         **kwargs: 其他参数
         
     Returns:
-        SingleAgentPowerZooEnv: 单智能体环境实例
+        SingleAgentVVCEnv: 单智能体环境实例
     """
-    return SingleAgentPowerZooEnv(folder_path, info, **kwargs)
+    return SingleAgentVVCEnv(folder_path, info, **kwargs)
 
 
 # 使用示例
@@ -728,7 +728,7 @@ if __name__ == "__main__":
     }
     
     # 创建环境
-    env = create_single_agent_powerzoo_env('/path/to/node_systems', config)
+    env = create_single_agent_vvc_env('/path/to/node_systems', config)
     
     print(f"动作空间: {env.action_space}")
     print(f"观测空间: {env.observation_space}")

@@ -16,7 +16,7 @@
 
 使用示例:
     # 基础训练
-    python train_single_agent.py --algo ppo --env powerzoo_single --exp_name test_ppo
+    python train_single_agent.py --algo ppo --env vvc_single --exp_name test_ppo
     
     # 自定义参数训练
     python train_single_agent.py --algo dqn --total_timesteps 50000 --seed 42
@@ -75,7 +75,7 @@ def parse_arguments():
     parser.add_argument(
         "--env", "--environment",
         type=str,
-        default="powerzoo_single",
+        default="vvc_single",
         help="环境名称"
     )
     

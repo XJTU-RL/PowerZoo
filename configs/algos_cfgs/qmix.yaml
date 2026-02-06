@@ -5,7 +5,7 @@ cuda_deterministic: true  # 是否使用 CUDA 的确定性模式
 n_training_threads: 4  # 训练线程数
 use_wandb: false  # 是否使用 Weights & Biases
 
-env_name: "powerzoo"  # 环境名称
+env_name: "vvc"  # 环境名称 (VVC = Volt-VAR Control)
 use_obs_instead_of_state: true  # 是否使用全局状态或拼接观察
 use_same_share_obs: true  # 是否共享观察
 

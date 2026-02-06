@@ -34,8 +34,8 @@ class TestEnvConfigImport:
 			assert SmartGridConfig is not None
 		except ImportError:
 			# 可能使用不同的类名
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			assert PowerZooEnvConfig is not None
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			assert VVCEnvConfig is not None
 
 	def test_config_loader_import(self):
 		"""测试 ConfigLoader 导入"""
@@ -61,8 +61,8 @@ class TestSmartGridConfigInit:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_config_creation_default(self):
 		"""测试默认配置创建"""
@@ -104,8 +104,8 @@ class TestSmartGridConfigAttributes:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_max_episode_steps(self):
 		"""测试 max_episode_steps 属性"""
@@ -145,8 +145,8 @@ class TestSmartGridConfigValidation:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_invalid_episode_steps(self):
 		"""测试无效的 episode 步数"""
@@ -246,8 +246,8 @@ class TestConfigWithEnvironment:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_config_can_be_used_by_env(self, node_systems_dir):
 		"""测试配置可以被环境使用"""
@@ -330,8 +330,8 @@ class TestDeviceConfig:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_capacitor_config(self):
 		"""测试电容器配置"""
@@ -389,8 +389,8 @@ class TestConfigEdgeCases:
 			from envs.smartgrid.base_env.env_config import SmartGridConfig
 			return SmartGridConfig
 		except ImportError:
-			from envs.smartgrid.base_env.env_config import PowerZooEnvConfig
-			return PowerZooEnvConfig
+			from envs.smartgrid.base_env.env_config import VVCEnvConfig
+			return VVCEnvConfig
 
 	def test_empty_env_name(self):
 		"""测试空环境名称"""

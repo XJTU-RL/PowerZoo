@@ -55,14 +55,14 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
     def get_env_fn(rank):
         def init_env():
-            if env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerZooEnv   
-                
-                env = PowerZooEnv(env_args,rank) 
+            if env_name in ("vvc", "powerzoo"):  # powerzoo is backward compat alias
+                from envs.vvc.vvc_env import VVCEnv
+
+                env = VVCEnv(env_args,rank) 
                 
             elif env_name == "smartgrid":
-                # Use PowerZooEnv for smartgrid environment
-                from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+                # Use VVCEnv for smartgrid environment
+                from envs.smartgrid.base_env.powerzoo_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
@@ -74,7 +74,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
                     worker_idx=rank,
                     config_dict=config_dict
                 )
-                env = PowerZooEnv(base_env, env_args, rank)
+                env = VVCEnv(base_env, env_args, rank)
                 
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
@@ -82,10 +82,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 env = DSREnv(env_args, rank)
 
             elif env_name.startswith("stackelberg"):
-                from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+                from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
                 stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
-                env = StackelbergPowerZooEnv(stackelberg_args)
+                env = StackelbergVVCEnv(stackelberg_args)
 
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
@@ -113,12 +113,12 @@ def make_eval_env(env_name, seed, n_threads, env_args):
 
     def get_env_fn(rank):
         def init_env():
-            if env_name == "powerzoo":
-                from envs.powerzoo.powerzoo_env import PowerZooEnv
-                env = PowerZooEnv(env_args,rank)
+            if env_name in ("vvc", "powerzoo"):  # powerzoo is backward compat alias
+                from envs.vvc.vvc_env import VVCEnv
+                env = VVCEnv(env_args,rank)
                 
             elif env_name == "smartgrid":
-                from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+                from envs.smartgrid.base_env.powerzoo_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
                 
                 # 简化的配置传递 - 只传递 env_args
@@ -130,17 +130,17 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                     worker_idx=rank,
                     config_dict=config_dict
                 )
-                env = PowerZooEnv(base_env, env_args, rank)
+                env = VVCEnv(base_env, env_args, rank)
                 
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
                 env = DSREnv(env_args, rank)
 
             elif env_name.startswith("stackelberg"):
-                from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+                from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
                 stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
-                env = StackelbergPowerZooEnv(stackelberg_args)
+                env = StackelbergVVCEnv(stackelberg_args)
 
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
@@ -167,10 +167,10 @@ def make_render_env(env_name, seed, env_args):
     manual_delay = True  # manually delay the rendering by time.sleep()
     env_num = 1  # number of parallel envs
     
-    if env_name == "powerzoo": #没有环境渲染,这里仅做参数匹配
-        from envs.powerzoo.powerzoo_env import PowerZooEnv
+    if env_name in ("vvc", "powerzoo"):  # 没有环境渲染,这里仅做参数匹配
+        from envs.vvc.vvc_env import VVCEnv
 
-        env = PowerZooEnv(env_args,rank=4)
+        env = VVCEnv(env_args,rank=4)
         manual_render = False  
         manual_expand_dims = (
             False  # dexhands uses parallel envs, thus dimension is already expanded
@@ -178,7 +178,7 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "smartgrid": #smartgrid环境渲染支持
-        from envs.smartgrid.base_env.powerzoo_env import PowerZooEnv
+        from envs.smartgrid.base_env.powerzoo_env import VVCEnv
         from envs.smartgrid.base_env.env_register import make_base_env
         
         # 简化的配置传递
@@ -189,7 +189,7 @@ def make_render_env(env_name, seed, env_args):
             worker_idx=4,
             config_dict=config_dict
         )
-        env = PowerZooEnv(base_env, env_args, rank=4)
+        env = VVCEnv(base_env, env_args, rank=4)
         manual_render = False  
         manual_expand_dims = False
         manual_delay = False
@@ -205,10 +205,10 @@ def make_render_env(env_name, seed, env_args):
         env.seed(seed * 60000)
 
     elif env_name.startswith("stackelberg"):
-        from envs.stackelberg.stackelberg_powerzoo_env import StackelbergPowerZooEnv
+        from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
         stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': 4}
-        env = StackelbergPowerZooEnv(stackelberg_args)
+        env = StackelbergVVCEnv(stackelberg_args)
         manual_render = False
         manual_expand_dims = False
         manual_delay = False
@@ -234,9 +234,7 @@ def set_seed(args):
 
 def get_num_agents(env, env_args, envs):
     """Get the number of agents in the environment."""
-    if env == "powerzoo":
-        return envs.n_agents
-    elif env == "PowerZoo":
+    if env in ("vvc", "powerzoo", "PowerZoo"):  # powerzoo/PowerZoo are backward compat
         return envs.n_agents
     elif env == "smartgrid":
         return envs.n_agents
@@ -249,7 +247,7 @@ def get_num_agents(env, env_args, envs):
 #         return envs.update_orders
 def get_ordered_agents_pairs(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env in ["powerzoo", "smartgrid"]:
+    if env in ("vvc", "powerzoo", "smartgrid"):  # powerzoo is backward compat
        if env_args.get("useS", False):
            return envs.ordered_agents_pairs
        else:
@@ -257,7 +255,7 @@ def get_ordered_agents_pairs(env, env_args, envs):
 
 def get_agents_bus(env, env_args, envs):
     """Get the update_orders of agents in the environment."""
-    if env in ["powerzoo", "smartgrid"]:
+    if env in ("vvc", "powerzoo", "smartgrid"):  # powerzoo is backward compat
        if env_args.get("useS", False):
            return envs.agents_bus
        else:
