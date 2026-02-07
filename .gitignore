@@ -2,6 +2,7 @@
 **/results/**
 docs/archive/
 .VSCodeCounter/
+training_ui/.cache/
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files
