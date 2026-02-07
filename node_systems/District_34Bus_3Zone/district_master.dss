@@ -1,0 +1,410 @@
+! ============================================================
+! District_34Bus_3Zone: IEEE 34-Bus 3-District Scheduling Model
+! ============================================================
+! 基于 IEEE 34-bus 标准系统，扩展为 3 台区分区调度模型
+! 用于区域调度 MARL 环境
+!
+! 台区划分:
+!   Zone 0 (上游区): sourcebus → 800 → 802 → ... → 830
+!     - PV: pv_d0_1(822, 200kW), pv_d0_2(828, 200kW)
+!     - ESS: ess_d0(824, 500kWh/100kW)
+!     - EV:  ev_d0(830, 50kW)
+!   Zone 1 (中游区): 854 → 852 → 832 → ... → 848
+!     - PV: pv_d1_1(844, 200kW), pv_d1_2(852, 200kW)
+!     - ESS: ess_d1(848, 500kWh/100kW)
+!     - EV:  ev_d1(854, 50kW)
+!   Zone 2 (下游区): 888 → 890 (4.16kV side via XFM1)
+!     - PV: pv_d2_1(890, 150kW)
+!     - ESS: ess_d2(888, 300kWh/60kW)
+!
+! 虚拟联络线:
+!   tie_0_1: bus 830 <-> bus 854 (Zone 0 <-> Zone 1)
+!   tie_1_2: bus 848 <-> bus 890 (Zone 1 <-> Zone 2, cross-voltage)
+!
+! Simulation: duty mode, 900s step, 96 steps = 24h
+! ============================================================
+
+Clear
+
+! ============================================================
+! 电源定义
+! ============================================================
+New object=circuit.ieee34_3zone
+~ basekv=69 pu=1 angle=30 mvasc3=200000
+
+! 变电站变压器 -- 低阻抗使源端强硬
+New Transformer.SubXF Phases=3 Windings=2 Xhl=0.01
+~ wdg=1 bus=sourcebus conn=Delta kv=69    kva=25000 %r=0.0005
+~ wdg=2 bus=800       conn=wye   kv=24.9  kva=25000 %r=0.0005
+
+! ============================================================
+! 线路阻抗参数 (共享文件)
+! ============================================================
+Redirect IEEELineCodes.dss
+
+! ============================================================
+! LoadShape 定义 (96点/24h/15分钟分辨率)
+! ============================================================
+Redirect district_master_loadshape.dss
+
+! ============================================================
+! 线路定义 (IEEE 34-bus 完整拓扑, 32条线路)
+! ============================================================
+
+! --- Zone 0 上游区线路 ---
+New Line.L1     Phases=3 Bus1=800.1.2.3  Bus2=802.1.2.3  LineCode=300  Length=2.58    units=kft
+New Line.L2     Phases=3 Bus1=802.1.2.3  Bus2=806.1.2.3  LineCode=300  Length=1.73    units=kft
+New Line.L3     Phases=3 Bus1=806.1.2.3  Bus2=808.1.2.3  LineCode=300  Length=32.23   units=kft
+New Line.L4     Phases=1 Bus1=808.2      Bus2=810.2      LineCode=303  Length=5.804   units=kft
+New Line.L5     Phases=3 Bus1=808.1.2.3  Bus2=812.1.2.3  LineCode=300  Length=37.5    units=kft
+New Line.L6     Phases=3 Bus1=812.1.2.3  Bus2=814.1.2.3  LineCode=300  Length=29.73   units=kft
+New Line.L7     Phases=3 Bus1=814r.1.2.3 Bus2=850.1.2.3  LineCode=301  Length=0.01    units=kft
+New Line.L8     Phases=1 Bus1=816.1      Bus2=818.1      LineCode=302  Length=1.71    units=kft
+New Line.L9     Phases=3 Bus1=816.1.2.3  Bus2=824.1.2.3  LineCode=301  Length=10.21   units=kft
+New Line.L10    Phases=1 Bus1=818.1      Bus2=820.1      LineCode=302  Length=48.15   units=kft
+New Line.L11    Phases=1 Bus1=820.1      Bus2=822.1      LineCode=302  Length=13.74   units=kft
+New Line.L12    Phases=1 Bus1=824.2      Bus2=826.2      LineCode=303  Length=3.03    units=kft
+New Line.L13    Phases=3 Bus1=824.1.2.3  Bus2=828.1.2.3  LineCode=301  Length=0.84    units=kft
+New Line.L14    Phases=3 Bus1=828.1.2.3  Bus2=830.1.2.3  LineCode=301  Length=20.44   units=kft
+New Line.L24    Phases=3 Bus1=850.1.2.3  Bus2=816.1.2.3  LineCode=301  Length=0.31    units=kft
+
+! --- Zone 0 <-> Zone 1 边界线路 ---
+New Line.L15    Phases=3 Bus1=830.1.2.3  Bus2=854.1.2.3  LineCode=301  Length=0.52    units=kft
+
+! --- Zone 1 中游区线路 ---
+New Line.L26    Phases=1 Bus1=854.2      Bus2=856.2      LineCode=303  Length=23.33   units=kft
+New Line.L27    Phases=3 Bus1=854.1.2.3  Bus2=852.1.2.3  LineCode=301  Length=36.83   units=kft
+New Line.L25    Phases=3 Bus1=852r.1.2.3 Bus2=832.1.2.3  LineCode=301  Length=0.01    units=kft
+New Line.L16    Phases=3 Bus1=832.1.2.3  Bus2=858.1.2.3  LineCode=301  Length=4.9     units=kft
+New Line.L28    Phases=1 Bus1=858.1      Bus2=864.1      LineCode=303  Length=1.62    units=kft
+New Line.L29    Phases=3 Bus1=858.1.2.3  Bus2=834.1.2.3  LineCode=301  Length=5.83    units=kft
+New Line.L17    Phases=3 Bus1=834.1.2.3  Bus2=860.1.2.3  LineCode=301  Length=2.02    units=kft
+New Line.L18    Phases=3 Bus1=834.1.2.3  Bus2=842.1.2.3  LineCode=301  Length=0.28    units=kft
+New Line.L30    Phases=3 Bus1=860.1.2.3  Bus2=836.1.2.3  LineCode=301  Length=2.68    units=kft
+New Line.L19    Phases=3 Bus1=836.1.2.3  Bus2=840.1.2.3  LineCode=301  Length=0.86    units=kft
+New Line.L20    Phases=3 Bus1=836.1.2.3  Bus2=862.1.2.3  LineCode=301  Length=0.28    units=kft
+New Line.L31    Phases=1 Bus1=862.2      Bus2=838.2      LineCode=304  Length=4.86    units=kft
+New Line.L21    Phases=3 Bus1=842.1.2.3  Bus2=844.1.2.3  LineCode=301  Length=1.35    units=kft
+New Line.L22    Phases=3 Bus1=844.1.2.3  Bus2=846.1.2.3  LineCode=301  Length=3.64    units=kft
+New Line.L23    Phases=3 Bus1=846.1.2.3  Bus2=848.1.2.3  LineCode=301  Length=0.53    units=kft
+
+! --- Zone 1 <-> Zone 2 变压器 (24.9kV / 4.16kV) ---
+New Transformer.XFM1 Phases=3 Windings=2 Xhl=4.08
+~ wdg=1 bus=832       conn=wye kv=24.9 kva=500 %r=0.95
+~ wdg=2 bus=888       conn=Wye kv=4.16 kva=500 %r=0.95
+
+! --- Zone 2 下游区线路 ---
+New Line.L32    Phases=3 Bus1=888.1.2.3  Bus2=890.1.2.3  LineCode=300  Length=10.56   units=kft
+
+! ============================================================
+! 电容器
+! ============================================================
+New Capacitor.C844 Bus1=844 Phases=3 kVAR=300 kV=24.9
+New Capacitor.C848 Bus1=848 Phases=3 kVAR=450 kV=24.9
+
+! ============================================================
+! 调压器 (三相独立控制)
+! ============================================================
+
+! Regulator 1 (bus 814 -> 814r)
+New Transformer.reg1a Phases=1 Windings=2 buses=(814.1 814r.1) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg1a transformer=reg1a winding=2 vreg=122 band=2 ptratio=120 ctprim=100 R=2.7 X=1.6
+New Transformer.reg1b Phases=1 Windings=2 buses=(814.2 814r.2) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg1b transformer=reg1b winding=2 vreg=122 band=2 ptratio=120 ctprim=100 R=2.7 X=1.6
+New Transformer.reg1c Phases=1 Windings=2 buses=(814.3 814r.3) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg1c transformer=reg1c winding=2 vreg=122 band=2 ptratio=120 ctprim=100 R=2.7 X=1.6
+
+! Regulator 2 (bus 852 -> 852r)
+New Transformer.reg2a Phases=1 Windings=2 buses=(852.1 852r.1) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg2a transformer=reg2a winding=2 vreg=124 band=2 ptratio=120 ctprim=100 R=2.5 X=1.5
+New Transformer.reg2b Phases=1 Windings=2 buses=(852.2 852r.2) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg2b transformer=reg2b winding=2 vreg=124 band=2 ptratio=120 ctprim=100 R=2.5 X=1.5
+New Transformer.reg2c Phases=1 Windings=2 buses=(852.3 852r.3) conns='wye wye' kvs="14.376 14.376" kvas="20000 20000" XHL=1
+New Regcontrol.creg2c transformer=reg2c winding=2 vreg=124 band=2 ptratio=120 ctprim=100 R=2.5 X=1.5
+
+! ============================================================
+! 负荷定义 (全部挂载 default_load 曲线)
+! ============================================================
+! 注意: 所有负荷使用 duty=default_load 作为默认曲线
+!       RL 环境可在运行时通过 Python 接口动态替换 loadshape
+
+! --- Spot Loads ---
+New Load.S860       Bus1=860     Phases=3 Conn=Wye   Model=1 kV=24.900 kW=60.0   kVAR=48.0   duty=default_load
+New Load.S840       Bus1=840     Phases=3 Conn=Wye   Model=5 kV=24.900 kW=27.0   kVAR=21.0   duty=default_load
+New Load.S844       Bus1=844     Phases=3 Conn=Wye   Model=2 kV=24.900 kW=405.0  kVAR=315.0  duty=default_load
+New Load.S848       Bus1=848     Phases=3 Conn=Delta Model=1 kV=24.900 kW=60.0   kVAR=48.0   duty=default_load
+New Load.S830a      Bus1=830.1.2 Phases=1 Conn=Delta Model=2 kV=24.900 kW=10.0   kVAR=5.0    duty=default_load
+New Load.S830b      Bus1=830.2.3 Phases=1 Conn=Delta Model=2 kV=24.900 kW=10.0   kVAR=5.0    duty=default_load
+New Load.S830c      Bus1=830.3.1 Phases=1 Conn=Delta Model=2 kV=24.900 kW=25.0   kVAR=10.0   duty=default_load
+New Load.S890       Bus1=890     Phases=3 Conn=Delta Model=5 kV=4.160  kW=450.0  kVAR=225.0  duty=default_load
+
+! --- Distributed Loads ---
+New Load.D802_806sb Bus1=802.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=15.0  kVAR=7.5    duty=default_load
+New Load.D802_806rb Bus1=806.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=15.0  kVAR=7.5    duty=default_load
+New Load.D802_806sc Bus1=802.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=12.5  kVAR=7.0    duty=default_load
+New Load.D802_806rc Bus1=806.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=12.5  kVAR=7.0    duty=default_load
+New Load.D808_810sb Bus1=808.2   Phases=1 Conn=Wye   Model=4 kV=14.376 kW=8.0   kVAR=4.0    duty=default_load
+New Load.D808_810rb Bus1=810.2   Phases=1 Conn=Wye   Model=4 kV=14.376 kW=8.0   kVAR=4.0    duty=default_load
+New Load.D818_820sa Bus1=818.1   Phases=1 Conn=Wye   Model=2 kV=14.376 kW=17.0  kVAR=8.5    duty=default_load
+New Load.D818_820ra Bus1=820.1   Phases=1 Conn=Wye   Model=2 kV=14.376 kW=17.0  kVAR=8.5    duty=default_load
+New Load.D820_822sa Bus1=820.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=67.5  kVAR=35.0   duty=default_load
+New Load.D820_822ra Bus1=822.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=67.5  kVAR=35.0   duty=default_load
+New Load.D816_824sb Bus1=816.2   Phases=1 Conn=Delta Model=5 kV=24.900 kW=2.5   kVAR=1.0    duty=default_load
+New Load.D816_824rb Bus1=824.2   Phases=1 Conn=Delta Model=5 kV=24.900 kW=2.5   kVAR=1.0    duty=default_load
+New Load.D824_826sb Bus1=824.2   Phases=1 Conn=Wye   Model=5 kV=14.376 kW=20.0  kVAR=10.0   duty=default_load
+New Load.D824_826rb Bus1=826.2   Phases=1 Conn=Wye   Model=5 kV=14.376 kW=20.0  kVAR=10.0   duty=default_load
+New Load.D824_828sc Bus1=824.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D824_828rc Bus1=828.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D828_830sa Bus1=828.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=3.5   kVAR=1.5    duty=default_load
+New Load.D828_830ra Bus1=830.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=3.5   kVAR=1.5    duty=default_load
+New Load.D854_856sb Bus1=854.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D854_856rb Bus1=856.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D832_858sa Bus1=832.1   Phases=1 Conn=Delta Model=2 kV=24.900 kW=3.5   kVAR=1.5    duty=default_load
+New Load.D832_858ra Bus1=858.1   Phases=1 Conn=Delta Model=2 kV=24.900 kW=3.5   kVAR=1.5    duty=default_load
+New Load.D832_858sb Bus1=832.2   Phases=1 Conn=Delta Model=2 kV=24.900 kW=1.0   kVAR=0.5    duty=default_load
+New Load.D832_858rb Bus1=858.2   Phases=1 Conn=Delta Model=2 kV=24.900 kW=1.0   kVAR=0.5    duty=default_load
+New Load.D832_858sc Bus1=832.3   Phases=1 Conn=Delta Model=2 kV=24.900 kW=3.0   kVAR=1.5    duty=default_load
+New Load.D832_858rc Bus1=858.3   Phases=1 Conn=Delta Model=2 kV=24.900 kW=3.0   kVAR=1.5    duty=default_load
+New Load.D858_864sb Bus1=858.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=1.0   kVAR=0.5    duty=default_load
+New Load.D858_864rb Bus1=864.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=1.0   kVAR=0.5    duty=default_load
+New Load.D858_834sa Bus1=858.1.2 Phases=1 Conn=Delta Model=1 kV=24.900 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D858_834ra Bus1=834.1.2 Phases=1 Conn=Delta Model=1 kV=24.900 kW=2.0   kVAR=1.0    duty=default_load
+New Load.D858_834sb Bus1=858.2.3 Phases=1 Conn=Delta Model=1 kV=24.900 kW=7.5   kVAR=4.0    duty=default_load
+New Load.D858_834rb Bus1=834.2.3 Phases=1 Conn=Delta Model=1 kV=24.900 kW=7.5   kVAR=4.0    duty=default_load
+New Load.D858_834sc Bus1=858.3.1 Phases=1 Conn=Delta Model=1 kV=24.900 kW=6.5   kVAR=3.5    duty=default_load
+New Load.D858_834rc Bus1=834.3.1 Phases=1 Conn=Delta Model=1 kV=24.900 kW=6.5   kVAR=3.5    duty=default_load
+New Load.D834_860sa Bus1=834.1.2 Phases=1 Conn=Delta Model=2 kV=24.900 kW=8.0   kVAR=4.0    duty=default_load
+New Load.D834_860ra Bus1=860.1.2 Phases=1 Conn=Delta Model=2 kV=24.900 kW=8.0   kVAR=4.0    duty=default_load
+New Load.D834_860sb Bus1=834.2.3 Phases=1 Conn=Delta Model=2 kV=24.900 kW=10.0  kVAR=5.0    duty=default_load
+New Load.D834_860rb Bus1=860.2.3 Phases=1 Conn=Delta Model=2 kV=24.900 kW=10.0  kVAR=5.0    duty=default_load
+New Load.D834_860sc Bus1=834.3.1 Phases=1 Conn=Delta Model=2 kV=24.900 kW=55.0  kVAR=27.5   duty=default_load
+New Load.D834_860rc Bus1=860.3.1 Phases=1 Conn=Delta Model=2 kV=24.900 kW=55.0  kVAR=27.5   duty=default_load
+New Load.D860_836sa Bus1=860.1.2 Phases=1 Conn=Delta Model=1 kV=24.900 kW=15.0  kVAR=7.5    duty=default_load
+New Load.D860_836ra Bus1=836.1.2 Phases=1 Conn=Delta Model=1 kV=24.900 kW=15.0  kVAR=7.5    duty=default_load
+New Load.D860_836sb Bus1=860.2.3 Phases=1 Conn=Delta Model=1 kV=24.900 kW=5.0   kVAR=3.0    duty=default_load
+New Load.D860_836rb Bus1=836.2.3 Phases=1 Conn=Delta Model=1 kV=24.900 kW=5.0   kVAR=3.0    duty=default_load
+New Load.D860_836sc Bus1=860.3.1 Phases=1 Conn=Delta Model=1 kV=24.900 kW=21.0  kVAR=11.0   duty=default_load
+New Load.D860_836rc Bus1=836.3.1 Phases=1 Conn=Delta Model=1 kV=24.900 kW=21.0  kVAR=11.0   duty=default_load
+New Load.D836_840sa Bus1=836.1.2 Phases=1 Conn=Delta Model=5 kV=24.900 kW=9.0   kVAR=4.5    duty=default_load
+New Load.D836_840ra Bus1=840.1.2 Phases=1 Conn=Delta Model=5 kV=24.900 kW=9.0   kVAR=4.5    duty=default_load
+New Load.D836_840sb Bus1=836.2.3 Phases=1 Conn=Delta Model=5 kV=24.900 kW=11.0  kVAR=5.5    duty=default_load
+New Load.D836_840rb Bus1=840.2.3 Phases=1 Conn=Delta Model=5 kV=24.900 kW=11.0  kVAR=5.5    duty=default_load
+New Load.D862_838sb Bus1=862.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=14.0  kVAR=7.0    duty=default_load
+New Load.D862_838rb Bus1=838.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=14.0  kVAR=7.0    duty=default_load
+New Load.D842_844sa Bus1=842.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=4.5   kVAR=2.5    duty=default_load
+New Load.D842_844ra Bus1=844.1   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=4.5   kVAR=2.5    duty=default_load
+New Load.D844_846sb Bus1=844.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=12.5  kVAR=6.0    duty=default_load
+New Load.D844_846rb Bus1=846.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=12.5  kVAR=6.0    duty=default_load
+New Load.D844_846sc Bus1=844.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=10.0  kVAR=5.5    duty=default_load
+New Load.D844_846rc Bus1=846.3   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=10.0  kVAR=5.5    duty=default_load
+New Load.D846_848sb Bus1=846.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=11.5  kVAR=5.5    duty=default_load
+New Load.D846_848rb Bus1=848.2   Phases=1 Conn=Wye   Model=1 kV=14.376 kW=11.5  kVAR=5.5    duty=default_load
+
+! --- Vminpu 设置: 允许电压下降到 0.85pu 不切换恒阻抗模型 ---
+Load.s860.vminpu=0.85
+Load.s840.vminpu=0.85
+Load.s844.vminpu=0.85
+Load.s848.vminpu=0.85
+Load.s830a.vminpu=0.85
+Load.s830b.vminpu=0.85
+Load.s830c.vminpu=0.85
+Load.s890.vminpu=0.85
+Load.d802_806sb.vminpu=0.85
+Load.d802_806rb.vminpu=0.85
+Load.d802_806sc.vminpu=0.85
+Load.d802_806rc.vminpu=0.85
+Load.d808_810sb.vminpu=0.85
+Load.d808_810rb.vminpu=0.85
+Load.d818_820sa.vminpu=0.85
+Load.d818_820ra.vminpu=0.85
+Load.d820_822sa.vminpu=0.85
+Load.d820_822ra.vminpu=0.85
+Load.d816_824sb.vminpu=0.85
+Load.d816_824rb.vminpu=0.85
+Load.d824_826sb.vminpu=0.85
+Load.d824_826rb.vminpu=0.85
+Load.d824_828sc.vminpu=0.85
+Load.d824_828rc.vminpu=0.85
+Load.d828_830sa.vminpu=0.85
+Load.d828_830ra.vminpu=0.85
+Load.d854_856sb.vminpu=0.85
+Load.d854_856rb.vminpu=0.85
+Load.d832_858sa.vminpu=0.85
+Load.d832_858ra.vminpu=0.85
+Load.d832_858sb.vminpu=0.85
+Load.d832_858rb.vminpu=0.85
+Load.d832_858sc.vminpu=0.85
+Load.d832_858rc.vminpu=0.85
+Load.d858_864sb.vminpu=0.85
+Load.d858_864rb.vminpu=0.85
+Load.d858_834sa.vminpu=0.85
+Load.d858_834ra.vminpu=0.85
+Load.d858_834sb.vminpu=0.85
+Load.d858_834rb.vminpu=0.85
+Load.d858_834sc.vminpu=0.85
+Load.d858_834rc.vminpu=0.85
+Load.d834_860sa.vminpu=0.85
+Load.d834_860ra.vminpu=0.85
+Load.d834_860sb.vminpu=0.85
+Load.d834_860rb.vminpu=0.85
+Load.d834_860sc.vminpu=0.85
+Load.d834_860rc.vminpu=0.85
+Load.d860_836sa.vminpu=0.85
+Load.d860_836ra.vminpu=0.85
+Load.d860_836sb.vminpu=0.85
+Load.d860_836rb.vminpu=0.85
+Load.d860_836sc.vminpu=0.85
+Load.d860_836rc.vminpu=0.85
+Load.d836_840sa.vminpu=0.85
+Load.d836_840ra.vminpu=0.85
+Load.d836_840sb.vminpu=0.85
+Load.d836_840rb.vminpu=0.85
+Load.d862_838sb.vminpu=0.85
+Load.d862_838rb.vminpu=0.85
+Load.d842_844sa.vminpu=0.85
+Load.d842_844ra.vminpu=0.85
+Load.d844_846sb.vminpu=0.85
+Load.d844_846rb.vminpu=0.85
+Load.d844_846sc.vminpu=0.85
+Load.d844_846rc.vminpu=0.85
+Load.d846_848sb.vminpu=0.85
+Load.d846_848rb.vminpu=0.85
+
+! ============================================================
+! PV 系统 (5 units across 3 zones)
+! ============================================================
+! 每个 PV 通过升压变压器 (0.48kV -> 母线电压) 接入电网
+! PV 功率由 pv_shape 曲线驱动，RL 环境可动态调整功率因数
+
+! --- Zone 0: PV ---
+! pv_d0_1: bus 822 (单相节点, phase 1), 200kW
+New Transformer.pv_up_d0_1 Phases=1 Windings=2 Xhl=4.5
+~ wdg=1 bus=pv_bus_d0_1 kV=0.277 kVA=250 conn=wye %r=0.5
+~ wdg=2 bus=822.1       kV=14.376 kVA=250 conn=wye %r=0.5
+New PVSystem.pv_d0_1 Phases=1 bus1=pv_bus_d0_1 kV=0.277 kVA=220 Pmpp=200
+~ PF=1.0 %cutin=5 %cutout=2
+~ effcurve=pv_eff P-TCurve=pv_ptc Duty=pv_shape TDuty=pv_temp
+
+! pv_d0_2: bus 828 (三相节点), 200kW
+New Transformer.pv_up_d0_2 Phases=3 Windings=2 Xhl=4.5
+~ wdg=1 bus=pv_bus_d0_2 kV=0.48  kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=828         kV=24.9  kVA=300 conn=wye %r=0.5
+New PVSystem.pv_d0_2 Phases=3 bus1=pv_bus_d0_2 kV=0.48 kVA=220 Pmpp=200
+~ PF=1.0 %cutin=5 %cutout=2
+~ effcurve=pv_eff P-TCurve=pv_ptc Duty=pv_shape TDuty=pv_temp
+
+! --- Zone 1: PV ---
+! pv_d1_1: bus 844 (三相节点), 200kW
+New Transformer.pv_up_d1_1 Phases=3 Windings=2 Xhl=4.5
+~ wdg=1 bus=pv_bus_d1_1 kV=0.48  kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=844         kV=24.9  kVA=300 conn=wye %r=0.5
+New PVSystem.pv_d1_1 Phases=3 bus1=pv_bus_d1_1 kV=0.48 kVA=220 Pmpp=200
+~ PF=1.0 %cutin=5 %cutout=2
+~ effcurve=pv_eff P-TCurve=pv_ptc Duty=pv_shape TDuty=pv_temp
+
+! pv_d1_2: bus 852 (三相节点), 200kW
+New Transformer.pv_up_d1_2 Phases=3 Windings=2 Xhl=4.5
+~ wdg=1 bus=pv_bus_d1_2 kV=0.48  kVA=300 conn=wye %r=0.5
+~ wdg=2 bus=852         kV=24.9  kVA=300 conn=wye %r=0.5
+New PVSystem.pv_d1_2 Phases=3 bus1=pv_bus_d1_2 kV=0.48 kVA=220 Pmpp=200
+~ PF=1.0 %cutin=5 %cutout=2
+~ effcurve=pv_eff P-TCurve=pv_ptc Duty=pv_shape TDuty=pv_temp
+
+! --- Zone 2: PV ---
+! pv_d2_1: bus 890 (三相节点, 4.16kV), 150kW
+New Transformer.pv_up_d2_1 Phases=3 Windings=2 Xhl=4.5
+~ wdg=1 bus=pv_bus_d2_1 kV=0.48  kVA=200 conn=wye %r=0.5
+~ wdg=2 bus=890         kV=4.16  kVA=200 conn=wye %r=0.5
+New PVSystem.pv_d2_1 Phases=3 bus1=pv_bus_d2_1 kV=0.48 kVA=165 Pmpp=150
+~ PF=1.0 %cutin=5 %cutout=2
+~ effcurve=pv_eff P-TCurve=pv_ptc Duty=pv_shape TDuty=pv_temp
+
+! ============================================================
+! Storage 储能系统 (3 units, one per zone)
+! ============================================================
+! 使用 OpenDSS 原生 Storage 元素
+! %IdlingkW=1: 空闲损耗占额定功率的1%
+! %reserve=10: 保留10%容量不放电
+! State=IDLING: 初始为空闲状态, RL 环境运行时动态切换充放电
+
+! --- Zone 0: ESS ---
+! ess_d0: bus 824, 500kWh, 100kW max charge/discharge
+New Storage.ess_d0 Phases=3 bus1=824 kV=24.9
+~ kWRated=100 kWhRated=500 kWhStored=250
+~ %reserve=10 %EffCharge=95 %EffDischarge=95
+~ %IdlingkW=1 State=IDLING
+~ Duty=flat_shape
+
+! --- Zone 1: ESS ---
+! ess_d1: bus 848, 500kWh, 100kW max charge/discharge
+New Storage.ess_d1 Phases=3 bus1=848 kV=24.9
+~ kWRated=100 kWhRated=500 kWhStored=250
+~ %reserve=10 %EffCharge=95 %EffDischarge=95
+~ %IdlingkW=1 State=IDLING
+~ Duty=flat_shape
+
+! --- Zone 2: ESS ---
+! ess_d2: bus 888, 300kWh, 60kW max charge/discharge
+New Storage.ess_d2 Phases=3 bus1=888 kV=4.16
+~ kWRated=60 kWhRated=300 kWhStored=150
+~ %reserve=10 %EffCharge=95 %EffDischarge=95
+~ %IdlingkW=1 State=IDLING
+~ Duty=flat_shape
+
+! ============================================================
+! EV 充电负荷 (2 units)
+! ============================================================
+! EV 负荷使用 ev_shape 曲线 (晚高峰集中充电)
+! kW 为最大充电功率, 实际功率 = kW * ev_shape_mult
+! RL 环境可通过设置 kW 实现充电调度
+
+! --- Zone 0: EV ---
+! ev_d0: bus 830, 50kW max
+New Load.ev_d0 Bus1=830.1.2.3 Phases=3 Conn=Wye Model=1 kV=24.9 kW=50.0 kVAR=0.0 duty=ev_shape
+Load.ev_d0.vminpu=0.85
+
+! --- Zone 1: EV ---
+! ev_d1: bus 854, 50kW max
+New Load.ev_d1 Bus1=854.1.2.3 Phases=3 Conn=Wye Model=1 kV=24.9 kW=50.0 kVAR=0.0 duty=ev_shape
+Load.ev_d1.vminpu=0.85
+
+! ============================================================
+! 虚拟功率交换元素 (台区间联络线建模)
+! ============================================================
+! 设计原理:
+!   每条虚拟联络线用一对 Load + Generator 实现功率转移:
+!   - Load 侧 (输出端): 从本台区抽取功率 (正kW = 输出)
+!   - Generator 侧 (输入端): 向对方台区注入功率 (正kW = 注入)
+!   初始 kW=0, 运行时由 RL 环境动态设置
+!   正向功率流: A->B 时, Load.A 的 kW>0 且 Generator.B 的 kW>0
+!   反向功率流: B->A 时, 取反即可
+!   注意: 不考虑联络线损耗 (虚拟传输)
+
+! --- tie_0_1: Zone 0 (bus 830) <-> Zone 1 (bus 854) ---
+! 从 Zone 0 输出: 830 上的虚拟负荷 (吸收功率 = 输出到 Zone 1)
+New Load.exchange_z0_to_z1 Bus1=830.1.2.3 Phases=3 Conn=Wye Model=1 kV=24.9 kW=0.0 kVAR=0.0 duty=flat_shape
+Load.exchange_z0_to_z1.vminpu=0.85
+! 向 Zone 1 注入: 854 上的虚拟发电机 (发出功率 = 从 Zone 0 接收)
+New Generator.exchange_z1_from_z0 bus1=854.1.2.3 Phases=3 kV=24.9 kW=0.0 PF=1.0 conn=Wye Model=1
+
+! --- tie_1_2: Zone 1 (bus 848) <-> Zone 2 (bus 890) ---
+! 从 Zone 1 输出: 848 上的虚拟负荷
+New Load.exchange_z1_to_z2 Bus1=848.1.2.3 Phases=3 Conn=Wye Model=1 kV=24.9 kW=0.0 kVAR=0.0 duty=flat_shape
+Load.exchange_z1_to_z2.vminpu=0.85
+! 向 Zone 2 注入: 890 上的虚拟发电机 (注意 4.16kV 电压等级)
+New Generator.exchange_z2_from_z1 bus1=890.1.2.3 Phases=3 kV=4.16 kW=0.0 PF=1.0 conn=Wye Model=1
+
+! ============================================================
+! 仿真设置
+! ============================================================
+Set ControlMode=Static       ! 静态控制模式, 适合 RL 控制
+Set MaxIterations=30         ! 最大迭代次数 (含 DER 后需更多迭代)
+
+Set VoltageBases = "69, 24.9, 4.16, 0.48, 0.277"
+CalcVoltageBases
+
+BusCoords IEEE34_BusXY.csv
+
+! 仿真模式: duty, 15分钟步长, 96步 = 24小时
+Set mode=duty stepsize=900 number=1 hour=0 sec=0
+Set SampleEnergyMeters=Yes

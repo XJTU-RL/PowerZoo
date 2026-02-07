@@ -4,6 +4,7 @@ from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
 from envs.dsr.dsr_logger import DSRLogger
 from envs.stackelberg.stackelberg_logger import StackelbergLogger
 from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv, make_stackelberg_env
+from envs.district_dispatch.district_dispatch_logger import DistrictDispatchLogger
 
 FLAGS = flags.FLAGS
 FLAGS(["train_sc.py"])
@@ -20,6 +21,7 @@ LOGGER_REGISTRY = {
 	"stackelberg_123bus": StackelbergLogger,
 	# Backward compatibility - these were incorrectly mapped to Env/factory in main
 	"stackelberg_vvc": StackelbergLogger,
+	"district_dispatch": DistrictDispatchLogger,
 }
 
 # Environment registry - maps environment names to environment classes (Stackelberg only)

@@ -236,9 +236,16 @@ class StackelbergVVCEnv:
             infos: List of info dicts for each agent
             avail_actions: Available actions for each agent
         """
-        # Convert actions to dictionary format
+        # Convert actions to dictionary format, trimming to each agent's actual action dimension
+        # NOTE: Runner's _collect_heterogeneous() pads all actions to max_action_dim (UC=5),
+        # but consumers only have 3-dim action spaces. We must trim here to avoid shape mismatch
+        # in stackelberg_base_env.step_consumers() np.clip().
         if isinstance(actions, (list, np.ndarray)):
-            action_dict = {i: np.array(actions[i]).flatten() for i in range(len(actions))}
+            action_dict = {}
+            for i in range(len(actions)):
+                raw_action = np.array(actions[i]).flatten()
+                actual_dim = self.action_space[i].shape[0]
+                action_dict[i] = raw_action[:actual_dim]
         else:
             action_dict = actions
 

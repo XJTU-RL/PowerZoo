@@ -1,0 +1,117 @@
+# District Dispatch Environment Configuration
+# 区域电网台区间调度决策环境配置
+# 系统配置通过 system_ref 引用，区域调度特有参数在此配置
+
+# ===== 系统引用 =====
+system_ref: District_34Bus_3Zone
+
+# ===== 基础配置 =====
+env_name: "district_dispatch"
+scenario_name: "34bus_3zone_dispatch"
+seed_specify: true
+seed: 42
+
+# ===== 区域调度参数 =====
+n_districts: 3
+connection_mode: "mixed"        # "transformer" | "tieline" | "mixed"
+max_episode_steps: 96           # 15min 分辨率, 24 小时
+
+# ===== 观测配置 =====
+use_neighbor_obs: true
+max_neighbors: 2
+
+# ===== 物理约束 =====
+v_min: 0.95
+v_max: 1.05
+soc_min: 0.1
+soc_max: 0.9
+soc_healthy_min: 0.2
+soc_healthy_max: 0.8
+soc_init: 0.5
+charge_efficiency: 0.95
+discharge_efficiency: 0.95
+
+# ===== 市场参数 =====
+base_price_yuan_kwh: 0.5
+carbon_intensity: 0.6
+carbon_price: 0.05
+
+# ===== 奖励权重 =====
+reward_weights:
+  economic_dispatch: 1.0
+  voltage_compliance: 2.0
+  loss_minimization: 0.5
+  carbon_reduction: 0.3
+  exchange_balance: 0.2
+  storage_health: 0.1
+
+# ===== 运行配置 =====
+load_noise: true
+noise_std: 0.05
+use_render: false
+debug_mode: false
+
+# ===== 训练参数 =====
+train_interval_episode: 1
+eval_interval: 25
+use_eval: true
+n_eval_rollout_threads: 1
+n_rollout_threads: 1
+num_mini_batch: 1
+episode_length: 96
+num_env_steps: 5000000
+
+# ===== 算法通用参数 =====
+runner: "OnPolicyHARunner"
+share_policy: false
+use_centralized_V: true
+use_obs_instead_of_state: false
+
+# ===== 网络参数 =====
+hidden_size: 128
+layer_N: 2
+use_ReLU: true
+use_feature_normalization: true
+use_orthogonal: true
+gain: 0.01
+
+# ===== 学习率 =====
+lr: 3e-4
+critic_lr: 3e-4
+opti_eps: 1e-5
+weight_decay: 0
+
+# ===== PPO 参数 =====
+ppo_epoch: 10
+use_clipped_value_loss: true
+clip_param: 0.2
+entropy_coef: 0.01
+value_loss_coef: 1
+use_max_grad_norm: true
+max_grad_norm: 10.0
+use_gae: true
+gamma: 0.99
+gae_lambda: 0.95
+use_proper_time_limits: false
+use_huber_loss: true
+use_value_active_masks: true
+use_policy_active_masks: true
+huber_delta: 10.0
+
+# ===== 保存和日志 =====
+save_interval: 25
+use_linear_lr_decay: false
+use_wandb: false
+use_render: false
+render_episodes: 5
+use_tensorboard: true
+tensorboard_log_dir: "./results/tensorboard"
+model_dir: null
+
+# ===== 日志记录 =====
+log_interval_episodes: 10
+monitoring:
+  detailed_logging: true
+  log_frequency: 10
+  visualization: false
+  save_final_report: true

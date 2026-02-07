@@ -21,6 +21,10 @@ pv_systems:
   - 34Bus_PV_Conservative
   - 34Bus_PV_Optimized
 
+# 区域调度系统
+district_systems:
+  - District_34Bus_3Zone
+
 # 系统元数据
 metadata:
   13Bus:
@@ -66,3 +70,9 @@ metadata:
     description: "IEEE 8500-node test feeder base configuration"
     node_count: 8500
     typical_episode_length: 24
+
+  District_34Bus_3Zone:
+    description: "IEEE 34-bus partitioned into 3 dispatch zones with DERs"
+    node_count: 34
+    district_count: 3
+    typical_episode_length: 96

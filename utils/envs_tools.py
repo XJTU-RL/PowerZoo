@@ -87,6 +87,11 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
                 env = StackelbergVVCEnv(stackelberg_args)
 
+            elif env_name.startswith("district_dispatch"):
+                from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
+
+                env = DistrictDispatchEnv({**env_args, 'worker_idx': rank}, rank)
+
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -100,8 +105,12 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
         return init_env
     print("train env的数量是=",n_threads)
-    if n_threads == 1:
-        return ShareDummyVecEnv([get_env_fn(0)])
+    # Stackelberg/DistrictDispatch环境的OpenDSS引擎不支持fork-based多进程，
+    # 强制使用DummyVecEnv避免SubprocVecEnv的EOFError
+    if n_threads == 1 or env_name.startswith("stackelberg") or env_name.startswith("district_dispatch"):
+        if n_threads > 1 and (env_name.startswith("stackelberg") or env_name.startswith("district_dispatch")):
+            print(f"注意: {env_name}环境不支持SubprocVecEnv，降级为DummyVecEnv ({n_threads}个顺序环境)")
+        return ShareDummyVecEnv([get_env_fn(i) for i in range(n_threads)])
     else:
         return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])#get_env_fn(i)返回值是单个的环境
 
@@ -142,6 +151,11 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
                 env = StackelbergVVCEnv(stackelberg_args)
 
+            elif env_name.startswith("district_dispatch"):
+                from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
+
+                env = DistrictDispatchEnv({**env_args, 'worker_idx': rank}, rank)
+
             elif env_name == "lag":
                 from envs.other_envs.lag.lag_env import LAGEnv
 
@@ -154,8 +168,10 @@ def make_eval_env(env_name, seed, n_threads, env_args):
 
         return init_env
     print("eval env 的数量是 =",n_threads)
-    if n_threads == 1:
-        return ShareDummyVecEnv([get_env_fn(0)])
+    if n_threads == 1 or env_name.startswith("stackelberg") or env_name.startswith("district_dispatch"):
+        if n_threads > 1 and (env_name.startswith("stackelberg") or env_name.startswith("district_dispatch")):
+            print(f"注意: {env_name}环境不支持SubprocVecEnv，降级为DummyVecEnv ({n_threads}个顺序环境)")
+        return ShareDummyVecEnv([get_env_fn(i) for i in range(n_threads)])
     else:
         return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
 
@@ -214,6 +230,15 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
 
+    elif env_name.startswith("district_dispatch"):
+        from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
+
+        env = DistrictDispatchEnv({**env_args, 'worker_idx': 4}, rank=4)
+        manual_render = False
+        manual_expand_dims = False
+        manual_delay = False
+        env.seed(seed * 60000)
+
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError
@@ -241,6 +266,8 @@ def get_num_agents(env, env_args, envs):
     elif env == "dsr":
         return envs.n_agents
     elif env.startswith("stackelberg"):
+        return envs.n_agents
+    elif env.startswith("district_dispatch"):
         return envs.n_agents
 
 # def get_agents_orders(env, env_args, envs):

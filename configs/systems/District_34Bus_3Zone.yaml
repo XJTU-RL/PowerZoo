@@ -1,0 +1,156 @@
+# District 34Bus 3-Zone System Configuration
+# 区域调度 - 基于 IEEE 34Bus 的 3 台区系统定义
+
+system:
+  name: District_34Bus_3Zone
+  base_system: 34Bus
+  dss_folder: node_systems/District_34Bus_3Zone
+  dss_file: district_master.dss
+  source_bus: sourcebus
+
+# Episode 配置
+episode:
+  max_steps: 96          # 15min 分辨率, 24 小时
+  step_interval_min: 15
+
+# 台区划分
+# IEEE 34-bus 划分为 3 个台区:
+#   Zone 0 (上游): sourcebus ~ 830 (主馈线上游, 含变电站)
+#   Zone 1 (中游): 832 ~ 858 (主馈线中段, 含电容器和调压器)
+#   Zone 2 (下游): 888 ~ 890 (长距离支线末端)
+districts:
+  count: 3
+
+  zone_0:
+    name: "upstream"
+    buses:
+      - sourcebus
+      - 800
+      - 802
+      - 806
+      - 808
+      - 810
+      - 812
+      - 814
+      - 816
+      - 818
+      - 820
+      - 822
+      - 824
+      - 826
+      - 828
+      - 830
+    boundary_bus: "830"
+
+  zone_1:
+    name: "midstream"
+    buses:
+      - 832
+      - 834
+      - 836
+      - 838
+      - 840
+      - 842
+      - 844
+      - 846
+      - 848
+      - 850
+      - 852
+      - 854
+      - 856
+      - 858
+      - 860
+      - 862
+      - 864
+    boundary_buses: ["854", "848"]
+
+  zone_2:
+    name: "downstream"
+    buses:
+      - 888
+      - 890
+    boundary_bus: "890"
+
+# 联络线定义
+tie_lines:
+  - name: tie_0_1
+    from_district: 0
+    to_district: 1
+    from_bus: "830"
+    to_bus: "854"
+    capacity_kw: 500.0
+    connection_type: transformer
+
+  - name: tie_1_2
+    from_district: 1
+    to_district: 2
+    from_bus: "848"
+    to_bus: "890"
+    capacity_kw: 300.0
+    connection_type: tieline
+
+# 各台区 DER 设备
+devices:
+  zone_0:
+    pv_systems:
+      - name: pv_d0_1
+        bus: "822"
+        capacity_kw: 200.0
+      - name: pv_d0_2
+        bus: "828"
+        capacity_kw: 200.0
+    storage:
+      - name: ess_d0
+        bus: "824"
+        capacity_kwh: 500.0
+        max_power_kw: 100.0
+    ev_chargers:
+      - name: ev_d0
+        bus: "830"
+        max_power_kw: 50.0
+
+  zone_1:
+    pv_systems:
+      - name: pv_d1_1
+        bus: "844"
+        capacity_kw: 200.0
+      - name: pv_d1_2
+        bus: "852"
+        capacity_kw: 200.0
+    storage:
+      - name: ess_d1
+        bus: "848"
+        capacity_kwh: 500.0
+        max_power_kw: 100.0
+    ev_chargers:
+      - name: ev_d1
+        bus: "854"
+        max_power_kw: 50.0
+
+  zone_2:
+    pv_systems:
+      - name: pv_d2_1
+        bus: "890"
+        capacity_kw: 150.0
+    storage:
+      - name: ess_d2
+        bus: "888"
+        capacity_kwh: 300.0
+        max_power_kw: 60.0
+    ev_chargers: []
+
+# 物理约束
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+  soc_min: 0.1
+  soc_max: 0.9
+
+# 默认奖励权重
+default_rewards:
+  economic_dispatch: 1.0
+  voltage_compliance: 2.0
+  loss_minimization: 0.5
+  carbon_reduction: 0.3
+  exchange_balance: 0.2
+  storage_health: 0.1

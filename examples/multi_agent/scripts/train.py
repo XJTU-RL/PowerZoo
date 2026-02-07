@@ -69,8 +69,9 @@ def main():
             "stackelberg_13bus",
             "stackelberg_34bus",
             "stackelberg_123bus",
+            "district_dispatch",
         ],
-        help="选择环境: vvc, smartgrid, dsr, stackelberg_13bus/34bus/123bus.",
+        help="选择环境: vvc, smartgrid, dsr, stackelberg_13bus/34bus/123bus, district_dispatch.",
     )
     # 添加实验名称参数，默认为"test"
     parser.add_argument(
