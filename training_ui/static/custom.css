@@ -1,0 +1,62 @@
+/* PowerZoo Training Manager - Custom Styles */
+
+/* Main title */
+h1 {
+	text-align: center;
+	color: #2c3e50;
+	margin-bottom: 0.5em;
+}
+
+/* Tab styling */
+.tab-nav button {
+	font-size: 1.05em !important;
+	font-weight: 600 !important;
+}
+
+/* Accordion headers */
+.label-wrap {
+	font-weight: 500 !important;
+}
+
+/* Launch button emphasis */
+button.primary.lg {
+	min-height: 48px;
+	font-size: 1.1em !important;
+}
+
+/* Status colors */
+.status-running {
+	color: #27ae60;
+	font-weight: bold;
+}
+
+.status-failed {
+	color: #e74c3c;
+	font-weight: bold;
+}
+
+.status-completed {
+	color: #2980b9;
+	font-weight: bold;
+}
+
+/* Log viewer mono font */
+textarea[data-testid="textbox"] {
+	font-family: 'Fira Code', 'Consolas', monospace !important;
+	font-size: 0.85em !important;
+}
+
+/* Config preview styling */
+.code-container {
+	border-radius: 8px;
+}
+
+/* Compact parameter rows */
+.gr-row {
+	gap: 8px !important;
+}
+
+/* Accordion spacing */
+.gr-accordion {
+	margin-bottom: 8px !important;
+}
