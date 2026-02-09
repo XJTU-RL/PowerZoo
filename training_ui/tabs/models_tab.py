@@ -2,6 +2,8 @@
 
 import gradio as gr
 
+from training_ui.i18n import t
+
 
 def build_models_tab() -> gr.Tab:
 	"""Build the models management tab.
@@ -12,42 +14,42 @@ def build_models_tab() -> gr.Tab:
 		Row 3: Selected model details (JSON) + config preview
 		Row 4: Action buttons (Copy path, Load config)
 	"""
-	with gr.Tab("Models") as tab:
-		gr.Markdown("## Trained Models")
+	with gr.Tab(t("tab_models")) as tab:
+		gr.Markdown(t("models_heading"))
 
 		# Filters
 		with gr.Row():
 			env_filter = gr.Dropdown(
-				label="Environment Filter",
+				label=t("label_env_filter"),
 				choices=["All", "vvc", "smartgrid", "stackelberg_13bus", "stackelberg_34bus",
 						"stackelberg_123bus", "dsr", "dsr_13bus", "dsr_8500node"],
 				value="All",
 				scale=2,
 			)
 			algo_filter = gr.Dropdown(
-				label="Algorithm Filter",
+				label=t("label_algo_filter"),
 				choices=["All", "happo", "hatrpo", "haa2c", "mappo", "shom", "sn_mappo",
 						"dan_happo", "haddpg", "hatd3", "hasac", "had3qn",
 						"maddpg", "matd3", "qmix"],
 				value="All",
 				scale=2,
 			)
-			scan_btn = gr.Button("Scan Results", variant="primary", scale=1)
+			scan_btn = gr.Button(t("btn_scan_results"), variant="primary", scale=1)
 
 		# Models table
 		models_table = gr.Dataframe(
-			headers=["Env", "System", "Algorithm", "Experiment", "Run ID", "Checkpoints"],
-			label="Discovered Models",
+			headers=[t("col_env"), t("col_system"), t("col_algorithm"), t("col_experiment"), t("col_run_id"), t("col_checkpoints")],
+			label=t("label_discovered_models"),
 			interactive=False,
 		)
 
 		# Selected model details
 		with gr.Row():
 			with gr.Column():
-				model_details = gr.JSON(label="Model Details", value={})
+				model_details = gr.JSON(label=t("label_model_details"), value={})
 			with gr.Column():
 				model_config = gr.Code(
-					label="Training Config",
+					label=t("label_training_config"),
 					language="json",
 					interactive=False,
 					lines=15,
@@ -55,9 +57,9 @@ def build_models_tab() -> gr.Tab:
 
 		# Actions
 		with gr.Row():
-			model_path_box = gr.Textbox(label="Model Path", interactive=False)
-			copy_path_btn = gr.Button("Copy Path", variant="secondary")
-			checkpoint_dropdown = gr.Dropdown(label="Checkpoint", choices=[], interactive=True)
+			model_path_box = gr.Textbox(label=t("label_model_path"), interactive=False)
+			copy_path_btn = gr.Button(t("btn_copy_path"), variant="secondary")
+			checkpoint_dropdown = gr.Dropdown(label=t("label_checkpoint"), choices=[], interactive=True)
 
 		# === Event Bindings ===
 

@@ -1,0 +1,463 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1600" style="font-family: 'Arial', sans-serif;">
+  <!-- Title -->
+  <text x="700" y="35" font-size="28" font-weight="bold" text-anchor="middle" fill="#1a1a1a">
+    PowerZoo: A Universal MARL Platform for Power System Control
+  </text>
+
+  <!-- Subtitle -->
+  <text x="700" y="60" font-size="14" text-anchor="middle" fill="#666">
+    Multi-Algorithm, Multi-Environment, Multi-Scenario Support
+  </text>
+
+  <!-- Defs for gradients and patterns -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e3f2fd;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bbdefb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8eaf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c5cae9;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f3e5f5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e1bee7;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8f5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c8e6c9;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff3e0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffe0b2;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#546e7a" />
+    </marker>
+
+    <!-- Data flow arrow -->
+    <marker id="dataflow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#1976d2" />
+    </marker>
+  </defs>
+
+  <!-- Left side: Layer labels -->
+  <g id="layer-labels">
+    <text x="30" y="155" font-size="14" font-weight="bold" fill="#37474f" transform="rotate(-90 30 155)">Training Layer</text>
+    <text x="30" y="355" font-size="14" font-weight="bold" fill="#37474f" transform="rotate(-90 30 355)">Algorithm Layer</text>
+    <text x="30" y="595" font-size="14" font-weight="bold" fill="#37474f" transform="rotate(-90 30 595)">Model Layer</text>
+    <text x="30" y="885" font-size="14" font-weight="bold" fill="#37474f" transform="rotate(-90 30 885)">Environment Layer</text>
+    <text x="30" y="1275" font-size="14" font-weight="bold" fill="#37474f" transform="rotate(-90 30 1275)">Simulation Layer</text>
+  </g>
+
+  <!-- Layer 1: Training Layer -->
+  <g id="training-layer">
+    <rect x="80" y="90" width="1280" height="130" fill="url(#grad1)" stroke="#1565c0" stroke-width="2" rx="5"/>
+
+    <text x="720" y="110" font-size="16" font-weight="bold" fill="#0d47a1">Training & Orchestration</text>
+
+    <!-- Training components -->
+    <rect x="110" y="130" width="180" height="70" fill="#fff" stroke="#1976d2" stroke-width="2" rx="3"/>
+    <text x="200" y="153" font-size="13" font-weight="bold" text-anchor="middle" fill="#1565c0">Examples & Scripts</text>
+    <text x="200" y="172" font-size="11" text-anchor="middle" fill="#455a64">.sh launchers</text>
+    <text x="200" y="187" font-size="11" text-anchor="middle" fill="#455a64">.py training scripts</text>
+
+    <rect x="320" y="130" width="380" height="70" fill="#fff" stroke="#1976d2" stroke-width="2" rx="3"/>
+    <text x="510" y="153" font-size="13" font-weight="bold" text-anchor="middle" fill="#1565c0">Runners (Training Engines)</text>
+    <text x="510" y="172" font-size="11" text-anchor="middle" fill="#455a64">On-Policy (PPO/TRPO) | Off-Policy (DDPG/SAC/TD3) | QMIX | 2TS-VVC</text>
+    <text x="510" y="187" font-size="11" text-anchor="middle" fill="#455a64">Data Collection → Policy Update → Evaluation Loop</text>
+
+    <rect x="730" y="130" width="180" height="70" fill="#fff" stroke="#1976d2" stroke-width="2" rx="3"/>
+    <text x="820" y="153" font-size="13" font-weight="bold" text-anchor="middle" fill="#1565c0">Monitoring</text>
+    <text x="820" y="172" font-size="11" text-anchor="middle" fill="#455a64">TensorBoard</text>
+    <text x="820" y="187" font-size="11" text-anchor="middle" fill="#455a64">HAPPO Diagnostics</text>
+
+    <rect x="940" y="130" width="180" height="70" fill="#fff" stroke="#1976d2" stroke-width="2" rx="3"/>
+    <text x="1030" y="153" font-size="13" font-weight="bold" text-anchor="middle" fill="#1565c0">Config System</text>
+    <text x="1030" y="172" font-size="11" text-anchor="middle" fill="#455a64">Algorithm Configs</text>
+    <text x="1030" y="187" font-size="11" text-anchor="middle" fill="#455a64">Environment Configs</text>
+
+    <rect x="1150" y="130" width="180" height="70" fill="#fff" stroke="#1976d2" stroke-width="2" rx="3"/>
+    <text x="1240" y="153" font-size="13" font-weight="bold" text-anchor="middle" fill="#1565c0">Utilities</text>
+    <text x="1240" y="172" font-size="11" text-anchor="middle" fill="#455a64">Buffers & Loggers</text>
+    <text x="1240" y="187" font-size="11" text-anchor="middle" fill="#455a64">Tools & Callbacks</text>
+  </g>
+
+  <!-- Arrow: Training to Algorithm -->
+  <line x1="720" y1="220" x2="720" y2="250" stroke="#546e7a" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="750" y="240" font-size="12" fill="#546e7a">Control Flow</text>
+
+  <!-- Layer 2: Algorithm Layer -->
+  <g id="algorithm-layer">
+    <rect x="80" y="260" width="1280" height="190" fill="url(#grad2)" stroke="#5e35b1" stroke-width="2" rx="5"/>
+
+    <text x="720" y="280" font-size="16" font-weight="bold" fill="#4527a0">Algorithm Pool (14 MARL Algorithms)</text>
+
+    <!-- On-Policy -->
+    <rect x="110" y="300" width="280" height="130" fill="#fff" stroke="#7e57c2" stroke-width="2" rx="3"/>
+    <text x="250" y="320" font-size="13" font-weight="bold" text-anchor="middle" fill="#5e35b1">On-Policy (5)</text>
+    <text x="250" y="340" font-size="11" text-anchor="middle" fill="#455a64">HAPPO: Heterogeneous PPO</text>
+    <text x="250" y="357" font-size="11" text-anchor="middle" fill="#455a64">MAPPO: Multi-Agent PPO</text>
+    <text x="250" y="374" font-size="11" text-anchor="middle" fill="#455a64">SHOM: Ordered MARL</text>
+    <text x="250" y="391" font-size="11" text-anchor="middle" fill="#455a64">HAA2C | HATRPO</text>
+    <circle cx="370" cy="340" r="5" fill="#4caf50"/>
+    <text x="380" y="344" font-size="10" fill="#2e7d32">CTDE</text>
+
+    <!-- Off-Policy -->
+    <rect x="420" y="300" width="280" height="130" fill="#fff" stroke="#7e57c2" stroke-width="2" rx="3"/>
+    <text x="560" y="320" font-size="13" font-weight="bold" text-anchor="middle" fill="#5e35b1">Off-Policy (5)</text>
+    <text x="560" y="340" font-size="11" text-anchor="middle" fill="#455a64">HADDPG: Heterogeneous DDPG</text>
+    <text x="560" y="357" font-size="11" text-anchor="middle" fill="#455a64">HASAC: Heterogeneous SAC</text>
+    <text x="560" y="374" font-size="11" text-anchor="middle" fill="#455a64">HATD3 | MADDPG | MATD3</text>
+    <text x="560" y="391" font-size="11" text-anchor="middle" fill="#455a64">Replay Buffer Support</text>
+    <circle cx="680" cy="340" r="5" fill="#ff9800"/>
+    <text x="690" y="344" font-size="10" fill="#e65100">Sample Efficient</text>
+
+    <!-- Value-Based -->
+    <rect x="730" y="300" width="200" height="130" fill="#fff" stroke="#7e57c2" stroke-width="2" rx="3"/>
+    <text x="830" y="320" font-size="13" font-weight="bold" text-anchor="middle" fill="#5e35b1">Value-Based (2)</text>
+    <text x="830" y="340" font-size="11" text-anchor="middle" fill="#455a64">QMIX</text>
+    <text x="830" y="357" font-size="11" text-anchor="middle" fill="#455a64">HAD3QN</text>
+    <text x="830" y="374" font-size="11" text-anchor="middle" fill="#455a64">Value Decomposition</text>
+    <text x="830" y="391" font-size="11" text-anchor="middle" fill="#455a64">Credit Assignment</text>
+
+    <!-- Special -->
+    <rect x="960" y="300" width="200" height="130" fill="#fff" stroke="#7e57c2" stroke-width="2" rx="3"/>
+    <text x="1060" y="320" font-size="13" font-weight="bold" text-anchor="middle" fill="#5e35b1">Special (2)</text>
+    <text x="1060" y="340" font-size="11" text-anchor="middle" fill="#455a64">2TS-VVC</text>
+    <text x="1060" y="357" font-size="11" text-anchor="middle" fill="#455a64">Two-Timescale</text>
+    <text x="1060" y="374" font-size="11" text-anchor="middle" fill="#455a64">TD3 + OHASAC</text>
+    <text x="1060" y="391" font-size="11" text-anchor="middle" fill="#455a64">Fast-Slow Decomp</text>
+
+    <!-- Extensibility note -->
+    <rect x="1190" y="300" width="140" height="130" fill="#fffde7" stroke="#f57f17" stroke-width="2" rx="3" stroke-dasharray="5,5"/>
+    <text x="1260" y="335" font-size="12" font-weight="bold" text-anchor="middle" fill="#f57f17">Extensible</text>
+    <text x="1260" y="355" font-size="10" text-anchor="middle" fill="#827717">New Algorithm</text>
+    <text x="1260" y="370" font-size="10" text-anchor="middle" fill="#827717">Interface</text>
+    <text x="1260" y="390" font-size="10" text-anchor="middle" fill="#827717">+Actor</text>
+    <text x="1260" y="405" font-size="10" text-anchor="middle" fill="#827717">+Critic</text>
+    <text x="1260" y="420" font-size="10" text-anchor="middle" fill="#827717">+Runner</text>
+  </g>
+
+  <!-- Arrow: Algorithm to Model -->
+  <line x1="720" y1="450" x2="720" y2="480" stroke="#546e7a" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="750" y="470" font-size="12" fill="#546e7a">Neural Networks</text>
+
+  <!-- Layer 3: Model Layer -->
+  <g id="model-layer">
+    <rect x="80" y="490" width="1280" height="210" fill="url(#grad3)" stroke="#8e24aa" stroke-width="2" rx="5"/>
+
+    <text x="720" y="510" font-size="16" font-weight="bold" fill="#6a1b9a">Model Architecture (Actor-Critic Framework)</text>
+
+    <!-- Policy Models (Actors) -->
+    <rect x="110" y="530" width="580" height="150" fill="#fff" stroke="#ab47bc" stroke-width="2" rx="3"/>
+    <text x="400" y="550" font-size="13" font-weight="bold" text-anchor="middle" fill="#8e24aa">Policy Models (Actors)</text>
+
+    <rect x="130" y="565" width="160" height="115" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1" rx="2"/>
+    <text x="210" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#6a1b9a">Gaussian Policy</text>
+    <text x="210" y="600" font-size="10" text-anchor="middle" fill="#455a64">Continuous Actions</text>
+    <text x="210" y="615" font-size="10" text-anchor="middle" fill="#455a64">μ(s), σ(s)</text>
+    <text x="210" y="630" font-size="10" text-anchor="middle" fill="#455a64">Battery: P ∈ [-1,1]</text>
+    <text x="210" y="645" font-size="10" text-anchor="middle" fill="#455a64">PV: (P,Q) control</text>
+    <text x="210" y="660" font-size="10" text-anchor="middle" fill="#455a64">Normal sampling</text>
+
+    <rect x="310" y="565" width="160" height="115" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1" rx="2"/>
+    <text x="390" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#6a1b9a">Categorical Policy</text>
+    <text x="390" y="600" font-size="10" text-anchor="middle" fill="#455a64">Discrete Actions</text>
+    <text x="390" y="615" font-size="10" text-anchor="middle" fill="#455a64">π(a|s)</text>
+    <text x="390" y="630" font-size="10" text-anchor="middle" fill="#455a64">Capacitor: {0,1}</text>
+    <text x="390" y="645" font-size="10" text-anchor="middle" fill="#455a64">Regulator: 33 taps</text>
+    <text x="390" y="660" font-size="10" text-anchor="middle" fill="#455a64">Softmax sampling</text>
+
+    <rect x="490" y="565" width="180" height="115" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1" rx="2"/>
+    <text x="580" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#6a1b9a">Hybrid Policy</text>
+    <text x="580" y="600" font-size="10" text-anchor="middle" fill="#455a64">Mixed Action Space</text>
+    <text x="580" y="615" font-size="10" text-anchor="middle" fill="#455a64">Discrete + Continuous</text>
+    <text x="580" y="630" font-size="10" text-anchor="middle" fill="#455a64">Cap/Reg (discrete)</text>
+    <text x="580" y="645" font-size="10" text-anchor="middle" fill="#455a64">+ Bat/PV (continuous)</text>
+    <text x="580" y="660" font-size="10" text-anchor="middle" fill="#455a64">Joint distribution</text>
+
+    <!-- Value Models (Critics) -->
+    <rect x="720" y="530" width="610" height="150" fill="#fff" stroke="#ab47bc" stroke-width="2" rx="3"/>
+    <text x="1025" y="550" font-size="13" font-weight="bold" text-anchor="middle" fill="#8e24aa">Value Function Models (Critics)</text>
+
+    <rect x="740" y="565" width="180" height="115" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1" rx="2"/>
+    <text x="830" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#6a1b9a">V-Critic</text>
+    <text x="830" y="600" font-size="10" text-anchor="middle" fill="#455a64">State Value</text>
+    <text x="830" y="615" font-size="10" text-anchor="middle" fill="#455a64">V(s)</text>
+    <text x="830" y="630" font-size="10" text-anchor="middle" fill="#455a64">Baseline estimation</text>
+    <text x="830" y="645" font-size="10" text-anchor="middle" fill="#455a64">PPO/A2C/TRPO</text>
+    <text x="830" y="660" font-size="10" text-anchor="middle" fill="#455a64">GAE computation</text>
+
+    <rect x="940" y="565" width="180" height="115" fill="#f3e5f5" stroke="#ab47bc" stroke-width="1" rx="2"/>
+    <text x="1030" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#6a1b9a">Q-Critic</text>
+    <text x="1030" y="600" font-size="10" text-anchor="middle" fill="#455a64">Action Value</text>
+    <text x="1030" y="615" font-size="10" text-anchor="middle" fill="#455a64">Q(s,a)</text>
+    <text x="1030" y="630" font-size="10" text-anchor="middle" fill="#455a64">DDPG/SAC/TD3</text>
+    <text x="1030" y="645" font-size="10" text-anchor="middle" fill="#455a64">QMIX mixing</text>
+    <text x="1030" y="660" font-size="10" text-anchor="middle" fill="#455a64">Bellman target</text>
+
+    <rect x="1140" y="565" width="170" height="115" fill="#e1f5fe" stroke="#0288d1" stroke-width="1" rx="2"/>
+    <text x="1225" y="583" font-size="11" font-weight="bold" text-anchor="middle" fill="#01579b">CTDE Support</text>
+    <text x="1225" y="600" font-size="10" text-anchor="middle" fill="#455a64">Centralized Training</text>
+    <text x="1225" y="615" font-size="10" text-anchor="middle" fill="#455a64">Global state input</text>
+    <text x="1225" y="630" font-size="10" text-anchor="middle" fill="#455a64">Value decomposition</text>
+    <text x="1225" y="647" font-size="10" text-anchor="middle" fill="#455a64">Decentralized Exec</text>
+    <text x="1225" y="662" font-size="10" text-anchor="middle" fill="#455a64">Local observation</text>
+  </g>
+
+  <!-- Arrow: Model to Environment -->
+  <line x1="720" y1="700" x2="720" y2="730" stroke="#546e7a" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="750" y="720" font-size="12" fill="#546e7a">Action/Observation</text>
+
+  <!-- Layer 4: Environment Layer -->
+  <g id="environment-layer">
+    <rect x="80" y="740" width="1280" height="370" fill="url(#grad4)" stroke="#43a047" stroke-width="2" rx="5"/>
+
+    <text x="720" y="760" font-size="16" font-weight="bold" fill="#2e7d32">Environment Ecosystem (Multi-Scenario Support)</text>
+
+    <!-- PowerZoo Base -->
+    <rect x="110" y="780" width="280" height="150" fill="#fff" stroke="#66bb6a" stroke-width="2" rx="3"/>
+    <text x="250" y="800" font-size="13" font-weight="bold" text-anchor="middle" fill="#388e3c">PowerZoo (Base)</text>
+    <text x="250" y="820" font-size="11" text-anchor="middle" fill="#455a64">Lightweight Environment</text>
+    <text x="250" y="837" font-size="10" text-anchor="middle" fill="#455a64">• Fast prototyping</text>
+    <text x="250" y="852" font-size="10" text-anchor="middle" fill="#455a64">• Algorithm validation</text>
+    <text x="250" y="867" font-size="10" text-anchor="middle" fill="#455a64">• Basic CRBP control</text>
+    <circle cx="130" cy="800" r="6" fill="#1976d2"/>
+    <text x="140" y="805" font-size="9" fill="#0d47a1">v1.0</text>
+    <rect x="120" y="880" width="260" height="40" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1" rx="2"/>
+    <text x="250" y="897" font-size="10" font-weight="bold" text-anchor="middle" fill="#2e7d32">Usage: Quick Experiments</text>
+    <text x="250" y="912" font-size="9" text-anchor="middle" fill="#558b2f">13/34/123 Bus Systems</text>
+
+    <!-- PowerZoo LLM -->
+    <rect x="420" y="780" width="280" height="150" fill="#fff" stroke="#66bb6a" stroke-width="2" rx="3"/>
+    <text x="560" y="800" font-size="13" font-weight="bold" text-anchor="middle" fill="#388e3c">PowerZoo_LLM (Full)</text>
+    <text x="560" y="820" font-size="11" text-anchor="middle" fill="#455a64">Complete Environment</text>
+    <text x="560" y="837" font-size="10" text-anchor="middle" fill="#455a64">• Full CRBP control</text>
+    <text x="560" y="852" font-size="10" text-anchor="middle" fill="#455a64">• Advanced monitoring</text>
+    <text x="560" y="867" font-size="10" text-anchor="middle" fill="#455a64">• Hybrid action space</text>
+    <circle cx="440" cy="800" r="6" fill="#1976d2"/>
+    <text x="450" y="805" font-size="9" fill="#0d47a1">v2.0</text>
+    <rect x="430" y="880" width="260" height="40" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1" rx="2"/>
+    <text x="560" y="897" font-size="10" font-weight="bold" text-anchor="middle" fill="#2e7d32">Usage: Production Research</text>
+    <text x="560" y="912" font-size="9" text-anchor="middle" fill="#558b2f">34Bus_PV + Large-scale Systems</text>
+
+    <!-- Stackelberg -->
+    <rect x="730" y="780" width="200" height="150" fill="#fff" stroke="#66bb6a" stroke-width="2" rx="3"/>
+    <text x="830" y="800" font-size="13" font-weight="bold" text-anchor="middle" fill="#388e3c">Stackelberg</text>
+    <text x="830" y="820" font-size="11" text-anchor="middle" fill="#455a64">Game-Theoretic</text>
+    <text x="830" y="837" font-size="10" text-anchor="middle" fill="#455a64">• Leader-follower</text>
+    <text x="830" y="852" font-size="10" text-anchor="middle" fill="#455a64">• Multi-layer game</text>
+    <text x="830" y="867" font-size="10" text-anchor="middle" fill="#455a64">• Market clearing</text>
+    <rect x="740" y="880" width="180" height="40" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1" rx="2"/>
+    <text x="830" y="897" font-size="10" font-weight="bold" text-anchor="middle" fill="#2e7d32">Usage: Market Design</text>
+    <text x="830" y="912" font-size="9" text-anchor="middle" fill="#558b2f">Bi-level Optimization</text>
+
+    <!-- DSR -->
+    <rect x="960" y="780" width="200" height="150" fill="#fff" stroke="#66bb6a" stroke-width="2" rx="3"/>
+    <text x="1060" y="800" font-size="13" font-weight="bold" text-anchor="middle" fill="#388e3c">DSR</text>
+    <text x="1060" y="820" font-size="11" text-anchor="middle" fill="#455a64">Demand Response</text>
+    <text x="1060" y="837" font-size="10" text-anchor="middle" fill="#455a64">• Load scheduling</text>
+    <text x="1060" y="852" font-size="10" text-anchor="middle" fill="#455a64">• Price elasticity</text>
+    <text x="1060" y="867" font-size="10" text-anchor="middle" fill="#455a64">• Incentive design</text>
+    <rect x="970" y="880" width="180" height="40" fill="#e8f5e9" stroke="#66bb6a" stroke-width="1" rx="2"/>
+    <text x="1060" y="897" font-size="10" font-weight="bold" text-anchor="middle" fill="#2e7d32">Usage: DR Programs</text>
+    <text x="1060" y="912" font-size="9" text-anchor="middle" fill="#558b2f">Flexible Load Control</text>
+
+    <!-- Extensibility -->
+    <rect x="1190" y="780" width="140" height="150" fill="#fffde7" stroke="#f57f17" stroke-width="2" rx="3" stroke-dasharray="5,5"/>
+    <text x="1260" y="810" font-size="12" font-weight="bold" text-anchor="middle" fill="#f57f17">Custom Env</text>
+    <text x="1260" y="835" font-size="10" text-anchor="middle" fill="#827717">Inherit Base</text>
+    <text x="1260" y="855" font-size="10" text-anchor="middle" fill="#827717">Override:</text>
+    <text x="1260" y="872" font-size="9" text-anchor="middle" fill="#827717">_get_obs()</text>
+    <text x="1260" y="887" font-size="9" text-anchor="middle" fill="#827717">_calc_reward()</text>
+    <text x="1260" y="902" font-size="9" text-anchor="middle" fill="#827717">_reset()</text>
+    <text x="1260" y="917" font-size="9" text-anchor="middle" fill="#827717">_step()</text>
+
+    <!-- Common Features -->
+    <rect x="110" y="950" width="1220" height="140" fill="#fff" stroke="#43a047" stroke-width="2" rx="3"/>
+    <text x="720" y="970" font-size="13" font-weight="bold" text-anchor="middle" fill="#2e7d32">Universal Environment Features</text>
+
+    <g id="crbp-devices">
+      <rect x="130" y="985" width="260" height="90" fill="#f1f8e9" stroke="#7cb342" stroke-width="1" rx="2"/>
+      <text x="260" y="1003" font-size="11" font-weight="bold" text-anchor="middle" fill="#33691e">CRBP Device Control</text>
+      <text x="260" y="1020" font-size="10" text-anchor="middle" fill="#455a64">C - Capacitor (Discrete)</text>
+      <text x="260" y="1035" font-size="10" text-anchor="middle" fill="#455a64">R - Regulator (Multi-discrete)</text>
+      <text x="260" y="1050" font-size="10" text-anchor="middle" fill="#455a64">B - Battery (Continuous/Discrete)</text>
+      <text x="260" y="1065" font-size="10" text-anchor="middle" fill="#455a64">P - PV (Continuous P&amp;Q)</text>
+    </g>
+
+    <g id="observation-space">
+      <rect x="420" y="985" width="260" height="90" fill="#f1f8e9" stroke="#7cb342" stroke-width="1" rx="2"/>
+      <text x="550" y="1003" font-size="11" font-weight="bold" text-anchor="middle" fill="#33691e">Observation Space</text>
+      <text x="550" y="1020" font-size="10" text-anchor="middle" fill="#455a64">Bus Voltages (0.8-1.2 p.u.)</text>
+      <text x="550" y="1035" font-size="10" text-anchor="middle" fill="#455a64">Device States (SOC, Tap, ...)</text>
+      <text x="550" y="1050" font-size="10" text-anchor="middle" fill="#455a64">Load Profiles (optional)</text>
+      <text x="550" y="1065" font-size="10" text-anchor="middle" fill="#455a64">Dict/Flat configurable</text>
+    </g>
+
+    <g id="reward-design">
+      <rect x="710" y="985" width="260" height="90" fill="#f1f8e9" stroke="#7cb342" stroke-width="1" rx="2"/>
+      <text x="840" y="1003" font-size="11" font-weight="bold" text-anchor="middle" fill="#33691e">Reward Function</text>
+      <text x="840" y="1020" font-size="10" text-anchor="middle" fill="#455a64">Voltage Quality (IEEE Std)</text>
+      <text x="840" y="1035" font-size="10" text-anchor="middle" fill="#455a64">Power Loss Minimization</text>
+      <text x="840" y="1050" font-size="10" text-anchor="middle" fill="#455a64">Control Cost Penalty</text>
+      <text x="840" y="1065" font-size="10" text-anchor="middle" fill="#455a64">Multi-objective Weighting</text>
+    </g>
+
+    <g id="agent-config">
+      <rect x="1000" y="985" width="310" height="90" fill="#f1f8e9" stroke="#7cb342" stroke-width="1" rx="2"/>
+      <text x="1155" y="1003" font-size="11" font-weight="bold" text-anchor="middle" fill="#33691e">Agent Configuration</text>
+      <text x="1155" y="1020" font-size="10" text-anchor="middle" fill="#455a64">Homogeneous: All agents identical</text>
+      <text x="1155" y="1035" font-size="10" text-anchor="middle" fill="#455a64">Heterogeneous: Different obs/action spaces</text>
+      <text x="1155" y="1050" font-size="10" text-anchor="middle" fill="#455a64">Ordered: Sensitivity-based sequencing (SHOM)</text>
+      <text x="1155" y="1065" font-size="10" text-anchor="middle" fill="#455a64">Flexible 1-N agents per device</text>
+    </g>
+  </g>
+
+  <!-- Arrow: Environment to Simulation -->
+  <line x1="720" y1="1110" x2="720" y2="1140" stroke="#546e7a" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="750" y="1130" font-size="12" fill="#546e7a">Physics Engine</text>
+
+  <!-- Layer 5: Simulation Layer -->
+  <g id="simulation-layer">
+    <rect x="80" y="1150" width="1280" height="250" fill="url(#grad5)" stroke="#ef6c00" stroke-width="2" rx="5"/>
+
+    <text x="720" y="1170" font-size="16" font-weight="bold" fill="#e65100">OpenDSS Simulation Engine</text>
+
+    <!-- OpenDSS Core -->
+    <rect x="110" y="1190" width="480" height="190" fill="#fff" stroke="#ff9800" stroke-width="2" rx="3"/>
+    <text x="350" y="1210" font-size="13" font-weight="bold" text-anchor="middle" fill="#ef6c00">Power Flow Calculation</text>
+
+    <rect x="130" y="1230" width="210" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="235" y="1250" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">AC Power Flow</text>
+    <text x="235" y="1268" font-size="10" text-anchor="middle" fill="#455a64">Newton-Raphson solver</text>
+    <text x="235" y="1283" font-size="10" text-anchor="middle" fill="#455a64">Voltage/Current profiles</text>
+
+    <rect x="360" y="1230" width="210" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="465" y="1250" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">Device Modeling</text>
+    <text x="465" y="1268" font-size="10" text-anchor="middle" fill="#455a64">Load/Generator/Storage</text>
+    <text x="465" y="1283" font-size="10" text-anchor="middle" fill="#455a64">Transformer/Line/Cable</text>
+
+    <rect x="130" y="1305" width="210" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="235" y="1325" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">Time-Series</text>
+    <text x="235" y="1343" font-size="10" text-anchor="middle" fill="#455a64">24h/96-step simulation</text>
+    <text x="235" y="1358" font-size="10" text-anchor="middle" fill="#455a64">Load/PV profiles</text>
+
+    <rect x="360" y="1305" width="210" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="465" y="1325" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">Metrics</text>
+    <text x="465" y="1343" font-size="10" text-anchor="middle" fill="#455a64">Loss, Voltage violation</text>
+    <text x="465" y="1358" font-size="10" text-anchor="middle" fill="#455a64">Power factor, Efficiency</text>
+
+    <!-- Test Systems -->
+    <rect x="620" y="1190" width="710" height="190" fill="#fff" stroke="#ff9800" stroke-width="2" rx="3"/>
+    <text x="975" y="1210" font-size="13" font-weight="bold" text-anchor="middle" fill="#ef6c00">IEEE Standard Test Systems</text>
+
+    <rect x="640" y="1230" width="140" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="710" y="1248" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">13-Bus</text>
+    <text x="710" y="1265" font-size="10" text-anchor="middle" fill="#455a64">Small test</text>
+    <text x="710" y="1280" font-size="10" text-anchor="middle" fill="#455a64">3 Devices</text>
+
+    <rect x="800" y="1230" width="140" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="870" y="1248" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">34-Bus</text>
+    <text x="870" y="1265" font-size="10" text-anchor="middle" fill="#455a64">Medium test</text>
+    <text x="870" y="1280" font-size="10" text-anchor="middle" fill="#455a64">10 Devices</text>
+
+    <rect x="960" y="1230" width="140" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="1030" y="1248" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">123-Bus</text>
+    <text x="1030" y="1265" font-size="10" text-anchor="middle" fill="#455a64">Large test</text>
+    <text x="1030" y="1280" font-size="10" text-anchor="middle" fill="#455a64">20+ Devices</text>
+
+    <rect x="1120" y="1230" width="190" height="60" fill="#fff3e0" stroke="#ff9800" stroke-width="1" rx="2"/>
+    <text x="1215" y="1248" font-size="11" font-weight="bold" text-anchor="middle" fill="#e65100">8500/9500-Node</text>
+    <text x="1215" y="1265" font-size="10" text-anchor="middle" fill="#455a64">Very large scale</text>
+    <text x="1215" y="1280" font-size="10" text-anchor="middle" fill="#455a64">Scalability test</text>
+
+    <!-- PV Configurations -->
+    <rect x="640" y="1305" width="330" height="60" fill="#e1f5fe" stroke="#0288d1" stroke-width="1" rx="2"/>
+    <text x="805" y="1325" font-size="11" font-weight="bold" text-anchor="middle" fill="#01579b">34Bus PV Variants</text>
+    <text x="805" y="1343" font-size="10" text-anchor="middle" fill="#455a64">Aggressive | Conservative | Optimized</text>
+    <text x="805" y="1358" font-size="10" text-anchor="middle" fill="#455a64">Different PV penetration &amp; control strategies</text>
+
+    <!-- Data Sources -->
+    <rect x="990" y="1305" width="320" height="60" fill="#e8f5e9" stroke="#43a047" stroke-width="1" rx="2"/>
+    <text x="1150" y="1325" font-size="11" font-weight="bold" text-anchor="middle" fill="#2e7d32">Real-World Data</text>
+    <text x="1150" y="1343" font-size="10" text-anchor="middle" fill="#455a64">Load Profiles: Residential/Commercial/Industrial</text>
+    <text x="1150" y="1358" font-size="10" text-anchor="middle" fill="#455a64">PV Generation: NREL/Measured irradiance data</text>
+  </g>
+
+  <!-- Right side: Data flow -->
+  <g id="data-flow">
+    <path d="M 1360 155 Q 1380 650 1360 1035" stroke="#1976d2" stroke-width="3" fill="none" marker-end="url(#dataflow)" stroke-dasharray="8,4"/>
+    <text x="1390" y="600" font-size="12" font-weight="bold" fill="#1976d2" transform="rotate(90 1390 600)">Data Flow Loop</text>
+
+    <rect x="1365" y="200" width="25" height="25" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="2"/>
+    <text x="1377" y="218" font-size="20" text-anchor="middle" fill="#1976d2">↓</text>
+
+    <rect x="1365" y="430" width="25" height="25" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="2"/>
+    <text x="1377" y="448" font-size="20" text-anchor="middle" fill="#1976d2">↓</text>
+
+    <rect x="1365" y="680" width="25" height="25" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="2"/>
+    <text x="1377" y="698" font-size="20" text-anchor="middle" fill="#1976d2">↓</text>
+
+    <rect x="1365" y="1090" width="25" height="25" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="2"/>
+    <text x="1377" y="1108" font-size="20" text-anchor="middle" fill="#1976d2">↓</text>
+
+    <rect x="1365" y="1380" width="25" height="25" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="2"/>
+    <text x="1377" y="1398" font-size="20" text-anchor="middle" fill="#1976d2">↑</text>
+  </g>
+
+  <!-- Bottom: Key Features -->
+  <g id="key-features">
+    <rect x="80" y="1430" width="1280" height="130" fill="#fafafa" stroke="#757575" stroke-width="2" rx="5"/>
+
+    <text x="720" y="1455" font-size="16" font-weight="bold" text-anchor="middle" fill="#212121">Platform Universality &amp; Extensibility Highlights</text>
+
+    <g id="feature-1">
+      <circle cx="130" cy="1490" r="8" fill="#4caf50"/>
+      <text x="145" y="1495" font-size="12" font-weight="bold" fill="#1b5e20">Multi-Algorithm Support</text>
+      <text x="145" y="1510" font-size="10" fill="#455a64">14 MARL algorithms, easy to extend</text>
+      <text x="145" y="1524" font-size="10" fill="#455a64">On/Off-Policy, Value-based, Special</text>
+      <text x="145" y="1538" font-size="10" fill="#455a64">Unified Runner interface</text>
+    </g>
+
+    <g id="feature-2">
+      <circle cx="380" cy="1490" r="8" fill="#2196f3"/>
+      <text x="395" y="1495" font-size="12" font-weight="bold" fill="#0d47a1">Multi-Environment Support</text>
+      <text x="395" y="1510" font-size="10" fill="#455a64">4 environment types, custom-ready</text>
+      <text x="395" y="1524" font-size="10" fill="#455a64">Base/Full/Game/DR scenarios</text>
+      <text x="395" y="1538" font-size="10" fill="#455a64">Inherit &amp; override pattern</text>
+    </g>
+
+    <g id="feature-3">
+      <circle cx="630" cy="1490" r="8" fill="#9c27b0"/>
+      <text x="645" y="1495" font-size="12" font-weight="bold" fill="#4a148c">Hybrid Action Space</text>
+      <text x="645" y="1510" font-size="10" fill="#455a64">Discrete + Continuous jointly</text>
+      <text x="645" y="1524" font-size="10" fill="#455a64">CRBP device heterogeneity</text>
+      <text x="645" y="1538" font-size="10" fill="#455a64">Flexible policy architecture</text>
+    </g>
+
+    <g id="feature-4">
+      <circle cx="880" cy="1490" r="8" fill="#ff9800"/>
+      <text x="895" y="1495" font-size="12" font-weight="bold" fill="#e65100">IEEE Standard Systems</text>
+      <text x="895" y="1510" font-size="10" fill="#455a64">5 test systems (13-9500 nodes)</text>
+      <text x="895" y="1524" font-size="10" fill="#455a64">Multiple PV configurations</text>
+      <text x="895" y="1538" font-size="10" fill="#455a64">Real-world load/PV data</text>
+    </g>
+
+    <g id="feature-5">
+      <circle cx="1130" cy="1490" r="8" fill="#f44336"/>
+      <text x="1145" y="1495" font-size="12" font-weight="bold" fill="#b71c1c">Production-Ready Tools</text>
+      <text x="1145" y="1510" font-size="10" fill="#455a64">TensorBoard monitoring</text>
+      <text x="1145" y="1524" font-size="10" fill="#455a64">HAPPO diagnostics suite</text>
+      <text x="1145" y="1538" font-size="10" fill="#455a64">Comprehensive testing</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="720" y="1585" font-size="11" text-anchor="middle" fill="#757575">
+    PowerZoo Framework © 2025 | Multi-Agent Reinforcement Learning for Power System Control | IEEE TSG 2025
+  </text>
+</svg>

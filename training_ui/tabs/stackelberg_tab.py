@@ -11,6 +11,7 @@ import json
 
 import gradio as gr
 
+from training_ui.i18n import t
 from training_ui.tabs.base_tab import BaseEnvironmentTab
 
 
@@ -28,7 +29,7 @@ class StackelbergTab(BaseEnvironmentTab):
 
 	@property
 	def tab_label(self) -> str:
-		return "Stackelberg"
+		return t("tab_stackelberg")
 
 	def build_env_params(self) -> dict[str, gr.components.Component]:
 		"""Build Stackelberg-specific environment parameters.
@@ -49,20 +50,20 @@ class StackelbergTab(BaseEnvironmentTab):
 		"""
 		# --- Variant selector ---
 		env_variant = gr.Dropdown(
-			label="Stackelberg Variant",
+			label=t("label_stackelberg_variant"),
 			choices=[
 				"stackelberg_13bus",
 				"stackelberg_34bus",
 				"stackelberg_123bus",
 			],
 			value="stackelberg_13bus",
-			info="Selects the IEEE bus system and default agent count",
+			info=t("info_stackelberg_variant"),
 		)
 
 		# --- Agent Configuration ---
-		with gr.Accordion("Agent Configuration", open=True):
+		with gr.Accordion(t("accordion_agent_config"), open=True):
 			n_consumer_agents = gr.Slider(
-				label="Number of Consumer Agents",
+				label=t("label_n_consumer_agents"),
 				minimum=1,
 				maximum=50,
 				step=1,
@@ -70,18 +71,18 @@ class StackelbergTab(BaseEnvironmentTab):
 				info="13Bus=8, 34Bus=10, 123Bus=20",
 			)
 			max_episode_steps = gr.Number(
-				label="Max Episode Steps",
+				label=t("label_max_episode_steps"),
 				value=24,
 				precision=0,
 				info="24-hour episodes by default",
 			)
 			seed = gr.Number(
-				label="Seed",
+				label=t("label_seed"),
 				value=42,
 				precision=0,
 			)
 			consumer_bus_mapping = gr.Code(
-				label="Consumer Bus Mapping (JSON)",
+				label=t("label_consumer_bus_mapping"),
 				value=json.dumps(
 					{
 						"0": [671, 675],
@@ -100,271 +101,271 @@ class StackelbergTab(BaseEnvironmentTab):
 			)
 
 		# --- UC Action Space ---
-		with gr.Accordion("UC Action Space", open=False):
+		with gr.Accordion(t("accordion_uc_action"), open=False):
 			with gr.Row():
-				price_signal_low = gr.Number(label="Price Signal Low", value=0.5)
-				price_signal_high = gr.Number(label="Price Signal High", value=2.0)
+				price_signal_low = gr.Number(label=t("label_price_signal_low"), value=0.5)
+				price_signal_high = gr.Number(label=t("label_price_signal_high"), value=2.0)
 			with gr.Row():
-				dr_incentive_low = gr.Number(label="DR Incentive Low", value=0.0)
-				dr_incentive_high = gr.Number(label="DR Incentive High", value=0.5)
+				dr_incentive_low = gr.Number(label=t("label_dr_incentive_low"), value=0.0)
+				dr_incentive_high = gr.Number(label=t("label_dr_incentive_high"), value=0.5)
 			with gr.Row():
-				capacity_alloc_low = gr.Number(label="Capacity Allocation Low", value=0.0)
-				capacity_alloc_high = gr.Number(label="Capacity Allocation High", value=1.0)
+				capacity_alloc_low = gr.Number(label=t("label_capacity_alloc_low"), value=0.0)
+				capacity_alloc_high = gr.Number(label=t("label_capacity_alloc_high"), value=1.0)
 			with gr.Row():
-				ess_charge_low = gr.Number(label="ESS Charge Low", value=-1.0)
-				ess_charge_high = gr.Number(label="ESS Charge High", value=1.0)
+				ess_charge_low = gr.Number(label=t("label_ess_charge_low"), value=-1.0)
+				ess_charge_high = gr.Number(label=t("label_ess_charge_high"), value=1.0)
 			with gr.Row():
-				der_curtail_low = gr.Number(label="DER Curtailment Low", value=0.0)
-				der_curtail_high = gr.Number(label="DER Curtailment High", value=1.0)
+				der_curtail_low = gr.Number(label=t("label_der_curtail_low"), value=0.0)
+				der_curtail_high = gr.Number(label=t("label_der_curtail_high"), value=1.0)
 
 		# --- Consumer Action Space ---
-		with gr.Accordion("Consumer Action Space", open=False):
+		with gr.Accordion(t("accordion_consumer_action"), open=False):
 			with gr.Row():
 				load_adj_low = gr.Number(
-					label="Load Adjustment Low",
+					label=t("label_load_adj_low"),
 					value=-0.3,
-					info="Maximum load reduction (30%)",
+					info=t("info_load_adj_low"),
 				)
 				load_adj_high = gr.Number(
-					label="Load Adjustment High",
+					label=t("label_load_adj_high"),
 					value=0.1,
-					info="Maximum load increase (10%)",
+					info=t("info_load_adj_high"),
 				)
 			with gr.Row():
-				der_output_low = gr.Number(label="DER Output Low", value=0.0)
-				der_output_high = gr.Number(label="DER Output High", value=1.0)
+				der_output_low = gr.Number(label=t("label_der_output_low"), value=0.0)
+				der_output_high = gr.Number(label=t("label_der_output_high"), value=1.0)
 
 		# --- Reward Weights ---
-		with gr.Accordion("Reward Weights", open=False):
-			gr.Markdown("#### UC Rewards")
+		with gr.Accordion(t("accordion_reward_weights_stk"), open=False):
+			gr.Markdown(t("heading_uc_rewards"))
 			with gr.Row():
 				uc_electricity_revenue = gr.Slider(
-					label="Electricity Revenue",
+					label=t("label_electricity_revenue"),
 					minimum=0.0, maximum=5.0, step=0.1, value=1.0,
 				)
 				uc_market_cost = gr.Slider(
-					label="Market Cost",
+					label=t("label_market_cost"),
 					minimum=0.0, maximum=5.0, step=0.1, value=1.0,
 				)
 				uc_der_profit = gr.Slider(
-					label="DER Profit",
+					label=t("label_der_profit"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.8,
 				)
 			with gr.Row():
 				uc_dr_cost = gr.Slider(
-					label="DR Cost",
+					label=t("label_dr_cost"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.6,
 				)
 				uc_system_loss = gr.Slider(
-					label="System Loss",
+					label=t("label_system_loss"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.5,
 				)
 				uc_voltage_violation = gr.Slider(
-					label="Voltage Violation",
+					label=t("label_voltage_violation"),
 					minimum=0.0, maximum=10.0, step=0.1, value=2.0,
 				)
 			with gr.Row():
 				uc_carbon_reduction = gr.Slider(
-					label="Carbon Reduction",
+					label=t("label_carbon_reduction"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.3,
 				)
 
-			gr.Markdown("#### Consumer Rewards")
+			gr.Markdown(t("heading_consumer_rewards"))
 			with gr.Row():
 				con_electricity_cost = gr.Slider(
-					label="Electricity Cost",
+					label=t("label_electricity_cost"),
 					minimum=0.0, maximum=5.0, step=0.1, value=1.0,
 				)
 				con_comfort_loss = gr.Slider(
-					label="Comfort Loss",
+					label=t("label_comfort_loss"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.8,
 				)
 			with gr.Row():
 				con_dr_revenue = gr.Slider(
-					label="DR Revenue",
+					label=t("label_dr_revenue"),
 					minimum=0.0, maximum=5.0, step=0.1, value=1.2,
 				)
 				con_voltage_quality = gr.Slider(
-					label="Voltage Quality",
+					label=t("label_voltage_quality"),
 					minimum=0.0, maximum=5.0, step=0.1, value=0.3,
 				)
 
 		# --- Physical Constraints ---
-		with gr.Accordion("Physical Constraints", open=False):
+		with gr.Accordion(t("accordion_physical_constraints"), open=False):
 			with gr.Row():
 				voltage_min = gr.Slider(
-					label="Voltage Min (p.u.)",
+					label=t("label_voltage_min"),
 					minimum=0.90, maximum=1.00, step=0.01, value=0.95,
 				)
 				voltage_max = gr.Slider(
-					label="Voltage Max (p.u.)",
+					label=t("label_voltage_max"),
 					minimum=1.00, maximum=1.10, step=0.01, value=1.05,
 				)
 			with gr.Row():
 				line_capacity_factor = gr.Slider(
-					label="Line Capacity Factor",
+					label=t("label_line_capacity_factor"),
 					minimum=0.5, maximum=1.0, step=0.05, value=0.9,
 				)
 				max_load_change_rate = gr.Slider(
-					label="Max Load Change Rate",
+					label=t("label_max_load_change_rate"),
 					minimum=0.01, maximum=0.5, step=0.01, value=0.1,
 				)
 				ess_ramp_rate = gr.Slider(
-					label="ESS Ramp Rate",
+					label=t("label_ess_ramp_rate"),
 					minimum=0.01, maximum=0.5, step=0.01, value=0.2,
 				)
 
 		# --- Market Configuration ---
-		with gr.Accordion("Market Configuration", open=False):
+		with gr.Accordion(t("accordion_market"), open=False):
 			with gr.Row():
 				base_price = gr.Number(
-					label="Base Price ($/kWh)",
+					label=t("label_base_price"),
 					value=0.10,
 				)
 				peak_multiplier = gr.Number(
-					label="Peak Multiplier",
+					label=t("label_peak_multiplier"),
 					value=2.0,
 				)
 			with gr.Row():
 				valley_multiplier = gr.Number(
-					label="Valley Multiplier",
+					label=t("label_valley_multiplier"),
 					value=0.5,
 				)
 				market_volatility = gr.Number(
-					label="Market Volatility",
+					label=t("label_market_volatility"),
 					value=0.03,
 				)
 
 		# --- TOU Configuration ---
-		with gr.Accordion("TOU Configuration", open=False):
+		with gr.Accordion(t("accordion_tou"), open=False):
 			peak_hours = gr.CheckboxGroup(
-				label="Peak Hours",
+				label=t("label_peak_hours"),
 				choices=[str(h) for h in range(24)],
 				value=[str(h) for h in [8, 9, 10, 11, 17, 18, 19, 20]],
 			)
 			valley_hours = gr.CheckboxGroup(
-				label="Valley Hours",
+				label=t("label_valley_hours"),
 				choices=[str(h) for h in range(24)],
 				value=[str(h) for h in [0, 1, 2, 3, 4, 5, 23]],
 			)
 
 		# --- ESS Configuration ---
-		with gr.Accordion("ESS Configuration", open=False):
+		with gr.Accordion(t("accordion_ess"), open=False):
 			with gr.Row():
 				ess_total_capacity = gr.Number(
-					label="Total Capacity (MWh)",
+					label=t("label_ess_total_capacity"),
 					value=2.0,
 					info="13Bus=2.0, 34Bus=4.0, 123Bus=10.0",
 				)
 				ess_initial_soc = gr.Slider(
-					label="Initial SOC",
+					label=t("label_ess_initial_soc"),
 					minimum=0.0, maximum=1.0, step=0.05, value=0.5,
 				)
 			with gr.Row():
 				ess_efficiency_charge = gr.Slider(
-					label="Charge Efficiency",
+					label=t("label_ess_charge_efficiency"),
 					minimum=0.80, maximum=1.00, step=0.01, value=0.95,
 				)
 				ess_efficiency_discharge = gr.Slider(
-					label="Discharge Efficiency",
+					label=t("label_ess_discharge_efficiency"),
 					minimum=0.80, maximum=1.00, step=0.01, value=0.95,
 				)
 			with gr.Row():
 				ess_self_discharge = gr.Number(
-					label="Self Discharge Rate",
+					label=t("label_ess_self_discharge"),
 					value=0.001,
 				)
 				ess_max_power = gr.Number(
-					label="Max Power (MW)",
+					label=t("label_ess_max_power"),
 					value=0.5,
 					info="13Bus=0.5, 34Bus=1.0, 123Bus=2.0",
 				)
 			with gr.Row():
 				ess_min_soc = gr.Slider(
-					label="Min SOC",
+					label=t("label_ess_min_soc"),
 					minimum=0.0, maximum=0.5, step=0.05, value=0.2,
 				)
 				ess_max_soc = gr.Slider(
-					label="Max SOC",
+					label=t("label_ess_max_soc"),
 					minimum=0.5, maximum=1.0, step=0.05, value=0.9,
 				)
 
 		# --- DER Configuration ---
-		with gr.Accordion("DER Configuration", open=False):
+		with gr.Accordion(t("accordion_der"), open=False):
 			with gr.Row():
 				der_total_capacity = gr.Number(
-					label="Total Capacity (MW)",
+					label=t("label_der_total_capacity"),
 					value=3.0,
 					info="13Bus=3.0, 34Bus=5.0, 123Bus=12.0",
 				)
 				der_availability = gr.Dropdown(
-					label="Availability Profile",
+					label=t("label_der_availability"),
 					choices=["solar", "wind", "constant"],
 					value="solar",
 				)
 			with gr.Row():
 				der_forecast_error = gr.Number(
-					label="Forecast Error Std",
+					label=t("label_der_forecast_error"),
 					value=0.1,
 				)
 				der_curtailment_cost = gr.Number(
-					label="Curtailment Cost ($/kWh)",
+					label=t("label_der_curtailment_cost"),
 					value=0.02,
 				)
 
 		# --- DR Configuration ---
-		with gr.Accordion("DR Configuration", open=False):
+		with gr.Accordion(t("accordion_dr"), open=False):
 			with gr.Row():
 				dr_max_ratio = gr.Slider(
-					label="Max DR Ratio",
+					label=t("label_dr_max_ratio"),
 					minimum=0.0, maximum=1.0, step=0.05, value=0.3,
 				)
 				dr_min_response = gr.Slider(
-					label="Min Response Time (h)",
+					label=t("label_dr_min_response"),
 					minimum=1, maximum=12, step=1, value=1,
 				)
 			with gr.Row():
 				dr_fatigue = gr.Slider(
-					label="Fatigue Factor",
+					label=t("label_dr_fatigue"),
 					minimum=0.5, maximum=1.0, step=0.05, value=0.9,
 				)
 				dr_participation = gr.Slider(
-					label="Participation Rate",
+					label=t("label_dr_participation"),
 					minimum=0.0, maximum=1.0, step=0.05, value=0.8,
 				)
 
 		# --- Carbon & N-1 Security ---
-		with gr.Accordion("Carbon & N-1 Security", open=False):
-			gr.Markdown("#### Carbon Tracking")
+		with gr.Accordion(t("accordion_carbon_n1"), open=False):
+			gr.Markdown(t("heading_carbon_tracking"))
 			with gr.Row():
-				track_emissions = gr.Checkbox(label="Track Emissions", value=True)
+				track_emissions = gr.Checkbox(label=t("label_track_emissions"), value=True)
 				grid_carbon_intensity = gr.Number(
-					label="Grid Carbon Intensity (kg CO2/kWh)",
+					label=t("label_grid_carbon_intensity"),
 					value=0.5,
 				)
 				carbon_price = gr.Number(
-					label="Carbon Price ($/kg CO2)",
+					label=t("label_carbon_price"),
 					value=0.02,
 				)
-			gr.Markdown("#### N-1 Security")
+			gr.Markdown(t("heading_n1_security"))
 			with gr.Row():
-				n1_enable = gr.Checkbox(label="Enable N-1 Security", value=True)
+				n1_enable = gr.Checkbox(label=t("label_n1_enable"), value=True)
 				contingency_prob = gr.Number(
-					label="Contingency Probability",
+					label=t("label_contingency_prob"),
 					value=0.001,
 				)
 				recovery_time = gr.Number(
-					label="Recovery Time (h)",
+					label=t("label_recovery_time"),
 					value=4,
 					precision=0,
 				)
 
 		# --- Runtime Flags ---
-		with gr.Accordion("Runtime Flags", open=False):
+		with gr.Accordion(t("accordion_runtime_flags"), open=False):
 			with gr.Row():
-				debug = gr.Checkbox(label="Debug", value=False)
-				verbose = gr.Checkbox(label="Verbose", value=True)
-				render = gr.Checkbox(label="Render", value=False)
+				debug = gr.Checkbox(label=t("label_debug"), value=False)
+				verbose = gr.Checkbox(label=t("label_verbose"), value=True)
+				render = gr.Checkbox(label=t("label_render"), value=False)
 
 		return {
 			"_env_variant": env_variant,

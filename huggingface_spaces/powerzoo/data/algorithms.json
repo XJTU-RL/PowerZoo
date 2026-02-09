@@ -1,0 +1,122 @@
+[
+  {
+    "name": "HAPPO",
+    "type": "On-Policy",
+    "family": "HA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "Heterogeneous-Agent PPO with sequential policy update"
+  },
+  {
+    "name": "HATRPO",
+    "type": "On-Policy",
+    "family": "HA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "Trust region optimization with Krylov subspace"
+  },
+  {
+    "name": "HAA2C",
+    "type": "On-Policy",
+    "family": "HA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "Advantage Actor-Critic with heterogeneous agents"
+  },
+  {
+    "name": "MAPPO",
+    "type": "On-Policy",
+    "family": "MA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "Multi-Agent PPO with centralized value function"
+  },
+  {
+    "name": "SN-MAPPO",
+    "type": "On-Policy",
+    "family": "MA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "MAPPO with stochastic network architecture"
+  },
+  {
+    "name": "DAN-HAPPO",
+    "type": "On-Policy",
+    "family": "HA",
+    "policy": "Stochastic",
+    "action_space": "Discrete/Continuous",
+    "key_feature": "Dynamic attention network for agent communication"
+  },
+  {
+    "name": "HADDPG",
+    "type": "Off-Policy",
+    "family": "HA",
+    "policy": "Deterministic",
+    "action_space": "Continuous",
+    "key_feature": "Heterogeneous-Agent DDPG with experience replay"
+  },
+  {
+    "name": "HATD3",
+    "type": "Off-Policy",
+    "family": "HA",
+    "policy": "Deterministic",
+    "action_space": "Continuous",
+    "key_feature": "Twin delayed DDPG for reduced overestimation"
+  },
+  {
+    "name": "HASAC",
+    "type": "Off-Policy",
+    "family": "HA",
+    "policy": "Stochastic",
+    "action_space": "Continuous",
+    "key_feature": "Maximum entropy RL with automatic temperature tuning"
+  },
+  {
+    "name": "MADDPG",
+    "type": "Off-Policy",
+    "family": "MA",
+    "policy": "Deterministic",
+    "action_space": "Continuous",
+    "key_feature": "Centralized critic with decentralized actors"
+  },
+  {
+    "name": "MATD3",
+    "type": "Off-Policy",
+    "family": "MA",
+    "policy": "Deterministic",
+    "action_space": "Continuous",
+    "key_feature": "Multi-Agent TD3 with clipped double Q-learning"
+  },
+  {
+    "name": "QMIX",
+    "type": "Value-Based",
+    "family": "MA",
+    "policy": "Greedy",
+    "action_space": "Discrete",
+    "key_feature": "Monotonic value factorization via mixing network"
+  },
+  {
+    "name": "HAD3QN",
+    "type": "Value-Based",
+    "family": "HA",
+    "policy": "Greedy",
+    "action_space": "Discrete",
+    "key_feature": "Dueling Double DQN for heterogeneous agents"
+  },
+  {
+    "name": "SHOM",
+    "type": "Hybrid",
+    "family": "MA",
+    "policy": "Mixed",
+    "action_space": "Hybrid",
+    "key_feature": "Shared heterogeneous observation model"
+  },
+  {
+    "name": "2TS-VVC",
+    "type": "Two-Timescale",
+    "family": "Special",
+    "policy": "Mixed",
+    "action_space": "Hybrid",
+    "key_feature": "Slow SACD + Fast DDPG for VVC coordination"
+  }
+]

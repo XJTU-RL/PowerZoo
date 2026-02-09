@@ -1,6 +1,6 @@
 """Algorithm and environment metadata registry for PowerZoo Training UI.
 
-Provides structured metadata for all 15 MARL algorithms and 8 power system
+Provides structured metadata for all 16 MARL algorithms and 11 power system
 environments, organized by algorithm family. Used by UI components for
 populating dropdowns, validation, and config generation.
 """
@@ -34,11 +34,11 @@ class EnvMeta:
 
 
 # ---------------------------------------------------------------------------
-# Algorithm Registry (15 algorithms)
+# Algorithm Registry (16 algorithms)
 # ---------------------------------------------------------------------------
 
 ALGO_REGISTRY: dict[str, AlgoMeta] = {
-	# --- On-Policy HA Series ---
+	# --- On-Policy HA Series (Heterogeneous-Agent, sequential update) ---
 	"happo": AlgoMeta(
 		name="happo",
 		display_name="HAPPO",
@@ -67,13 +67,6 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 		config_file="shom.yaml",
 		description="Shared Hierarchical On-policy MARL",
 	),
-	"sn_mappo": AlgoMeta(
-		name="sn_mappo",
-		display_name="SN-MAPPO",
-		family="on_policy_ha",
-		config_file="sn_mappo.yaml",
-		description="Stackelberg Network MAPPO",
-	),
 	"dan_happo": AlgoMeta(
 		name="dan_happo",
 		display_name="DAN-HAPPO",
@@ -81,13 +74,20 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 		config_file="dan_happo.yaml",
 		description="Dynamic Attention Network HAPPO",
 	),
-	# --- On-Policy MA Series ---
+	# --- On-Policy MA Series (Multi-Agent, synchronous update) ---
 	"mappo": AlgoMeta(
 		name="mappo",
 		display_name="MAPPO",
 		family="on_policy_ma",
 		config_file="mappo.yaml",
 		description="Multi-Agent Proximal Policy Optimization",
+	),
+	"sn_mappo": AlgoMeta(
+		name="sn_mappo",
+		display_name="SN-MAPPO",
+		family="on_policy_ma",
+		config_file="sn_mappo.yaml",
+		description="Stackelberg Network MAPPO",
 	),
 	# --- Off-Policy HA Series ---
 	"haddpg": AlgoMeta(
@@ -141,6 +141,15 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 		config_file="qmix.yaml",
 		description="QMIX Value Decomposition",
 	),
+	# --- Two-Time-Scale ---
+	"2ts_vvc": AlgoMeta(
+		name="2ts_vvc",
+		display_name="2TS-VVC",
+		family="two_time_scale",
+		config_file="2ts_vvc.yaml",
+		description="Two-Time-Scale VVC (Slow SACD + Fast DDPG)",
+		compatible_envs=["vvc", "vvc_single"],
+	),
 }
 
 
@@ -149,16 +158,17 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 # ---------------------------------------------------------------------------
 
 ALGO_FAMILIES: dict[str, list[str]] = {
-	"On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "sn_mappo", "dan_happo"],
-	"On-Policy MA": ["mappo"],
+	"On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "dan_happo"],
+	"On-Policy MA": ["mappo", "sn_mappo"],
 	"Off-Policy HA": ["haddpg", "hatd3", "hasac", "had3qn"],
 	"Off-Policy MA": ["maddpg", "matd3"],
 	"QMix": ["qmix"],
+	"Two-Time-Scale": ["2ts_vvc"],
 }
 
 
 # ---------------------------------------------------------------------------
-# Environment Registry (8 environments)
+# Environment Registry (11 environments)
 # ---------------------------------------------------------------------------
 
 ENV_REGISTRY: dict[str, EnvMeta] = {
@@ -171,6 +181,15 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
 		default_system_ref="13Bus",
 		available_systems=["13Bus", "34Bus", "34Bus_PV", "123Bus"],
 	),
+	"vvc_single": EnvMeta(
+		name="vvc_single",
+		display_name="VVC Single-Agent",
+		config_file="vvc_single.yaml",
+		description="Single-agent VVC environment for baseline comparison",
+		default_agents=1,
+		default_system_ref="13Bus",
+		available_systems=["13Bus", "34Bus", "123Bus"],
+	),
 	"smartgrid": EnvMeta(
 		name="smartgrid",
 		display_name="SmartGrid",
@@ -182,6 +201,15 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
 			"13Bus", "34Bus", "34Bus_PV", "34Bus_PV_Aggressive",
 			"34Bus_PV_Conservative", "34Bus_PV_Optimized", "123Bus", "8500Node",
 		],
+	),
+	"district_dispatch": EnvMeta(
+		name="district_dispatch",
+		display_name="District Dispatch",
+		config_file="district_dispatch.yaml",
+		description="Multi-zone coordinated dispatch environment (34Bus 3-Zone)",
+		default_agents=3,
+		default_system_ref="District_34Bus_3Zone",
+		available_systems=["District_34Bus_3Zone"],
 	),
 	"stackelberg_13bus": EnvMeta(
 		name="stackelberg_13bus",

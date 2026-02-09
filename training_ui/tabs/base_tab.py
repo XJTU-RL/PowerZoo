@@ -18,6 +18,8 @@ from abc import ABC, abstractmethod
 import gradio as gr
 import yaml
 
+from training_ui.i18n import t
+
 
 class BaseEnvironmentTab(ABC):
 	"""Base class for all environment configuration tabs.
@@ -74,19 +76,19 @@ class BaseEnvironmentTab(ABC):
 			# --- Sub-tabs ---
 			with gr.Tabs():
 				# Sub-tab 1: Environment Config
-				with gr.Tab("Environment Config"):
+				with gr.Tab(t("subtab_env_config")):
 					env_params = self.build_env_params()
 
 				# Sub-tab 2: Algorithm Config
-				with gr.Tab("Algorithm Config"):
+				with gr.Tab(t("subtab_algo_config")):
 					algo_params = self._build_algo_config()
 
 				# Sub-tab 3: Training Settings
-				with gr.Tab("Training Settings"):
+				with gr.Tab(t("subtab_training_settings")):
 					training_params = self._build_training_config()
 
 				# Sub-tab 4: Launch
-				with gr.Tab("Launch"):
+				with gr.Tab(t("subtab_launch")):
 					launch = self._build_launch_panel()
 
 			# --- Bind launch-panel events ---
@@ -137,31 +139,31 @@ class BaseEnvironmentTab(ABC):
 		with gr.Row():
 			with gr.Column(scale=1):
 				exp_name = gr.Textbox(
-					label="Experiment Name",
+					label=t("label_exp_name"),
 					value="test",
-					placeholder="Enter experiment name...",
+					placeholder=t("placeholder_exp_name"),
 				)
 				model_dir = gr.Textbox(
-					label="Model Directory (resume training)",
+					label=t("label_model_dir"),
 					value="",
-					placeholder="Leave empty for new training",
+					placeholder=t("placeholder_model_dir"),
 				)
 				log_dir = gr.Textbox(
-					label="Log Directory",
+					label=t("label_log_dir"),
 					value="./results",
 				)
 			with gr.Column(scale=1):
 				config_preview = gr.Code(
-					label="Config Preview (YAML)",
+					label=t("label_config_preview"),
 					language="yaml",
 					interactive=False,
 					lines=20,
 				)
 
 		with gr.Row():
-			preview_btn = gr.Button("Preview Config", variant="secondary")
-			validate_btn = gr.Button("Validate", variant="secondary")
-			launch_btn = gr.Button("Start Training", variant="primary", size="lg")
+			preview_btn = gr.Button(t("btn_preview_config"), variant="secondary")
+			validate_btn = gr.Button(t("btn_validate"), variant="secondary")
+			launch_btn = gr.Button(t("btn_start_training"), variant="primary", size="lg")
 
 		status_msg = gr.Markdown("")
 
@@ -265,7 +267,7 @@ class BaseEnvironmentTab(ABC):
 			config = self._values_to_config(values, env_keys, algo_keys, training_keys)
 			return yaml.dump(config, default_flow_style=False, allow_unicode=True, sort_keys=False)
 		except Exception as exc:
-			return f"# Error generating preview:\n# {exc}"
+			return f"{t('err_preview')}\n# {exc}"
 
 	def _validate_callback(
 		self,
@@ -280,20 +282,20 @@ class BaseEnvironmentTab(ABC):
 			errors: list[str] = []
 
 			if not config.get("algo_name"):
-				errors.append("No algorithm selected.")
+				errors.append(t("err_no_algo"))
 			if not config.get("exp_name"):
-				errors.append("Experiment name is empty.")
+				errors.append(t("err_no_exp_name"))
 
 			env_args = config.get("env_args", {})
 			episode_length = env_args.get("episode_length")
 			if episode_length is not None and episode_length <= 0:
-				errors.append("Episode length must be positive.")
+				errors.append(t("err_episode_positive"))
 
 			if errors:
-				return "**Validation Failed**\n\n" + "\n".join(f"- {e}" for e in errors)
-			return "**Validation Passed** -- config looks good."
+				return f"{t('msg_validation_failed')}\n\n" + "\n".join(f"- {e}" for e in errors)
+			return t("msg_validation_passed")
 		except Exception as exc:
-			return f"**Validation Error**: {exc}"
+			return f"{t('msg_validation_error')}: {exc}"
 
 	def _launch_callback(
 		self,
@@ -311,7 +313,7 @@ class BaseEnvironmentTab(ABC):
 			exp_name = config.get("exp_name", "test")
 
 			if not algo_name:
-				return "**Error**: No algorithm selected."
+				return f"{t('msg_error')}: {t('err_no_algo')}"
 
 			from training_ui.core.config_builder import build_config
 			config_path, full_config = build_config(
@@ -330,14 +332,14 @@ class BaseEnvironmentTab(ABC):
 			)
 
 			return (
-				f"**Training Started**\n\n"
-				f"- Task ID: `{task_id}`\n"
-				f"- Algorithm: `{algo_name}`\n"
-				f"- Environment: `{env_name}`\n"
-				f"- Config: `{config_path}`"
+				f"{t('msg_training_started')}\n\n"
+				f"- {t('msg_task_id')}: `{task_id}`\n"
+				f"- {t('msg_algorithm')}: `{algo_name}`\n"
+				f"- {t('msg_environment')}: `{env_name}`\n"
+				f"- {t('msg_config')}: `{config_path}`"
 			)
 		except Exception as exc:
-			return f"**Launch Error**: {exc}"
+			return f"{t('msg_launch_error')}: {exc}"
 
 	# ------------------------------------------------------------------
 	# Internal helpers

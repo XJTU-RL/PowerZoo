@@ -2,6 +2,8 @@
 
 import gradio as gr
 
+from training_ui.i18n import t
+
 
 def build_monitor_tab() -> gr.Tab:
 	"""Build the training monitor tab.
@@ -13,31 +15,31 @@ def build_monitor_tab() -> gr.Tab:
 		Row 4: Real-time log viewer (auto-refresh every 3s)
 		Row 5: Task history table
 	"""
-	with gr.Tab("Monitor") as tab:
-		gr.Markdown("## Training Monitor")
+	with gr.Tab(t("tab_monitor")) as tab:
+		gr.Markdown(t("monitor_heading"))
 
 		with gr.Row():
 			task_selector = gr.Dropdown(
-				label="Active Task",
+				label=t("label_active_task"),
 				choices=[],
 				interactive=True,
 				scale=3,
 			)
-			refresh_btn = gr.Button("Refresh", variant="secondary", scale=1)
+			refresh_btn = gr.Button(t("btn_refresh"), variant="secondary", scale=1)
 
 		# Task info card
 		with gr.Row():
 			with gr.Column():
-				task_info = gr.JSON(label="Task Info", value={})
+				task_info = gr.JSON(label=t("label_task_info"), value={})
 			with gr.Column():
 				with gr.Row():
-					stop_btn = gr.Button("Stop Training", variant="stop")
+					stop_btn = gr.Button(t("btn_stop_training"), variant="stop")
 					# empty column for spacing
 
 		# Log viewer
-		gr.Markdown("### Training Log")
+		gr.Markdown(t("monitor_log_heading"))
 		log_output = gr.Textbox(
-			label="Log Output",
+			label=t("label_log_output"),
 			lines=25,
 			interactive=False,
 		)
@@ -46,10 +48,10 @@ def build_monitor_tab() -> gr.Tab:
 		timer = gr.Timer(value=3)
 
 		# Task history
-		gr.Markdown("### Task History")
+		gr.Markdown(t("monitor_history_heading"))
 		history_table = gr.Dataframe(
-			headers=["Task ID", "Algorithm", "Environment", "Status", "Start Time", "Duration"],
-			label="All Tasks",
+			headers=[t("col_task_id"), t("col_algorithm"), t("col_environment"), t("col_status"), t("col_start_time"), t("col_duration")],
+			label=t("label_all_tasks"),
 			interactive=False,
 		)
 
@@ -124,11 +126,11 @@ def build_monitor_tab() -> gr.Tab:
 		def stop_task(task_selection):
 			"""Stop the selected running task."""
 			if not task_selection:
-				return "No task selected"
+				return t("msg_no_task")
 			task_id = task_selection.split(" - ")[0]
 			from training_ui.core.process_manager import process_manager
 			success = process_manager.stop(task_id)
-			return f"Task {task_id} stopped" if success else f"Failed to stop {task_id}"
+			return f"Task {task_id} {t('msg_task_stopped')}" if success else f"{t('msg_task_stop_failed')} {task_id}"
 
 		# Bind events
 		refresh_btn.click(refresh_tasks, outputs=[task_selector, history_table])

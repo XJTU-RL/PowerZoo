@@ -7,6 +7,7 @@ flags, and logging configuration.
 
 import gradio as gr
 
+from training_ui.i18n import t
 from training_ui.tabs.base_tab import BaseEnvironmentTab
 
 
@@ -19,7 +20,7 @@ class VVCTab(BaseEnvironmentTab):
 
 	@property
 	def tab_label(self) -> str:
-		return "VVC"
+		return t("tab_vvc")
 
 	def build_env_params(self) -> dict[str, gr.components.Component]:
 		"""Build VVC-specific environment parameters.
@@ -43,72 +44,72 @@ class VVCTab(BaseEnvironmentTab):
 		bind_system_events(system_dropdown, system_info)
 
 		# --- VVC Environment Settings ---
-		with gr.Accordion("VVC Environment Settings", open=True):
+		with gr.Accordion(t("vvc_accordion_settings"), open=True):
 			with gr.Row():
 				episode_length = gr.Number(
-					label="Episode Length",
+					label=t("label_episode_length"),
 					value=24,
 					precision=0,
-					info="Maximum steps per episode",
+					info=t("info_episode_length"),
 				)
 				seed = gr.Number(
-					label="Env Seed",
+					label=t("label_env_seed"),
 					value=123456,
 					precision=0,
 				)
 			with gr.Row():
 				mode = gr.Dropdown(
-					label="Mode",
+					label=t("label_mode"),
 					choices=["single", "parallel", "episodic", "dss"],
 					value="single",
-					info="Environment execution mode",
+					info=t("info_mode"),
 				)
 				useS = gr.Checkbox(
-					label="Use S Matrix (SHOM)",
+					label=t("label_use_s_matrix"),
 					value=False,
 				)
 				big2small = gr.Checkbox(
-					label="Big to Small (SHOM)",
+					label=t("label_big2small"),
 					value=False,
 				)
 
 		# --- Runtime Flags ---
-		with gr.Accordion("Runtime Flags", open=False):
+		with gr.Accordion(t("accordion_runtime_flags"), open=False):
 			with gr.Row():
-				use_render = gr.Checkbox(label="Render", value=False)
-				use_plot = gr.Checkbox(label="Plot", value=False)
-				do_testing = gr.Checkbox(label="Testing Mode", value=False)
+				use_render = gr.Checkbox(label=t("label_render"), value=False)
+				use_plot = gr.Checkbox(label=t("label_plot"), value=False)
+				do_testing = gr.Checkbox(label=t("label_testing_mode"), value=False)
 			with gr.Row():
-				record_node = gr.Checkbox(label="Record Node Info", value=False)
+				record_node = gr.Checkbox(label=t("label_record_node"), value=False)
 				dss_act = gr.Checkbox(
-					label="DSS Auto Control",
+					label=t("label_dss_auto_control"),
 					value=False,
-					info="If enabled, OpenDSS controls override RL actions",
+					info=t("info_dss_auto_control"),
 				)
 
 		# --- Logging ---
-		with gr.Accordion("Logging", open=False):
+		with gr.Accordion(t("accordion_logging"), open=False):
 			with gr.Row():
 				enable_system_logging = gr.Checkbox(
-					label="System Logging",
+					label=t("label_system_logging"),
 					value=True,
 				)
 				enable_realtime_log = gr.Checkbox(
-					label="Realtime Log",
+					label=t("label_realtime_log"),
 					value=True,
 				)
 			system_log_dir = gr.Textbox(
-				label="Log Directory",
+				label=t("label_log_directory"),
 				value="./logs/system_params",
 			)
 			with gr.Row():
 				log_buffer_size = gr.Number(
-					label="Log Buffer Size",
+					label=t("label_log_buffer_size"),
 					value=5000,
 					precision=0,
 				)
 				log_save_interval = gr.Number(
-					label="Log Save Interval",
+					label=t("label_log_save_interval"),
 					value=50,
 					precision=0,
 				)

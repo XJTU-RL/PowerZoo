@@ -9,6 +9,8 @@ import gradio as gr
 import yaml
 from pathlib import Path
 
+from training_ui.i18n import t
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 _REGISTRY_PATH = PROJECT_ROOT / "configs" / "systems" / "_registry.yaml"
@@ -60,27 +62,27 @@ def _format_system_info(system_name: str) -> str:
 	meta = metadata.get(system_name)
 
 	if not meta:
-		return f"*No metadata available for `{system_name}`.*"
+		return f"*{t('system_no_metadata')} `{system_name}`.*"
 
 	lines = [
 		f"**{system_name}**",
 		"",
 		f"> {meta.get('description', 'N/A')}",
 		"",
-		f"| Property | Value |",
+		f"| {t('system_property')} | {t('system_value')} |",
 		f"|----------|-------|",
-		f"| Nodes | {meta.get('node_count', 'N/A')} |",
+		f"| {t('system_nodes')} | {meta.get('node_count', 'N/A')} |",
 	]
 
 	if "pv_count" in meta:
-		lines.append(f"| PV Units | {meta['pv_count']} |")
+		lines.append(f"| {t('system_pv_units')} | {meta['pv_count']} |")
 	if "penetration_rate" in meta:
 		rate_pct = f"{meta['penetration_rate'] * 100:.1f}%"
-		lines.append(f"| PV Penetration | {rate_pct} |")
+		lines.append(f"| {t('system_pv_penetration')} | {rate_pct} |")
 	if "district_count" in meta:
-		lines.append(f"| Districts | {meta['district_count']} |")
+		lines.append(f"| {t('system_districts')} | {meta['district_count']} |")
 	if "typical_episode_length" in meta:
-		lines.append(f"| Episode Length | {meta['typical_episode_length']} |")
+		lines.append(f"| {t('system_episode_length')} | {meta['typical_episode_length']} |")
 
 	return "\n".join(lines)
 
@@ -99,7 +101,7 @@ def build_system_selector(
 		Tuple of (system_dropdown, system_info_card).
 	"""
 	system_dropdown = gr.Dropdown(
-		label="IEEE System",
+		label=t("label_ieee_system"),
 		choices=available_systems,
 		value=default,
 	)
@@ -117,7 +119,7 @@ def on_system_change(system_name: str) -> str:
 		Updated markdown string for the info card.
 	"""
 	if not system_name:
-		return "*Select a system to see its details.*"
+		return t("system_select_prompt")
 	return _format_system_info(system_name)
 
 

@@ -10,6 +10,8 @@ from pathlib import Path
 
 import gradio as gr
 
+from training_ui.i18n import t
+
 # Ensure project root is in path
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,10 +20,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def main():
 	"""Launch the Gradio app."""
-	parser = argparse.ArgumentParser(description="PowerZoo Training Manager")
-	parser.add_argument("--port", type=int, default=7860, help="Server port")
-	parser.add_argument("--host", type=str, default="0.0.0.0", help="Server host")
-	parser.add_argument("--share", action="store_true", help="Create public link")
+	parser = argparse.ArgumentParser(description=t("cli_description"))
+	parser.add_argument("--port", type=int, default=7860, help=t("cli_port_help"))
+	parser.add_argument("--host", type=str, default="0.0.0.0", help=t("cli_host_help"))
+	parser.add_argument("--share", action="store_true", help=t("cli_share_help"))
 	args = parser.parse_args()
 
 	from training_ui.app import CUSTOM_CSS_PATH, create_app

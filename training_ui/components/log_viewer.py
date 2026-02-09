@@ -6,6 +6,8 @@ to display live training log output.
 
 import gradio as gr
 
+from training_ui.i18n import t
+
 
 def build_log_viewer() -> tuple[gr.Textbox, gr.Timer]:
 	"""Build log viewer with auto-refresh timer.
@@ -18,10 +20,10 @@ def build_log_viewer() -> tuple[gr.Textbox, gr.Timer]:
 		Tuple of (log_textbox, refresh_timer).
 	"""
 	log_textbox = gr.Textbox(
-		label="Training Log",
+		label=t("label_training_log"),
 		lines=25,
 		interactive=False,
-		placeholder="Training output will appear here once a run starts...",
+		placeholder=t("placeholder_log"),
 	)
 	# gr.Timer triggers its .tick event at the specified interval (seconds).
 	refresh_timer = gr.Timer(value=3)

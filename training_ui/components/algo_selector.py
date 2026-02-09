@@ -7,6 +7,8 @@ An info card displays the selected algorithm's description.
 
 import gradio as gr
 
+from training_ui.i18n import t
+
 
 def _lazy_registry():
 	"""Lazy-import registry to avoid circular/path issues at module level."""
@@ -37,16 +39,16 @@ def _format_algo_description(algo_display_name: str) -> str:
 				f"",
 				f"> {meta.description}",
 				f"",
-				f"- **Family**: `{meta.family}`",
-				f"- **Config**: `{meta.config_file}`",
+				f"- **{t('algo_info_family')}**: `{meta.family}`",
+				f"- **{t('algo_info_config')}**: `{meta.config_file}`",
 			]
 			if meta.compatible_envs:
 				envs_str = ", ".join(meta.compatible_envs)
-				lines.append(f"- **Compatible Envs**: {envs_str}")
+				lines.append(f"- **{t('algo_info_compatible')}**: {envs_str}")
 			else:
-				lines.append("- **Compatible Envs**: All")
+				lines.append(f"- **{t('algo_info_compatible')}**: {t('algo_info_all')}")
 			return "\n".join(lines)
-	return "*Select an algorithm to see its description.*"
+	return t("algo_select_prompt")
 
 
 def build_algo_selector() -> tuple[gr.Radio, gr.Dropdown, gr.Markdown]:
@@ -67,12 +69,12 @@ def build_algo_selector() -> tuple[gr.Radio, gr.Dropdown, gr.Markdown]:
 	default_desc = _format_algo_description(default_algo) if default_algo else ""
 
 	family_radio = gr.Radio(
-		label="Algorithm Family",
+		label=t("label_algo_family"),
 		choices=families,
 		value=default_family,
 	)
 	algo_dropdown = gr.Dropdown(
-		label="Algorithm",
+		label=t("label_algorithm"),
 		choices=default_algos,
 		value=default_algo,
 	)
@@ -109,7 +111,7 @@ def on_algo_change(algo_display_name: str) -> str:
 		Markdown string for the description card.
 	"""
 	if not algo_display_name:
-		return "*Select an algorithm to see its description.*"
+		return t("algo_select_prompt")
 	return _format_algo_description(algo_display_name)
 
 
@@ -129,7 +131,7 @@ def _on_family_change_desc(family: str) -> str:
 	choices = get_algo_choices(family)
 	if choices:
 		return _format_algo_description(choices[0])
-	return "*No algorithms in this family.*"
+	return t("algo_no_family")
 
 
 def bind_events(
