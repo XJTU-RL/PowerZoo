@@ -46,4 +46,28 @@ default_rewards:
 display:
   node_size: 500
   shift: 80
-  show_labels: false
+  show_labels: true
+  show_node_labels: true
+  load_noise: false
+
+# PV 方案清单 (通过 pv_plan 参数选择)
+pv_plans:
+  none:
+    description: "无PV系统（纯基础测试）"
+    pv_count: 0
+    total_capacity_kw: 0
+  conservative:
+    description: "保守方案（720kW, 40.7% 渗透率）"
+    pv_count: 5
+    total_capacity_kw: 720
+    penetration_rate: 0.407
+  optimized:
+    description: "优化方案（900kW, 50.8% 渗透率）"
+    pv_count: 7
+    total_capacity_kw: 900
+    penetration_rate: 0.508
+  aggressive:
+    description: "高渗透率方案（1080kW, 61% 渗透率）"
+    pv_count: 9
+    total_capacity_kw: 1080
+    penetration_rate: 0.61

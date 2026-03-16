@@ -41,6 +41,8 @@ default_rewards:
 
 # 显示配置
 display:
-  node_size: 300
-  shift: 50
-  show_labels: false
+  node_size: 500
+  shift: 10
+  show_labels: true
+  show_node_labels: true
+  load_noise: true
