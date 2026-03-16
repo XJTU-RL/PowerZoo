@@ -61,3 +61,115 @@ class TestLegacyVariantMapping:
         from utils.unified_config_loader import expand_legacy_variant
         result = expand_legacy_variant('13Bus')
         assert result is None
+
+
+class TestSmartGridConfigFromEnvArgs:
+    """Test SmartGridConfig.from_env_args()"""
+
+    def test_basic_fields(self):
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+        env_args = {
+            'system_name': '34Bus_PV',
+            'dss_file': 'ieee34Mod1_duty.dss',
+            'max_episode_steps': 360,
+            'seed': 42,
+            'pv_plan': 'aggressive',
+        }
+        config = SmartGridConfig.from_env_args(env_args)
+        assert config.system_name == '34Bus_PV'
+        assert config.max_episode_steps == 360
+        assert config.pv_plan == 'aggressive'
+
+    def test_device_config_from_env_specific(self):
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+        env_args = {
+            'env_specific_config': {
+                'devices': {
+                    'batteries': {'action_num': 33, 'action_space': 'continuous'},
+                    'pv_systems': {'control_enabled': True, 'action_space': 'continuous'},
+                },
+                'reward_weights': {
+                    'power_loss': 0.4,
+                    'pv_control': 0.4,
+                },
+            },
+        }
+        config = SmartGridConfig.from_env_args(env_args)
+        assert config.battery.is_continuous
+        assert config.pv.control_enabled
+        assert config.reward_weights.power_loss == 0.4
+
+    def test_unknown_keys_ignored(self):
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+        env_args = {'totally_unknown_key': 'should_not_crash'}
+        config = SmartGridConfig.from_env_args(env_args)
+        assert not hasattr(config, 'totally_unknown_key')
+
+    def test_defaults_used_when_empty(self):
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+        config = SmartGridConfig.from_env_args({})
+        assert config.max_episode_steps == 360
+        assert config.pv_plan is None
+
+
+class TestCircuitPvPlan:
+    """Test pv_plan injection into Circuits"""
+
+    def test_circuits_accepts_pv_plan(self):
+        from envs.smartgrid.circuit_system.circuit import Circuits
+        import inspect
+        sig = inspect.signature(Circuits.__init__)
+        assert 'pv_plan' in sig.parameters
+
+    def test_temp_compile_uses_pv_plan(self, tmp_path):
+        """_create_temp_compile_file should use pv_plans/{plan}.dss"""
+        import os
+        dss_dir = tmp_path / "test_system"
+        dss_dir.mkdir()
+        (dss_dir / "main.dss").write_text("! dummy\n")
+        (dss_dir / "loadshape.dss").write_text("! dummy\n")
+        (dss_dir / "pv_data.dss").write_text("! no PVSystem here\n")
+        pv_plans = dss_dir / "pv_plans"
+        pv_plans.mkdir()
+        (pv_plans / "aggressive.dss").write_text("New PVSystem.PV1 phases=3\n")
+
+        original_cwd = os.getcwd()
+        os.chdir(str(dss_dir))
+        try:
+            from envs.smartgrid.circuit_system.circuit import Circuits
+            c = object.__new__(Circuits)
+            c.worker_idx = None
+            c.pv_plan = "aggressive"
+            temp_file = c._create_temp_compile_file("main.dss")
+            with open(temp_file, 'r') as f:
+                content = f.read()
+            assert "pv_plans/aggressive.dss" in content
+            assert "pv_systems_base.dss" not in content
+            os.remove(temp_file)
+        finally:
+            os.chdir(original_cwd)
+
+    def test_temp_compile_fallback_without_pv_plan(self, tmp_path):
+        """Without pv_plan, should fall back to pv_systems_base.dss"""
+        import os
+        dss_dir = tmp_path / "test_fallback"
+        dss_dir.mkdir()
+        (dss_dir / "main.dss").write_text("! dummy\n")
+        (dss_dir / "loadshape.dss").write_text("! dummy\n")
+        (dss_dir / "pv_data.dss").write_text("! no PVSystem here\n")
+        (dss_dir / "pv_systems_base.dss").write_text("New PVSystem.PV1 phases=3\n")
+
+        original_cwd = os.getcwd()
+        os.chdir(str(dss_dir))
+        try:
+            from envs.smartgrid.circuit_system.circuit import Circuits
+            c = object.__new__(Circuits)
+            c.worker_idx = None
+            c.pv_plan = None  # No pv_plan -> use pv_systems_base.dss
+            temp_file = c._create_temp_compile_file("main.dss")
+            with open(temp_file, 'r') as f:
+                content = f.read()
+            assert "pv_systems_base.dss" in content
+            os.remove(temp_file)
+        finally:
+            os.chdir(original_cwd)

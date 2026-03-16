@@ -50,13 +50,15 @@ class Circuits:
 				batt_file='Battery.csv',
 				RBP_act_num=(33, 33, float('inf')),
 				dss_act=False,
-				worker_idx=None):
+				worker_idx=None,
+				pv_plan=None):
 		# DSS
 		self.dss = opendss.DSS  # the dss simulator object
 		self._is_closed = False  # 资源清理标志
 		self.dss_file = dss_file  # path to the dss file for the whole circuit
 		self.dss_act = dss_act  # whether to use OpenDSS controllers defined in the circuit file
 		self.worker_idx = worker_idx  # worker index for multi-worker environments
+		self.pv_plan = pv_plan  # PV 方案名称（如 'aggressive'），None 时使用默认行为
 
 		self.batt_file = os.path.join(Path(self.dss_file).parent, batt_file)
 		if not os.path.exists(self.batt_file):
@@ -233,10 +235,24 @@ class Circuits:
 						pv_has_system_def = True
 						break
 
-			if not pv_has_system_def and os.path.exists("pv_systems_base.dss"):
-				# 先加载PV系统和变压器的基础定义，再加载worker的曲线文件
-				temp_content.append("redirect pv_systems_base.dss\n")
-				logger.info(f"Worker {self.worker_idx}: 加载PV基础定义 pv_systems_base.dss")
+			if not pv_has_system_def:
+				# 优先使用 pv_plan 参数指定的方案文件
+				if self.pv_plan is not None:
+					pv_plan_file = f"pv_plans/{self.pv_plan}.dss"
+					if os.path.exists(pv_plan_file):
+						temp_content.append(f"redirect {pv_plan_file}\n")
+						logger.info(f"Worker {self.worker_idx}: 加载PV方案 {pv_plan_file}")
+					else:
+						logger.warning(
+							f"Worker {self.worker_idx}: PV方案文件 {pv_plan_file} 不存在，"
+							f"回退到 pv_systems_base.dss"
+						)
+						if os.path.exists("pv_systems_base.dss"):
+							temp_content.append("redirect pv_systems_base.dss\n")
+				elif os.path.exists("pv_systems_base.dss"):
+					# 向后兼容：无 pv_plan 参数时使用 pv_systems_base.dss
+					temp_content.append("redirect pv_systems_base.dss\n")
+					logger.info(f"Worker {self.worker_idx}: 加载PV基础定义 pv_systems_base.dss")
 
 			temp_content.append(f"redirect {pv_data_file}\n")
 			logger.info(f"Worker {self.worker_idx}: 加载PV文件 {pv_data_file}")
