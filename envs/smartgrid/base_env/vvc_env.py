@@ -116,7 +116,7 @@ class VVCEnv:
         
         # 初始化系统参数记录器
         # NOTE: get_system_logger 已被移除，系统日志功能由 smartgrid_logger 统一管理
-        self._enable_system_logging = getattr(config, 'enable_system_logging', False)
+        self._enable_system_logging = getattr(self.config, 'enable_system_logging', False)
         self._system_logger = None  # 系统日志功能已整合到统一日志系统
         
         logger.info(f"VVC环境初始化完成 - 智能体数: {self.n_agents}, 环境数: {self.num_env}")
