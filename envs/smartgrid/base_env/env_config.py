@@ -103,6 +103,9 @@ class SmartGridConfig:
 	# === Worker 配置 ===
 	worker_idx: Optional[int] = None
 
+	# === PV 方案 ===
+	pv_plan: Optional[str] = None  # PV方案: none/conservative/optimized/aggressive
+
 	def __post_init__(self):
 		"""验证并处理配置"""
 		# 验证设备配置
@@ -232,6 +235,76 @@ class SmartGridConfig:
 			scale=config_dict.get('scale', 1.0),
 			worker_idx=config_dict.get('worker_idx'),
 		)
+
+	@classmethod
+	def from_env_args(cls, env_args: dict) -> 'SmartGridConfig':
+		"""从 unified_config_loader 的 env_args 构建配置
+
+		替代原有的 ConfigLoader.get_config()。
+		env_args 结构:
+		  - 直接字段: system_name, dss_file, max_episode_steps, seed, pv_plan, ...
+		  - env_specific_config.devices.{regulators,batteries,pv_systems}
+		  - env_specific_config.reward_weights.{power_loss,capacitor,...}
+		  - env_specific_config.constraints.{voltage_min,voltage_max}
+		"""
+		config = cls()
+
+		# 直接标量字段映射: env_args key -> SmartGridConfig attr
+		direct_fields = {
+			'system_name': 'system_name',
+			'dss_file': 'dss_file',
+			'env_name': 'env_name',
+			'max_episode_steps': 'max_episode_steps',
+			'episode_length': 'max_episode_steps',
+			'seed': 'seed',
+			'pv_plan': 'pv_plan',
+			'dss_act': 'dss_act',
+			'voltage_min': 'voltage_min',
+			'voltage_max': 'voltage_max',
+			'source_bus': 'source_bus',
+		}
+		for src_key, dst_attr in direct_fields.items():
+			if src_key in env_args and env_args[src_key] is not None:
+				setattr(config, dst_attr, env_args[src_key])
+
+		# 设备配置 (从 env_specific_config.devices)
+		devices = env_args.get('env_specific_config', {}).get('devices', {})
+		if 'regulators' in devices:
+			reg_cfg = devices['regulators']
+			config.regulator.action_num = reg_cfg.get('action_num', config.regulator.action_num)
+		if 'batteries' in devices:
+			bat_cfg = devices['batteries']
+			if bat_cfg.get('action_space') == 'continuous':
+				config.battery.action_num = float('inf')
+			elif 'action_num' in bat_cfg:
+				config.battery.action_num = bat_cfg['action_num']
+		if 'pv_systems' in devices:
+			pv_cfg = devices['pv_systems']
+			config.pv.control_enabled = pv_cfg.get('control_enabled', config.pv.control_enabled)
+			if pv_cfg.get('action_space') == 'continuous':
+				config.pv.action_num = float('inf')
+			elif 'action_num' in pv_cfg:
+				config.pv.action_num = pv_cfg['action_num']
+
+		# 奖励权重 (从 env_specific_config.reward_weights)
+		weights = env_args.get('env_specific_config', {}).get('reward_weights', {})
+		if weights:
+			for attr in ['power_loss', 'capacitor', 'regulator', 'battery_soc', 'battery_discharge', 'pv_control']:
+				if attr in weights:
+					setattr(config.reward_weights, attr, weights[attr])
+
+		# 约束覆盖 (从 env_specific_config.constraints)
+		constraints = env_args.get('env_specific_config', {}).get('constraints', {})
+		if constraints:
+			config.voltage_min = constraints.get('voltage_min', config.voltage_min)
+			config.voltage_max = constraints.get('voltage_max', config.voltage_max)
+
+		# 显示配置
+		for display_field in ['node_size', 'shift', 'show_node_labels']:
+			if display_field in env_args and env_args[display_field] is not None:
+				setattr(config, display_field, env_args[display_field])
+
+		return config
 
 	def with_worker_idx(self, worker_idx: int) -> 'SmartGridConfig':
 		"""创建带有 worker_idx 的新配置副本"""
