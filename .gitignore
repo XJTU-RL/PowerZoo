@@ -438,6 +438,7 @@ node_systems/**/pv_data_*.dss
 !node_systems/**/pv_data.dss
 !node_systems/**/IEEE34_BusXY.csv
 node_systems/34Bus_PV/logs/
+node_systems/_archived/
 
 node_systems/**/ieee34Mod1_duty_*.dss
 !node_systems/**/ieee34Mod1_duty.dss

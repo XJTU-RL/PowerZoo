@@ -1,14 +1,15 @@
 # PV激进方案 - 高渗透率配置 (1080kW, 61%渗透率)
-# 适用于34Bus_PV_Aggressive网络配置
+# 适用于34Bus_PV网络配置 (aggressive PV plan)
 
 # ===== 系统引用 =====
-system_ref: 34Bus_PV_Aggressive
+system_ref: 34Bus_PV
+pv_plan: aggressive
 
 env_name: "34Bus_pv"
 num_agents: 12  # 3个原有PV + 6个新增PV + 3个调压器
 
-# 网络配置路径 - 指向激进方案
-dss_file: "./node_systems/34Bus_PV_Aggressive/ieee34Mod1_duty.dss"
+# 网络配置路径 - 统一34Bus_PV目录
+dss_file: "./node_systems/34Bus_PV/ieee34Mod1_duty.dss"
 
 # PV系统配置 - 9个PV系统
 pv_systems:
@@ -114,8 +115,8 @@ training:
   max_grad_norm: 5.0
   
 # 数据路径
-load_data_path: "./node_systems/34Bus_PV_Aggressive/loadshape/"
-irrad_data_path: "./node_systems/34Bus_PV_Aggressive/loadshape/irrad_2025_02_0500_to_1659.csv"
+load_data_path: "./node_systems/34Bus_PV/loadshape/"
+irrad_data_path: "./node_systems/34Bus_PV/loadshape/irrad_2025_02_0500_to_1659.csv"
 
 # 性能指标目标 - 激进但可行
 performance_targets:

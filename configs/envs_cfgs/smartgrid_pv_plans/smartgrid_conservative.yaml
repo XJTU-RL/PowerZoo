@@ -1,14 +1,15 @@
 # PV保守方案 - 适度扩展配置 (720kW, 40.7%渗透率)
-# 适用于34Bus_PV_Conservative网络配置
+# 适用于34Bus_PV网络配置 (conservative PV plan)
 
 # ===== 系统引用 =====
-system_ref: 34Bus_PV_Conservative
+system_ref: 34Bus_PV
+pv_plan: conservative
 
 env_name: "34Bus_pv"
 num_agents: 8  # 3个原有PV + 2个新增PV + 3个调压器
 
-# 网络配置路径 - 指向保守方案
-dss_file: "./node_systems/34Bus_PV_Conservative/ieee34Mod1_duty.dss"
+# 网络配置路径 - 统一34Bus_PV目录
+dss_file: "./node_systems/34Bus_PV/ieee34Mod1_duty.dss"
 
 # PV系统配置 - 5个PV系统
 pv_systems:
@@ -92,8 +93,8 @@ training:
   max_grad_norm: 10.0
   
 # 数据路径
-load_data_path: "./node_systems/34Bus_PV_Conservative/loadshape/"
-irrad_data_path: "./node_systems/34Bus_PV_Conservative/loadshape/irrad_2025_02_0500_to_1659.csv"
+load_data_path: "./node_systems/34Bus_PV/loadshape/"
+irrad_data_path: "./node_systems/34Bus_PV/loadshape/irrad_2025_02_0500_to_1659.csv"
 
 # 性能指标目标 - 保守但可实现
 performance_targets:

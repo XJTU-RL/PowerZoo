@@ -8,8 +8,10 @@
 
 # ===== 系统引用 =====
 # 从 configs/systems/ 目录加载 OpenDSS 系统配置
-# 可选值: 13Bus, 34Bus, 34Bus_PV, 34Bus_PV_Aggressive, 34Bus_PV_Conservative, 34Bus_PV_Optimized, 123Bus, 8500Node
-system_ref: 34Bus_PV_Aggressive
+# 可选值: 13Bus, 34Bus, 34Bus_PV, 123Bus, 8500Node
+system_ref: 34Bus_PV
+# PV 方案选择: none, conservative, optimized, aggressive
+pv_plan: aggressive
 
 # ===== 基础环境配置 =====
 # NOTE: env_name 保留用于向后兼容，新代码应使用 system_ref
@@ -63,7 +65,7 @@ training_ref: curriculum/default
 # 旧格式 environment_specific (已废弃，保留用于兼容)
 # 新代码应使用 configs/systems/ 中的配置
 environment_specific:
-  system_name: "34Bus_PV_Aggressive"
+  system_name: "34Bus_PV"
   dss_file: "ieee34Mod1_duty.dss"
   devices:
     capacitors:
