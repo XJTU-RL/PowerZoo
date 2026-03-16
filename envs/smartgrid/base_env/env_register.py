@@ -2,16 +2,15 @@
 """
 SmartGrid 环境注册和工厂模块
 
-简化版本 - 删除冗余配置加载逻辑，统一使用 config_loader
+统一使用 SmartGridConfig 作为配置入口，同时保留 legacy 字符串接口。
 """
 import os
 import re
 import glob
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Union
 
 from envs.smartgrid.base_env.env import Env
-from envs.smartgrid.base_env.config_loader import load_config, get_env_config
 from envs.smartgrid.base_env.env_config import SmartGridConfig
 
 
@@ -26,58 +25,78 @@ def get_node_systems_path() -> Path:
 
 
 def make_env(
-	env_name: str,
+	env_name_or_config: Union[SmartGridConfig, str],
 	dss_act: bool = False,
 	worker_idx: Optional[int] = None,
 	config_dict: Optional[Dict[str, Any]] = None
 ) -> Env:
 	"""创建 SmartGrid 环境 - 主入口
 
-	这是创建环境的推荐方式。
+	支持两种调用方式:
+	1. make_env(config: SmartGridConfig, worker_idx=rank)  -- 新方式（推荐）
+	2. make_env(env_name: str, dss_act, worker_idx, config_dict)  -- legacy
 
 	Args:
-		env_name: 环境名称（如 '34Bus_pv', '13Bus'）
-		dss_act: 是否使用 OpenDSS 自动控制
+		env_name_or_config: SmartGridConfig 对象或环境名称字符串
+		dss_act: 是否使用 OpenDSS 自动控制（legacy 参数，Config 路径忽略）
 		worker_idx: 工作进程索引（用于并行训练）
-		config_dict: 额外配置字典（可选）
+		config_dict: 额外配置字典（legacy 参数，Config 路径忽略）
 
 	Returns:
 		Env: 环境实例
 
 	示例:
-		env = make_env('34Bus_pv')
+		# 新方式
+		config = SmartGridConfig.from_env_args(env_args)
+		env = make_env(config, worker_idx=0)
+
+		# legacy 方式
 		env = make_env('34Bus_pv', worker_idx=0)
 	"""
-	# 构建覆盖参数
-	overrides = _extract_overrides(config_dict)
-	overrides['dss_act'] = dss_act
-
-	# 加载配置
-	config = load_config(env_name, overrides)
+	if isinstance(env_name_or_config, SmartGridConfig):
+		# 新路径：直接使用 SmartGridConfig，无需 config_loader
+		config = env_name_or_config
+		if worker_idx is not None:
+			config = config.with_worker_idx(worker_idx)
+	else:
+		# Legacy 路径：从 env_name 字符串构建 Config
+		env_name = env_name_or_config
+		if config_dict and 'env_args' in config_dict:
+			config = SmartGridConfig.from_env_args(config_dict['env_args'])
+		else:
+			# 回退到最小配置
+			overrides = _extract_overrides(config_dict)
+			overrides['dss_act'] = dss_act
+			config = SmartGridConfig(env_name=env_name)
+			# 应用 overrides 到 config
+			for key, value in overrides.items():
+				if hasattr(config, key) and value is not None:
+					setattr(config, key, value)
+		if worker_idx is not None:
+			config = config.with_worker_idx(worker_idx)
 
 	# 获取数据路径
 	folder_path = str(get_data_root())
 
-	# 处理 worker_idx
-	if worker_idx is not None:
-		config = config.with_worker_idx(worker_idx)
-		_setup_worker_files(folder_path, config.system_name, config.dss_file, worker_idx)
+	# 处理 worker 文件
+	if config.worker_idx is not None:
+		_setup_worker_files(folder_path, config.system_name, config.dss_file, config.worker_idx)
 
 	# 创建环境
 	return Env(folder_path, config)
 
 
 def make_base_env(
-	env_name: str,
+	env_name_or_config: Union[SmartGridConfig, str],
 	dss_act: bool = False,
 	worker_idx: Optional[int] = None,
 	config_dict: Optional[Dict[str, Any]] = None
 ) -> Env:
 	"""创建环境实例 - 向后兼容接口
 
-	保留此函数以兼容旧代码，新代码应使用 make_env()。
+	签名与 make_env 完全相同，保留此函数以兼容旧代码。
 	"""
-	return make_env(env_name, dss_act, worker_idx, config_dict)
+	return make_env(env_name_or_config, dss_act, worker_idx, config_dict)
 
 
 def _extract_overrides(config_dict: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -231,9 +250,19 @@ def _create_pv_data_file(system_dir: str, worker_idx: int) -> None:
 		fout.write(content)
 
 
-def remove_parallel_dss(env_name: str, num_workers: int) -> None:
-	"""删除特定 worker 的临时 DSS 文件"""
-	config = load_config(env_name)
+def remove_parallel_dss(env_name_or_config: Union[SmartGridConfig, str], num_workers: int) -> None:
+	"""删除特定 worker 的临时 DSS 文件
+
+	Args:
+		env_name_or_config: SmartGridConfig 对象或环境名称字符串
+		num_workers: worker 索引
+	"""
+	if isinstance(env_name_or_config, SmartGridConfig):
+		config = env_name_or_config
+	else:
+		# Legacy: 从 env_name 构建最小 config 以获取 system_name/dss_file
+		config = SmartGridConfig(env_name=env_name_or_config)
+
 	folder_path = str(get_data_root())
 
 	if 'node_systems/' in config.system_name:
@@ -315,7 +344,7 @@ def get_info_and_folder(
 ) -> Tuple[Dict[str, Any], str]:
 	"""获取环境信息和文件夹路径 - 向后兼容接口
 
-	新代码应直接使用 load_config()
+	新代码应直接使用 SmartGridConfig
 	"""
 	# 处理缩放后缀
 	is_scaled = re.match(r'.*(_s)([0-9]*[.])?[0-9]+?', env_name)
@@ -326,11 +355,15 @@ def get_info_and_folder(
 		env_name = matched_str[:idx]
 		scale = float(matched_str[idx + 2:])
 
-	# 提取覆盖参数
-	overrides = _extract_overrides(config_dict) if config_dict else {}
-
-	# 加载配置
-	config = load_config(env_name, overrides)
+	# 构建 SmartGridConfig
+	if config_dict and 'env_args' in config_dict:
+		config = SmartGridConfig.from_env_args(config_dict['env_args'])
+	else:
+		overrides = _extract_overrides(config_dict) if config_dict else {}
+		config = SmartGridConfig(env_name=env_name)
+		for key, value in overrides.items():
+			if hasattr(config, key) and value is not None:
+				setattr(config, key, value)
 
 	# 转换为旧格式
 	info = config.to_info_dict()
@@ -350,8 +383,14 @@ def get_info_from_config(
 ) -> Dict[str, Any]:
 	"""从配置文件获取环境信息 - 向后兼容接口
 
-	新代码应直接使用 load_config()
+	新代码应直接使用 SmartGridConfig
 	"""
-	overrides = _extract_overrides(config_dict) if config_dict else {}
-	config = load_config(env_name, overrides)
+	if config_dict and 'env_args' in config_dict:
+		config = SmartGridConfig.from_env_args(config_dict['env_args'])
+	else:
+		overrides = _extract_overrides(config_dict) if config_dict else {}
+		config = SmartGridConfig(env_name=env_name)
+		for key, value in overrides.items():
+			if hasattr(config, key) and value is not None:
+				setattr(config, key, value)
 	return config.to_info_dict()

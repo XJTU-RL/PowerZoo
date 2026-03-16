@@ -64,19 +64,35 @@ def seeding(seed: int) -> None:
 
 
 class VVCEnv:
-    """VVC环境类（集成优化功能）"""
-    
-    def __init__(self, env, config, rank: Optional[int] = None):
+    """VVC环境类（集成优化功能）
+
+    支持两种 config 参数类型:
+    1. SmartGridConfig 对象（推荐，新代码路径）
+    2. dict（legacy env_args，向后兼容）
+    """
+
+    def __init__(self, env, config_or_args, rank: Optional[int] = None):
         """
         初始化优化环境
-        
+
         Args:
             env: 底层环境实例
-            config: 环境配置
+            config_or_args: SmartGridConfig 对象或 legacy env_args 字典
             rank: 进程编号，用于多进程训练
         """
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+
+        # 统一 config 处理：dict -> SmartGridConfig adapter
+        if isinstance(config_or_args, SmartGridConfig):
+            self.config = config_or_args
+        elif isinstance(config_or_args, dict):
+            # Legacy dict 路径：包装为 SmartGridConfig
+            self.config = SmartGridConfig.from_env_args(config_or_args)
+        else:
+            # 兜底：假设是对象，直接使用
+            self.config = config_or_args
+
         self.env = env
-        self.config = config
         self.rank = rank
         
         # 核心配置缓存

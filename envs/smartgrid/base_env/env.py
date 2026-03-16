@@ -244,12 +244,14 @@ class Env(gym.Env):
         # 参数验证
         self._validate_config()
 
-        # === 创建电路对象 - 关键修复：传递完整的 RBP_act_num ===
+        # === 创建电路对象 - 传递完整的 RBP_act_num 和 pv_plan ===
+        pv_plan = info.get('pv_plan', None)
         self.circuit = Circuits(
             os.path.join(self.dss_folder_path, self.dss_file),
             RBP_act_num=(self.reg_act_num, self.bat_act_num, self.pv_act_num),
             dss_act=dss_act,
-            worker_idx=worker_idx
+            worker_idx=worker_idx,
+            pv_plan=pv_plan
         )
         self.all_bus_names = self.circuit.dss.ActiveCircuit.AllBusNames
         self.cap_names = list(self.circuit.capacitors.keys())

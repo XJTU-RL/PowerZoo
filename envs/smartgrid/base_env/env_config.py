@@ -187,6 +187,9 @@ class SmartGridConfig:
 
 			# Worker
 			'worker_idx': self.worker_idx,
+
+			# PV 方案
+			'pv_plan': self.pv_plan,
 		}
 		return info
 

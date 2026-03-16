@@ -61,21 +61,14 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 env = VVCEnv(env_args,rank) 
                 
             elif env_name == "smartgrid":
-                # Use VVCEnv for smartgrid environment
+                from envs.smartgrid.base_env.env_config import SmartGridConfig
                 from envs.smartgrid.base_env.vvc_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
-                
-                # 简化的配置传递 - 只传递 env_args
-                config_dict = {'env_args': env_args}
-                
-                base_env = make_base_env(
-                    env_args.get('env_name', '34Bus_pv'),
-                    env_args.get('dss_act', False), 
-                    worker_idx=rank,
-                    config_dict=config_dict
-                )
-                env = VVCEnv(base_env, env_args, rank)
-                
+
+                config = SmartGridConfig.from_env_args(env_args)
+                base_env = make_base_env(config, worker_idx=rank)
+                env = VVCEnv(base_env, config, rank)
+
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
 
@@ -127,20 +120,14 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 env = VVCEnv(env_args,rank)
                 
             elif env_name == "smartgrid":
+                from envs.smartgrid.base_env.env_config import SmartGridConfig
                 from envs.smartgrid.base_env.vvc_env import VVCEnv
                 from envs.smartgrid.base_env.env_register import make_base_env
-                
-                # 简化的配置传递 - 只传递 env_args
-                config_dict = {'env_args': env_args}
-                
-                base_env = make_base_env(
-                    env_args.get('env_name', '34Bus_pv'),
-                    env_args.get('dss_act', False), 
-                    worker_idx=rank,
-                    config_dict=config_dict
-                )
-                env = VVCEnv(base_env, env_args, rank)
-                
+
+                config = SmartGridConfig.from_env_args(env_args)
+                base_env = make_base_env(config, worker_idx=rank)
+                env = VVCEnv(base_env, config, rank)
+
             elif env_name == "dsr":
                 from envs.dsr.dsr_env import DSREnv
                 env = DSREnv(env_args, rank)
@@ -194,18 +181,13 @@ def make_render_env(env_name, seed, env_args):
         manual_delay = False
         env.seed(seed * 60000)
     elif env_name == "smartgrid": #smartgrid环境渲染支持
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
         from envs.smartgrid.base_env.vvc_env import VVCEnv
         from envs.smartgrid.base_env.env_register import make_base_env
-        
-        # 简化的配置传递
-        config_dict = {'env_args': env_args}
-        base_env = make_base_env(
-            env_args.get('env_name', '34Bus_pv'),
-            env_args.get('dss_act', False),
-            worker_idx=4,
-            config_dict=config_dict
-        )
-        env = VVCEnv(base_env, env_args, rank=4)
+
+        config = SmartGridConfig.from_env_args(env_args)
+        base_env = make_base_env(config, worker_idx=4)
+        env = VVCEnv(base_env, config, rank=4)
         manual_render = False  
         manual_expand_dims = False
         manual_delay = False
