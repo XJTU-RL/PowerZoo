@@ -56,10 +56,12 @@ def make_train_env(env_name, seed, n_threads, env_args):
     def get_env_fn(rank):
         def init_env():
             if env_name in ("vvc", "powerzoo"):  # powerzoo is backward compat alias
+                from envs.vvc.vvc.vvc_config import VVCConfig
                 from envs.vvc.vvc_env import VVCEnv
 
-                env = VVCEnv(env_args,rank) 
-                
+                config = VVCConfig.from_env_args(env_args)
+                env = VVCEnv(config, rank)
+
             elif env_name == "smartgrid":
                 from envs.smartgrid.base_env.env_config import SmartGridConfig
                 from envs.smartgrid.base_env.vvc_env import VVCEnv
@@ -119,9 +121,12 @@ def make_eval_env(env_name, seed, n_threads, env_args):
     def get_env_fn(rank):
         def init_env():
             if env_name in ("vvc", "powerzoo"):  # powerzoo is backward compat alias
+                from envs.vvc.vvc.vvc_config import VVCConfig
                 from envs.vvc.vvc_env import VVCEnv
-                env = VVCEnv(env_args,rank)
-                
+
+                config = VVCConfig.from_env_args(env_args)
+                env = VVCEnv(config, rank)
+
             elif env_name == "smartgrid":
                 from envs.smartgrid.base_env.env_config import SmartGridConfig
                 from envs.smartgrid.base_env.vvc_env import VVCEnv
@@ -178,9 +183,11 @@ def make_render_env(env_name, seed, env_args):
     env_num = 1  # number of parallel envs
     
     if env_name in ("vvc", "powerzoo"):  # 没有环境渲染,这里仅做参数匹配
+        from envs.vvc.vvc.vvc_config import VVCConfig
         from envs.vvc.vvc_env import VVCEnv
 
-        env = VVCEnv(env_args,rank=4)
+        config = VVCConfig.from_env_args(env_args)
+        env = VVCEnv(config, rank=4)
         manual_render = False  
         manual_expand_dims = (
             False  # dexhands uses parallel envs, thus dimension is already expanded

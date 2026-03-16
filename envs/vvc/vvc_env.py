@@ -31,38 +31,64 @@ def seeding(seed):
 
 
 class VVCEnv:
-    def __init__(self, args,rank=None):#TODO: ranks是线程数 
-        
-        self.args = copy.deepcopy(args)
-        self.env = make_base_env(args['env_name'], worker_idx=rank)#args
-        self.env.seed(args['seed'] + 0)
-        #智能体数量是电容、有载调压器、电池、PV数量之和（根据PV是否启用）
+    def __init__(self, config_or_args, rank=None):
+        """初始化 VVC 环境
+
+        支持两种构造方式:
+        1. VVCEnv(config: VVCConfig, rank)  -- 新路径
+        2. VVCEnv(args: dict, rank)         -- legacy 路径
+
+        智能体信息 (cap_num, reg_num 等) 始终从 self.env 读取，不从 config。
+        """
+        from envs.vvc.vvc.vvc_config import VVCConfig
+
+        if isinstance(config_or_args, VVCConfig):
+            self.config = config_or_args
+            self.args = {}
+            self.env = make_base_env(config_or_args, worker_idx=rank)
+            self.env_name = config_or_args.env_name
+            seed_val = config_or_args.seed
+        else:
+            self.config = None
+            self.args = copy.deepcopy(config_or_args)
+            self.env = make_base_env(config_or_args['env_name'], worker_idx=rank)
+            self.env_name = config_or_args['env_name']
+            seed_val = config_or_args.get('seed', 0)
+
+        self.env.seed(seed_val + 0)
+
+        # 智能体数量从 self.env 读取 (电容、调压器、电池、PV)
         pv_count = self.env.pv_num if (hasattr(self.env, 'pv_control_enabled') and self.env.pv_control_enabled) else 0
         total_agents = self.env.cap_num + self.env.reg_num + self.env.bat_num + pv_count
         agents = [i for i in range(0, total_agents)]
         self.agents = agents
         self.n_agents = len(agents)
-        
-        #排序顺序 - 支持CRBP架构
+
+        # 排序顺序 - 支持CRBP架构
         self.cap_names = self.env.cap_names
         self.reg_names = self.env.reg_names
         self.bat_names = self.env.bat_names
         self.pv_names = getattr(self.env, 'pv_names', []) if (hasattr(self.env, 'pv_control_enabled') and self.env.pv_control_enabled) else []
-        
-        self.rank=rank#线程编号
-        self.env_name=args['env_name']#便于实现多线程
-        
+
+        self.rank = rank
+
+        # 运行时标志: 统一从 config 或 args 读取
+        def _get(key, default=None):
+            if self.config is not None:
+                return getattr(self.config, key, default)
+            return self.args.get(key, default)
+
         agents_names = self.cap_names + self.reg_names + self.bat_names + self.pv_names
-        self.env.use_render=args['use_render']
-        self.env.useS=args['useS']
-        self.env.record_node = args['record_node']
-        if args['useS']==True:
-            update_orders=list(range(0,self.n_agents))
+        self.env.use_render = _get('use_render', False)
+        self.env.useS = _get('useS', False)
+        self.env.record_node = _get('record_node', False)
+        if _get('useS', False):
+            update_orders = list(range(0, self.n_agents))
             self.ordered_agents_pairs = dict(zip(agents_names, update_orders))
-            self.agents_bus=self.env.agents_bus 
+            self.agents_bus = self.env.agents_bus
         else:
             self.ordered_agents_pairs = None
-            self.agents_bus=None
+            self.agents_bus = None
         self.share_observation_space = self.repeat(self.env.observation_space)
         self.observation_space = self.unwrap(self.env.observation_space)
         

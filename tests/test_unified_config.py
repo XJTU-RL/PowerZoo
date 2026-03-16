@@ -248,3 +248,101 @@ class TestStackelbergConfigFromEnvArgs:
         from envs.stackelberg.stackelberg_config import StackelbergConfig
         config = StackelbergConfig.from_env_args({'totally_unknown': True})
         assert config.system_name == '13Bus'  # default
+
+
+class TestVVCConfigFromEnvArgs:
+    """Test VVCConfig.from_env_args()"""
+
+    def test_basic_fields(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        env_args = {
+            'system_name': '13Bus',
+            'dss_file': 'IEEE13Nodeckt_daily.dss',
+            'max_episode_steps': 24,
+            'power_w': 10.0,
+            'reg_act_num': 33,
+        }
+        config = VVCConfig.from_env_args(env_args)
+        assert config.system_name == '13Bus'
+        assert config.power_w == 10.0
+
+    def test_episode_length_alias(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'episode_length': 48})
+        assert config.max_episode_steps == 48
+
+    def test_num_steps_alias(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'num_steps': 36})
+        assert config.max_episode_steps == 36
+
+    def test_pv_control_alias(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'pv_control': True})
+        assert config.pv_control_enabled is True
+
+    def test_pv_flag_from_env_info_style(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'pv': True})
+        assert config.pv_control_enabled is True
+
+    def test_defaults(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({})
+        assert config.system_name == '13Bus'
+        assert config.reg_act_num == 33
+        assert config.pv_act_num == 33
+        assert config.pv_control_enabled is False
+
+    def test_to_env_info(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig(system_name='13Bus', power_w=10.0)
+        info = config.to_env_info()
+        assert info['system_name'] == '13Bus'
+        assert info['power_w'] == 10.0
+        assert 'pv' not in info  # pv_control_enabled=False -> no 'pv' key
+
+    def test_to_env_info_with_pv(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig(pv_control_enabled=True, pv_act_num=33)
+        info = config.to_env_info()
+        assert info['pv'] is True
+        assert info['pv_act_num'] == 33
+
+    def test_to_sys_info(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig(source_bus='sourcebus', node_size=500)
+        sys_info = config.to_sys_info()
+        assert sys_info['source_bus'] == 'sourcebus'
+        assert sys_info['node_size'] == 500
+
+    def test_unknown_keys_ignored(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'unknown_key': 'ignored'})
+        assert config.system_name == '13Bus'
+
+    def test_none_values_use_default(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'system_name': None})
+        assert config.system_name == '13Bus'
+
+    def test_env_specific_config_reward_weights(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        env_args = {
+            'env_specific_config': {
+                'reward_weights': {
+                    'power_loss': 20.0,
+                    'capacitor': 0.5,
+                    'battery_soc': 1.0,
+                }
+            }
+        }
+        config = VVCConfig.from_env_args(env_args)
+        assert config.power_w == 20.0
+        assert config.cap_w == 0.5
+        assert config.soc_w == 1.0
+
+    def test_inf_bat_act_num(self):
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        config = VVCConfig.from_env_args({'bat_act_num': float('inf')})
+        assert config.bat_act_num == float('inf')

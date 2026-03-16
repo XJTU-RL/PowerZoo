@@ -420,8 +420,30 @@ def get_info_and_folder(env_name):
     folder_path = os.path.abspath(folder_path)
     return base_info, folder_path
 
-def make_base_env(env_name, dss_act=False, worker_idx=None):
-    base_info, folder_path = get_info_and_folder(env_name)
+def make_base_env(config_or_name, dss_act=False, worker_idx=None):
+    """创建 VVC 基础环境
+
+    支持两种调用方式:
+    1. make_base_env(config: VVCConfig, worker_idx=rank)  # 新路径
+    2. make_base_env(env_name: str, dss_act, worker_idx)  # legacy 路径
+    """
+    from envs.vvc.vvc.vvc_config import VVCConfig
+
+    if isinstance(config_or_name, VVCConfig):
+        config = config_or_name
+        # 合并 env_info + sys_info，与 _ENV_INFO 合并后格式一致
+        base_info = config.to_env_info()
+        base_info.update(config.to_sys_info())
+
+        # 通过 resolve_system_path 解析 folder_path
+        from utils.path_utils import resolve_system_path
+        folder_path = str(resolve_system_path(config.system_name).parent)
+
+        dss_act = config.dss_act
+    else:
+        # Legacy 路径: 字符串 env_name
+        env_name = config_or_name
+        base_info, folder_path = get_info_and_folder(env_name)
 
     if worker_idx is None:
         return Env(folder_path, base_info, dss_act)
