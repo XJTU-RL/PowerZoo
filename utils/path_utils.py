@@ -106,3 +106,32 @@ def list_available_systems() -> list[str]:
 		d.name for d in ns_dir.iterdir()
 		if d.is_dir() and not d.name.startswith('.')
 	])
+
+
+def resolve_system_path(system_name: str) -> Path:
+	"""将 system_name 解析为 node_systems 下的绝对路径
+
+	Args:
+		system_name: 系统名称（如 '13Bus', '34Bus_PV'）
+		             或已含 'node_systems/' 前缀的路径
+
+	Returns:
+		node_systems/{system_name} 的绝对路径
+
+	Raises:
+		FileNotFoundError: 系统目录不存在
+	"""
+	project_root = get_project_root()
+
+	# 已含路径前缀
+	if 'node_systems' in str(system_name):
+		candidate = project_root / system_name
+		if candidate.exists():
+			return candidate
+
+	# 标准解析
+	system_dir = project_root / 'node_systems' / system_name
+	if system_dir.exists():
+		return system_dir
+
+	raise FileNotFoundError(f"System '{system_name}' not found at {system_dir}")
