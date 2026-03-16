@@ -4,6 +4,7 @@ DSR Environment Configuration
 配电网恢复环境配置
 """
 
+import dataclasses
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
@@ -96,6 +97,18 @@ class DSRConfig:
     # IEEE 123节点系统配置
     ieee123_load_count: int = 85  # IEEE 123节点系统的典型负荷数量
     
+    @classmethod
+    def from_env_args(cls, env_args: dict) -> 'DSRConfig':
+        """从 unified_config_loader 的 env_args 自动构建配置
+
+        用 dataclass 字段反射替代手工 update_keys 列表。
+        未知键静默忽略，None 值使用默认值。
+        """
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        kwargs = {k: v for k, v in env_args.items()
+                  if k in valid_fields and v is not None}
+        return cls(**kwargs)
+
     def to_vvc_config(self) -> Dict[str, Any]:
         """转换为PowerZoo格式的配置"""
         # 根据系统名称自动选择DSS文件

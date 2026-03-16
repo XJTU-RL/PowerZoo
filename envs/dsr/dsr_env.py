@@ -17,55 +17,58 @@ except ImportError:
 from typing import List, Dict, Any, Tuple, Optional
 
 from envs.dsr.core.dsr_core import DSRCoreEnv
-from envs.dsr.core.config import DSRConfig, DEFAULT_DSR_CONFIG
+from envs.dsr.core.config import DSRConfig
 
 
 class DSREnv:
     """统一的配电网恢复环境，支持多种算法需求"""
     
-    def __init__(self, args: Dict[str, Any], rank: Optional[int] = None):
+    def __init__(self, config_or_args, rank: Optional[int] = None):
         """
         初始化DSR环境
-        
+
         Args:
-            args: 环境参数字典，包含DSR配置
+            config_or_args: DSRConfig 实例或环境参数字典（向后兼容）
             rank: 并行进程编号
         """
-        self.args = copy.deepcopy(args)
+        if isinstance(config_or_args, DSRConfig):
+            self.config = config_or_args
+            self.args = {}
+        else:
+            self.args = copy.deepcopy(config_or_args)
+            self.config = DSRConfig.from_env_args(self.args)
+
         self.rank = rank
-        
-        # 解析DSR配置
-        self.config = self._parse_config(args)
-        
+
         # 创建核心环境
         self.core_env = DSRCoreEnv(self.config, worker_idx=rank)
         self.dsr_core = self.core_env  # 兼容性别名
-        
+
         # 设置智能体信息
         self.n_agents = self.core_env.n_agents
-        
+
         # 复制必要属性
         self.agent_types = self.core_env.agent_types
         self.agent_bus_mapping = self.core_env.agent_bus_mapping
-        
+
         # 定义观测和动作空间
         self._setup_spaces()
-        
+
         # 环境状态
         self.current_step = 0
-        
-        # PowerZoo兼容性设置
-        self.env_name = args.get('env_name', 'dsr')
-        self.useS = args.get('useS', False)
-        self.use_render = args.get('use_render', False)
-        self.record_node = args.get('record_node', True)
-        
+
+        # PowerZoo兼容性设置（优先从 config，回退到 args）
+        self.env_name = self.config.env_name
+        self.useS = self.args.get('useS', False)
+        self.use_render = self.config.use_render
+        self.record_node = self.config.record_node
+
         # DAN算法支持标志
-        self.use_dan = args.get('use_dan', False)
-        
+        self.use_dan = self.args.get('use_dan', False)
+
         # 增强功能参数（主要用于DAN算法）
         if self.use_dan:
-            self._setup_dan_features(args)
+            self._setup_dan_features()
         else:
             # 使用基础奖励权重
             self.reward_restore = self.config.reward_restore
@@ -75,7 +78,7 @@ class DSREnv:
             self.use_enhanced_action_mask = False
             self.use_progressive_penalty = False
             self.terminate_on_severe_overload = False
-        
+
         # 设置ordered_agents_pairs和agents_bus
         if self.useS:
             agents_names = [f"agent_{i}" for i in range(self.n_agents)]
@@ -85,89 +88,36 @@ class DSREnv:
         else:
             self.ordered_agents_pairs = None
             self.agents_bus = None
-        
+
         # 动作是否为离散
         self.discrete = True
     
-    def _setup_dan_features(self, args):
-        """设置DAN算法相关的增强功能"""
-        # 优化的奖励函数权重
-        self.reward_restore = getattr(args, 'reward_restore', 20.0)
-        self.reward_voltage = getattr(args, 'reward_voltage', 2.0)  # 增加电压惩罚权重
-        self.reward_overload = getattr(args, 'reward_overload', 8.0)  # 大幅增加过载惩罚权重
-        self.reward_severe_overload = getattr(args, 'reward_severe_overload', 50.0)  # 严重过载惩罚
-        self.reward_done = getattr(args, 'reward_done', -5.0)
-        
-        # 安全约束参数
-        self.severe_overload_threshold = getattr(args, 'severe_overload_threshold', 2.0)  # 严重过载阈值（倍数）
-        self.max_overload_current = getattr(args, 'max_overload_current', 1000.0)  # 最大允许过载电流（安培）
-        self.terminate_on_severe_overload = getattr(args, 'terminate_on_severe_overload', True)
-        
-        # 渐进式惩罚参数
-        self.use_progressive_penalty = getattr(args, 'use_progressive_penalty', True)
-        self.overload_penalty_levels = getattr(args, 'overload_penalty_levels', [1.2, 1.5, 2.0])  # 过载等级阈值
-        self.overload_penalty_weights = getattr(args, 'overload_penalty_weights', [1.0, 3.0, 8.0, 20.0])  # 对应惩罚权重
-        
-        # 动作掩码增强
-        self.use_enhanced_action_mask = getattr(args, 'use_enhanced_action_mask', True)
-        self.action_mask_safety_margin = getattr(args, 'action_mask_safety_margin', 0.1)  # 安全边际
-    
-    def _parse_config(self, args: Dict[str, Any]) -> DSRConfig:
-        """解析配置参数"""
-        # 创建配置副本
-        config_dict = DEFAULT_DSR_CONFIG.__dict__.copy()
-        
-        # 从args中更新配置
-        # 处理env_args中的参数
-        env_args = args.get('env_args', {})
-        
-        # 更新所有相关参数
-        update_keys = [
-            # 基础配置
-            'system_name', 'dss_file', 'max_episode_steps', 'seed', 'use_render', 'load_noise',
-            # 设备配置
-            'n_dg', 'n_pv', 'n_switch', 'n_load_levels',
-            # 聚合配置
-            'use_load_aggregation', 'n_load_agents', 'load_aggregation_method',
-            # 物理约束
-            'v_min', 'v_max', 'max_load_per_step',
-            # 奖励权重
-            'reward_restore', 'reward_voltage', 'reward_overload', 'reward_done',
-            # 故障配置
-            'min_faults', 'max_faults', 'fault_scenarios',
-            # 高级特性
-            'use_action_mask', 'use_dynamic_network', 'record_node',
-            'scale', 'worker_idx', 'useS',
-            # 动作空间配置
-            'pv_power_levels', 'load_action_levels', 'pv_max_power',
-            # 观测空间配置
-            'obs_reserved_dim', 'default_voltage', 'debug_mode',
-            # 设备重置配置
-            'line_disconnect_prob', 'max_faultable_lines',
-            # 负荷优先级配置
-            'priority_weights', 'max_priority_level',
-            # 恢复判断
-            'restoration_threshold', 'success_threshold',
-            # 日志记录配置
-            'log_interval_episodes', 'recent_episodes_window',
-            # 过载检测配置
-            'overload_threshold', 'use_emergency_rating', 'log_overload_details',
-            # IEEE系统配置
-            'ieee123_load_count'
-        ]
-        
-        # 首先从env_args更新
-        for key in update_keys:
-            if key in env_args:
-                config_dict[key] = env_args[key]
-        
-        # 然后从顶层args更新（优先级更高）
-        for key in update_keys:
-            if key in args:
-                config_dict[key] = args[key]
-        
-        # 创建新的配置对象
-        return DSRConfig(**config_dict)
+    def _setup_dan_features(self):
+        """设置DAN算法相关的增强功能
+
+        优先从 self.config（DSRConfig 字段）读取，
+        DAN 专属参数（不在 DSRConfig 中的）从 self.args dict 回退读取。
+        """
+        # 优化的奖励函数权重（config 中有对应字段）
+        self.reward_restore = self.config.reward_restore
+        self.reward_voltage = self.args.get('reward_voltage', 2.0)  # DAN用更高权重
+        self.reward_overload = self.args.get('reward_overload', 8.0)  # DAN用更高权重
+        self.reward_severe_overload = self.args.get('reward_severe_overload', 50.0)  # 严重过载惩罚
+        self.reward_done = self.config.reward_done
+
+        # 安全约束参数（DAN专属）
+        self.severe_overload_threshold = self.args.get('severe_overload_threshold', 2.0)
+        self.max_overload_current = self.args.get('max_overload_current', 1000.0)
+        self.terminate_on_severe_overload = self.args.get('terminate_on_severe_overload', True)
+
+        # 渐进式惩罚参数（DAN专属）
+        self.use_progressive_penalty = self.args.get('use_progressive_penalty', True)
+        self.overload_penalty_levels = self.args.get('overload_penalty_levels', [1.2, 1.5, 2.0])
+        self.overload_penalty_weights = self.args.get('overload_penalty_weights', [1.0, 3.0, 8.0, 20.0])
+
+        # 动作掩码增强（DAN专属）
+        self.use_enhanced_action_mask = self.args.get('use_enhanced_action_mask', True)
+        self.action_mask_safety_margin = self.args.get('action_mask_safety_margin', 0.1)
     
     def _setup_spaces(self):
         """设置观测和动作空间"""
@@ -697,7 +647,7 @@ class DSREnv:
         if not self.use_dan:
             raise NotImplementedError("get_neighbor_observations仅在use_dan=True时可用")
         
-        max_neighbors = getattr(self.args, 'max_neighbors', 5) if hasattr(self, 'args') else 5
+        max_neighbors = self.args.get('max_neighbors', 5) if self.args else 5
         
         # NOTE: 根据论文，邻居定义为同一微电网内的其他智能体
         # 在DSR环境中，我们根据电气连接关系确定邻居
@@ -831,6 +781,6 @@ class DSREnv:
 DSREnvDAN = DSREnv  # 向后兼容
 
 # 环境创建函数
-def make_dsr_env(args: Dict[str, Any], rank: Optional[int] = None) -> DSREnv:
+def make_dsr_env(config_or_args, rank: Optional[int] = None) -> DSREnv:
     """创建DSR环境"""
-    return DSREnv(args, rank)
+    return DSREnv(config_or_args, rank)

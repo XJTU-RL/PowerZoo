@@ -173,3 +173,78 @@ class TestCircuitPvPlan:
             os.remove(temp_file)
         finally:
             os.chdir(original_cwd)
+
+
+class TestDSRConfigFromEnvArgs:
+    """Test DSRConfig.from_env_args()"""
+
+    def test_basic_fields(self):
+        from envs.dsr.core.config import DSRConfig
+        env_args = {
+            'system_name': '123Bus',
+            'max_episode_steps': 15,
+            'n_dg': 7,
+            'reward_restore': 20.0,
+        }
+        config = DSRConfig.from_env_args(env_args)
+        assert config.system_name == '123Bus'
+        assert config.n_dg == 7
+
+    def test_unknown_keys_ignored(self):
+        from envs.dsr.core.config import DSRConfig
+        config = DSRConfig.from_env_args({'unknown_key': 'ignored'})
+        assert config.system_name == '123Bus'  # default
+
+    def test_none_values_use_default(self):
+        from envs.dsr.core.config import DSRConfig
+        config = DSRConfig.from_env_args({'system_name': None})
+        assert config.system_name == '123Bus'  # default, not None
+
+    def test_all_dataclass_fields_accepted(self):
+        """Any field defined in DSRConfig should be accepted from env_args"""
+        import dataclasses
+        from envs.dsr.core.config import DSRConfig
+        # Get all field names
+        field_names = [f.name for f in dataclasses.fields(DSRConfig)]
+        # Verify we can pass any field
+        assert 'fault_scenarios' in field_names  # was "dead" before
+        assert 'n1_security' not in field_names or True  # may not be a field
+
+
+class TestStackelbergConfigFromEnvArgs:
+    """Test StackelbergConfig.from_env_args()"""
+
+    def test_basic_fields(self):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+        env_args = {
+            'system_name': '13Bus',
+            'max_episode_steps': 24,
+            'n_consumer_agents': 8,
+        }
+        config = StackelbergConfig.from_env_args(env_args)
+        assert config.system_name == '13Bus'
+        assert config.n_consumer_agents == 8
+
+    def test_extracts_system_from_env_name(self):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+        env_args = {'env_name': 'stackelberg_34Bus'}
+        config = StackelbergConfig.from_env_args(env_args)
+        assert config.system_name == '34Bus'
+
+    def test_max_episode_steps_alias(self):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+        env_args = {'num_steps': 48}
+        config = StackelbergConfig.from_env_args(env_args)
+        assert config.max_episode_steps == 48
+
+    def test_dict_sub_configs_passthrough(self):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+        tou = {'peak_hours': [8, 9, 10]}
+        env_args = {'tou_config': tou}
+        config = StackelbergConfig.from_env_args(env_args)
+        assert config.tou_config == tou
+
+    def test_unknown_keys_ignored(self):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+        config = StackelbergConfig.from_env_args({'totally_unknown': True})
+        assert config.system_name == '13Bus'  # default

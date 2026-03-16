@@ -70,15 +70,18 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 env = VVCEnv(base_env, config, rank)
 
             elif env_name == "dsr":
+                from envs.dsr.core.config import DSRConfig
                 from envs.dsr.dsr_env import DSREnv
 
-                env = DSREnv(env_args, rank)
+                config = DSRConfig.from_env_args(env_args)
+                env = DSREnv(config, rank)
 
             elif env_name.startswith("stackelberg"):
+                from envs.stackelberg.stackelberg_config import StackelbergConfig
                 from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
-                stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
-                env = StackelbergVVCEnv(stackelberg_args)
+                config = StackelbergConfig.from_env_args({**env_args, 'env_name': env_name})
+                env = StackelbergVVCEnv(config, rank)
 
             elif env_name.startswith("district_dispatch"):
                 from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
@@ -129,14 +132,18 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 env = VVCEnv(base_env, config, rank)
 
             elif env_name == "dsr":
+                from envs.dsr.core.config import DSRConfig
                 from envs.dsr.dsr_env import DSREnv
-                env = DSREnv(env_args, rank)
+
+                config = DSRConfig.from_env_args(env_args)
+                env = DSREnv(config, rank)
 
             elif env_name.startswith("stackelberg"):
+                from envs.stackelberg.stackelberg_config import StackelbergConfig
                 from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
-                stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': rank}
-                env = StackelbergVVCEnv(stackelberg_args)
+                config = StackelbergConfig.from_env_args({**env_args, 'env_name': env_name})
+                env = StackelbergVVCEnv(config, rank)
 
             elif env_name.startswith("district_dispatch"):
                 from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
@@ -194,19 +201,22 @@ def make_render_env(env_name, seed, env_args):
         env.seed(seed * 60000)
         
     elif env_name == "dsr":
+        from envs.dsr.core.config import DSRConfig
         from envs.dsr.dsr_env import DSREnv
 
-        env = DSREnv(env_args, rank=4)
+        config = DSRConfig.from_env_args(env_args)
+        env = DSREnv(config, rank=4)
         manual_render = False
         manual_expand_dims = False
         manual_delay = False
         env.seed(seed * 60000)
 
     elif env_name.startswith("stackelberg"):
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
         from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
 
-        stackelberg_args = {**env_args, 'env_name': env_name, 'worker_idx': 4}
-        env = StackelbergVVCEnv(stackelberg_args)
+        config = StackelbergConfig.from_env_args({**env_args, 'env_name': env_name})
+        env = StackelbergVVCEnv(config, rank=4)
         manual_render = False
         manual_expand_dims = False
         manual_delay = False
