@@ -12,7 +12,6 @@ Interface:
 - get_avail_actions() for action masking
 """
 
-import os
 import copy
 import numpy as np
 from typing import Dict, List, Optional, Any, Tuple
@@ -42,22 +41,34 @@ class StackelbergVVCEnv:
     - Provides comprehensive monitoring
     """
     
-    def __init__(self, args: Dict[str, Any]):
-        """
-        Initialize Stackelberg PowerZoo environment.
-        
+    def __init__(self, config_or_args, rank=None):
+        """Initialize Stackelberg PowerZoo environment.
+
         Args:
-            args: Configuration dictionary from PowerZoo
+            config_or_args: StackelbergConfig 实例或原始 env_args dict（向后兼容）
+            rank: 可选 worker 索引，覆盖 config 中的 worker_idx
         """
-        self.args = copy.deepcopy(args)
+        from envs.stackelberg.stackelberg_config import StackelbergConfig
+
+        if isinstance(config_or_args, StackelbergConfig):
+            self.config = config_or_args
+            if rank is not None:
+                self.config.worker_idx = rank
+            self.args = {}
+        else:
+            self.args = copy.deepcopy(config_or_args)
+            self.config = StackelbergConfig.from_env_args(self.args)
+            if rank is not None:
+                self.config.worker_idx = rank
+
         self.logger = logging.getLogger('StackelbergPowerZoo')
-        
-        # Extract configuration
-        self._parse_config(args)
-        
+
+        # Build env_config dict from typed config (StackelbergBaseEnv still expects dict)
+        self.env_config = self._build_env_config()
+
         # Create base environment
         self.base_env = StackelbergBaseEnv(self.env_config)
-        
+
         # Create load aggregator
         load_agg_config = self.env_config.get('load_aggregation', {
             'method': 'zone',
@@ -68,82 +79,79 @@ class StackelbergVVCEnv:
             method=load_agg_config.get('method', 'bus_proximity'),
             config=load_agg_config
         )
-        
+
         # Perform load aggregation
         n_consumer_agents = self.env_config.get(
-            f'n_consumer_agents_{self.env_config["system_name"].lower()}',
-            self.env_config.get('n_consumer_agents', 10)
+            f'n_consumer_agents_{self.config.system_name.lower()}',
+            self.config.n_consumer_agents
         )
         aggregation_mapping = self.load_aggregator.aggregate_loads(n_consumer_agents)
-        
+
         # Update base environment with aggregation
         self.base_env.load_to_agent = aggregation_mapping
         self.base_env._build_agent_to_loads()
-        
+
         # Create async wrapper
         self.async_wrapper = AsyncMultiAgentWrapper(
             self.base_env,
             config=self.env_config.get('async_config', {})
         )
-        
+
         # Create monitor if enabled
         self.monitor = None
-        if self.env_config.get('monitoring_config', {}).get('enable', True):
-            monitor_config = self.env_config['monitoring_config']
-            monitor_config['experiment_name'] = args.get('exp_name', None)
+        monitoring_cfg = self.env_config.get('monitoring_config', {})
+        if monitoring_cfg.get('enable', True):
+            monitor_config = dict(monitoring_cfg)
+            monitor_config['experiment_name'] = self.config.exp_name
             self.monitor = StackelbergMonitor(
                 log_dir=monitor_config.get('log_dir', 'logs/stackelberg'),
                 experiment_name=monitor_config.get('experiment_name'),
                 config=monitor_config
             )
-        
+
         # Set environment properties for PowerZoo compatibility
         self._setup_vvc_compatibility()
-        
+
         # Episode tracking
         self.current_episode = 0
         self.total_steps = 0
-    
-    def _parse_config(self, args: Dict[str, Any]):
-        """Parse configuration from PowerZoo args."""
-        from utils.path_utils import get_project_root
 
-        # 默认 DSS 文件映射
-        default_dss_files = {
-            '13bus': 'IEEE13Nodeckt_daily.dss',
-            '34bus': 'ieee34Mod1_daily.dss',
-            '123bus': 'IEEE123Master_daily.dss',
+    def _build_env_config(self) -> dict:
+        """Build env_config dict from typed StackelbergConfig.
+
+        Translates typed config into the dict format that StackelbergBaseEnv expects.
+        """
+        from utils.path_utils import resolve_system_path
+
+        cfg = self.config
+
+        # Resolve system path
+        try:
+            system_dir = str(resolve_system_path(cfg.system_name))
+        except FileNotFoundError:
+            system_dir = None
+
+        env_config = {
+            'system_name': cfg.system_name,
+            'dss_file': cfg.dss_file,
+            'dss_folder': cfg.dss_folder or (system_dir if system_dir else None),
+            'max_episode_steps': cfg.max_episode_steps,
+            'seed': cfg.seed,
+            'worker_idx': cfg.worker_idx,
+            'n_consumer_agents': cfg.n_consumer_agents,
+            'use_render': cfg.use_render,
+            'use_load_noise': cfg.use_load_noise,
+            'scale': cfg.scale,
         }
 
-        system_name = args.get('env_name', '13Bus').replace('stackelberg_', '')
-        default_dss = default_dss_files.get(system_name.lower(), 'IEEE13Nodeckt_daily.dss')
+        # Pass through dict sub-configs
+        for key in ['tou_config', 'tier_config', 'reward_weights',
+                    'load_aggregation', 'async_config', 'monitoring_config', 'n1_security']:
+            val = getattr(cfg, key, None)
+            if val is not None:
+                env_config[key] = val
 
-        # Build environment configuration
-        self.env_config = {
-            'system_name': system_name,
-            'dss_file': args.get('dss_file', default_dss),
-            'max_episode_steps': args.get('num_steps', 24),
-            'seed': args.get('seed', 123456),
-            'worker_idx': args.get('worker_idx'),
-        }
-
-        # Load system-specific configuration if available
-        config_file = f"stackelberg_{self.env_config['system_name'].lower()}.yaml"
-        project_root = get_project_root()
-        config_path = project_root / 'configs' / 'envs_cfgs' / config_file
-
-        if config_path.exists():
-            import yaml
-            with open(config_path, 'r') as f:
-                system_config = yaml.safe_load(f)
-
-            # Merge configurations（YAML配置覆盖默认值）
-            self.env_config.update(system_config)
-
-        # Override with args（命令行参数覆盖YAML）
-        for key in ['n_consumer_agents', 'use_load_noise', 'scale', 'use_render']:
-            if key in args:
-                self.env_config[key] = args[key]
+        return env_config
     
     def _setup_vvc_compatibility(self):
         """Setup properties for PowerZoo compatibility."""
@@ -175,8 +183,8 @@ class StackelbergVVCEnv:
         ]
 
         # Environment info
-        self.env_name = self.args.get('env_name', 'stackelberg')
-        self.max_episode_steps = self.env_config['max_episode_steps']
+        self.env_name = self.args.get('env_name', 'stackelberg') if self.args else 'stackelberg'
+        self.max_episode_steps = self.config.max_episode_steps
 
         # Agent types
         self.agent_types = self.async_wrapper.get_agent_types()
@@ -442,9 +450,8 @@ class StackelbergVVCEnv:
 
 
 def make_stackelberg_env(args):
-    """
-    Factory function to create Stackelberg environment.
-    
-    This function is called by PowerZoo's environment creation logic.
+    """Factory function to create Stackelberg environment.
+
+    Accepts either a StackelbergConfig or a raw dict (backward compat).
     """
     return StackelbergVVCEnv(args)
