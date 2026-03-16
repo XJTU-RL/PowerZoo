@@ -9,7 +9,7 @@ SmartGrid 环境统一配置系统
 4. 清晰层次 - DeviceConfig → SmartGridConfig → 环境/电路
 """
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 import math
 
 
@@ -329,57 +329,3 @@ class SmartGridConfig:
 			f"  )\n"
 			f")"
 		)
-
-
-# === 预定义配置 ===
-# 这些配置可以直接使用，无需从文件加载
-
-PRESET_CONFIGS: Dict[str, SmartGridConfig] = {}
-
-
-def register_preset(name: str, config: SmartGridConfig) -> None:
-	"""注册预定义配置"""
-	PRESET_CONFIGS[name] = config
-
-
-def get_preset(name: str) -> SmartGridConfig:
-	"""获取预定义配置"""
-	if name not in PRESET_CONFIGS:
-		raise ValueError(f"未知的预定义配置: {name}，可用配置: {list(PRESET_CONFIGS.keys())}")
-	import copy
-	return copy.deepcopy(PRESET_CONFIGS[name])
-
-
-# 注册常用配置
-register_preset('34Bus_pv', SmartGridConfig(
-	env_name='34Bus_pv',
-	system_name='34Bus_PV',
-	dss_file='ieee34Mod1_duty.dss',
-	max_episode_steps=360,
-	regulator=DeviceConfig(action_num=33),
-	battery=DeviceConfig(action_num=33),
-	pv=DeviceConfig(action_num=float('inf'), control_enabled=True),
-	reward_weights=RewardWeights(power_loss=1.0, pv_control=0.0606),
-))
-
-register_preset('34Bus', SmartGridConfig(
-	env_name='34Bus',
-	system_name='34Bus',
-	dss_file='ieee34Mod1_duty.dss',
-	max_episode_steps=360,
-	regulator=DeviceConfig(action_num=33),
-	battery=DeviceConfig(action_num=33),
-	pv=DeviceConfig(control_enabled=False),
-	reward_weights=RewardWeights(power_loss=10.0),
-))
-
-register_preset('13Bus', SmartGridConfig(
-	env_name='13Bus',
-	system_name='13Bus',
-	dss_file='IEEE13Nodeckt_daily.dss',
-	max_episode_steps=24,
-	regulator=DeviceConfig(action_num=33),
-	battery=DeviceConfig(action_num=33),
-	pv=DeviceConfig(control_enabled=False),
-	reward_weights=RewardWeights(power_loss=10.0),
-))

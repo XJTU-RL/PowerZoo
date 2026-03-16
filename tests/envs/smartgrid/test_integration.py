@@ -833,44 +833,42 @@ class TestLoggingIntegration:
 @pytest.mark.integration
 @pytest.mark.smartgrid
 class TestConfigLoadingIntegration:
-	"""测试配置加载集成"""
+	"""测试配置加载集成（通过 SmartGridConfig.from_env_args）"""
 
-	def test_load_config_for_env(self, node_systems_dir):
-		"""测试为环境加载配置"""
-		from envs.smartgrid.base_env.config_loader import load_config
+	def test_from_env_args_creates_config(self, node_systems_dir):
+		"""测试 from_env_args 创建有效配置"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
-		try:
-			config = load_config('34Bus_pv')
+		config = SmartGridConfig.from_env_args({
+			'system_name': '34Bus_PV',
+			'env_name': '34Bus_pv',
+		})
 
-			assert config is not None
-			assert hasattr(config, 'env_name')
-			assert hasattr(config, 'max_episode_steps')
-		except Exception as e:
-			pytest.skip(f"配置加载失败: {e}")
+		assert config is not None
+		assert hasattr(config, 'env_name')
+		assert hasattr(config, 'max_episode_steps')
+		assert config.env_name == '34Bus_pv'
 
-	def test_config_with_overrides(self, node_systems_dir):
-		"""测试带覆盖参数的配置加载"""
-		from envs.smartgrid.base_env.config_loader import load_config
+	def test_from_env_args_with_overrides(self, node_systems_dir):
+		"""测试 from_env_args 覆盖参数"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
-		try:
-			overrides = {
-				'max_episode_steps': 48,
-			}
-			config = load_config('34Bus_pv', overrides)
+		config = SmartGridConfig.from_env_args({
+			'max_episode_steps': 48,
+		})
 
-			assert config.max_episode_steps == 48
-		except Exception as e:
-			pytest.skip(f"配置加载失败: {e}")
+		assert config.max_episode_steps == 48
 
-	def test_get_env_config(self, node_systems_dir):
-		"""测试获取环境配置"""
-		from envs.smartgrid.base_env.config_loader import get_env_config
+	def test_from_dict_creates_config(self, node_systems_dir):
+		"""测试 from_dict 创建配置"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
-		try:
-			config = get_env_config('34Bus_pv')
-			assert config is not None
-		except Exception as e:
-			pytest.skip(f"获取配置失败: {e}")
+		config = SmartGridConfig.from_dict({
+			'env_name': '34Bus_pv',
+			'system_name': '34Bus_PV',
+		})
+		assert config is not None
+		assert config.env_name == '34Bus_pv'
 
 
 # ==============================================================================

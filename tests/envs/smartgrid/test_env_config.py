@@ -37,13 +37,10 @@ class TestEnvConfigImport:
 			from envs.smartgrid.base_env.env_config import VVCEnvConfig
 			assert VVCEnvConfig is not None
 
-	def test_config_loader_import(self):
-		"""测试 ConfigLoader 导入"""
-		try:
-			from envs.smartgrid.base_env.config_loader import ConfigLoader
-			assert ConfigLoader is not None
-		except ImportError:
-			pytest.skip("ConfigLoader 不存在")
+	def test_from_env_args_import(self):
+		"""测试 SmartGridConfig.from_env_args 可用"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
+		assert hasattr(SmartGridConfig, 'from_env_args')
 
 
 # ==============================================================================
@@ -176,59 +173,44 @@ class TestSmartGridConfigValidation:
 
 
 # ==============================================================================
-# 单元测试 - 预定义配置
+# 单元测试 - from_env_args 工厂方法
 # ==============================================================================
 
 @pytest.mark.unit
 @pytest.mark.smartgrid
-class TestPresetConfigs:
-	"""测试预定义配置"""
+class TestFromEnvArgs:
+	"""测试 SmartGridConfig.from_env_args 工厂方法"""
 
-	def test_preset_configs_exist(self):
-		"""测试预定义配置存在"""
-		try:
-			from envs.smartgrid.base_env.env_config import PRESET_CONFIGS
-			assert PRESET_CONFIGS is not None
-			assert isinstance(PRESET_CONFIGS, dict)
-		except ImportError:
-			pytest.skip("PRESET_CONFIGS 不存在")
+	def test_from_env_args_minimal(self):
+		"""测试最小 env_args 输入"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
-	def test_preset_configs_have_required_keys(self):
-		"""测试预定义配置有必需的键"""
-		try:
-			from envs.smartgrid.base_env.env_config import PRESET_CONFIGS
+		config = SmartGridConfig.from_env_args({})
+		assert config is not None
+		assert isinstance(config, SmartGridConfig)
 
-			for name, config in PRESET_CONFIGS.items():
-				assert 'env_name' in config or isinstance(config, object)
-		except ImportError:
-			pytest.skip("PRESET_CONFIGS 不存在")
+	def test_from_env_args_with_system_name(self):
+		"""测试 from_env_args 接受 system_name"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
+		config = SmartGridConfig.from_env_args({'system_name': '13Bus'})
+		assert config.system_name == '13Bus'
 
-# ==============================================================================
-# 单元测试 - ConfigLoader
-# ==============================================================================
+	def test_from_env_args_with_devices(self):
+		"""测试 from_env_args 解析设备配置"""
+		from envs.smartgrid.base_env.env_config import SmartGridConfig
 
-@pytest.mark.unit
-@pytest.mark.smartgrid
-class TestConfigLoader:
-	"""测试 ConfigLoader"""
-
-	def test_config_loader_exists(self):
-		"""测试 ConfigLoader 存在"""
-		try:
-			from envs.smartgrid.base_env.config_loader import ConfigLoader
-			assert ConfigLoader is not None
-		except ImportError:
-			pytest.skip("ConfigLoader 不存在")
-
-	def test_config_loader_has_load_method(self):
-		"""测试 ConfigLoader 有 load 方法"""
-		try:
-			from envs.smartgrid.base_env.config_loader import ConfigLoader
-
-			assert hasattr(ConfigLoader, 'load_config') or hasattr(ConfigLoader, 'load')
-		except ImportError:
-			pytest.skip("ConfigLoader 不存在")
+		env_args = {
+			'env_specific_config': {
+				'devices': {
+					'regulators': {'action_num': 17},
+					'pv_systems': {'control_enabled': True, 'action_space': 'continuous'},
+				}
+			}
+		}
+		config = SmartGridConfig.from_env_args(env_args)
+		assert config.regulator.action_num == 17
+		assert config.pv.control_enabled is True
 
 
 # ==============================================================================
