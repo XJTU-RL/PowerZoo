@@ -14,12 +14,10 @@ base_systems:
   - 123Bus
   - 8500Node
 
-# PV 扩展系统
+# PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
-  - 34Bus_PV
-  - 34Bus_PV_Aggressive
-  - 34Bus_PV_Conservative
-  - 34Bus_PV_Optimized
+  - name: 34Bus_PV
+    pv_plans: [none, conservative, optimized, aggressive]
 
 # 区域调度系统
 district_systems:
@@ -38,28 +36,14 @@ metadata:
     typical_episode_length: 360
 
   34Bus_PV:
-    description: "IEEE 34-bus with PV control (continuous)"
+    description: "IEEE 34-bus with PV control (pv_plan selects variant)"
     node_count: 34
-    pv_count: 3
     typical_episode_length: 360
-
-  34Bus_PV_Aggressive:
-    description: "IEEE 34-bus with aggressive PV expansion (1080kW, 61% penetration)"
-    node_count: 34
-    pv_count: 9
-    penetration_rate: 0.61
-
-  34Bus_PV_Conservative:
-    description: "IEEE 34-bus with conservative PV expansion (720kW, 40.7% penetration)"
-    node_count: 34
-    pv_count: 6
-    penetration_rate: 0.407
-
-  34Bus_PV_Optimized:
-    description: "IEEE 34-bus with optimized PV expansion (900kW, 50.8% penetration)"
-    node_count: 34
-    pv_count: 7
-    penetration_rate: 0.508
+    pv_plans:
+      none: { pv_count: 0 }
+      conservative: { pv_count: 5, penetration_rate: 0.407 }
+      optimized: { pv_count: 7, penetration_rate: 0.508 }
+      aggressive: { pv_count: 9, penetration_rate: 0.61 }
 
   123Bus:
     description: "IEEE 123-bus test feeder base configuration"
