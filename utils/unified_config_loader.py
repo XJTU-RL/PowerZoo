@@ -26,6 +26,41 @@ from typing import Any, Dict, Optional
 import yaml
 
 
+# VVC legacy variant mapping
+# Maps old env_name variants to {system_ref + parameter overrides}
+_VVC_LEGACY_VARIANTS = {
+    # 13Bus variants
+    '13Bus_cbat':     {'system_ref': '13Bus', 'bat_act_num': float('inf')},
+    '13Bus_soc':      {'system_ref': '13Bus', 'soc_w': 20.0 / 33},
+    '13Bus_cbat_soc': {'system_ref': '13Bus', 'bat_act_num': float('inf'), 'soc_w': 20.0 / 33},
+    # 34Bus variants
+    '34Bus_pv':       {'system_ref': '34Bus', 'pv_control_enabled': True, 'irrad_dss': 'irrad_up_down.dss'},
+    '34Bus_cbat':     {'system_ref': '34Bus', 'bat_act_num': float('inf'), 'power_w': 1.0},
+    '34Bus_soc':      {'system_ref': '34Bus', 'power_w': 1.0, 'soc_w': 500.0 / 33, 'dis_w': 4.0 / 33},
+    '34Bus_cbat_soc': {'system_ref': '34Bus', 'bat_act_num': float('inf'), 'power_w': 1.0, 'soc_w': 500.0 / 33, 'dis_w': 4.0 / 33},
+    # 123Bus variants
+    '123Bus_cbat':     {'system_ref': '123Bus', 'bat_act_num': float('inf')},
+    '123Bus_soc':      {'system_ref': '123Bus', 'soc_w': 500.0 / 33, 'dis_w': 5.0 / 33},
+    '123Bus_cbat_soc': {'system_ref': '123Bus', 'bat_act_num': float('inf'), 'soc_w': 500.0 / 33, 'dis_w': 5.0 / 33},
+    # 8500Node variants
+    '8500Node_cbat':     {'system_ref': '8500Node', 'bat_act_num': float('inf')},
+    '8500Node_soc':      {'system_ref': '8500Node', 'soc_w': 10000.0 / 33, 'dis_w': 100.0 / 33},
+    '8500Node_cbat_soc': {'system_ref': '8500Node', 'bat_act_num': float('inf'), 'soc_w': 10000.0 / 33, 'dis_w': 100.0 / 33},
+}
+
+
+def expand_legacy_variant(env_name: str) -> dict | None:
+    """Expand a legacy VVC variant name to config parameters.
+
+    Args:
+        env_name: Legacy environment name (e.g., '13Bus_cbat')
+
+    Returns:
+        Dict of {system_ref + parameter overrides}, or None if not a legacy variant
+    """
+    return _VVC_LEGACY_VARIANTS.get(env_name)
+
+
 @dataclass
 class UnifiedConfig:
 	"""统一配置对象
