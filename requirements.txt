@@ -34,7 +34,7 @@ stable-baselines3>=1.8.0       # RL algorithms (HAPPO integration)
 matplotlib>=3.7.0,<4.0.0       # Core plotting library
 seaborn>=0.11.0,<1.0.0         # Statistical visualization
 imageio>=2.30.0                # Image I/O, GIF generation
-plotly>=5.0.0                  # Interactive charts (optional, for advanced visualization)
+plotly>=6.7.0                  # Interactive charts (optional, for advanced visualization)
 
 # Graph Theory & Network Analysis
 # ----------------------------------------------------------------------------
