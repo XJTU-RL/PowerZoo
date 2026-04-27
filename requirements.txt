@@ -18,7 +18,7 @@ dss-python==0.15.7             # OpenDSS Python bindings (exact version required
 # ----------------------------------------------------------------------------
 numpy>=1.23.0,<1.27.0          # Array operations, matrix computations
 scipy>=1.13.0,<2.0.0           # Sparse matrix operations, linear algebra
-pandas>=2.0.0,<3.0.0           # Data processing, time series analysis
+pandas>=2.3.3,<3.0.0           # Data processing, time series analysis
 
 # Deep Learning Framework
 # ----------------------------------------------------------------------------
