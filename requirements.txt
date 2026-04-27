@@ -23,7 +23,7 @@ pandas>=2.0.0,<3.0.0           # Data processing, time series analysis
 # Deep Learning Framework
 # ----------------------------------------------------------------------------
 torch>=2.6.0,<2.9.0            # PyTorch for RL training (>=2.6.0 fixes CVE-2024-48063 RCE)
-torchvision>=0.21.0,<0.24.0    # Computer vision utilities (matches torch 2.6.x)
+torchvision>=0.23.0,<0.24.0    # Computer vision utilities (matches torch 2.6.x)
 
 # Reinforcement Learning Libraries
 # ----------------------------------------------------------------------------
