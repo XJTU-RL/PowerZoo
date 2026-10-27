@@ -1,157 +1,208 @@
 # PowerZoo
 
-PowerZoo是一个基于Python和OpenDSS的电力系统强化学习仿真环境。它旨在提供一个灵活且易于使用的平台，用于训练和评估强化学习算法在电力系统中的应用。
+PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研究框架。
+代码包含自研多智能体训练器，以及面向 Stable-Baselines3 的单智能体接口。
 
-## 特性
+当前主要环境：
 
-- 🔌 **电力系统仿真**: 基于OpenDSS的电网仿真
-- 🤖 **多智能体强化学习**: 支持14种MARL算法（HAPPO, MAPPO, MADDPG等）
-- 🔋 **多种环境**: PowerZoo（基础）和PowerZoo_LLM（完整）
-- 📊 **丰富的设备模型**: 电容器、调压器、电池、光伏系统
-- 🎯 **单/多智能体支持**: 灵活的智能体配置
-- 📈 **完整监控**: TensorBoard集成
+| 环境参数 | 代码目录 | 用途 |
+| --- | --- | --- |
+| `vvc` | `envs/vvc/` | 电压无功控制，Windows 首次运行基线为 IEEE13 |
+| `smartgrid` | `envs/smartgrid/` | 模块化电网控制，含 PV、奖励和日志组件 |
+| `dsr` | `envs/dsr/` | 配电网恢复 |
+| `stackelberg_13bus/34bus/123bus` | `envs/stackelberg/` | Stackelberg 博弈控制 |
+| `district_dispatch` | `envs/district_dispatch/` | 区域协调调度 |
 
-## 安装
+`powerzoo` 是 `vvc` 的历史别名。历史文档中的 PowerZoo_LLM 通常指 SmartGrid
+相关实现，并不代表安装后自动具备独立的大语言模型服务。
+算法以 `runners/__init__.py` 中的注册表为准；包含 HAPPO、MAPPO、SHOM、
+MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组合需要分别验证。
 
-### 方式1：使用Conda（推荐）
+## Windows 安装
+
+基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
+使用独立 Conda 环境，所有命令从项目根目录执行。
+
+### 一键安装与验证
+
+先安装 Miniconda 或 Miniforge，确保当前 PowerShell 能执行 `conda`。
+
+```powershell
+git clone https://github.com/XJTU-RL/PowerZoo.git
+Set-Location PowerZoo
+powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1
+```
+
+上面安装 CPU 版本。NVIDIA 显卡使用 CUDA 12.4 版 PyTorch：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor cu124
+```
+
+该脚本创建或复用 `powerzoo-win`，安装依赖与当前 worktree 的 editable 包，
+运行 `pip check`、原生 DSS 求解、VVC 环境步进、两个 spawn worker 和一次 HAPPO 短训练。
+任一步失败会返回错误，不会把失败当成成功。
+`cu124` 验证还会额外完成一次 CUDA 上的 HAPPO 更新。
+
+历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
+本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
+checkout 失败。本机可直接使用 `D:\Exps\PowerZoo-worktrees\windows-environment`，
+该 worktree 已完成修复，分支为 `codex/windows-environment`。
+
+CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
+CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。
+GPU wheel 较大，下载时间通常长于 CPU 版本。
+
+### 使用 YAML 手动安装
+
+```powershell
+conda env create -f environment.windows.yml
+conda activate powerzoo-win
+python -m pip install --no-deps -e .
+python -m pip check
+python scripts/check_runtime.py --train
+```
+
+YAML 安装按 pip 索引选择 PyTorch 构建；需要明确指定 CPU/CUDA 时优先使用安装脚本。
+手动切换到 CUDA 版：
+
+```powershell
+python -m pip install torch==2.6.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+python scripts/check_runtime.py --train --require-cuda
+```
+
+`requirements.txt` 是运行依赖的唯一版本来源；`setup.py` 读取同一文件。
+`requirements-dev.txt` 放测试和开发工具，`requirements-viz.txt` 放可选浏览器界面。
+`requirements-windows.txt` 合并运行、开发依赖，并应用
+`constraints/windows-py310.txt` 中的 Windows / Python 3.10 完整版本约束。
+Conda 配置启用 `PYTHONUTF8=1`，避免 Windows 默认编码影响中文注释和日志。
+
+### OpenDSS 到底安装什么
+
+实际代码使用：
+
+- `envs/vvc/vvc/circuit.py`、`envs/smartgrid/circuit_system/circuit.py`：`import dss`；
+- `envs/dsr/core/circuit.py`：`import opendssdirect`。
+
+因此环境同时安装 `dss-python==0.15.7`、其原生后端 `dss-python-backend==0.14.5`，
+以及 `opendssdirect-py==0.9.4`。Windows wheel 自带 DSS 原生引擎，
+本项目的这些运行路径不需要 OpenDSS 桌面程序、COM 注册或 DSS 子模块源码编译。
+参见 [DSS-Python 官方说明](https://dss-extensions.org/DSS-Python/)。
+`cupy` 只用于 VVC 中可选的敏感度加速路径，不是首次启动的依赖。
+
+## Linux 与其他安装方式
+
+`environment.yml` 已改为可移植的 Conda 配置，不再包含某台机器导出的 Linux build 编号
+或整套 NVIDIA / Atari 依赖：
 
 ```bash
-git clone https://github.com/XJTU-RL/PowerZoo.git
-cd PowerZoo
 conda env create -f environment.yml
 conda activate PowerZoo
+python -m pip install --no-deps -e .
+python scripts/check_runtime.py --train
 ```
 
-### 方式2：使用pip
+已有 Python 3.10 环境时，也可以使用：
 
 ```bash
-git clone https://github.com/XJTU-RL/PowerZoo.git
-cd PowerZoo
-
-# 安装核心依赖
-pip install -r requirements.txt
-
-# 或者使用开发模式安装（包含测试工具）
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
-## 快速开始
+可选训练界面、环境渲染页面需要 `python -m pip install -e ".[viz]"`。
+当前以源码仓库的 editable 安装为开发方式；DSS 模型、配置和数据仍位于仓库目录，
+普通 wheel 不作为独立分发这些数据的安装方式。
 
-### 多智能体训练
+## 首次运行与验证范围
 
-```bash
-# HAPPO算法训练PV控制
-cd examples/multi_agent/launchers
-./quick_train_powerzoo_pv.sh aggressive
+```powershell
+conda activate powerzoo-win
+python scripts/check_runtime.py --train
 ```
 
-### 单智能体训练
+成功时输出以 `POWERZOO_RUNTIME_OK` 开头的 JSON，包含实际解释器、Torch/CUDA、DSS
+版本、观测形状和短训练结果。检查使用临时复制的 IEEE13 模型及仓库自带负荷曲线，
+不会生成替代研究输入的合成数据，也不会覆盖仓库中的 DSS 文件。
+这验证安装与执行链路，不代表算法已收敛或控制效果已得到验证。
+本机版本、硬件、已执行检查及限制见 [Windows 验证记录](docs/windows-runtime.md)。
 
-```bash
-# PPO算法训练
-cd examples/single_agent/launchers
-./train_single_agent_powerzoo_pv.sh
+Windows 首次开发优先使用 `vvc + 13Bus + HAPPO`。普通训练可从下列短任务开始：
+
+```powershell
+python examples/multi_agent/scripts/train.py --algo happo --env vvc --exp_name win13bus --cuda False --n_rollout_threads 1 --num_env_steps 240 --episode_length 24 --use_recurrent_policy False --actor_num_mini_batch 1 --critic_num_mini_batch 1 --use_eval False
 ```
 
-### Python脚本训练
+结果按训练器配置写入 `results/`。当前环境实现会在 `node_systems/` 下生成 worker DSS
+和 episode 负荷文件；不要将这些运行产物作为模型修改提交。
 
-```python
-from envs.smartgrid.base_env import VVCEnv
-from stable_baselines3 import PPO
+### 需要单独处理的现有问题
 
-# 创建环境
-config = {
-	"dss_folder_path": "node_systems/34Bus_PV_Aggressive",
-	"dss_file": "ieee34Mod1_duty.dss",
-	"num_agents": 10,
-	"episode_length": 96
-}
-env = VVCEnv(**config)
+- SmartGrid 的初始化会寻找 `month_*`、`irrad_*`、`temperature_*` 等原始时序数据；
+  默认仓库不包含这套完整输入，安装成功不能替代数据准备。
+- 现有单智能体入口位于 `examples/single_agent/scripts/`；底层旧环境传给新版
+  `LoadProfile` 的参数已不匹配，依赖安装不能修复这一接口问题。
+  不要将多智能体 `VVCEnv` 直接传给 SB3 PPO，也不要使用旧版 README 的 `VVCEnv(**config)`。
+- 不将所有环境、PV 方案和算法组合描述为已在 Windows 完整通过；以具体运行记录为准。
 
-# 训练模型
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100000)
-```
+后续优先讨论单/多智能体接口、配置覆盖、时间截断和求解异常，再扩展实验组合。
 
 ## 测试
 
-运行测试套件：
-
-```bash
-# 运行所有测试
-pytest
-
-# 运行特定环境测试
-pytest -m smartgrid
-
-# 生成覆盖率报告
-pytest --cov=envs --cov-report=html
+```powershell
+python -m pytest tests/test_windows_runtime.py -o addopts="" -q
+python -m pytest tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
 ```
 
-详见 [tests/README.md](tests/README.md)
+完整测试为 `python -m pytest`，默认 `pytest.ini` 会生成覆盖率报告。
+旧测试中存在将运行异常转为 skip 的情况，跳过不等于环境通过。
+Windows 安装与运行另由 `.github/workflows/windows-runtime.yml` 验证，失败会使该任务失败。
+
+## 持续开发：每项任务使用 worktree 分支
+
+`main` 保持稳定，每项修改使用独立 worktree 和 `codex/<topic>` 分支：
+以下新建命令以 Windows 修复已经审查并合入 `main` 为前提；当前先在上述
+`windows-environment` worktree 开发，避免从尚含非法文件名的旧提交新建工作目录。
+
+```powershell
+git -C D:\Exps\PowerZoo worktree list
+git -C D:\Exps\PowerZoo worktree add -b codex/config-pipeline D:\Exps\PowerZoo-worktrees\config-pipeline main
+Set-Location D:\Exps\PowerZoo-worktrees\config-pipeline
+conda activate powerzoo-win
+python -m pip install --no-deps -e .
+```
+
+editable 安装会指向当前 worktree，共用环境时切换任务后需要重新安装。
+修改依赖的并行任务应使用不同 Conda 环境。检查、提交、审查后再合并；
+`fea/vvc` 保持独立，不合并进 `main`。详见 [开发流程](docs/development.md)
+和 [协作约定](AGENTS.md)。
 
 ## 项目结构
 
-```
+```text
 PowerZoo/
-├── envs/                      # 环境实现
-│   ├── powerzoo/             # 基础PowerZoo环境
-│   ├── smartgrid/         # 完整PowerZoo_LLM环境
-│   ├── stackelberg/          # Stackelberg博弈环境
-│   └── dsr/                  # 需求侧响应环境
-├── algorithms/               # RL算法实现
-├── runners/                  # 训练运行器
-├── models/                   # 神经网络模型
-├── configs/                  # 配置文件
-│   ├── envs_cfgs/           # 环境配置
-│   └── algos_cfgs/          # 算法配置
-├── examples/                 # 训练示例
-│   ├── multi_agent/         # 多智能体示例
-│   └── single_agent/        # 单智能体示例
-├── tests/                    # 测试套件
-├── node_systems/             # IEEE标准测试系统
-└── data/                     # PV和负荷数据
+├── algorithms/       # Actor、Critic 和两时间尺度算法
+├── common/           # Buffer、归一化和公共日志
+├── configs/
+│   ├── algos_cfgs/       # 多智能体算法参数
+│   ├── single_agent_cfgs/ # 单智能体算法参数
+│   ├── envs_cfgs/        # 环境与运行配置
+│   ├── systems/          # 电力系统与设备配置
+│   └── training/         # 训练策略配置
+├── envs/             # vvc、smartgrid、dsr、stackelberg、district_dispatch
+├── examples/         # 命令行训练入口与 Bash 启动脚本
+├── models/           # 网络实现
+├── node_systems/     # IEEE DSS 模型与部分负荷输入
+├── runners/          # 自研训练运行器
+├── scripts/          # Windows 安装与实际运行检查
+├── tests/            # pytest 测试
+└── training_ui/      # 可选训练界面
 ```
 
-## 文档
+配置入口已有 `utils/unified_config_loader.py`，`system_ref` 引用系统 YAML，
+`training_ref` 引用训练策略。后续参数流程开发应在这套实现上收敛入口，
+并明确 CLI、算法配置、环境配置与系统默认值的优先级。
 
-- [PowerZoo环境说明](PowerZoo环境说明.md)
-- [示例脚本说明](examples/README.md)
-- [单智能体训练](examples/single_agent/README.md)
-- [多智能体训练](examples/multi_agent/README.md)
-- [测试文档](tests/README.md)
+## 引用
 
-## 贡献指南
-
-### 分支管理
-
-本项目使用规范的分支管理策略。在开发新功能或修复bug前，请先阅读：
-
-- **[分支管理文档](BRANCH_MANAGEMENT.md)** - 详细的分支管理指南和最佳实践
-- **[分支清理清单](BRANCH_CLEANUP_CHECKLIST.md)** - 当前分支状态和待处理事项
-
-**重要**: `fea/vvc` 分支是独立研发分支，不应合并到main。
-
-### 开发流程
-
-1. 从main分支创建功能分支：`git checkout -b feat/your-feature`
-2. 开发并提交代码
-3. 运行测试确保代码质量：`pytest`
-4. 提交Pull Request
-5. 代码审查通过后合并到main
-6. 及时删除已合并的分支
-
-## Roadmap
-
-- [x] Volt-Var Regulation (SHOM)
-- [x] PowerZoo & PowerZoo_LLM环境
-- [x] 14种MARL算法
-- [x] 单智能体支持
-- [ ] Frequency Regulation (OHASAC)
-- [ ] RL based EVCS Control
-- [ ] RL based Hybrid Energy System
-
----
 Please cite the following paper if you use this repo for scientific research:
 
 [1] X. Zheng, S. Yu, H. Cao, T. Shi, S. Xue, and T. Ding, “Sensitivity-Based Heterogeneous Ordered Multi-Agent Reinforcement Learning for Distributed Volt-Var Control in Active Distribution Network,” IEEE Transactions on Smart Grid, pp. 1–1, Feb. 2025, doi: 10.1109/TSG.2025.3540416.

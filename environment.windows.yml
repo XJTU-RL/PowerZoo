@@ -1,0 +1,14 @@
+# Windows x64; scripts/setup_windows.ps1 selects CPU or CUDA 12.4 explicitly.
+name: powerzoo-win
+variables:
+  PYTHONUTF8: "1"
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - pip>=24
+  - setuptools>=68,<81
+  - wheel
+  - pip:
+      - -r requirements-windows.txt

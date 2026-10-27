@@ -1,0 +1,8 @@
+# Tools needed by pytest.ini and local development.
+pytest==8.3.5
+pytest-cov==6.1.1
+pytest-xdist==3.6.1
+black==25.1.0
+flake8==7.2.0
+mypy==1.15.0
+build==1.2.2.post1

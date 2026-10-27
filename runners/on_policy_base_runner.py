@@ -1274,6 +1274,10 @@ class OnPolicyBaseRunner:
             if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
             self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
+            # 清除全局诊断引用，避免下次训练重新打开已关闭的日志文件。
+            from utils import happo_diagnostics
+            if happo_diagnostics.get_diagnostics().writer is self.writer:
+                happo_diagnostics.set_writer(None)
             self.writer.close()
             self.logger.close()
 

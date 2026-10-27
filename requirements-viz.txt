@@ -1,0 +1,3 @@
+# Optional browser UIs; not needed for OpenDSS or command-line training.
+gradio>=5.0,<6.0
+plotly>=5.0,<7.0

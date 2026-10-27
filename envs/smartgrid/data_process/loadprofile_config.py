@@ -7,8 +7,7 @@
 import os
 import pandas as pd
 from typing import List, Optional
-import fcntl
-import time
+from filelock import FileLock, Timeout
 
 from envs.smartgrid.data_process.loadprofile_dss_parser import Constants
 
@@ -147,64 +146,32 @@ class ConfigGenerator:
             lock_file = os.path.join(self.dss_folder_path, '.pv_config.lock')
             os.makedirs(self.dss_folder_path, exist_ok=True)
             
-            # 尝试获取文件锁，最多等待5秒
-            max_wait = 5
-            wait_time = 0
-            lock_acquired = False
-            
-            while wait_time < max_wait:
-                try:
-                    with open(lock_file, 'w') as lock_fd:
-                        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        lock_acquired = True
-                        
-                        # 检查并生成当前worker的配置文件
-                        if not os.path.exists(current_path):
-                            if self._generate_pv_dss_config(current_path, "000", False, False, "", ""):
-                                success_count += 1
-                                if current_filename not in self.generated_temp_files:
-                                    self.generated_temp_files.append(current_filename)
-                        else:
-                            success_count += 1  # 文件已存在
-                        
-                        # 只有worker 0或None生成其他worker的配置文件
-                        if self.worker_idx is None or self.worker_idx == 0:
-                            for worker_id in range(8):  # 0到7的worker
-                                filename = f'pv_data_{worker_id}{Constants.DSS_EXTENSION}'
-                                filepath = os.path.join(self.dss_folder_path, filename)
-                                
-                                if not os.path.exists(filepath):
-                                    if self._generate_pv_dss_config(filepath, "000", False, False, "", ""):
-                                        success_count += 1
-                        
-                        fcntl.flock(lock_fd, fcntl.LOCK_UN)
-                        break
-                        
-                except (IOError, OSError):
-                    # 文件锁被占用，等待一小段时间后重试
-                    time.sleep(0.1)
-                    wait_time += 0.1
-                    
-            if not lock_acquired:
-                # 如果无法获取锁，至少确保当前worker的文件存在
+            # 使用 Windows/Unix 原生锁；超时后返回失败，避免无锁并发写入。
+            with FileLock(lock_file, timeout=5):
                 if not os.path.exists(current_path):
                     if self._generate_pv_dss_config(current_path, "000", False, False, "", ""):
                         success_count += 1
+                        if current_filename not in self.generated_temp_files:
+                            self.generated_temp_files.append(current_filename)
                 else:
                     success_count += 1
-            
+
+                if self.worker_idx is None or self.worker_idx == 0:
+                    for worker_id in range(8):
+                        filename = f'pv_data_{worker_id}{Constants.DSS_EXTENSION}'
+                        filepath = os.path.join(self.dss_folder_path, filename)
+                        if not os.path.exists(filepath):
+                            if self._generate_pv_dss_config(filepath, "000", False, False, "", ""):
+                                success_count += 1
+
             return success_count > 0
-            
+        except Timeout:
+            print("生成默认PV配置失败: 等待文件锁超时")
+            return False
         except Exception as e:
             print(f"生成默认PV配置失败: {e}")
-            # 即使失败也尝试生成当前worker的配置
-            try:
-                if not os.path.exists(current_path):
-                    return self._generate_pv_dss_config(current_path, "000", False, False, "", "")
-            except:
-                pass
             return False
-    
+
     def cleanup_generated_dss_files(self, keep_base_files: bool = True) -> int:
         """清理生成的临时DSS文件"""
         import re

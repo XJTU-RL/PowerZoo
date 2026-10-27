@@ -17,9 +17,9 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import inspect
 import re
 from envs.vvc.vvc.env import Env
+from utils.path_utils import get_node_systems_dir
 
 # map from system_name to fixed information of the system
 
@@ -401,23 +401,8 @@ def get_info_and_folder(env_name):
         base_info['scale'] = scale
         base_info['soc_w'] = base_info['soc_w'] * (scale**2)
 
-    # get folder path
-    # 1. 获取Env类所在文件的绝对路径
-    env_file_path = inspect.getsourcefile(Env)
-    env_abs_path = os.path.abspath(env_file_path)
-    env_dir = os.path.dirname(env_abs_path)
-    
-    # 2. 从Env类所在目录向上找到项目根目录(PowerZoo)并进入node_systems目录
-    # 向上遍历直到找到PowerZoo目录
-    current_dir = env_dir
-    while current_dir != '/' and os.path.basename(current_dir) != 'PowerZoo':
-        current_dir = os.path.dirname(current_dir)
-    
-    # 3. 拼接node_systems路径
-    folder_path = os.path.join(current_dir, 'node_systems')
-    
-    # 4. 规范化路径,移除路径中的'..'等相对路径符号
-    folder_path = os.path.abspath(folder_path)
+    # 按项目结构定位，避免 Windows 盘符根目录和任意 worktree 名称导致无限循环。
+    folder_path = str(get_node_systems_dir())
     return base_info, folder_path
 
 def make_base_env(config_or_name, dss_act=False, worker_idx=None):
@@ -450,9 +435,10 @@ def make_base_env(config_or_name, dss_act=False, worker_idx=None):
     else:
         base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
         assert os.path.exists(base_file), base_file + ' 不存在'
-        fin = open(base_file, 'r')
-        
-        with open(base_file[:-4] + '_' + str(worker_idx) + '.dss', 'w') as fout:
+        # 用上下文管理器及时关闭输入文件，避免 Windows 异常退出时文件仍被占用。
+        with open(base_file, 'r', encoding='utf-8') as fin, open(
+            base_file[:-4] + '_' + str(worker_idx) + '.dss', 'w', encoding='utf-8'
+        ) as fout:
             for line in fin:
                 if line.strip() == 'redirect loadshape.dss':
                     fout.write('redirect loadshape_' + str(worker_idx) + '.dss\n')

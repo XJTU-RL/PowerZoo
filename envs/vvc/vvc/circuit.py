@@ -146,7 +146,8 @@ class Circuits():
 
         Returns: None
         '''
-        self.dss.Text.Command = "compile " + self.dss_file
+        # DSS 命令需要引号，才能处理 Windows 用户目录和 worktree 路径中的空格。
+        self.dss.Text.Command = f'compile "{self.dss_file}"'
         self.dss.Text.Command = "Set Maxiterations=50"
         self.dss.Text.Command = "Set Maxcontroliter=100"
         
