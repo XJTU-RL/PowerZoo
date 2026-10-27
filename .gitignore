@@ -459,3 +459,7 @@ logs/
 
 # YoYo AI version control directory
 .yoyo/
+
+# Episode 负荷切片由 LoadProfile 生成，原始 LoadShape CSV 保持可追踪。
+node_systems/**/loadshape/data_without_noise/[0-9][0-9][0-9]/
+node_systems/**/loadshape/data_with_gaussian_noise/[0-9][0-9][0-9]/

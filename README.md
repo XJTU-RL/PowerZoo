@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor 
 
 历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
 本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
-checkout 失败。本机可直接使用 `D:\Exps\PowerZoo-worktrees\windows-environment`，
-该 worktree 已完成修复，分支为 `codex/windows-environment`。
+checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\config-pipeline`，
+分支为 `codex/config-pipeline`；环境修复单独保留在 `codex/windows-environment`。
 
 CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
 CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。
@@ -128,7 +128,8 @@ python scripts/check_runtime.py --train
 Windows 首次开发优先使用 `vvc + 13Bus + HAPPO`。普通训练可从下列短任务开始：
 
 ```powershell
-python examples/multi_agent/scripts/train.py --algo happo --env vvc --exp_name win13bus --cuda False --n_rollout_threads 1 --num_env_steps 240 --episode_length 24 --use_recurrent_policy False --actor_num_mini_batch 1 --critic_num_mini_batch 1 --use_eval False
+python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
+python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ```
 
 结果按训练器配置写入 `results/`。当前环境实现会在 `node_systems/` 下生成 worker DSS
@@ -143,13 +144,13 @@ python examples/multi_agent/scripts/train.py --algo happo --env vvc --exp_name w
   不要将多智能体 `VVCEnv` 直接传给 SB3 PPO，也不要使用旧版 README 的 `VVCEnv(**config)`。
 - 不将所有环境、PV 方案和算法组合描述为已在 Windows 完整通过；以具体运行记录为准。
 
-后续优先讨论单/多智能体接口、配置覆盖、时间截断和求解异常，再扩展实验组合。
+配置覆盖已统一；后续算法/环境研究应优先处理单智能体接口、时间截断、求解异常和实际控制动作生效。
 
 ## 测试
 
 ```powershell
 python -m pytest tests/test_windows_runtime.py -o addopts="" -q
-python -m pytest tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
+python -m pytest tests/test_configuration_contract.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
 ```
 
 完整测试为 `python -m pytest`，默认 `pytest.ini` 会生成覆盖率报告。
@@ -197,9 +198,19 @@ PowerZoo/
 └── training_ui/      # 可选训练界面
 ```
 
-配置入口已有 `utils/unified_config_loader.py`，`system_ref` 引用系统 YAML，
-`training_ref` 引用训练策略。后续参数流程开发应在这套实现上收敛入口，
-并明确 CLI、算法配置、环境配置与系统默认值的优先级。
+配置只通过 `utils/config_pipeline.py` 解析；旧 `unified_config_loader.py` 是兼容导入位置。
+CLI、UI、系统引用、环境预设和实验覆盖采用同一规则，启动前可以检查最终值及来源：
+
+```powershell
+python examples/multi_agent/scripts/train.py --env vvc --algo happo --set env.voltage_min=0.94 --explain env.voltage_min
+python examples/multi_agent/scripts/train.py --env smartgrid --env-config configs/envs_cfgs/smartgrid_pv_plans/smartgrid_aggressive.yaml --print-config
+```
+
+`train.episode_length` 是采样长度，`env.max_episode_steps` 是单局长度。新 CLI 使用
+`--set 完整路径=值`，错误拼写和歧义会报错。每次训练保存完整 YAML 与参数来源记录。
+详见 [配置指南](docs/configuration.md) 和 [代码审计与验证范围](docs/configuration-audit.md)。
+QMix、2TS、旧 DAN-HAPPO、SN-MAPPO 的历史配置与公共 runner 契约不同，公共入口明确拒绝；
+注册在代码中不代表已经适配或验证。SB3 旧入口也不属于本次已验证的公共 MARL 路径。
 
 ## 引用
 

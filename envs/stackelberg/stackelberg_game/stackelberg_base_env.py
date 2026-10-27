@@ -38,7 +38,7 @@ except ImportError:
 from envs.vvc.vvc.circuit import Circuits
 from envs.vvc.vvc.loadprofile import LoadProfile
 from envs.stackelberg.stackelberg_game.circuit_adapter import StackelbergCircuitAdapter
-from utils.path_utils import get_system_folder
+from utils.path_utils import resolve_system_path
 
 logger = logging.getLogger('StackelbergBaseEnv')
 
@@ -72,7 +72,7 @@ class StackelbergBaseEnv:
         self.max_episode_steps = config.get('max_episode_steps', 24)
         
         # 使用统一路径工具定位系统目录
-        self.dss_folder_path = str(get_system_folder(self.system_name))
+        self.dss_folder_path = str(resolve_system_path(config.get('dss_folder') or self.system_name))
         config['dss_file_abs_path'] = os.path.join(self.dss_folder_path, self.dss_file)
 
         # Agent configuration
@@ -92,7 +92,7 @@ class StackelbergBaseEnv:
         self.ess_max_power = ess_config.get('max_power', 20.0)
         self.ess_efficiency_charge = ess_config.get('eta_c', ess_config.get('efficiency_charge', 0.95))
         self.ess_efficiency_discharge = ess_config.get('eta_o', ess_config.get('efficiency_discharge', 0.95))
-        self.ess_decay_rate = ess_config.get('eta_s', ess_config.get('self_discharge_rate', 0.99))
+        self.ess_decay_rate = ess_config.get('retention_factor', ess_config.get('eta_s', 0.99))
         self.ess_soc = ess_config.get('initial_soc', 0.5)
 
         # DER generation profile
@@ -130,6 +130,8 @@ class StackelbergBaseEnv:
         
     def _get_consumer_count(self, config: Dict[str, Any]) -> int:
         """Determine number of consumer agents based on system size."""
+        if 'n_consumer_agents' in config:
+            return config['n_consumer_agents']
         consumer_counts = {
             '13Bus': config.get('n_consumer_agents_13bus', 5),
             '34Bus': config.get('n_consumer_agents_34bus', 10),

@@ -366,6 +366,8 @@ class Env(gym.Env):
             self.reg_w = info['reg_w']
             self.soc_w = info['soc_w']
             self.dis_w = info['dis_w']
+            self.voltage_min = info.get('voltage_min', 0.95)
+            self.voltage_max = info.get('voltage_max', 1.05)
 
         def powerloss_reward(self):
 
@@ -395,8 +397,8 @@ class Env(gym.Env):
             violated_nodes = []
             total_violation_num = 0
             for name, voltages in self.env.obs['bus_voltages'].items():
-                max_penalty = min(0, 1.05 - max(voltages)) #penalty is negative if above max
-                min_penalty = min(0, min(voltages) - 0.95) #penalty is negative if below min
+                max_penalty = min(0, self.voltage_max - max(voltages)) #penalty is negative if above max
+                min_penalty = min(0, min(voltages) - self.voltage_min) #penalty is negative if below min
                 total_violation_num += (max_penalty + min_penalty)
                 if record_node and (max_penalty != 0 or min_penalty != 0):
                     violated_nodes.append(name)

@@ -1,59 +1,30 @@
-# DSR Environment Configuration for IEEE 13-Bus System
-# 配电网恢复环境配置 - 13节点系统
-
-# ===== 系统引用 =====
 system_ref: 13Bus
-
-env_name: "dsr"
-scenario_name: "ieee13_restoration"
-
-# 基础设置
-seed_specify: True
-seed: 123456
-
-# 环境参数
-env_args:
-  # 基础配置
-  system_name: "13Bus"
+env:
+  system_name: 13Bus
   max_episode_steps: 10
-  
-  # 设备配置（适配小系统）
-  n_dg: 3          # 柴油发电机数量
-  n_pv: 3          # 光伏数量
-  n_switch: 10     # 开关数量
-  n_load_levels: 3 # 负荷优先级等级
-  
-  # 聚合智能体配置
-  use_load_aggregation: False  # 小系统不需要聚合
-  n_load_agents: null         # 自动设置为负荷数量
-  load_aggregation_method: "zone"
-  
-  # 物理约束
+  n_dg: 3
+  n_pv: 3
+  n_switch: 10
+  n_load_levels: 3
+  use_load_aggregation: false
+  n_load_agents: null
+  load_aggregation_method: zone
   v_min: 0.95
   v_max: 1.05
-  max_load_per_step: 200.0  # 小系统降低每步恢复量
-  
-  # 奖励权重
+  max_load_per_step: 200.0
   reward_restore: 20.0
   reward_voltage: 1.0
   reward_overload: 1.0
   reward_done: -5.0
-  
-  # 故障配置
   fault_scenarios: 3
   min_faults: 1
   max_faults: 3
-  
-  # 其他配置与默认相同
-  use_action_mask: True
-  use_dynamic_network: True
-  use_render: False
-  record_node: True
-  load_noise: False
+  use_action_mask: true
+  use_dynamic_network: true
+  use_render: false
+  record_node: true
+  load_noise: false
   scale: 1.0
-  useS: False  # PowerZoo兼容
-  
-  # 增加缺失的配置项
   pv_power_levels: 11
   load_action_levels: 2
   pv_max_power: 150.0
@@ -67,39 +38,37 @@ env_args:
     3: 1.0
   max_priority_level: 3
   overload_threshold: 1.0
-  use_emergency_rating: False
-  log_overload_details: False
+  use_emergency_rating: false
+  log_overload_details: false
   log_interval_episodes: 10
   success_threshold: 0.9
   restoration_threshold: 0.95
   recent_episodes_window: 10
   ieee123_load_count: 85
-  
-  # 监控配置
   monitoring:
-    detailed_logging: True
-    log_frequency: 5           # 小系统更频繁的日志
-    visualization: True
-    anomaly_detection: True
-    save_snapshots: True
-    metrics_aggregation: "mean"
-    visualization_interval: 20  # 小系统更频繁的可视化
-    save_final_report: True
-
-# 训练参数（适配小系统）
-train_interval_episode: 1
-eval_interval: 20
-use_eval: True
-n_eval_rollout_threads: 1
-n_rollout_threads: 2
-episode_length: 10
-num_env_steps: 5000000
-
-# 其他参数与默认相同
-runner: "OnPolicyHARunner"
-share_policy: False
-use_centralized_V: True
-hidden_size: 64  # 小系统使用较小网络
-layer_N: 2
-lr: 5e-4
-ppo_epoch: 5
+    detailed_logging: true
+    log_frequency: 5
+    visualization: true
+    anomaly_detection: true
+    save_snapshots: true
+    metrics_aggregation: mean
+    visualization_interval: 20
+    save_final_report: true
+  scenario_name: ieee13_restoration
+  dss_file: IEEE13Nodeckt.dss
+train:
+  episode_length: 10
+  n_rollout_threads: 2
+  num_env_steps: 5000000
+  eval_interval: 20
+eval:
+  use_eval: true
+  n_eval_rollout_threads: 1
+model:
+  data_chunk_length: 5
+  hidden_sizes:
+  - 64
+  - 64
+  lr: 5e-4
+algo:
+  ppo_epoch: 5

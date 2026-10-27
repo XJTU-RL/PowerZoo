@@ -1,4 +1,5 @@
 """Tools for loading and updating configs."""
+
 import json
 import os
 import time
@@ -7,84 +8,47 @@ import yaml
 
 
 def get_defaults_yaml_args(algo, env):
-    """加载用户指定的算法和环境的配置文件.
+    """所有环境使用同一解析器；返回值保持 runner 接口兼容。"""
+    from utils.unified_config_loader import load_config
 
-    自动检测配置格式:
-    - 新格式 (v2): 包含 system_ref 字段，使用 ConfigLoader 解析引用
-    - 旧格式 (v1): 传统扁平配置，直接解析
-
-    Args:
-        algo: (str) Algorithm name.
-        env: (str) Environment name.
-    Returns:
-        algo_args: (dict) Algorithm config.
-        env_args: (dict) Environment config.
-    """
-    base_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
-    env_cfg_path = os.path.join(base_path, "configs", "envs_cfgs", f"{env}.yaml")
-
-    # 检测是否使用新格式 (system_ref)
-    with open(env_cfg_path, "r", encoding="utf-8") as f:
-        env_config_peek = yaml.load(f, Loader=yaml.FullLoader) or {}
-
-    if 'system_ref' in env_config_peek:
-        # v2 格式: 使用 ConfigLoader 加载并解析引用
-        from utils.unified_config_loader import ConfigLoader
-        loader = ConfigLoader(base_path)
-        config = loader.load(algo, env)
-        return config.algo_args, config.env_args
-
-    # v1 格式: 旧格式直接解析
-    algo_cfg_path = os.path.join(base_path, "configs", "algos_cfgs", f"{algo}.yaml")
-
-    with open(algo_cfg_path, "r", encoding="utf-8") as file:
-        algo_args = yaml.load(file, Loader=yaml.FullLoader)
-
-    env_args = {}
-    for key, value in env_config_peek.items():
-        if key == 'environment_specific':
-            env_args['env_specific_config'] = value
-        elif key == 'power_system':
-            env_args['power_system'] = value
-        else:
-            env_args[key] = value
-
-    return algo_args, env_args
+    return load_config(algo, env)
 
 
 def update_args(unparsed_dict, *args):
-    """使用未解析的命令行参数更新加载的配置。
-    Args:
-        unparsed_dict: (dict) Unparsed command-line arguments.
-        *args: (list[dict]) argument dicts to be updated.
-    """
+    """旧接口只允许唯一的叶子名；拒绝拼写错误和歧义。新入口使用 --set。"""
+    from utils.config_pipeline import apply_override, leaves
+    from utils.config_validation import ConfigError
 
-    def update_dict(dict1, dict2):
-        for k in dict2:
-            if type(dict2[k]) is dict:
-                update_dict(dict1, dict2[k])
-            else:
-                if k in dict1:
-                    dict2[k] = dict1[k]
-
-    for args_dict in args:
-        update_dict(unparsed_dict, args_dict)
+    for name, value in unparsed_dict.items():
+        matches = [
+            (item, path)
+            for item in args
+            for path, _ in leaves(item)
+            if path == name or path.rsplit(".", 1)[-1] == name
+        ]
+        if len(matches) != 1:
+            raise ConfigError(
+                f"参数 {name!r} 匹配 {len(matches)} 个位置，请使用完整路径 --set"
+            )
+        apply_override(matches[0][0], matches[0][1], value)
 
 
 def get_task_name(env, env_args):
     """获取任务名称用于结果目录"""
     # 优先使用 system_name，其次使用 env_name
-    if 'system_name' in env_args and env_args['system_name']:
-        return env_args['system_name']
-    if 'env_name' in env_args:
-        return env_args['env_name']
+    if "system_name" in env_args and env_args["system_name"]:
+        return os.path.basename(os.path.normpath(env_args["system_name"]))
+    if "env_name" in env_args:
+        return env_args["env_name"]
     return env
 
 
 def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     """Init directory for saving results."""
     task = get_task_name(env, env_args)
-    hms_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    from datetime import datetime
+
+    hms_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")
     # 使用绝对路径
     if not os.path.isabs(logger_path):
         logger_path = os.path.abspath(logger_path)
@@ -105,7 +69,12 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     models_path = os.path.join(results_path, "models")
     os.makedirs(models_path, exist_ok=True)
     # 返回绝对路径
-    return os.path.abspath(results_path), os.path.abspath(log_path), os.path.abspath(models_path), writer
+    return (
+        os.path.abspath(results_path),
+        os.path.abspath(log_path),
+        os.path.abspath(models_path),
+        writer,
+    )
 
 
 def is_json_serializable(value):
@@ -145,15 +114,46 @@ def convert_json(obj):
 
 def save_config(args, algo_args, env_args, run_dir):
     """Save the configuration of the program."""
-    config = {"main_args": args, "algo_args": algo_args, "env_args": env_args}
+    from utils.config_pipeline import UnifiedConfig
+
+    main_args = {key: value for key, value in args.items() if not key.startswith("_")}
+    trace = args.get("_config_trace", {})
+    actual_env_args = dict(env_args, seed=algo_args["seed"]["seed"])
+    snapshot = UnifiedConfig(
+        algo_args=algo_args,
+        env_args=actual_env_args,
+        main_args=main_args,
+        history=trace.get("parameters", {}),
+        files=trace.get("files", {}),
+    )
+    snapshot.history.setdefault("seed.seed", []).append(
+        {"source": "runtime effective seed", "value": algo_args["seed"]["seed"]}
+    )
+    snapshot.history.setdefault("env.seed", []).append(
+        {"source": "runtime effective base seed", "value": actual_env_args["seed"]}
+    )
+    import copy
+
+    snapshot.algo_args = copy.deepcopy(algo_args)
+    snapshot.algo_args["seed"]["seed_specify"] = True
+    snapshot.history.setdefault("seed.seed_specify", []).append(
+        {"source": "freeze runtime seed for replay", "value": True}
+    )
+    snapshot.save(os.path.join(run_dir, "config.resolved.yaml"))
+    config = {
+        "main_args": main_args,
+        "algo_args": snapshot.algo_args,
+        "env_args": actual_env_args,
+    }
     config_json = convert_json(config)
     output = json.dumps(config_json, separators=(",", ":\t"), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as out:
         out.write(output)
     # 不再写入测试代码到progress.txt - 留给base_logger正确处理
-        
-def save_render(args,run_dir):
-    renderdata=convert_json(args)
+
+
+def save_render(args, run_dir):
+    renderdata = convert_json(args)
     output = json.dumps(renderdata, separators=(",", ":\t"), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "renderdata.json"), "w", encoding="utf-8") as out:
         out.write(output)

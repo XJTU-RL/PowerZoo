@@ -15,6 +15,22 @@ from envs.district_dispatch.constants import (
 
 
 @dataclass
+class DevicePlacement:
+    name: str = ''
+    bus: str = ''
+
+
+@dataclass
+class DistrictTopology:
+    name: str = ''
+    buses: List[str] = field(default_factory=list)
+    boundary_buses: List[str] = field(default_factory=list)
+    pv_systems: List[DevicePlacement] = field(default_factory=list)
+    storage: List[DevicePlacement] = field(default_factory=list)
+    ev_chargers: List[DevicePlacement] = field(default_factory=list)
+
+
+@dataclass
 class DistrictDeviceConfig:
 	"""单台区设备配置"""
 	n_pv: int = 2						# PV系统数量
@@ -55,6 +71,12 @@ class DistrictDispatchConfig:
 
 	# === 基础配置 ===
 	env_name: str = "district_dispatch"
+	state_type: str = "EP"
+	monitoring: Dict[str, Any] = field(default_factory=dict)
+	scenario_name: str = "dispatch"
+	log_interval_episodes: int = 10
+	dss_folder: Optional[str] = None
+	district_topology: Dict[int, DistrictTopology] = field(default_factory=dict)
 	system_name: str = "District_34Bus_3Zone"
 	dss_file: str = "district_master.dss"
 	max_episode_steps: int = EPISODE.DEFAULT_MAX_STEPS
@@ -127,6 +149,11 @@ class DistrictDispatchConfig:
 	noise_std: float = 0.05			# 噪声标准差
 	use_render: bool = False
 	debug_mode: bool = False
+
+	@classmethod
+	def from_env_args(cls, env_args):
+		from utils.config_validation import legacy_env_config
+		return legacy_env_config(cls, env_args)
 
 	def get_max_action_dim(self) -> int:
 		"""

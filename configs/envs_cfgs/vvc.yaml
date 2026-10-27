@@ -1,30 +1,9 @@
-# PowerZoo VVC Environment Configuration
-# 纯 RL 参数配置，系统配置通过 system_ref 引用加载
-
-# ===== 系统引用 =====
-# 可选: 13Bus, 34Bus, 34Bus_PV, 34Bus_PV_Aggressive, 34Bus_PV_Conservative, 34Bus_PV_Optimized, 123Bus, 8500Node
+# 只声明实际消费的参数；字段说明与覆盖顺序见 docs/configuration.md
 system_ref: 13Bus
-
-# ===== 基础配置 (向后兼容) =====
-env_name: 13Bus
-seed: 123456
-
-# ===== RL 环境参数 =====
-episode_length: 24
-num_workers: null
-
-# ===== 运行时标志 =====
-mode: single
-useS: false
-big2small: false
-use_render: false
-use_plot: false
-do_testing: false
-record_node: false
-
-# ===== 日志配置 =====
-enable_system_logging: true
-system_log_dir: "./logs/system_params"
-log_buffer_size: 5000
-log_save_interval: 50
-enable_realtime_log: true
+env:
+  env_name: 13Bus
+  useS: false
+  big2small: false
+  use_render: false
+  record_node: false
+  max_episode_steps: 24

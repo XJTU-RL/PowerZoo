@@ -96,36 +96,19 @@ class DistrictDispatchCore:
 
 	def _resolve_dss_path(self) -> str:
 		"""解析 DSS 文件的绝对路径"""
-		from utils.path_utils import get_system_folder
-		dss_folder = str(get_system_folder(self.config.system_name))
+		from utils.path_utils import resolve_system_path
+		dss_folder = str(resolve_system_path(self.config.dss_folder or self.config.system_name))
 		return os.path.join(dss_folder, self.config.dss_file)
 
-	def _load_system_definition(self) -> Dict[str, Any]:
-		"""加载系统 YAML 定义"""
-		from utils.path_utils import get_system_folder
-		sys_folder = str(get_system_folder(self.config.system_name))
-		yaml_path = os.path.join(
-			os.path.dirname(sys_folder.rstrip("/")),
-			"..",
-			"configs",
-			"systems",
-			f"{self.config.system_name}.yaml",
-		)
-		# 如果相对路径找不到，用 configs/systems 下的标准位置
-		if not os.path.exists(yaml_path):
-			project_root = os.path.dirname(
-				os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-			)
-			yaml_path = os.path.join(
-				project_root, "configs", "systems", f"{self.config.system_name}.yaml"
-			)
-
-		if os.path.exists(yaml_path):
-			with open(yaml_path, "r", encoding="utf-8") as f:
-				return yaml.safe_load(f)
-		else:
-			logger.warning(f"系统定义文件未找到: {yaml_path}，使用默认配置")
-			return {}
+	def _load_system_definition(self):
+		"""拓扑已经由公共解析器展开；运行期不再读取另一份 YAML。"""
+		from dataclasses import asdict
+		if not self.config.district_topology:
+			raise ValueError('district_topology 为空；请通过 ConfigLoader 加载系统拓扑')
+		return {
+			'districts': {f'zone_{i}': asdict(topology) for i, topology in self.config.district_topology.items()},
+			'devices': {f'zone_{i}': asdict(topology) for i, topology in self.config.district_topology.items()},
+		}
 
 	def _build_districts(self) -> List[District]:
 		"""根据系统定义和配置构建台区列表"""
@@ -175,7 +158,7 @@ class DistrictDispatchCore:
 			units.append(PVUnit(
 				name=pv_def["name"],
 				bus=str(pv_def["bus"]).lower(),
-				capacity_kw=pv_def.get("capacity_kw", dev_config.pv_capacity_kw),
+				capacity_kw=dev_config.pv_capacity_kw,
 			))
 		return units
 
@@ -187,9 +170,11 @@ class DistrictDispatchCore:
 			units.append(StorageUnit(
 				name=s_def["name"],
 				bus=str(s_def["bus"]).lower(),
-				capacity_kwh=s_def.get("capacity_kwh", dev_config.storage_capacity_kwh),
-				max_power_kw=s_def.get("max_power_kw", dev_config.storage_max_power_kw),
+				capacity_kwh=dev_config.storage_capacity_kwh,
+				max_power_kw=dev_config.storage_max_power_kw,
 				soc=self.config.soc_init,
+				charge_efficiency=self.config.charge_efficiency,
+				discharge_efficiency=self.config.discharge_efficiency,
 			))
 		return units
 
@@ -201,7 +186,7 @@ class DistrictDispatchCore:
 			chargers.append(EVCharger(
 				name=ev_def["name"],
 				bus=str(ev_def["bus"]).lower(),
-				max_power_kw=ev_def.get("max_power_kw", dev_config.ev_max_power_kw),
+				max_power_kw=dev_config.ev_max_power_kw,
 			))
 		return chargers
 

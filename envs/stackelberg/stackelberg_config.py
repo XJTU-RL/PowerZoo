@@ -21,14 +21,21 @@ class StackelbergConfig:
     """
 
     # 系统配置
-    system_name: str = '13Bus'
-    dss_file: str = 'IEEE13Nodeckt_daily.dss'
+    system_name: str = "13Bus"
+    dss_file: str = "IEEE13Nodeckt_daily.dss"
     dss_folder: Optional[str] = None
     max_episode_steps: int = 24
     seed: int = 123456
 
     # 智能体配置
     n_consumer_agents: int = 8
+    state_type: str = "EP"
+    ess_config: dict = field(default_factory=dict)
+    stackelberg_config: dict = field(default_factory=dict)
+    circuit_adapter_config: dict = field(default_factory=dict)
+    history_length: int = 5
+    der_profile: Optional[list] = None
+    dss_act: bool = False
 
     # 子配置 (dict 类型，结构灵活)
     tou_config: Optional[dict] = None
@@ -47,52 +54,8 @@ class StackelbergConfig:
     exp_name: Optional[str] = None
 
     @classmethod
-    def from_env_args(cls, env_args: Dict[str, Any]) -> 'StackelbergConfig':
-        """从 env_args 构建配置
+    def from_env_args(cls, env_args):
+        """旧入口统一转换；正式训练在 ConfigLoader 处严格检查。"""
+        from utils.config_validation import legacy_env_config
 
-        修复历史键名不匹配问题 (num_steps vs max_episode_steps)。
-        未知键会被安全忽略。
-
-        Args:
-            env_args: 训练脚本传入的环境参数 dict
-
-        Returns:
-            填充完毕的 StackelbergConfig 实例
-        """
-        config = cls()
-
-        # 系统名：优先 system_name，回退到 env_name 去前缀
-        config.system_name = env_args.get(
-            'system_name',
-            env_args.get('env_name', 'stackelberg_13Bus').replace('stackelberg_', '')
-        )
-
-        # 统一键名 (修复 num_steps vs max_episode_steps)
-        config.max_episode_steps = env_args.get(
-            'max_episode_steps',
-            env_args.get('num_steps', config.max_episode_steps)
-        )
-
-        # DSS 文件
-        config.dss_file = env_args.get('dss_file', config.dss_file)
-        config.dss_folder = env_args.get('dss_folder', config.dss_folder)
-
-        # dict 子配置直传
-        dict_fields = [
-            'tou_config', 'tier_config', 'reward_weights',
-            'load_aggregation', 'async_config', 'monitoring_config', 'n1_security',
-        ]
-        for f in dict_fields:
-            if f in env_args and env_args[f] is not None:
-                setattr(config, f, env_args[f])
-
-        # 标量参数
-        scalar_fields = [
-            'n_consumer_agents', 'seed', 'use_render', 'use_load_noise',
-            'scale', 'worker_idx', 'exp_name',
-        ]
-        for f in scalar_fields:
-            if f in env_args and env_args[f] is not None:
-                setattr(config, f, env_args[f])
-
-        return config
+        return legacy_env_config(cls, env_args)

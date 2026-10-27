@@ -86,94 +86,12 @@ class DistrictDispatchEnv:
 			f"action={self.max_action_dim}, worker={rank}"
 		)
 
-	def _parse_config(self, args: Dict[str, Any]) -> DistrictDispatchConfig:
-		"""从 args 字典解析环境配置
-
-		支持两层配置: 顶层 args 和 args['env_args']，
-		顶层优先。
-		"""
-		config = DistrictDispatchConfig()
-		env_args = args.get("env_args", {})
-
-		# 基础参数映射
-		param_map = {
-			"system_name": "system_name",
-			"dss_file": "dss_file",
-			"max_episode_steps": "max_episode_steps",
-			"seed": "seed",
-			"n_districts": "n_districts",
-			"connection_mode": "connection_mode",
-			"worker_idx": "worker_idx",
-			"load_noise": "load_noise",
-			"noise_std": "noise_std",
-			"use_render": "use_render",
-			"debug_mode": "debug_mode",
-		}
-
-		for yaml_key, attr_name in param_map.items():
-			# env_args 优先，顶层 args 覆盖
-			if yaml_key in env_args:
-				setattr(config, attr_name, env_args[yaml_key])
-			if yaml_key in args:
-				setattr(config, attr_name, args[yaml_key])
-
-		# worker_idx 直接从 rank 设置
-		config.worker_idx = args.get("worker_idx", self.rank)
-
-		# 物理约束
-		constraints = env_args.get("constraints", {})
-		if constraints:
-			config.v_min = constraints.get("voltage_min", config.v_min)
-			config.v_max = constraints.get("voltage_max", config.v_max)
-			config.soc_min = constraints.get("soc_min", config.soc_min)
-			config.soc_max = constraints.get("soc_max", config.soc_max)
-
-		# 奖励权重
-		reward_cfg = env_args.get("reward_weights", {})
-		if reward_cfg:
-			config.reward_weights = DispatchRewardWeights(
-				economic_dispatch=reward_cfg.get("economic_dispatch", config.reward_weights.economic_dispatch),
-				voltage_compliance=reward_cfg.get("voltage_compliance", config.reward_weights.voltage_compliance),
-				loss_minimization=reward_cfg.get("loss_minimization", config.reward_weights.loss_minimization),
-				carbon_reduction=reward_cfg.get("carbon_reduction", config.reward_weights.carbon_reduction),
-				exchange_balance=reward_cfg.get("exchange_balance", config.reward_weights.exchange_balance),
-				storage_health=reward_cfg.get("storage_health", config.reward_weights.storage_health),
-			)
-
-		# 台区设备配置（从 YAML 嵌套结构解析）
-		district_cfgs = env_args.get("district_configs", {})
-		if district_cfgs:
-			parsed_devices = {}
-			for key, val in district_cfgs.items():
-				d_id = int(key.replace("zone_", "").replace("district_", ""))
-				parsed_devices[d_id] = DistrictDeviceConfig(
-					n_pv=val.get("n_pv", 2),
-					n_storage=val.get("n_storage", 1),
-					n_ev_charger=val.get("n_ev_charger", 0),
-					pv_capacity_kw=val.get("pv_capacity_kw", 200.0),
-					storage_capacity_kwh=val.get("storage_capacity_kwh", 500.0),
-					storage_max_power_kw=val.get("storage_max_power_kw", 100.0),
-					ev_max_power_kw=val.get("ev_max_power_kw", 50.0),
-				)
-			config.district_devices = parsed_devices
-
-		# 联络线配置
-		tie_cfg = env_args.get("tie_lines", [])
-		if tie_cfg:
-			parsed_ties = []
-			for tl in tie_cfg:
-				parsed_ties.append(TieLineConfig(
-					from_district=tl["from_district"],
-					to_district=tl["to_district"],
-					from_bus=str(tl.get("from_bus", "")),
-					to_bus=str(tl.get("to_bus", "")),
-					line_name=tl.get("name", tl.get("line_name", "")),
-					capacity_kw=tl.get("capacity_kw", 500.0),
-					connection_type=tl.get("connection_type", "transformer"),
-				))
-			config.tie_lines = parsed_ties
-
-		return config
+	def _parse_config(self, args):
+		"""唯一 dataclass 边界，所有市场、约束和嵌套设备参数均传递。"""
+		from utils.config_validation import deep_merge, build_dataclass, normalize_env
+		values = deep_merge(args.get('env_args', {}), {k: v for k, v in args.items() if k != 'env_args'})
+		values['worker_idx'] = self.rank
+		return build_dataclass(DistrictDispatchConfig, normalize_env(values, 'district_dispatch'), strict=False)
 
 	def _setup_spaces(self) -> None:
 		"""定义观测和动作空间"""

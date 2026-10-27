@@ -1,205 +1,28 @@
-# Stackelberg Game Environment Configuration for 13Bus System
-# 系统配置通过 system_ref 引用，博弈参数在此配置
-
-# ===== 系统引用 =====
 system_ref: 13Bus
-
-# ===== 基础配置 =====
-env_name: stackelberg_13bus
-system_name: 13Bus
-dss_file: IEEE13bus_battery_adaptive.dss
-max_episode_steps: 24
-
-# ===== Agent 配置 =====
-n_consumer_agents: 8
-consumer_bus_mapping:
-  0: [671, 675]
-  1: [692, 611]
-  2: [652, 632]
-  3: [633, 634]
-  4: [645, 646]
-  5: [680]
-  6: [684]
-  7: [650]
-
-# ===== UC 动作空间配置 =====
-uc_action_space:
-  price_signal:
-    low: 0.5
-    high: 2.0
-  dr_incentive:
-    low: 0.0
-    high: 0.5
-  capacity_allocation:
-    low: 0.0
-    high: 1.0
-  ess_charge:
-    low: -1.0
-    high: 1.0
-  der_curtailment:
-    low: 0.0
-    high: 1.0
-
-# ===== Consumer 动作空间配置 =====
-consumer_action_space:
-  load_adjustment:
-    low: -0.3
-    high: 0.1
-  der_output:
-    low: 0.0
-    high: 1.0
-
-# ===== 观测空间配置 =====
-observation_config:
-  uc_observations:
-    - total_load
-    - total_generation
-    - system_loss
-    - avg_voltage
-    - min_voltage
-    - max_voltage
-    - der_available
-    - ess_soc
-    - hour_of_day
-    - day_type
-    - load_forecast
-    - der_forecast
-    - carbon_intensity
-    - market_price
-  consumer_observations:
-    - uc_price_signal
-    - uc_dr_incentive
-    - uc_capacity_alloc
-    - local_load
-    - local_voltage
-    - local_der_available
-    - neighbor_loads
-    - hour_of_day
-    - comfort_level
-    - dr_participation
-
-# ===== 奖励权重 =====
-reward_weights:
-  uc:
-    electricity_revenue: 1.0
-    market_cost: 1.0
-    der_profit: 0.8
-    dr_cost: 0.6
-    system_loss: 0.5
-    voltage_violation: 2.0
-    carbon_reduction: 0.3
-  consumer:
-    electricity_cost: 1.0
-    comfort_loss: 0.8
-    dr_revenue: 1.2
-    voltage_quality: 0.3
-
-# ===== 物理约束 =====
-constraints:
-  voltage_min: 0.95
-  voltage_max: 1.05
-  line_capacity_factor: 0.9
-  max_load_change_rate: 0.1
-  ess_ramp_rate: 0.2
-
-# ===== 市场配置 =====
-market_config:
-  base_price: 0.10
-  peak_multiplier: 2.0
-  valley_multiplier: 0.5
-  market_volatility: 0.03
-
-# ===== TOU 配置 =====
-tou_config:
-  peak_hours: [8, 9, 10, 11, 17, 18, 19, 20]
-  valley_hours: [0, 1, 2, 3, 4, 5, 23]
-  normal_hours: [6, 7, 12, 13, 14, 15, 16, 21, 22]
-
-# ===== 阶梯定价 =====
-tier_config:
-  tier_1_limit: 0.5
-  tier_2_limit: 1.0
-  tier_3_limit: 2.0
-  tier_1_multiplier: 1.0
-  tier_2_multiplier: 1.2
-  tier_3_multiplier: 1.5
-  tier_4_multiplier: 2.0
-
-# ===== ESS 配置 =====
-ess_config:
-  total_capacity: 2.0
-  initial_soc: 0.5
-  efficiency_charge: 0.95
-  efficiency_discharge: 0.95
-  self_discharge_rate: 0.001
-  min_soc: 0.2
-  max_soc: 0.9
-  max_power: 0.5
-
-# ===== DER 配置 =====
-der_config:
-  total_capacity: 3.0
-  availability_profile: solar
-  forecast_error_std: 0.1
-  curtailment_cost: 0.02
-
-# ===== DR 配置 =====
-dr_config:
-  max_dr_ratio: 0.3
-  min_response_time: 1
-  fatigue_factor: 0.9
-  participation_rate: 0.8
-
-# ===== 监控配置 =====
-monitoring_config:
-  enable: true
-  log_dir: logs/stackelberg_13bus
-  save_interval: 100
-  plot_interval: 50
-  experiment_name: null
-  track_convergence: true
-  track_nash_gap: true
-  track_carbon: true
-
-# ===== 异步执行配置 =====
-async_config:
-  consumer_delay: 1
-  action_persistence: 1
-  enable_action_prediction: false
-  partial_observability: false
-  observation_noise: 0.0
-
-# ===== 运行时配置 =====
-seed: 42
-debug: false
-verbose: true
-render: false
-
-# ===== 负荷曲线配置 =====
-load_profile_config:
-  profile_type: real
-  noise_level: 0.02
-  growth_rate: 1.02
-  weekend_factor: 0.8
-
-# ===== N-1 安全配置 =====
-n1_security:
-  enable: true
-  critical_lines: [650632, 632670, 670671]
-  contingency_probability: 0.001
-  recovery_time: 4
-
-# ===== 碳排放配置 =====
-carbon_config:
-  track_emissions: true
-  grid_carbon_intensity: 0.5
-  der_carbon_intensity: 0.0
-  carbon_price: 0.02
-
-# ===== 训练策略 =====
-training_config:
-  curriculum_learning: true
-  warmup_episodes: 100
-  exploration_noise_start: 0.1
-  exploration_noise_end: 0.01
-  exploration_decay_episodes: 1000
+env:
+  system_name: 13Bus
+  dss_file: IEEE13bus_battery_adaptive.dss
+  max_episode_steps: 24
+  n_consumer_agents: 8
+  ess_config:
+    total_capacity: 2.0
+    initial_soc: 0.5
+    efficiency_charge: 0.95
+    efficiency_discharge: 0.95
+    self_discharge_rate: 0.001
+    max_power: 0.5
+  monitoring_config:
+    enable: true
+    log_dir: logs/stackelberg_13bus
+    save_interval: 100
+    plot_interval: 50
+    experiment_name: null
+    track_convergence: true
+    track_nash_gap: true
+    track_carbon: true
+  async_config:
+    consumer_delay: 1
+    action_persistence: 1
+    enable_action_prediction: false
+    partial_observability: false
+    observation_noise: 0.0

@@ -6,13 +6,14 @@
 ## 新建任务
 
 以下为 PowerShell 示例。实际目录可以调整，分支和目录名应描述当前任务。
-从 `main` 创建新 worktree 前，应先将本次 Windows 修复审查并合入 `main`。
-旧提交含 Windows 非法文件名，当前先使用已经修复的 `windows-environment` 目录。
+常规新任务从已验证的 `main` 创建；Windows 修复尚未合入时，从明确依赖的任务分支创建。
+旧提交含 Windows 非法文件名，本次 `config-pipeline` 从环境修复提交 `28e25a7c` 创建。
+两个任务分别提交，不自动合并或推送。
 
 ```powershell
 git -C D:\Exps\PowerZoo status --short --branch
 git -C D:\Exps\PowerZoo worktree list
-git -C D:\Exps\PowerZoo worktree add -b codex/config-pipeline D:\Exps\PowerZoo-worktrees\config-pipeline main
+git -C D:\Exps\PowerZoo worktree add -b codex/config-pipeline D:\Exps\PowerZoo-worktrees\config-pipeline codex/windows-environment
 Set-Location D:\Exps\PowerZoo-worktrees\config-pipeline
 conda activate powerzoo-win
 python -m pip install --no-deps -e .
@@ -30,7 +31,7 @@ python -m pip install --no-deps -e .
 ```powershell
 python -m pip check
 python scripts/check_runtime.py --train
-python -m pytest tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
+python -m pytest tests/test_configuration_contract.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
 git diff --check
 git diff
 git status --short

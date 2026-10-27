@@ -422,7 +422,9 @@ def make_base_env(config_or_name, dss_act=False, worker_idx=None):
 
         # 通过 resolve_system_path 解析 folder_path
         from utils.path_utils import resolve_system_path
-        folder_path = str(resolve_system_path(config.system_name).parent)
+        system_dir = resolve_system_path(config.dss_folder or config.system_name)
+        folder_path = str(system_dir.parent)
+        base_info['system_name'] = system_dir.name
 
         dss_act = config.dss_act
     else:
@@ -450,7 +452,14 @@ def make_base_env(config_or_name, dss_act=False, worker_idx=None):
         return Env(folder_path, info, dss_act)
         
 def remove_parallel_dss(env_name, num_workers):
-    base_info, folder_path = get_info_and_folder(env_name)
+    from envs.vvc.vvc.vvc_config import VVCConfig
+    if isinstance(env_name, VVCConfig):
+        from utils.path_utils import resolve_system_path
+        system_dir = resolve_system_path(env_name.dss_folder or env_name.system_name)
+        base_info = dict(system_name=system_dir.name, dss_file=env_name.dss_file)
+        folder_path = str(system_dir.parent)
+    else:
+        base_info, folder_path = get_info_and_folder(env_name)
     base_main = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
     base_loadshape = os.path.join(folder_path, base_info['system_name'], 'loadshape.dss')
 

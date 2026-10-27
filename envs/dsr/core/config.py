@@ -15,7 +15,12 @@ class DSRConfig:
     
     # 基础配置
     env_name: str = "dsr"
+    state_type: str = "EP"
+    monitoring: Dict[str, Any] = field(default_factory=dict)
+    scenario_name: str = "restoration"
     system_name: str = "123Bus"  # 支持: 13Bus, 34Bus, 123Bus, 8500-Node
+    dss_folder: Optional[str] = None
+    source_bus: Optional[str] = None
     dss_file: Optional[str] = None  # 自动根据system_name选择
     max_episode_steps: int = 15  # 最大恢复步数
     seed: int = 123456
@@ -91,23 +96,16 @@ class DSRConfig:
     
     # 日志记录配置
     log_interval_episodes: int = 10  # 日志记录间隔（episode数）
-    success_threshold: float = 0.9  # 成功恢复阈值（90%恢复率）
     recent_episodes_window: int = 10  # 最近episode窗口大小
     
     # IEEE 123节点系统配置
     ieee123_load_count: int = 85  # IEEE 123节点系统的典型负荷数量
     
     @classmethod
-    def from_env_args(cls, env_args: dict) -> 'DSRConfig':
-        """从 unified_config_loader 的 env_args 自动构建配置
-
-        用 dataclass 字段反射替代手工 update_keys 列表。
-        未知键静默忽略，None 值使用默认值。
-        """
-        valid_fields = {f.name for f in dataclasses.fields(cls)}
-        kwargs = {k: v for k, v in env_args.items()
-                  if k in valid_fields and v is not None}
-        return cls(**kwargs)
+    def from_env_args(cls, env_args):
+        """旧入口统一转换；正式训练在 ConfigLoader 处严格检查。"""
+        from utils.config_validation import legacy_env_config
+        return legacy_env_config(cls, env_args)
 
     def to_vvc_config(self) -> Dict[str, Any]:
         """转换为PowerZoo格式的配置"""
@@ -149,7 +147,7 @@ class DSRConfig:
             'scale': self.scale,
             'use_render': self.use_render,
             'record_node': self.record_node,
-            'source_bus': source_buses.get(self.system_name, 'sourcebus'),
+            'source_bus': self.source_bus or source_buses.get(self.system_name, 'sourcebus'),
             'node_size': node_configs.get(self.system_name, {}).get('node_size', 200),
             'shift': node_configs.get(self.system_name, {}).get('shift', 50),
             'show_node_labels': self.system_name != '8500-Node',  # 8500节点太多不显示标签

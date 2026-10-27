@@ -58,13 +58,13 @@ class DSRCoreEnv:
     
     def _init_opendss_circuit(self):
         """初始化OpenDSS电路"""
-        from utils.path_utils import get_system_folder
+        from utils.path_utils import resolve_system_path
 
         # 获取PowerZoo配置
         vvc_config = self.config.to_vvc_config()
 
         # 构建DSS文件路径（使用统一路径工具）
-        dss_folder = str(get_system_folder(self.config.system_name))
+        dss_folder = str(resolve_system_path(self.config.dss_folder or self.config.system_name))
         dss_file_path = os.path.join(dss_folder, vvc_config['dss_file'])
         
         # 创建Circuits对象

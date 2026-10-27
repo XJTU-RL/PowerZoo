@@ -1,24 +1,40 @@
-# -*- coding: utf-8 -*-
-"""
-District Dispatch Core Module
-核心环境逻辑
-"""
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-from envs.district_dispatch.core.circuit_adapter import DistrictCircuitAdapter
-from envs.district_dispatch.core.config import DistrictDispatchConfig
-from envs.district_dispatch.core.dispatch_core import DistrictDispatchCore
-from envs.district_dispatch.core.district import District, EVCharger, PVUnit, StorageUnit
-from envs.district_dispatch.core.loadprofile import DistrictLoadProfile
-from envs.district_dispatch.core.power_exchange import PowerExchangeManager
+from importlib import import_module
 
-__all__ = [
-	"DistrictCircuitAdapter",
-	"DistrictDispatchConfig",
-	"DistrictDispatchCore",
-	"District",
-	"DistrictLoadProfile",
-	"EVCharger",
-	"PowerExchangeManager",
-	"PVUnit",
-	"StorageUnit",
-]
+_EXPORTS = {
+    "DistrictCircuitAdapter": (
+        "envs.district_dispatch.core.circuit_adapter",
+        "DistrictCircuitAdapter",
+    ),
+    "DistrictDispatchConfig": (
+        "envs.district_dispatch.core.config",
+        "DistrictDispatchConfig",
+    ),
+    "DistrictDispatchCore": (
+        "envs.district_dispatch.core.dispatch_core",
+        "DistrictDispatchCore",
+    ),
+    "District": ("envs.district_dispatch.core.district", "District"),
+    "EVCharger": ("envs.district_dispatch.core.district", "EVCharger"),
+    "PVUnit": ("envs.district_dispatch.core.district", "PVUnit"),
+    "StorageUnit": ("envs.district_dispatch.core.district", "StorageUnit"),
+    "DistrictLoadProfile": (
+        "envs.district_dispatch.core.loadprofile",
+        "DistrictLoadProfile",
+    ),
+    "PowerExchangeManager": (
+        "envs.district_dispatch.core.power_exchange",
+        "PowerExchangeManager",
+    ),
+}
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value

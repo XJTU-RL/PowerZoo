@@ -1,32 +1,30 @@
-# -*- coding: utf-8 -*-
-"""
-@File    : __init__.py
-@Time    : 2025/01/15
-@Author  : Xiaodong Zheng
-@Description: PowerZoo Environment Module
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-This module provides power system environments for multi-agent reinforcement learning.
-"""
+from importlib import import_module
 
-from .vvc_env import VVCEnv
-from .vvc_logger import VVCLogger
-from .vvc.env import Env
-from .vvc.circuit import Circuits
-from .vvc.loadprofile import LoadProfile
-from .vvc.env_register import make_base_env, remove_parallel_dss
-
-__all__ = [
-    'VVCEnv',
-    'VVCLogger', 
-    'Env',
-    'Circuits',
-    'LoadProfile',
-    'make_base_env',
-    'remove_parallel_dss'
-]
-
-__version__ = '1.0.0'
-__author__ = 'Xiaodong Zheng'
-__email__ = 'zxd_xjtu@stu.xjtu.edu.cn'
+_EXPORTS = {
+    "VVCEnv": (".vvc_env", "VVCEnv"),
+    "VVCLogger": (".vvc_logger", "VVCLogger"),
+    "Env": (".vvc.env", "Env"),
+    "Circuits": (".vvc.circuit", "Circuits"),
+    "LoadProfile": (".vvc.loadprofile", "LoadProfile"),
+    "make_base_env": (".vvc.env_register", "make_base_env"),
+    "remove_parallel_dss": (".vvc.env_register", "remove_parallel_dss"),
+}
+__all__ = list(_EXPORTS)
 
 
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value
+
+
+__version__ = "1.0.0"
+
+__author__ = "Xiaodong Zheng"
+
+__email__ = "zxd_xjtu@stu.xjtu.edu.cn"

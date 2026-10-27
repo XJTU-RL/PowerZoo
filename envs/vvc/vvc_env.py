@@ -309,7 +309,7 @@ class VVCEnv:
 
     def close(self):
         #self.env.close()
-        remove_parallel_dss(self.env_name, self.rank)
+        remove_parallel_dss(self.config or self.env_name, self.rank)
         print("Closing the environment")
 
     def seed(self, seed):

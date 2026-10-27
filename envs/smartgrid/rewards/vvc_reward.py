@@ -102,16 +102,18 @@ class VVCReward:
 		# 归一化参数
 		self.power_base = info.get('power_base', REWARD.POWER_LOSS_BASE)
 
+		configured_weights = info.get('reward_weights', {})
 		# 权重配置 - 使用常量作为默认值
 		self.weights = {
-			'powerloss': info.get('powerloss_weight', REWARD.POWER_LOSS_WEIGHT),
-			'control': info.get('control_weight', REWARD.CONTROL_WEIGHT),
-			'pv': info.get('pv_weight', REWARD.PV_WEIGHT),
-			'action_smoothing': info.get('action_smoothing_weight', REWARD.ACTION_SMOOTHING_WEIGHT)
+			'powerloss': configured_weights.get('power_loss', info.get('powerloss_weight', REWARD.POWER_LOSS_WEIGHT)),
+			'control': configured_weights.get('control', info.get('control_weight', REWARD.CONTROL_WEIGHT)),
+			'pv': configured_weights.get('pv', info.get('pv_weight', REWARD.PV_WEIGHT)),
+			'action_smoothing': configured_weights.get('action_smoothing', info.get('action_smoothing_weight', REWARD.ACTION_SMOOTHING_WEIGHT))
 		}
 		
 		# 动作平滑配置
 		self.use_action_smoothing = info.get('use_action_smoothing', True)
+		self.control_weights = {name: configured_weights.get(name, 1.0) for name in ('capacitor', 'regulator', 'battery_soc', 'battery_discharge', 'pv_control')}
 		self.previous_actions = None  # 缓存上一步动作
 		
 		# 电压目标点（范围中心）
@@ -256,7 +258,11 @@ class VVCReward:
 		pv_cost = sum(pv_diff_list) / max(self.env.pv_num, 1) if len(pv_diff_list) > 0 else 0.0
 		
 		# 基础控制成本
-		base_control_cost = cap_cost + reg_cost + soc_cost + discharge_cost + pv_cost
+		base_control_cost = (self.control_weights['capacitor'] * cap_cost +
+		                     self.control_weights['regulator'] * reg_cost +
+		                     self.control_weights['battery_soc'] * soc_cost +
+		                     self.control_weights['battery_discharge'] * discharge_cost +
+		                     self.control_weights['pv_control'] * pv_cost)
 		
 		# 2. 动作平滑惩罚
 		smoothing_penalty = 0.0

@@ -207,7 +207,7 @@ class Env(gym.Env):
 
         # === 基础配置 ===
         self.obs = {}
-        self.dss_folder_path = self._resolve_system_path(folder_path, info['system_name'])
+        self.dss_folder_path = self._resolve_system_path(folder_path, info.get('dss_folder') or info['system_name'])
         self.dss_file = info['dss_file']
         self.source_bus = info.get('source_bus', 'sourcebus')
         self.node_size = info.get('node_size', 300)
@@ -654,7 +654,7 @@ class Env(gym.Env):
                 info['lambda_history_len'] = len(getattr(self, 'lambda_history', []))
 
             # 可选：在线拉格朗日惩罚到奖励（若你想环境就改 reward）
-            if info.get('use_lagrangian_reward', False) and self.lagrangian_updater:
+            if self.config.use_lagrangian_reward and self.lagrangian_updater:
                 lagrangian_penalty = self.lagrangian_updater.lmbda * cost_voltage
                 info['reward_before_lagrangian'] = reward
                 info['lagrangian_penalty'] = lagrangian_penalty

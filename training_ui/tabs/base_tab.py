@@ -1,445 +1,103 @@
-"""Abstract base class for environment configuration tabs.
+"""直接编辑 YAML，显示最终参数和来源；新增环境字段无需维护第二套表单映射。"""
 
-Provides the standard layout shared by all environment tabs:
-	Row 1: Algorithm selector (family radio + algo dropdown)
-	Sub-tabs:
-		1. Environment Config - env-specific parameters
-		2. Algorithm Config - network / on-policy / off-policy panels
-		3. Training Settings - training params + seed/device + evaluation
-		4. Launch - experiment name, config preview, validation, start button
-
-Subclasses implement ``build_env_params()`` to populate the Environment Config
-sub-tab with env-specific Gradio components.
-"""
-
-import json
-from abc import ABC, abstractmethod
-
+from pathlib import Path
 import gradio as gr
 import yaml
-
-from training_ui.i18n import t
-
-
-class BaseEnvironmentTab(ABC):
-	"""Base class for all environment configuration tabs.
-
-	Concrete subclasses must define ``env_name``, ``tab_label``, and
-	``build_env_params()``.  Everything else (algorithm selection, algorithm
-	config, training settings, launch panel) is provided by the base class.
-	"""
-
-	# ------------------------------------------------------------------
-	# Abstract interface
-	# ------------------------------------------------------------------
-
-	@property
-	@abstractmethod
-	def env_name(self) -> str:
-		"""Environment identifier used for registry lookup and config files."""
-
-	@property
-	@abstractmethod
-	def tab_label(self) -> str:
-		"""Display label rendered on the Gradio tab header."""
-
-	@abstractmethod
-	def build_env_params(self) -> dict[str, gr.components.Component]:
-		"""Build environment-specific parameter panels.
-
-		Returns:
-			Dict mapping parameter names to Gradio components.  The keys
-			should match the YAML config keys consumed by ``config_builder``.
-		"""
-
-	# ------------------------------------------------------------------
-	# Public entry point
-	# ------------------------------------------------------------------
-
-	def build(self) -> gr.Tab:
-		"""Build the complete environment tab and wire up events.
-
-		Returns:
-			The constructed ``gr.Tab`` instance.
-		"""
-		with gr.Tab(label=self.tab_label) as tab:
-			# --- Algorithm selection row ---
-			with gr.Row():
-				with gr.Column(scale=1):
-					from training_ui.components.algo_selector import (
-						bind_events as bind_algo_events,
-						build_algo_selector,
-					)
-					family_radio, algo_dropdown, algo_desc = build_algo_selector()
-					bind_algo_events(family_radio, algo_dropdown, algo_desc)
-
-			# --- Sub-tabs ---
-			with gr.Tabs():
-				# Sub-tab 1: Environment Config
-				with gr.Tab(t("subtab_env_config")):
-					env_params = self.build_env_params()
-
-				# Sub-tab 2: Algorithm Config
-				with gr.Tab(t("subtab_algo_config")):
-					algo_params = self._build_algo_config()
-
-				# Sub-tab 3: Training Settings
-				with gr.Tab(t("subtab_training_settings")):
-					training_params = self._build_training_config()
-
-				# Sub-tab 4: Launch
-				with gr.Tab(t("subtab_launch")):
-					launch = self._build_launch_panel()
-
-			# --- Bind launch-panel events ---
-			self._bind_launch_events(
-				launch=launch,
-				algo_dropdown=algo_dropdown,
-				env_params=env_params,
-				algo_params=algo_params,
-				training_params=training_params,
-			)
-
-		return tab
-
-	# ------------------------------------------------------------------
-	# Shared sub-tab builders
-	# ------------------------------------------------------------------
-
-	def _build_algo_config(self) -> dict:
-		"""Build algorithm configuration panels (network + on/off-policy)."""
-		from training_ui.components.param_panels import (
-			build_network_panel,
-			build_off_policy_algo_panel,
-			build_on_policy_algo_panel,
-		)
-		network = build_network_panel()
-		on_policy = build_on_policy_algo_panel()
-		off_policy = build_off_policy_algo_panel()
-		return {"network": network, "on_policy": on_policy, "off_policy": off_policy}
-
-	def _build_training_config(self) -> dict:
-		"""Build training settings panels (seed/device + training + eval)."""
-		from training_ui.components.param_panels import (
-			build_eval_panel,
-			build_seed_device_panel,
-			build_training_panel,
-		)
-		seed_device = build_seed_device_panel()
-		training = build_training_panel()
-		evaluation = build_eval_panel()
-		return {"seed_device": seed_device, "training": training, "eval": evaluation}
-
-	def _build_launch_panel(self) -> dict:
-		"""Build launch panel with config preview and start button.
-
-		Returns:
-			Dict of launch-related Gradio components.
-		"""
-		with gr.Row():
-			with gr.Column(scale=1):
-				exp_name = gr.Textbox(
-					label=t("label_exp_name"),
-					value="test",
-					placeholder=t("placeholder_exp_name"),
-				)
-				model_dir = gr.Textbox(
-					label=t("label_model_dir"),
-					value="",
-					placeholder=t("placeholder_model_dir"),
-				)
-				log_dir = gr.Textbox(
-					label=t("label_log_dir"),
-					value="./results",
-				)
-			with gr.Column(scale=1):
-				config_preview = gr.Code(
-					label=t("label_config_preview"),
-					language="yaml",
-					interactive=False,
-					lines=20,
-				)
-
-		with gr.Row():
-			preview_btn = gr.Button(t("btn_preview_config"), variant="secondary")
-			validate_btn = gr.Button(t("btn_validate"), variant="secondary")
-			launch_btn = gr.Button(t("btn_start_training"), variant="primary", size="lg")
-
-		status_msg = gr.Markdown("")
-
-		return {
-			"exp_name": exp_name,
-			"model_dir": model_dir,
-			"log_dir": log_dir,
-			"config_preview": config_preview,
-			"preview_btn": preview_btn,
-			"validate_btn": validate_btn,
-			"launch_btn": launch_btn,
-			"status_msg": status_msg,
-		}
-
-	# ------------------------------------------------------------------
-	# Event wiring
-	# ------------------------------------------------------------------
-
-	def _bind_launch_events(
-		self,
-		launch: dict,
-		algo_dropdown: gr.Dropdown,
-		env_params: dict,
-		algo_params: dict,
-		training_params: dict,
-	) -> None:
-		"""Wire up preview / validate / launch button callbacks.
-
-		This collects all Gradio component references from the various panels
-		so they can be passed as ``inputs`` to ``gr.Button.click()``.
-		"""
-		# Flatten all leaf components (skip nested dicts and internal keys)
-		env_components = self._flatten_components(env_params)
-		algo_components = self._flatten_components(algo_params)
-		training_components = self._flatten_components(training_params)
-
-		all_inputs = [
-			algo_dropdown,
-			launch["exp_name"],
-			launch["model_dir"],
-			launch["log_dir"],
-			*env_components,
-			*algo_components,
-			*training_components,
-		]
-
-		# Build component key maps for reconstruction
-		env_keys = self._flatten_keys(env_params)
-		algo_keys = self._flatten_keys(algo_params)
-		training_keys = self._flatten_keys(training_params)
-
-		# --- Preview callback ---
-		def _on_preview(*values):
-			return self._preview_callback(
-				values, env_keys, algo_keys, training_keys,
-			)
-
-		launch["preview_btn"].click(
-			fn=_on_preview,
-			inputs=all_inputs,
-			outputs=[launch["config_preview"]],
-		)
-
-		# --- Validate callback ---
-		def _on_validate(*values):
-			return self._validate_callback(
-				values, env_keys, algo_keys, training_keys,
-			)
-
-		launch["validate_btn"].click(
-			fn=_on_validate,
-			inputs=all_inputs,
-			outputs=[launch["status_msg"]],
-		)
-
-		# --- Launch callback ---
-		def _on_launch(*values):
-			return self._launch_callback(
-				values, env_keys, algo_keys, training_keys,
-			)
-
-		launch["launch_btn"].click(
-			fn=_on_launch,
-			inputs=all_inputs,
-			outputs=[launch["status_msg"]],
-		)
-
-	# ------------------------------------------------------------------
-	# Callback implementations
-	# ------------------------------------------------------------------
-
-	def _preview_callback(
-		self,
-		values: tuple,
-		env_keys: list[str],
-		algo_keys: list[str],
-		training_keys: list[str],
-	) -> str:
-		"""Generate a YAML preview string from current component values."""
-		try:
-			config = self._values_to_config(values, env_keys, algo_keys, training_keys)
-			return yaml.dump(config, default_flow_style=False, allow_unicode=True, sort_keys=False)
-		except Exception as exc:
-			return f"{t('err_preview')}\n# {exc}"
-
-	def _validate_callback(
-		self,
-		values: tuple,
-		env_keys: list[str],
-		algo_keys: list[str],
-		training_keys: list[str],
-	) -> str:
-		"""Run basic validation on the assembled config."""
-		try:
-			config = self._values_to_config(values, env_keys, algo_keys, training_keys)
-			errors: list[str] = []
-
-			if not config.get("algo_name"):
-				errors.append(t("err_no_algo"))
-			if not config.get("exp_name"):
-				errors.append(t("err_no_exp_name"))
-
-			env_args = config.get("env_args", {})
-			episode_length = env_args.get("episode_length")
-			if episode_length is not None and episode_length <= 0:
-				errors.append(t("err_episode_positive"))
-
-			if errors:
-				return f"{t('msg_validation_failed')}\n\n" + "\n".join(f"- {e}" for e in errors)
-			return t("msg_validation_passed")
-		except Exception as exc:
-			return f"{t('msg_validation_error')}: {exc}"
-
-	def _launch_callback(
-		self,
-		values: tuple,
-		env_keys: list[str],
-		algo_keys: list[str],
-		training_keys: list[str],
-	) -> str:
-		"""Build config, persist to disk, and start a training subprocess."""
-		try:
-			config = self._values_to_config(values, env_keys, algo_keys, training_keys)
-
-			algo_name = config.get("algo_name", "")
-			env_name = config.get("env_name", self.env_name)
-			exp_name = config.get("exp_name", "test")
-
-			if not algo_name:
-				return f"{t('msg_error')}: {t('err_no_algo')}"
-
-			from training_ui.core.config_builder import build_config
-			config_path, full_config = build_config(
-				algo=algo_name,
-				env=env_name,
-				exp_name=exp_name,
-				ui_overrides=config.get("overrides", {}),
-			)
-
-			from training_ui.core.process_manager import process_manager
-			task_id = process_manager.start(
-				algo=algo_name,
-				env=env_name,
-				exp_name=exp_name,
-				config_path=config_path,
-			)
-
-			return (
-				f"{t('msg_training_started')}\n\n"
-				f"- {t('msg_task_id')}: `{task_id}`\n"
-				f"- {t('msg_algorithm')}: `{algo_name}`\n"
-				f"- {t('msg_environment')}: `{env_name}`\n"
-				f"- {t('msg_config')}: `{config_path}`"
-			)
-		except Exception as exc:
-			return f"{t('msg_launch_error')}: {exc}"
-
-	# ------------------------------------------------------------------
-	# Internal helpers
-	# ------------------------------------------------------------------
-
-	def _resolve_env_name(self, env_params_values: dict) -> str:
-		"""Resolve the actual env name, handling dynamic variants.
-
-		Subclasses with a ``_env_variant`` component (Stackelberg, DSR) will
-		use the dropdown value; others fall back to ``self.env_name``.
-		"""
-		return env_params_values.get("_env_variant", self.env_name)
-
-	def _values_to_config(
-		self,
-		values: tuple,
-		env_keys: list[str],
-		algo_keys: list[str],
-		training_keys: list[str],
-	) -> dict:
-		"""Reassemble a flat tuple of component values into a config dict.
-
-		The value ordering mirrors: [algo_dropdown, exp_name, model_dir,
-		log_dir, *env_values, *algo_values, *training_values].
-		"""
-		idx = 0
-
-		algo_display = values[idx]; idx += 1
-		exp_name = values[idx]; idx += 1
-		model_dir = values[idx]; idx += 1
-		log_dir = values[idx]; idx += 1
-
-		env_vals = {}
-		for key in env_keys:
-			env_vals[key] = values[idx]; idx += 1
-
-		algo_vals = {}
-		for key in algo_keys:
-			algo_vals[key] = values[idx]; idx += 1
-
-		training_vals = {}
-		for key in training_keys:
-			training_vals[key] = values[idx]; idx += 1
-
-		# Resolve algorithm internal name from display name
-		algo_name = self._resolve_algo_name(algo_display)
-		resolved_env = self._resolve_env_name(env_vals)
-
-		return {
-			"algo_name": algo_name,
-			"env_name": resolved_env,
-			"exp_name": exp_name,
-			"model_dir": model_dir,
-			"log_dir": log_dir,
-			"env_args": env_vals,
-			"overrides": {
-				"algo": algo_vals,
-				"train": training_vals,
-			},
-		}
-
-	@staticmethod
-	def _resolve_algo_name(display_name: str) -> str:
-		"""Map an algorithm display name back to its internal name."""
-		from training_ui.core.registry import ALGO_REGISTRY
-		for meta in ALGO_REGISTRY.values():
-			if meta.display_name == display_name:
-				return meta.name
-		return display_name.lower() if display_name else ""
-
-	@staticmethod
-	def _flatten_components(params: dict) -> list[gr.components.Component]:
-		"""Extract leaf Gradio components from a possibly nested dict.
-
-		Skips keys starting with ``_`` (internal references like ``_panel``).
-		"""
-		components: list[gr.components.Component] = []
-		for key, val in params.items():
-			if key.startswith("_"):
-				continue
-			if isinstance(val, dict):
-				components.extend(BaseEnvironmentTab._flatten_components(val))
-			else:
-				components.append(val)
-		return components
-
-	@staticmethod
-	def _flatten_keys(params: dict) -> list[str]:
-		"""Extract leaf key names from a possibly nested dict.
-
-		Nested dicts produce dot-separated keys, e.g. ``"network.lr"``.
-		Skips keys starting with ``_``.
-		"""
-		keys: list[str] = []
-		for key, val in params.items():
-			if key.startswith("_"):
-				continue
-			if isinstance(val, dict):
-				for sub_key in BaseEnvironmentTab._flatten_keys(val):
-					keys.append(f"{key}.{sub_key}")
-			else:
-				keys.append(key)
-		return keys
+from utils.config_pipeline import read_yaml, UniqueKeyLoader, ALGORITHM_SECTIONS
+from utils.config_validation import ConfigError
+from training_ui.core.config_builder import (
+    resolve_config,
+    build_config,
+    config_to_yaml_str,
+)
+
+
+class BaseEnvironmentTab:
+    env_name = "vvc"
+    tab_label = "VVC"
+
+    def build(self):
+        root = Path(__file__).resolve().parents[2]
+        profiles = sorted(
+            path.stem
+            for path in (root / "configs/envs_cfgs").glob("*.yaml")
+            if path.stem.startswith(self.env_name.split("_")[0])
+        )
+        algorithms = sorted(
+            path.stem
+            for path in (root / "configs/algos_cfgs").glob("*.yaml")
+            if all(
+                isinstance(read_yaml(path).get(key), dict) for key in ALGORITHM_SECTIONS
+            )
+        )
+
+        def template(name):
+            return config_to_yaml_str(
+                read_yaml(root / "configs/envs_cfgs" / f"{name}.yaml")
+            )
+
+        def parse(text):
+            values = yaml.load(text, Loader=UniqueKeyLoader)
+            if not isinstance(values, dict):
+                raise ConfigError("配置必须是 YAML 映射")
+            return values
+
+        def preview(algo, env, name, text, path):
+            try:
+                config = resolve_config(algo, env, name, parse(text))
+                source = config_to_yaml_str(config.explain(path)) if path else ""
+                return config_to_yaml_str(config.to_dict()), "配置校验通过\n" + source
+            except Exception as exc:
+                return "", str(exc)
+
+        def launch(algo, env, name, text):
+            try:
+                path, document = build_config(algo, env, name, parse(text))
+                run = document["run"]
+                from training_ui.core.process_manager import process_manager
+
+                task = process_manager.start(
+                    run["algo"], run["env"], run["exp_name"], path
+                )
+                return f"已启动 {task}，最终配置：{path}"
+            except Exception as exc:
+                return str(exc)
+
+        with gr.Tab(label=self.tab_label) as tab:
+            gr.Markdown(
+                "配置采用与命令行相同的 YAML。左侧只写需要覆盖的参数；右侧预览包含默认值的完整配置。"
+                "采样长度用 train.episode_length，单局长度用 env.max_episode_steps；随机种子只设置 seed.seed。"
+            )
+            with gr.Row():
+                algo = gr.Dropdown(choices=algorithms, value="happo", label="算法")
+                env = gr.Dropdown(
+                    choices=profiles, value=self.env_name, label="环境配置"
+                )
+                name = gr.Textbox(value="experiment", label="实验名称")
+            with gr.Row():
+                editor = gr.Code(
+                    value=template(self.env_name),
+                    language="yaml",
+                    label="实验覆盖 YAML",
+                    lines=26,
+                )
+                resolved = gr.Code(
+                    language="yaml", label="最终生效配置", interactive=False, lines=26
+                )
+            env.change(template, inputs=[env], outputs=[editor])
+            path = gr.Textbox(
+                value="env.max_episode_steps", label="查询参数来源（完整路径）"
+            )
+            status = gr.Textbox(
+                label="校验 / 来源 / 运行状态", lines=8, interactive=False
+            )
+            with gr.Row():
+                check = gr.Button("校验并预览")
+                start = gr.Button("保存配置并训练", variant="primary")
+            check.click(
+                preview,
+                inputs=[algo, env, name, editor, path],
+                outputs=[resolved, status],
+            )
+            start.click(launch, inputs=[algo, env, name, editor], outputs=[status])
+        return tab

@@ -146,7 +146,9 @@ class StackelbergVVCEnv:
 
         # Pass through dict sub-configs
         for key in ['tou_config', 'tier_config', 'reward_weights',
-                    'load_aggregation', 'async_config', 'monitoring_config', 'n1_security']:
+                    'load_aggregation', 'async_config', 'monitoring_config', 'n1_security',
+                    'ess_config', 'stackelberg_config', 'circuit_adapter_config',
+                    'history_length', 'der_profile', 'dss_act']:
             val = getattr(cfg, key, None)
             if val is not None:
                 env_config[key] = val

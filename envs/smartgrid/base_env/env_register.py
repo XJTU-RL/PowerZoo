@@ -80,7 +80,7 @@ def make_env(
 
 	# 处理 worker 文件
 	if config.worker_idx is not None:
-		_setup_worker_files(folder_path, config.system_name, config.dss_file, config.worker_idx)
+		_setup_worker_files(folder_path, config.dss_folder or config.system_name, config.dss_file, config.worker_idx)
 
 	# 创建环境
 	return Env(folder_path, config)
@@ -265,10 +265,8 @@ def remove_parallel_dss(env_name_or_config: Union[SmartGridConfig, str], num_wor
 
 	folder_path = str(get_data_root())
 
-	if 'node_systems/' in config.system_name:
-		system_dir = os.path.join(folder_path, config.system_name)
-	else:
-		system_dir = os.path.join(folder_path, 'node_systems', config.system_name)
+	from utils.path_utils import resolve_system_path
+	system_dir = str(resolve_system_path(config.dss_folder or config.system_name))
 
 	# 删除临时文件
 	patterns = [

@@ -1,18 +1,21 @@
-# -*- coding: utf-8 -*-
-"""
-PowerZoo utils module
-Contains utility classes for training, monitoring, and analysis
-"""
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-# TensorBoard callback utilities
-try:
-    from .tensorboard_callback import (
-        EnhancedTensorBoardCallback,
-        create_enhanced_callback
-    )
-    __all__ = [
-        'EnhancedTensorBoardCallback',
-        'create_enhanced_callback'
-    ]
-except ImportError:
-    pass
+from importlib import import_module
+
+_EXPORTS = {
+    "EnhancedTensorBoardCallback": (
+        ".tensorboard_callback",
+        "EnhancedTensorBoardCallback",
+    ),
+    "create_enhanced_callback": (".tensorboard_callback", "create_enhanced_callback"),
+}
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value
