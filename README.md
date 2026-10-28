@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor 
 
 历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
 本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
-checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`，
-分支为 `codex/smartgrid-data-runtime`；环境修复单独保留在 `codex/windows-environment`。
+checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\training-entrypoints`，
+分支为 `codex/training-entrypoints`；环境修复单独保留在 `codex/windows-environment`。
 
 CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
 CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。
@@ -128,8 +128,8 @@ python scripts/check_runtime.py --train
 Windows 首次开发优先使用 `vvc + 13Bus + HAPPO`。普通训练可从下列短任务开始：
 
 ```powershell
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ```
 
 结果按训练器配置写入 `results/`。部分旧环境实现会在 `node_systems/` 下生成 worker DSS
@@ -139,15 +139,18 @@ python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13
 
 - SmartGrid 已接入可复现的合成数据和统一文件入口，无需缺失的 month/irrad/temperature CSV 即可训练。
   单、多智能体共用一套独立 DSS context 内核；实际验证范围见 [SmartGrid 数据与运行设计](docs/smartgrid-data-runtime.md)。
-- 旧单智能体脚本与 SingleAgentTrainingConfig 不再作为支持入口。集中控制基线使用
+- 已将30个退役入口、旧配置、专属工具及旧API测试归档到 `archive/legacy-training/`。集中控制基线使用
   `examples/single_agent/scripts/train_smartgrid.py`，与 MARL 共用环境配置和仿真。
 - 其他电路、研究算法和浏览器UI组合仍需逐项验证，不以短训练代表收敛。
 
 ```powershell
-python examples/multi_agent/scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
+python scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
 python scripts/check_smartgrid.py --train --require-cuda
 python examples/single_agent/scripts/train_smartgrid.py --steps 240
 ```
+
+五类环境已统一使用 `scripts/train.py` 和各自实验 YAML；运行 `python scripts/check_training.py`
+可在模型副本上逐项执行 CPU HAPPO 训练与评估。结构与清理清单见 [入口整理说明](docs/training-entrypoints.md)。
 
 ## 测试
 
@@ -163,13 +166,13 @@ Windows 安装与运行另由 `.github/workflows/windows-runtime.yml` 验证，�
 ## 持续开发：每项任务使用 worktree 分支
 
 `main` 保持稳定，每项修改使用独立 worktree 和 `codex/<topic>` 分支：
-以下新建命令以 Windows 修复已经审查并合入 `main` 为前提；当前先在上述
-`windows-environment` worktree 开发，避免从尚含非法文件名的旧提交新建工作目录。
+以下新建命令以 Windows 修复已经审查并合入 `main` 为前提；当前开发在 `codex/training-entrypoints`，继承已验证的环境与SmartGrid修复；
+未合并前，新任务应从此任务分支建立worktree。
 
 ```powershell
 git -C D:\Exps\PowerZoo worktree list
-git -C D:\Exps\PowerZoo worktree add -b codex/config-pipeline D:\Exps\PowerZoo-worktrees\config-pipeline main
-Set-Location D:\Exps\PowerZoo-worktrees\config-pipeline
+git -C D:\Exps\PowerZoo worktree add -b codex/your-topic D:\Exps\PowerZoo-worktrees\your-topic codex/training-entrypoints
+Set-Location D:\Exps\PowerZoo-worktrees\your-topic
 conda activate powerzoo-win
 python -m pip install --no-deps -e .
 ```
@@ -187,16 +190,16 @@ PowerZoo/
 ├── common/           # Buffer、归一化和公共日志
 ├── configs/
 │   ├── algos_cfgs/       # 多智能体算法参数
-│   ├── single_agent_cfgs/ # 单智能体算法参数
 │   ├── envs_cfgs/        # 环境与运行配置
 │   ├── systems/          # 电力系统与设备配置
 │   └── training/         # 训练策略配置
 ├── envs/             # vvc、smartgrid、dsr、stackelberg、district_dispatch
-├── examples/         # 命令行训练入口与 Bash 启动脚本
+├── examples/         # SmartGrid 集中控制入口及公共 CLI 兼容路径
 ├── models/           # 网络实现
 ├── node_systems/     # IEEE DSS 模型与部分负荷输入
 ├── runners/          # 自研训练运行器
-├── scripts/          # Windows 安装与实际运行检查
+├── scripts/          # 公共 train.py、Windows 安装与实际运行检查
+├── archive/          # 已退役训练脚本/配置，附逐文件清单
 ├── tests/            # pytest 测试
 └── training_ui/      # 可选训练界面
 ```
@@ -205,8 +208,8 @@ PowerZoo/
 CLI、UI、系统引用、环境预设和实验覆盖采用同一规则，启动前可以检查最终值及来源：
 
 ```powershell
-python examples/multi_agent/scripts/train.py --env vvc --algo happo --set env.voltage_min=0.94 --explain env.voltage_min
-python examples/multi_agent/scripts/train.py --env smartgrid --env-config configs/envs_cfgs/smartgrid_pv_plans/smartgrid_aggressive.yaml --print-config
+python scripts/train.py --env vvc --algo happo --set env.voltage_min=0.94 --explain env.voltage_min
+python scripts/train.py --env smartgrid --env-config configs/envs_cfgs/smartgrid_pv_plans/smartgrid_aggressive.yaml --print-config
 ```
 
 `train.episode_length` 是采样长度，`env.max_episode_steps` 是单局长度。新 CLI 使用

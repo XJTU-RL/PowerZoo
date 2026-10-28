@@ -51,7 +51,7 @@ class DistrictDispatchEnv:
 	"""
 
 	def __init__(self, args: Dict[str, Any], rank: Optional[int] = None):
-		self.args = copy.deepcopy(args)
+		self.args = {} if isinstance(args, DistrictDispatchConfig) else copy.deepcopy(args)
 		self.rank = rank
 
 		# 解析配置
@@ -72,7 +72,7 @@ class DistrictDispatchEnv:
 		self._setup_spaces()
 
 		# PowerZoo 兼容属性
-		self.env_name = args.get("env_name", "district_dispatch")
+		self.env_name = self.config.env_name
 		self.discrete = False  # 连续动作空间
 
 		# Stackelberg 模式的顺序更新不适用于本环境
@@ -88,6 +88,8 @@ class DistrictDispatchEnv:
 
 	def _parse_config(self, args):
 		"""唯一 dataclass 边界，所有市场、约束和嵌套设备参数均传递。"""
+		if isinstance(args, DistrictDispatchConfig):
+			return args
 		from utils.config_validation import deep_merge, build_dataclass, normalize_env
 		values = deep_merge(args.get('env_args', {}), {k: v for k, v in args.items() if k != 'env_args'})
 		values['worker_idx'] = self.rank

@@ -78,16 +78,7 @@ class ConfigError(ValueError):
     """包含参数路径的可操作配置错误。"""
 
 
-ENV_CONFIG_CLASSES = {
-    "vvc": ("envs.vvc.vvc.vvc_config", "VVCConfig"),
-    "smartgrid": ("envs.smartgrid.base_env.env_config", "SmartGridConfig"),
-    "dsr": ("envs.dsr.core.config", "DSRConfig"),
-    "stackelberg": ("envs.stackelberg.stackelberg_config", "StackelbergConfig"),
-    "district_dispatch": (
-        "envs.district_dispatch.core.config",
-        "DistrictDispatchConfig",
-    ),
-}
+from utils.environment_registry import ENV_CONFIG_CLASSES
 
 
 def environment_family(name):

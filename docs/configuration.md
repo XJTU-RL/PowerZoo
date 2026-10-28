@@ -20,10 +20,10 @@ flowchart LR
 
 ```powershell
 conda activate powerzoo-win
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --explain env.voltage_min
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --explain env.voltage_min
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ```
 
 CPU 是此示例的显式选择；CUDA 使用 `--set device.cuda=true`。请求 CUDA 而不可用时
@@ -33,8 +33,8 @@ CPU 是此示例的显式选择；CUDA 使用 `--set device.cuda=true`。请求 
 启动前只检查或保存配置：
 
 ```powershell
-python examples/multi_agent/scripts/train.py --env vvc --algo happo --set seed.seed=0 --set env.voltage_min=0.94 --explain env.voltage_min
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --save-config results/preview.yaml --validate-config
+python scripts/train.py --env vvc --algo happo --set seed.seed=0 --set env.voltage_min=0.94 --explain env.voltage_min
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --save-config results/preview.yaml --validate-config
 ```
 
 单独使用 `--save-config` 会保存后继续训练；配合 `--validate-config` / `--print-config` /
@@ -104,6 +104,7 @@ worker 只接收最终字段。建议新 Python 代码调用 `ConfigLoader.load(
 | `env.dss_folder` | DSS 模型目录，可写绝对路径（例如临时模型副本） |
 | `env.dss_file` | 该目录中的主 DSS 文件名 |
 
+公共MARL路径对五类电力环境统一使用spawn，即使只有一个worker，也隔离训练/评估的DSS与随机状态。
 worker seed 在构造环境之前设定；训练 `(seed + rank*1000) % 2**32`，评估
 `(seed*50000 + rank*10000) % 2**32`，渲染 `(seed*60000) % 2**32`。
 worker 不再先用 dataclass 的另一个默认种子创建环境。Python 在启动时已经确定哈希种子，
@@ -144,12 +145,12 @@ District 的拓扑、位置和数量必须与其配置匹配。更改实际拓�
 - `config.resolved.sources.yaml`：每个参数的覆盖历史和源配置文件 SHA256。
 - `config.json`：保留旧格式读取兼容。
 
-若 `seed_specify=false`，实际种子由运行器生成；运行时快照记录实际种子并冻结
+若 `seed_specify=false`，实际种子由公共 `prepare_run()` 在启动前生成一次；运行时快照记录实际种子并冻结
 `seed_specify=true`，避免重放时再次抽签。启动前的预览仅表示请求值。
 
 ```powershell
-python examples/multi_agent/scripts/train.py --config <结果目录>/config.resolved.yaml --validate-config
-python examples/multi_agent/scripts/train.py --config <结果目录>/config.resolved.yaml --set train.num_env_steps=480
+python scripts/train.py --config <结果目录>/config.resolved.yaml --validate-config
+python scripts/train.py --config <结果目录>/config.resolved.yaml --set train.num_env_steps=480
 ```
 
 重放不会重新读系统和环境预设；算法默认文件仍用作字段/类型表。快照包含全部最终值。
@@ -165,10 +166,10 @@ SmartGrid PV 方案使用 `--env smartgrid --env-config configs/envs_cfgs/smartg
 实际 PV 元件由 `node_systems/34Bus_PV/pv_plans/*.dss` 定义。
 
 新增环境字段：在消费方 dataclass 声明类型和默认值，直接在消费方使用它，再在 YAML 写差异。
-公共解析器和 UI 无需新增一套字段映射。legacy 核心若仍需要字典，仅在该环境的
-`to_env_info()/to_info_dict()` 边界做一次命名适配。
-新增环境家族：在 `ENV_CONFIG_CLASSES` 注册配置类，在 `make_power_env()` 注册构造方式，
-并注册对应 logger。需要特殊系统投影时只修改 `_system_values()`，不要添加第二个加载器。
+公共解析器和 UI 无需新增一套字段映射。legacy 核心若仍需要字典，仅在该环境的边界做一次命名适配；
+SmartGrid正式奖励直接消费dataclass，District也不再往返转换字典。
+新增环境家族：在 `utils/environment_registry.py` 的 `ENVIRONMENTS` 中登记配置类和包装器，
+并注册对应 logger。包装器统一接收 `(config, rank=None)`。需要特殊系统投影时只修改 `_system_values()`，不要添加第二个加载器。
 
 SmartGrid 和 District 的嵌套 dataclass 同样检查未知字段。Stackelberg 部分子配置和监控配置
 仍是明确的开放字典，由组件自行解释，不宣称其任意内部键都具有严格拼写校验。
@@ -182,3 +183,8 @@ SmartGrid 和 District 的嵌套 dataclass 同样检查未知字段。Stackelber
 SmartGrid 已提供共用内核的 SB3 PPO 入口 `examples/single_agent/scripts/train_smartgrid.py`；
 旧研究脚本不再作为支持入口。数据配置、单位、动作及验证见 [SmartGrid 说明](smartgrid-data-runtime.md)。
 完整代码定位、遗留路径和验证结果见 [参数流审计](configuration-audit.md)。
+
+环境文件只保留 `env/system_ref/training_ref`；原DSR和District内嵌的算法节已移入
+`configs/training/*_default.yaml`。通用短训练设置在 `configs/training/smoke.yaml`，
+实验文件以 `training_ref: smoke` 选择；不需要复制训练循环或整套默认参数。
+详见[入口整理说明](training-entrypoints.md)。

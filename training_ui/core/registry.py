@@ -148,7 +148,7 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 		family="two_time_scale",
 		config_file="2ts_vvc.yaml",
 		description="Two-Time-Scale VVC (Slow SACD + Fast DDPG)",
-		compatible_envs=["vvc", "vvc_single"],
+		compatible_envs=["vvc"],
 	),
 }
 
@@ -181,26 +181,14 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
 		default_system_ref="13Bus",
 		available_systems=["13Bus", "34Bus", "34Bus_PV", "123Bus"],
 	),
-	"vvc_single": EnvMeta(
-		name="vvc_single",
-		display_name="VVC Single-Agent",
-		config_file="vvc_single.yaml",
-		description="Single-agent VVC environment for baseline comparison",
-		default_agents=1,
-		default_system_ref="13Bus",
-		available_systems=["13Bus", "34Bus", "123Bus"],
-	),
 	"smartgrid": EnvMeta(
 		name="smartgrid",
 		display_name="SmartGrid",
 		config_file="smartgrid.yaml",
 		description="Modular smart grid simulation environment",
-		default_agents=12,
-		default_system_ref="34Bus_PV_Aggressive",
-		available_systems=[
-			"13Bus", "34Bus", "34Bus_PV", "34Bus_PV_Aggressive",
-			"34Bus_PV_Conservative", "34Bus_PV_Optimized", "123Bus", "8500Node",
-		],
+		default_agents=19,
+		default_system_ref="34Bus_PV",
+		available_systems=["34Bus_PV"],
 	),
 	"district_dispatch": EnvMeta(
 		name="district_dispatch",
@@ -265,6 +253,33 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
 		default_system_ref="8500Node",
 		available_systems=["8500Node"],
 	),
+}
+
+
+def _public_algorithms():
+    """UI展示清单服从公共配置契约，避免提供不能由其子进程入口启动的研究配置。"""
+    from pathlib import Path
+    from utils.config_pipeline import ALGORITHM_SECTIONS, read_yaml
+    from utils.config_validation import ConfigError
+
+    root = Path(__file__).resolve().parents[2]
+    supported = {}
+    for name, meta in ALGO_REGISTRY.items():
+        try:
+            config = read_yaml(root / "configs/algos_cfgs" / meta.config_file)
+        except (ConfigError, FileNotFoundError):
+            # 历史研究配置的重复键/缺失文件不能作为当前UI的可启动选项。
+            continue
+        if all(isinstance(config.get(section), dict) for section in ALGORITHM_SECTIONS):
+            supported[name] = meta
+    return supported
+
+
+ALGO_REGISTRY = _public_algorithms()
+ALGO_FAMILIES = {
+    group: [name for name in names if name in ALGO_REGISTRY]
+    for group, names in ALGO_FAMILIES.items()
+    if any(name in ALGO_REGISTRY for name in names)
 }
 
 

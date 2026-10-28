@@ -302,11 +302,11 @@ class StackelbergLogger:
 			for agent_id in range(self.num_agents):
 				for k, v in actor_train_infos[agent_id].items():
 					agent_k = f"agent{agent_id}/{k}"
-					self.writter.add_scalars(agent_k, {agent_k: v}, total_num_steps)
+					self.writter.add_scalar(agent_k, v, total_num_steps)
 			# Critic train info
 			for k, v in critic_train_info.items():
 				critic_k = f"critic/{k}"
-				self.writter.add_scalars(critic_k, {critic_k: v}, total_num_steps)
+				self.writter.add_scalar(critic_k, v, total_num_steps)
 
 			# Stackelberg-specific: Nash gap
 			if 'nash_gap' in self.current_episode_metrics:
@@ -441,7 +441,7 @@ class StackelbergLogger:
 			}
 			for k, v in eval_env_infos.items():
 				if len(v) > 0:
-					self.writter.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+					self.writter.add_scalar(k, np.mean(v), self.total_num_steps)
 
 		self.log_file.write(
 			f"[EVAL] Episode {eval_episode}, Steps {self.total_num_steps}, "

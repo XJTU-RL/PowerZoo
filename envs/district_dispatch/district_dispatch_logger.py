@@ -256,12 +256,12 @@ class DistrictDispatchLogger:
 			for agent_id in range(self.num_agents):
 				for k, v in actor_train_infos[agent_id].items():
 					agent_k = f"district_{agent_id}/{k}"
-					self.writter.add_scalars(agent_k, {agent_k: v}, total_num_steps)
+					self.writter.add_scalar(agent_k, v, total_num_steps)
 
 			# Critic 训练信息
 			for k, v in critic_train_info.items():
 				critic_k = f"critic/{k}"
-				self.writter.add_scalars(critic_k, {critic_k: v}, total_num_steps)
+				self.writter.add_scalar(critic_k, v, total_num_steps)
 
 			# 区域调度指标
 			for metric_name, values in self.current_episode_metrics.items():

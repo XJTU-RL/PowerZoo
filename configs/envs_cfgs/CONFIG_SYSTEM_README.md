@@ -7,5 +7,5 @@
 实验文件放在 `configs/experiments/`。不再使用伪 curriculum/power_system 参数暗示未实现的功能。
 
 ```powershell
-python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
 ```

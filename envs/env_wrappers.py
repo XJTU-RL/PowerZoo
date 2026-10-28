@@ -227,9 +227,9 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
         # elif cmd == "get_agents_orders":
         #     remote.send((env.update_orders))
         elif cmd == "get_ordered_agents_pairs":
-            remote.send((env.ordered_agents_pairs))
+            remote.send(getattr(env, "ordered_agents_pairs", None))
         elif cmd == "get_agents_bus":
-            remote.send((env.agents_bus))
+            remote.send(getattr(env, "agents_bus", None))
             
         else:
             raise NotImplementedError
@@ -339,9 +339,7 @@ class ShareSubprocVecEnv(ShareVecEnv):
             )
             
         except Exception as e:
-            logger.error(f"HAPPO并行环境数据处理失败: {e}")
-            # 降级到安全模式
-            return self._get_safe_step_results(len(dones))
+            raise RuntimeError("并行环境返回值不符合 MARL 契约，停止训练") from e
     
     def _standardize_dones(self, dones):
         """标准化done信号为HAPPO兼容格式"""
@@ -449,6 +447,12 @@ class ShareSubprocVecEnv(ShareVecEnv):
         assert len(dones) == n_envs, f"dones环境数不匹配: {len(dones)} vs {n_envs}"
         
         # 验证done信号形状一致性（HAPPO关键要求）
+        for local, shared, reward, done in zip(obs, share_obs, rewards, dones):
+            n_agents = getattr(self, "n_agents", len(done))
+            if len(local) != n_agents or len(shared) != n_agents or reward.shape != (n_agents, 1) or done.shape != (n_agents,):
+                raise ValueError("观测、奖励、终止标志的智能体数量不匹配")
+            if not all(np.isfinite(np.asarray(value, dtype=float)).all() for value in (local, shared, reward)):
+                raise ValueError("环境返回了非有限观测或奖励")
         done_shapes = [d.shape for d in dones]
         if len(set(done_shapes)) > 1:
             raise ValueError(f"Done信号形状不一致: {done_shapes}")
@@ -459,34 +463,6 @@ class ShareSubprocVecEnv(ShareVecEnv):
             if len(set(obs_lens)) > 1:
                 logger.warning(f"观测长度不一致: {obs_lens}")
     
-    def _get_safe_step_results(self, n_envs):
-        """在错误情况下返回安全的结果"""
-        # 动态获取智能体数量，避免硬编码
-        n_agents = getattr(self, 'n_agents', 1)
-
-        # 动态获取观测维度
-        if hasattr(self, 'observation_space') and len(self.observation_space) > 0:
-            obs_space = self.observation_space[0]
-            obs_dim = obs_space.shape[0] if hasattr(obs_space, 'shape') else 10
-        else:
-            obs_dim = 10  # 最小安全默认值
-
-        safe_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
-        safe_share_obs = [np.zeros((n_agents, obs_dim)) for _ in range(n_envs)]
-        safe_rewards = [[[0.0]] for _ in range(n_envs)]
-        safe_dones = [np.array([False] * n_agents, dtype=bool) for _ in range(n_envs)]
-        safe_infos = [{"error": True} for _ in range(n_envs)]
-        safe_avail_actions = [None for _ in range(n_envs)]
-
-        return (
-            np.stack(safe_obs),
-            np.stack(safe_share_obs),
-            np.stack(safe_rewards),
-            np.stack(safe_dones),
-            safe_infos,
-            safe_avail_actions
-        )
-
     def reset(self):
         for remote in self.remotes:
             remote.send(("reset", None))

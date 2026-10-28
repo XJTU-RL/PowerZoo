@@ -19,6 +19,7 @@ def main():
         p.error("--steps 必须为正数")
     from stable_baselines3 import PPO
     from utils.config_pipeline import ConfigLoader
+    from utils.training_setup import prepare_run
     from utils.config_validation import build_dataclass
     from envs.smartgrid.base_env.env_config import SmartGridConfig
     from envs.smartgrid.single_agent.adapter import SingleAgentVVCEnv
@@ -26,6 +27,7 @@ def main():
     cfg = ConfigLoader().load(experiment=args.config)
     if cfg.main_args["env"] != "smartgrid":
         p.error("仅支持 SmartGrid 实验配置")
+    prepare_run(cfg)
     env = SingleAgentVVCEnv(build_dataclass(SmartGridConfig, cfg.env_args))
     try:
         n_steps = max(2, int(cfg.algo_args["train"]["episode_length"]))
@@ -47,17 +49,6 @@ def main():
         output = Path(args.output).resolve()
         output.parent.mkdir(parents=True, exist_ok=True)
         model.save(output)
-        cfg.env_args["data"].update(
-            path=str(env.core.dataset.path), manifest_sha256=env.core.dataset.sha256
-        )
-        cfg.files[str(env.core.dataset.path)] = env.core.dataset.sha256
-        for key in ("path", "manifest_sha256"):
-            cfg.history.setdefault(f"env.data.{key}", []).append(
-                {
-                    "source": "runtime dataset preparation",
-                    "value": cfg.env_args["data"][key],
-                }
-            )
         cfg.save(output.with_suffix(".environment.yaml"))
         import json
 

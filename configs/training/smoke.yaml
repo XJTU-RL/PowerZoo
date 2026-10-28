@@ -1,0 +1,10 @@
+# 五类环境共用的 CPU HAPPO 链路检查，不能用于声称策略收敛。
+seed: {seed_specify: true, seed: 0}
+device: {cuda: false, torch_threads: 1}
+train: {n_rollout_threads: 1, num_env_steps: 240, episode_length: 24}
+eval: {use_eval: false, n_eval_rollout_threads: 1, eval_episodes: 2}
+model:
+  hidden_sizes: [32, 32]
+  use_recurrent_policy: false
+  use_naive_recurrent_policy: false
+algo: {actor_num_mini_batch: 1, critic_num_mini_batch: 1, ppo_epoch: 1, critic_epoch: 1}

@@ -5,7 +5,13 @@ import gymnasium as gym
 
 
 class VVCEnv:
-    def __init__(self, env, config_or_args, rank=None):
+    def __init__(self, env, config_or_args=None, rank=None):
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+
+        if isinstance(env, SmartGridConfig):
+            from envs.smartgrid.base_env.env_register import make_base_env
+
+            env = make_base_env(env)
         self.env, self.config, self.rank = env, env.config, rank
         self.action_space = env.agent_spaces
         self.n_agents = len(self.action_space)

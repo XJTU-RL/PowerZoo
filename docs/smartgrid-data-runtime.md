@@ -1,6 +1,7 @@
 # SmartGrid 数据与运行设计
 
-当前开发分支为 `codex/smartgrid-data-runtime`，从配置重构提交 `01926ba2` 创建。
+本内核首先在 `codex/smartgrid-data-runtime` 完成，从配置重构提交 `01926ba2` 创建。
+后续入口整理继承于 `codex/training-entrypoints`，见[入口说明](training-entrypoints.md)。
 Windows 工作目录为 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`。
 正式基线为 IEEE34 + aggressive PV；验证结果说明运行与更新有效，不代表策略收敛。
 
@@ -11,7 +12,7 @@ Windows 工作目录为 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`。
 ```powershell
 conda activate powerzoo-win
 python -m pip install --no-deps -e .
-python examples/multi_agent/scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
+python scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
 python scripts/check_smartgrid.py --train --require-cuda
 ```
 
@@ -91,7 +92,7 @@ aggressive 模型实际为9个PV、总 Pmpp **1020kW**，6个单相调压器；�
 
 ```powershell
 python scripts/generate_smartgrid_data.py --output results/datasets/smartgrid_day --steps 1440 --seed 0
-python examples/multi_agent/scripts/train.py --env smartgrid --set env.max_episode_steps=1440 --set env.data.source=files --set env.data.path=results/datasets/smartgrid_day/manifest.json
+python scripts/train.py --env smartgrid --set env.max_episode_steps=1440 --set env.data.source=files --set env.data.path=results/datasets/smartgrid_day/manifest.json
 ```
 
 生成器拒绝覆盖非空输出目录。`source=files` 只读取指定清单；适用于已生成数据或外部实测

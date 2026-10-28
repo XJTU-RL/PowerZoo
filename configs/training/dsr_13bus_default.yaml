@@ -1,0 +1,16 @@
+train:
+  episode_length: 10
+  n_rollout_threads: 2
+  num_env_steps: 5000000
+  eval_interval: 20
+eval:
+  use_eval: true
+  n_eval_rollout_threads: 1
+model:
+  data_chunk_length: 5
+  hidden_sizes:
+  - 64
+  - 64
+  lr: 5e-4
+algo:
+  ppo_epoch: 5

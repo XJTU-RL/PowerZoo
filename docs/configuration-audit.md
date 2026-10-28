@@ -1,3 +1,6 @@
+> 后续入口清理已完成，旧训练脚本及旧单智能体配置见归档，当前公共链路见
+> [训练入口整理](training-entrypoints.md)。下文保留前期审计原文。
+
 > 后续更新：`codex/smartgrid-data-runtime` 已解决本文记录的 SmartGrid 数据入口、重复奖励计算、
 > 原生context隔离及单/多智能体仿真分叉。新增支持的SB3入口为 train_smartgrid.py，
 > 旧研究脚本不再维护。下文是配置重构阶段的历史审计；当前实现与验收见

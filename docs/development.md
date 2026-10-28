@@ -56,3 +56,10 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`。环境依赖不变，RL/物理模型改动在此分支单独验收。
 除通用运行检查外，执行 `python scripts/check_smartgrid.py --train --require-cuda` 和
 `python -m pytest tests/test_smartgrid_dataset_runtime.py -o addopts="" -q`。
+
+## 公共训练入口整理
+
+从 `3f47f9f4` 建立 `codex/training-entrypoints`，目录
+`D:\Exps\PowerZoo-worktrees\training-entrypoints`。所有环境共用 `scripts/train.py`；
+检查脚本为 `scripts/check_training.py`，归档与参数流说明见
+[入口整理说明](training-entrypoints.md)。本分支继承此前修复，不自动合并到main。

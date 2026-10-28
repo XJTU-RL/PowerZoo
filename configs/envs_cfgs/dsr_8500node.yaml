@@ -1,3 +1,5 @@
+# 环境字段与训练参数分开；公共解析器展开一次引用。
+training_ref: dsr_8500node_default
 system_ref: 8500Node
 env:
   system_name: 8500-Node
@@ -56,19 +58,3 @@ env:
     save_final_report: true
   scenario_name: ieee8500_restoration
   dss_file: Master.dss
-train:
-  episode_length: 20
-  n_rollout_threads: 4
-  num_env_steps: 20000000
-  eval_interval: 50
-eval:
-  use_eval: true
-  n_eval_rollout_threads: 1
-model:
-  data_chunk_length: 5
-  hidden_sizes:
-  - 256
-  - 256
-  lr: 3e-4
-algo:
-  ppo_epoch: 5

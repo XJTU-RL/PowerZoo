@@ -63,9 +63,9 @@ def init_dir(env, env_args, algo, exp_name, seed, logger_path):
     os.makedirs(results_path, exist_ok=True)
     log_path = os.path.join(results_path, "logs")
     os.makedirs(log_path, exist_ok=True)
-    from tensorboardX import SummaryWriter
+    from utils.tensorboard_writer import ScalarWriter
 
-    writer = SummaryWriter(log_path)
+    writer = ScalarWriter(log_path)
     models_path = os.path.join(results_path, "models")
     os.makedirs(models_path, exist_ok=True)
     # 返回绝对路径

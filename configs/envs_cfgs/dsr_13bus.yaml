@@ -1,3 +1,5 @@
+# 环境字段与训练参数分开；公共解析器展开一次引用。
+training_ref: dsr_13bus_default
 system_ref: 13Bus
 env:
   system_name: 13Bus
@@ -56,19 +58,3 @@ env:
     save_final_report: true
   scenario_name: ieee13_restoration
   dss_file: IEEE13Nodeckt.dss
-train:
-  episode_length: 10
-  n_rollout_threads: 2
-  num_env_steps: 5000000
-  eval_interval: 20
-eval:
-  use_eval: true
-  n_eval_rollout_threads: 1
-model:
-  data_chunk_length: 5
-  hidden_sizes:
-  - 64
-  - 64
-  lr: 5e-4
-algo:
-  ppo_epoch: 5

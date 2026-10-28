@@ -50,6 +50,7 @@ def get_shape_from_act_space(act_space):
 def make_power_env(env_name, env_args, rank, seed):
     """只在此将最终字典转为消费方配置；构造前设置实际 worker seed。"""
     from utils.config_validation import build_dataclass, environment_class
+    from utils.environment_registry import environment_spec
 
     # 旧 core 在 __init__ 中可能生成随机数据，不能等 wrapper 构造完再播种。
     set_seed({"seed_specify": True, "seed": seed})
@@ -58,30 +59,7 @@ def make_power_env(env_name, env_args, rank, seed):
     if "worker_idx" in cls.__dataclass_fields__:
         values["worker_idx"] = rank
     config = build_dataclass(cls, values)
-    if env_name in ("vvc", "powerzoo"):
-        from envs.vvc.vvc_env import VVCEnv
-
-        env = VVCEnv(config, rank)
-    elif env_name == "smartgrid":
-        from envs.smartgrid.base_env.env_register import make_base_env
-        from envs.smartgrid.base_env.vvc_env import VVCEnv
-
-        env = VVCEnv(make_base_env(config, worker_idx=rank), config, rank)
-    elif env_name.startswith("dsr"):
-        from envs.dsr.dsr_env import DSREnv
-
-        env = DSREnv(config, rank)
-    elif env_name.startswith("stackelberg"):
-        from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
-
-        env = StackelbergVVCEnv(config, rank)
-    elif env_name.startswith("district_dispatch"):
-        from dataclasses import asdict
-        from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
-
-        env = DistrictDispatchEnv(asdict(config), rank)
-    else:
-        raise ValueError(f"未知电力环境 {env_name}")
+    env = environment_spec(env_name).create(config, rank)
     env.seed(seed)
     return env
 
@@ -91,6 +69,7 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
         raise ValueError("并行环境数必须 >= 1")
     if env_name == "smartgrid":
         import copy
+
         env_args = copy.deepcopy(env_args)
         if evaluation:
             env_args["data"]["split"] = "validation"
@@ -110,12 +89,11 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
 
         return init_env
 
-    # OpenDSS 进程使用 spawn；Stackelberg / District 保留既有顺序执行限制。
-    wrapper = (
-        ShareDummyVecEnv
-        if n_threads == 1 or env_name.startswith(("stackelberg", "district_dispatch"))
-        else ShareSubprocVecEnv
-    )
+    # 使用全局 DSS 引擎的环境，即使只有一个 worker，也隔离训练与评估进程。
+    from utils.environment_registry import environment_spec
+
+    isolate = env_name != "lag" and environment_spec(env_name).isolate_process
+    wrapper = ShareDummyVecEnv if n_threads == 1 and not isolate else ShareSubprocVecEnv
     return wrapper([get_env_fn(rank) for rank in range(n_threads)])
 
 

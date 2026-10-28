@@ -777,27 +777,6 @@ class VVCLogger(BaseLogger):
         self.log_file.flush()
         
 
-    def log_train(self, actor_train_infos, critic_train_info):
-        """记录训练信息。"""
-        # log actor
-        for agent_id in range(self.num_agents):
-            for k, v in actor_train_infos[agent_id].items():
-                agent_k = "agent%i/" % agent_id + k
-                self.writer.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
-        # log critic
-        for k, v in critic_train_info.items():
-            critic_k = "critic/" + k
-            self.writer.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
-
-    def log_env(self, env_infos):
-        """记录环境信息."""
-        # 遍历env_infos中的键值对
-        for k, v in env_infos.items():
-            # 如果v的长度大于0
-            if len(v) > 0:
-                # 使用writter添加标量，键为k，值为v的平均值，步数为self.total_num_steps
-                self.writer.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
-
     def close(self):
         """Close the logger."""
         super().close()

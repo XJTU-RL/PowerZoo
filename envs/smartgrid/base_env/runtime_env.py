@@ -72,7 +72,7 @@ class Env(gym.Env):
             )
         )
         self.action_space = gym.spaces.Tuple(self.agent_spaces)
-        self.reward_func = VVCReward(self, cfg.to_info_dict())
+        self.reward_func = VVCReward(self, cfg)
         self.use_cmdp = cfg.use_cmdp
         self.lagrangian_updater = (
             LagrangianUpdater(

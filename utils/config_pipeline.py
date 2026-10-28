@@ -592,7 +592,11 @@ class ConfigLoader:
             ("eval", "n_eval_rollout_threads"),
             ("eval", "eval_episodes"),
         ):
-            if key in algo[section] and algo[section][key] < 1:
+            if (
+                key in algo[section]
+                and algo[section][key] is not None
+                and algo[section][key] < 1
+            ):
                 raise ConfigError(f"{section}.{key} 必须为正整数")
         for key in ("episode_length", "n_rollout_threads", "num_env_steps"):
             if key in train and train[key] <= 0:

@@ -120,7 +120,7 @@ def main():
                 subprocess.run(
                     [
                         sys.executable,
-                        "examples/multi_agent/scripts/train.py",
+                        "scripts/train.py",
                         "--config",
                         "configs/experiments/smartgrid_synthetic_smoke.yaml",
                         "--exp-name",
