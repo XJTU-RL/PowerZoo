@@ -8,7 +8,7 @@
 
 - [ ] P0：固定反例、支持边界、训练奖励/交互契约（已完成共享奖励保护和旧实现训练阻断，后续随各任务重建补全反例）。
 - [x] P1：公共物理核心，PV/Storage/SVG原生校准，SmartGrid迁移。
-- [ ] P2：VVC迁移与两种任务基准。
+- [x] P2：VVC迁移与两种任务基准，见[VVC迁移记录](vvc-physics.md)。
 - [ ] P3：区域协同调度重建。
 - [ ] P4：静态故障恢复重建。
 - [ ] P5：顺序定价博弈重建。
@@ -32,9 +32,10 @@
 
 ## 已实现的边界
 
-公共层仅三个主要模块：`envs/powergrid/session.py` 管理context、复制模型、时钟、求解与量测；
+P1首先建立三个主要物理模块：`envs/powergrid/session.py` 管理context、复制模型、时钟、求解与量测；
 `devices.py`负责实际原生设备发现、物理指令及能力限幅；`state.py`声明有单位的状态。
-暂不为尚无第二个消费者的需求增加抽象类或通用插件框架。
+P2在第二个实际任务接入后提取共享场景、设备运行流程、动作适配、观测清单和回放模块；
+不引入通用插件框架。
 SmartGrid只选择模型/数据、转换动作、组织观测与奖励；其他任务不会继承SmartGrid任务类。
 
 - 原生模型以 `node_systems/34Bus_PV/network.dss` 为唯一静态定义，旧duty入口重定向到它。
@@ -103,6 +104,17 @@ python scripts/check_smartgrid.py --config configs/experiments/smartgrid_svg_smo
 
 P0保护提交：`af98d86c`拒绝EP非团队奖励；`48237b08`在正式准备阶段阻断DSR、District、Stackelberg旧物理训练。
 配置预览和只读审查仍可使用；每个任务完成重建与实际验收后，才移除相应阻断。
-VVC仍是旧物理实现，Windows运行通过不表示已完成P2迁移。
+P2已将正式VVC迁移到同一公共物理层；旧Circuits暂仅供已阻断的DSR/Stackelberg研究路径。
 项目其他旧测试中仍存在猜测类名/过时接口；本记录只声称列明的相关回归通过，不声称全仓测试全绿。
 Gradio页面未做浏览器交互验收；本轮已验证数据快照、动作覆盖、扫描配置和真实checkpoint回放引擎。
+
+
+## P2实际结果
+
+VVC13/34/123均完成固定/原生调压两种控制器×6个24小时场景、双worker、CPU HAPPO及PPO训练，
+每个HAPPO CPU训练有12个独立validation回合，HAPPO与PPO各实际恢复并回放24步。
+IEEE13另有CUDA HAPPO240步/10更新及12个验证回合。普通/SVG SmartGrid在公共执行抽取后重新完成
+CPU/CUDA HAPPO、PPO和19/20个actor的实际恢复回放。相关整组272项回归通过、无跳过。
+依赖与原生/Windows/CUDA检查通过；Plotly可选图表依赖修正单独提交为54173a39。
+完整边界、物理修正和复现命令见[VVC迁移记录](vvc-physics.md)。
+下一阶段为P3区域协作：替换虚拟交换、实现真实区域计量、统一能量时钟和实际货币目标。

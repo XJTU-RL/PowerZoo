@@ -247,7 +247,6 @@ class ConfigLoader:
                 "episode",
                 "devices",
                 "constraints",
-                "display",
                 "default_rewards",
             }
             | ({"districts", "tie_lines", "district_devices"} if district else set()),
@@ -255,15 +254,10 @@ class ConfigLoader:
         )
         check(
             system.get("system", {}),
-            {"name", "dss_file", "dss_folder", "source_bus"},
+            {"name", "dss_file", "dss_folder"},
             "system",
         )
         check(system.get("episode", {}), {"max_steps"}, "episode")
-        check(
-            system.get("display", {}),
-            {"node_size", "shift", "show_node_labels", "load_noise"},
-            "display",
-        )
         check(
             system.get("constraints", {}),
             {
@@ -323,27 +317,18 @@ class ConfigLoader:
                     f"devices.{name}",
                 )
         info = system.get("system", {})
-        values = {
-            key: info[key]
-            for key in ("dss_file", "dss_folder", "source_bus")
-            if key in info
-        }
+        values = {key: info[key] for key in ("dss_file", "dss_folder") if key in info}
         if "name" in info:
             values["system_name"] = info["name"]
         if "max_steps" in system.get("episode", {}):
             values["max_episode_steps"] = system["episode"]["max_steps"]
         if family in ("vvc", "smartgrid"):
-            if family == "vvc":
-                values.update(system.get("display", {}))
-            else:
-                values.pop("source_bus", None)
             values["environment_specific"] = {
                 "devices": system.get("devices", {}),
                 "reward_weights": system.get("default_rewards", {}),
                 "constraints": system.get("constraints", {}),
             }
         elif family in ("dsr", "district_dispatch"):
-            values.pop("source_bus", None)
             for old, new in (("voltage_min", "v_min"), ("voltage_max", "v_max")):
                 if old in system.get("constraints", {}):
                     values[new] = system["constraints"][old]
@@ -413,8 +398,6 @@ class ConfigLoader:
                 for key in ("tie_lines", "district_devices"):
                     if key in system:
                         values[key] = system[key]
-        else:
-            values.pop("source_bus", None)
         return normalize_env(values, family)
 
     @staticmethod

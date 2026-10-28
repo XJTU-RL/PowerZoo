@@ -15,7 +15,7 @@ flowchart LR
   R --> P[最终 YAML + 来源与 SHA256]
   R --> T[runner：算法各节 + env 字典]
   T --> E[一次 dataclass 构造：加入 worker seed]
-  E --> F[环境 / 电路 / 奖励消费方]
+  E --> F[任务内核 → 公共物理层；任务独立奖励]
 ```
 
 ## 从一个短实验开始
@@ -241,3 +241,12 @@ VVC 的旧 `_ENV_INFO/_SYS_INFO` 默认表已删除，字符串工厂也调用�
 并把旧设备嵌套字段迁移为平铺动作字段；不要为了兼容快照重新开放无效选项。
 字段属于特定功能时，只在该功能启用后生效，例如合成器参数不会控制 files 来源、
 平滑权重不会控制关闭平滑的奖励。文件来源的非默认生成设置会被拒绝。
+
+
+## VVC与SmartGrid共享物理入口
+
+正式VVC不再构造to_env_info/to_sys_info视图，worker中的同一配置对象直接传给任务。
+两类任务共享powergrid的DataConfig/ScenarioDataset、设备动作与观测清单及DSSSession，奖励各自定义。
+VVC的data.step_seconds默认3600，SmartGrid默认60；环境时长与算法采样长度仍分别设置。
+旧VVC的scale/load_noise/显示/灵敏度标志已退役，使用实际data.load_scale/data.noise，详见[VVC记录](vvc-physics.md)。
+系统文件只定义模型路径、动作分辨率、约束和基准权重；不再接受无消费者的display/source_bus设置。

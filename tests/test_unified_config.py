@@ -250,14 +250,14 @@ class TestVVCConfigFromEnvArgs:
     def test_episode_length_alias(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
 
-        config = VVCConfig.from_env_args({"episode_length": 48})
-        assert config.max_episode_steps == 48
+        config = VVCConfig.from_env_args({"episode_length": 12})
+        assert config.max_episode_steps == 12
 
     def test_num_steps_alias(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
 
-        config = VVCConfig.from_env_args({"num_steps": 36})
-        assert config.max_episode_steps == 36
+        config = VVCConfig.from_env_args({"num_steps": 18})
+        assert config.max_episode_steps == 18
 
     def test_pv_control_alias(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
@@ -280,28 +280,16 @@ class TestVVCConfigFromEnvArgs:
         assert not hasattr(config, "pv_act_num")
         assert not hasattr(config, "pv_control_enabled")
 
-    def test_to_env_info(self):
+    def test_one_typed_config_without_old_engine_views(self):
+        from dataclasses import asdict
         from envs.vvc.vvc.vvc_config import VVCConfig
 
-        config = VVCConfig(system_name="13Bus", power_w=10.0)
-        info = config.to_env_info()
-        assert info["system_name"] == "13Bus"
-        assert info["power_w"] == 10.0
-        assert "pv" not in info  # pv_control_enabled=False -> no 'pv' key
-
-    def test_to_env_info_with_pv(self):
-        from envs.vvc.vvc.vvc_config import VVCConfig
-
+        config = VVCConfig(power_w=10)
+        assert asdict(config)["power_w"] == 10
+        assert not hasattr(config, "to_env_info")
+        assert not hasattr(config, "to_sys_info")
         with pytest.raises(TypeError):
-            VVCConfig(pv_control_enabled=True, pv_act_num=33)
-
-    def test_to_sys_info(self):
-        from envs.vvc.vvc.vvc_config import VVCConfig
-
-        config = VVCConfig(source_bus="sourcebus", node_size=500)
-        sys_info = config.to_sys_info()
-        assert sys_info["source_bus"] == "sourcebus"
-        assert sys_info["node_size"] == 500
+            VVCConfig(source_bus="sourcebus", node_size=500)
 
     def test_unknown_keys_ignored(self):
         from envs.vvc.vvc.vvc_config import VVCConfig

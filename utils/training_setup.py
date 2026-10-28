@@ -35,8 +35,8 @@ def prepare_run(config):
             config.history.setdefault(path, []).append(
                 {"source": "runtime seed selection", "value": value}
             )
-    if config.main_args["env"] == "smartgrid":
-        from envs.smartgrid.data_process.dataset import DataConfig, prepare_dataset
+    if family in ("smartgrid", "vvc"):
+        from envs.powergrid.scenario import DataConfig, prepare_dataset
 
         data = config.env_args["data"]
         dataset = prepare_dataset(

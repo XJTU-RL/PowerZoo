@@ -1,8 +1,4 @@
 # 只声明实际消费的参数；字段说明与覆盖顺序见 docs/configuration.md
 system_ref: 13Bus
 env:
-  env_name: 13Bus
-  useS: false
-  use_render: false
-  record_node: false
   max_episode_steps: 24

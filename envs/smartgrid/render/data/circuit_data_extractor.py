@@ -1,45 +1,9 @@
 """系统汇总使用公共物理状态；主网进出口与DER发电分开，不对流向取绝对值。"""
 
+from envs.powergrid.snapshot import extract_circuit_summary
+
 from typing import Any, Dict, List
 import numpy as np
-
-
-def extract_circuit_summary(env):
-    state = env.physical_state
-    injections = state.injections
-    loads = [v for e, v in injections.items() if e.lower().startswith("load.")]
-    generation = [v for e, v in injections.items() if not e.lower().startswith("load.")]
-    volts = [v for phases in state.voltages_pu.values() for v in phases.values()]
-    return {
-        "converged": True,
-        "time_s": state.time_s,
-        "step_seconds": env.circuit.step_seconds,
-        "total_loss_kw": state.losses[0],
-        "total_loss_kvar": state.losses[1],
-        "total_load_kw": -sum(v[0] for v in loads),
-        "total_load_kvar": -sum(v[1] for v in loads),
-        "grid_import_kw": state.grid_import[0],
-        "grid_import_kvar": state.grid_import[1],
-        "total_gen_kw": sum(v[0] for v in generation),
-        "total_gen_kvar": sum(v[1] for v in generation),
-        "total_pv_kw": sum(
-            v[0] for e, v in injections.items() if e.lower().startswith("pvsystem.")
-        ),
-        "total_storage_kw": sum(
-            v[0] for e, v in injections.items() if e.lower().startswith("storage.")
-        ),
-        "total_svg_kvar": sum(
-            v[1]
-            for e, v in injections.items()
-            if e.lower().startswith("generator.")
-            and e.split(".", 1)[1] in env.circuit.svgs
-        ),
-        "power_loss_pct": state.losses[0] / env.base_load_kw * 100,
-        "v_mean_pu": float(np.mean(volts)),
-        "v_min_pu": min(volts),
-        "v_max_pu": max(volts),
-        "active_balance_error_kw": state.active_balance_error_kw,
-    }
 
 
 def extract_circuit_timeseries(

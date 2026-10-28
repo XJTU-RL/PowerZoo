@@ -11,27 +11,41 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXPERIMENT = "configs/experiments/smartgrid_synthetic_smoke.yaml"
 
 
-def check_native(experiment=DEFAULT_EXPERIMENT):
+def check_native(experiment=DEFAULT_EXPERIMENT, steps=360):
     import numpy as np
     from utils.config_pipeline import ConfigLoader
     from utils.envs_tools import make_power_env
 
     cfg = ConfigLoader().load(
         experiment=experiment,
-        values={"env": {"max_episode_steps": 360, "data": {"episodes_per_split": 6}}},
+        values={"env": {"max_episode_steps": steps, "data": {"episodes_per_split": 6}}},
     )
-    env = make_power_env("smartgrid", cfg.env_args, 0, 0)
+    env = make_power_env(cfg.main_args["env"], cfg.env_args, 0, 0)
     core, records = env.env, []
     try:
-        a = [1] * core.cap_num
+        a = [int(core.circuit.capacitor_state(n)[0]) for n in core.cap_names]
         a += [
             round(
                 (r.initial - r.mintap) / (r.maxtap - r.mintap) * (core.reg_act_num - 1)
             )
             for r in core.circuit.regulators.values()
         ]
-        a += [core.bat_act_num // 2] * core.bat_num
-        a += [v for _ in core.pv_names for v in (1, 0)]
+        a += [
+            0 if core.bat_act_num == float("inf") else core.bat_act_num // 2
+        ] * core.bat_num
+        a += (
+            [
+                v
+                for _ in core.pv_names
+                for v in (
+                    (1, 0)
+                    if core.pv_act_num == float("inf")
+                    else (core.pv_act_num - 1,)
+                )
+            ]
+            if core.pv_control_enabled
+            else []
+        )
         a += [0] * len(core.svg_names)
         for controller in ("fixed", "native_cap_reg"):
             for i in range(6):
@@ -96,6 +110,9 @@ def check_native(experiment=DEFAULT_EXPERIMENT):
                     )
                 )
         return {
+            "model_sha256": core.circuit.model_sha256,
+            "master": core.config.dss_file,
+            "step_seconds": core.config.data.step_seconds,
             "counts": {
                 "capacitors": core.cap_num,
                 "regulators": core.reg_num,
@@ -119,7 +136,7 @@ def check_spawn(experiment=DEFAULT_EXPERIMENT):
     cfg = ConfigLoader().load(
         experiment=experiment, values={"env": {"max_episode_steps": 24}}
     )
-    env = make_train_env("smartgrid", 0, 2, cfg.env_args)
+    env = make_train_env(cfg.main_args["env"], 0, 2, cfg.env_args)
     try:
         obs, _, _ = env.reset()
         for _ in range(26):  # 覆盖自动 reset

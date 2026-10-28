@@ -6,37 +6,14 @@ SmartGrid Bus Data Extractor
 基准电压等数据，供可视化图表使用。
 """
 
+from envs.powergrid.snapshot import extract_bus_data
+
 import logging
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-
-def extract_bus_data(env):
-    result = {}
-    for name, phases in env.physical_state.voltages_pu.items():
-        env.circuit.native.SetActiveBus(name)
-        bus = env.circuit.native.ActiveBus
-        nodes = list(bus.Nodes)
-        raw = list(bus.puVmagAngle)
-        defined = bool(bus.Coorddefined)
-        result[name] = {
-            "name": name,
-            "v_mag_pu": list(phases.values()),
-            "phase_nodes": list(phases),
-            "v_angle_deg": [
-                float(raw[2 * i + 1]) for i, n in enumerate(nodes) if n in phases
-            ],
-            "v_mag_kv": [v * float(bus.kVBase) for v in phases.values()],
-            "n_phases": len(phases),
-            "base_kv": float(bus.kVBase),
-            "coord_defined": defined,
-            "x": float(bus.x) if defined else None,
-            "y": float(bus.y) if defined else None,
-        }
-    return result
 
 
 def extract_bus_voltages_from_obs(obs: dict) -> Dict[str, List[float]]:

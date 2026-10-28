@@ -5,9 +5,8 @@ from importlib import import_module
 _EXPORTS = {
     "VVCEnv": (".vvc_env", "VVCEnv"),
     "VVCLogger": (".vvc_logger", "VVCLogger"),
-    "Env": (".vvc.env", "Env"),
-    "Circuits": (".vvc.circuit", "Circuits"),
-    "LoadProfile": (".vvc.loadprofile", "LoadProfile"),
+    "Env": (".runtime_env", "Env"),
+    "DSSSession": ("envs.powergrid.session", "DSSSession"),
     "make_base_env": (".vvc.env_register", "make_base_env"),
     "remove_parallel_dss": (".vvc.env_register", "remove_parallel_dss"),
 }

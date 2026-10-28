@@ -2,8 +2,7 @@
 system:
   name: 123Bus
   dss_folder: node_systems/123Bus
-  dss_file: IEEE123Master_daily.dss
-  source_bus: sourcebus
+  dss_file: network.dss
 episode:
   max_steps: 24
 devices:
@@ -20,7 +19,3 @@ default_rewards:
   regulator: 0.0303
   battery_soc: 0.0
   battery_discharge: 0.2424
-display:
-  node_size: 200
-  shift: 40
-  show_node_labels: false

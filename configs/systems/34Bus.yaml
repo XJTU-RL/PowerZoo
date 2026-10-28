@@ -2,8 +2,7 @@
 system:
   name: 34Bus
   dss_folder: node_systems/34Bus
-  dss_file: ieee34Mod1_daily.dss
-  source_bus: sourcebus
+  dss_file: network.dss
 episode:
   max_steps: 360
 devices:
@@ -20,8 +19,3 @@ default_rewards:
   regulator: 0.0303
   battery_soc: 0.0
   battery_discharge: 0.303
-display:
-  node_size: 500
-  shift: 80
-  show_node_labels: true
-  load_noise: false

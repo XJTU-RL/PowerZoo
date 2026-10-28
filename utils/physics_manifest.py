@@ -22,7 +22,13 @@ def validate_checkpoint(model_dir, manifest):
             "模型缺少physics.manifest.json，不能证明动作顺序/物理模型与当前环境一致"
         )
     saved = json.loads(path.read_text(encoding="utf-8"))
+    compare_manifests(saved, manifest)
+
+
+def compare_manifests(saved, manifest):
     for key in (
+        "task",
+        "observation_schema_sha256",
         "model_sha256",
         "action_schema_sha256",
         "engine",
@@ -37,3 +43,10 @@ def validate_checkpoint(model_dir, manifest):
             raise ValueError(
                 f"checkpoint的{key}与当前环境不一致；不能静默重放不同物理模型或动作映射"
             )
+
+
+def validate_sidecar(model_path, manifest):
+    path = Path(model_path).with_suffix(".physics.json")
+    if not path.is_file():
+        raise ValueError("集中模型缺少.physics.json，不能确认设备/观测/任务绑定")
+    compare_manifests(json.loads(path.read_text(encoding="utf-8")), manifest)

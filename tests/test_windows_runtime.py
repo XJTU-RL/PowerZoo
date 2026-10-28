@@ -47,7 +47,7 @@ def test_dataset_respects_another_process_lock(tmp_path, monkeypatch):
     key = hashlib.sha256(
         json.dumps(dataset._generation(cfg, 24), sort_keys=True).encode()
     ).hexdigest()[:20]
-    folder = tmp_path / "results/smartgrid_data" / key
+    folder = tmp_path / "results/powergrid_data" / key
     folder.parent.mkdir(parents=True)
     marker = tmp_path / "waiting"
     code = """import sys

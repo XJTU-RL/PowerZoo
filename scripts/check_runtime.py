@@ -67,7 +67,7 @@ def check_vvc(system_path, workers):
     from utils.envs_tools import make_train_env
 
     _, env_args = get_defaults_yaml_args("happo", "vvc")
-    env_args.update(system_name=str(system_path), dss_folder=str(system_path), useS=False, use_render=False)
+    env_args.update(system_name=str(system_path), dss_folder=str(system_path))
     env = make_train_env("vvc", 42, workers, env_args)
     try:
         obs, _, _ = env.reset()
@@ -93,7 +93,7 @@ def check_training(system_path, output_path, cuda=False):
     from utils.configs_tools import get_defaults_yaml_args
 
     algo_args, env_args = get_defaults_yaml_args("happo", "vvc")
-    env_args.update(system_name=str(system_path), dss_folder=str(system_path), useS=False, use_render=False)
+    env_args.update(system_name=str(system_path), dss_folder=str(system_path))
     algo_args["device"].update(cuda=cuda, torch_threads=1)
     algo_args["train"].update(
         n_rollout_threads=1, num_env_steps=24, episode_length=24, eval_interval=1

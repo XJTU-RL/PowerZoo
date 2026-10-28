@@ -7,7 +7,7 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 
 | 环境参数 | 代码目录 | 用途 |
 | --- | --- | --- |
-| `vvc` | `envs/vvc/` | 电压无功控制，Windows 首次运行基线为 IEEE13 |
+| `vvc` | `envs/vvc/` | 经典电压无功控制；13/34/123共用原生物理层并已短训练验收 |
 | `smartgrid` | `envs/smartgrid/` | 模块化电网控制，含 PV、奖励和日志组件 |
 | `dsr` | `envs/dsr/` | 配电网恢复 |
 | `stackelberg_13bus/34bus/123bus` | `envs/stackelberg/` | Stackelberg 博弈控制 |
@@ -24,7 +24,7 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 
 当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
 设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
-[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid公共物理层已进入实施验收，其他任务尚待迁移，见[实施记录](docs/physics-refactor-progress.md)。
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid和VVC已迁移并验收，区域调度/恢复/定价任务尚待重建，见[实施记录](docs/physics-refactor-progress.md)。
 
 ## Windows 安装
 

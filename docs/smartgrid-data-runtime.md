@@ -24,6 +24,9 @@ SB3 PPO 集中基线96步、CPU策略在 validation 上的12个回合，并检�
 
 ## 一条数据链与一套仿真
 
+P2以后物理时序实现在 `envs/powergrid/scenario.py`，缓存使用 `results/powergrid_data`；
+SmartGrid旧导入路径映射到同一模块。设备执行及适配器也与VVC共用，SmartGrid保留独立CMDP任务奖励。
+
 ```mermaid
 flowchart LR
   A[合成器 或 外部数据转换] --> B[manifest.json + 场景 CSV]

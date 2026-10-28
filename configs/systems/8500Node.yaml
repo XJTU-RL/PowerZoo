@@ -3,7 +3,6 @@ system:
   name: 8500Node
   dss_folder: node_systems/8500-Node
   dss_file: Master_daily.dss
-  source_bus: sourcebus
 episode:
   max_steps: 24
 devices:
@@ -20,7 +19,3 @@ default_rewards:
   regulator: 0.0303
   battery_soc: 0.0
   battery_discharge: 6.0606
-display:
-  node_size: 50
-  shift: 20
-  show_node_labels: false

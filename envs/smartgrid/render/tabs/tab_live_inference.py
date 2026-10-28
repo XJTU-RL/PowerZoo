@@ -173,7 +173,7 @@ def create_tab(shared_states: Dict[str, Any]) -> Dict[str, Any]:
         cum_reward = snapshot.get("cumulative_reward", 0.0)
         info = snapshot.get("info", {})
         lagrangian = snapshot.get("lagrangian", {})
-        lmbda = lagrangian.get("lmbda", info.get("lambda", "N/A"))
+        lmbda = lagrangian.get("lambda_value", info.get("lambda", "N/A"))
         if isinstance(lmbda, float):
             lmbda_str = f"{lmbda:.4f}"
         else:

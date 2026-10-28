@@ -196,19 +196,26 @@ def test_custom_device_values_reach_vvc():
         },
     )
     consumer = build_dataclass(VVCConfig, config.env_args)
-    assert consumer.to_env_info()["bat_act_num"] == 17
+    assert consumer.bat_act_num == 17
 
 
 def test_voltage_threshold_changes_actual_reward():
     from types import SimpleNamespace
-    from envs.vvc.vvc.env import Env
+    from envs.vvc.runtime_env import Env
+    from envs.vvc.vvc.vvc_config import VVCConfig
 
-    fake = SimpleNamespace(obs={"bus_voltages": {"bus": [0.94, 1.06]}})
-    kwargs = dict(power_w=1, cap_w=1, reg_w=1, soc_w=1, dis_w=1)
-    default = Env.MyReward(fake, kwargs)
-    changed = Env.MyReward(fake, {**kwargs, "voltage_min": 0.93, "voltage_max": 1.07})
-    assert default.voltage_reward()[0] == pytest.approx(-0.02)
-    assert changed.voltage_reward()[0] == 0
+    fake = SimpleNamespace(
+        obs={"bus_voltages": {"bus": [0.94, 1.06]}, "power_loss_ratio": 0},
+        config=VVCConfig(),
+        circuit=SimpleNamespace(regulators={}),
+        t=0,
+        horizon=1,
+    )
+    default = Env._reward(fake, [], [], [], [], [])
+    fake.config = VVCConfig(voltage_min=0.93, voltage_max=1.07)
+    changed = Env._reward(fake, [], [], [], [], [])
+    assert default[1]["vol_reward"] == pytest.approx(-0.02)
+    assert changed[1]["vol_reward"] == 0
 
 
 def test_smartgrid_validates_final_nested_config():
@@ -358,7 +365,6 @@ def test_preview_has_no_runtime_imports():
     "args",
     [
         ["--seed", "42"],
-        ["--use_render", "false"],
         ["--typo", "1"],
         ["--cuda"],
         ["--set", 'model.lr=__import__("os").system("whoami")'],
