@@ -289,79 +289,13 @@ class VVCReward:
 		
 		return -total_control_cost
 	
-	@performance_monitor
-	def pv_reward(self) -> float:
-		"""
-		PV控制奖励函数（主奖励组件）
-		
-		基于本地母线电压的方向性支撑策略：
-		- 高电压时鼓励PV吸收无功（感性）
-		- 低电压时鼓励PV发出无功（容性）
-		- 合理的有功输出利用
-		
-		避免全局信息依赖，更符合实际分布式控制架构。
-		
-		Returns:
-			float: PV控制奖励，合理控制给正奖励
-		"""
-		if not (getattr(self.env, 'pv_control_enabled', False) and 
-				getattr(self.env, 'pv_num', 0) > 0):
+	def pv_reward(self):
+		"""按原始 DSS Pmpp 归一化的实际发电；不从请求动作伪造出力。"""
+		if not getattr(self.env, 'pv_control_enabled', False):
 			return 0.0
-		
-		pv_statuses = self.env.obs.get('pv_statuses', {})
-		if not pv_statuses:
-			return 0.0
-		
-		bus_voltages = self.env.obs.get('bus_voltages', {})
-		
-		total_reward = 0.0
-		pv_count = 0
-		
-		for _, status in pv_statuses.items():
-			if len(status) < 2:
-				continue
-			
-			p_ratio, pf = status[0], status[1]  # 有功比例，功率因数
-			pv_count += 1
-			
-			# 1. 有功输出奖励（鼓励合理利用）
-			power_reward = p_ratio * 0.5  # 鼓励高输出，但不过分
-			
-			# 2. 基于本地电压的无功控制奖励
-			voltage_support_reward = 0.0
-			
-			# 获取PV所在母线电压（简化处理：使用系统平均电压）
-			all_voltages = []
-			for voltages in bus_voltages.values():
-				if isinstance(voltages, (list, tuple)):
-					all_voltages.extend(voltages)
-				elif voltages:
-					all_voltages.append(voltages)
-			
-			if all_voltages:
-				local_voltage = np.mean(all_voltages)  # 简化为平均电压
-				
-				# 方向性电压支撑
-				if local_voltage > self.voltage_target:
-					# 高电压：鼓励感性无功（吸收无功，PF<1且滞后）
-					if pf < 0.95:  # 感性运行
-						voltage_support_reward = 0.3 * (0.95 - pf) / 0.95
-				else:
-					# 低电压：鼓励容性无功（发出无功，PF<1且超前）
-					# 注意：实际中PV逆变器容性能力有限
-					if pf > 0.95:  # 接近单位功率因数或轻微容性
-						voltage_support_reward = 0.2 * (pf - 0.95) / 0.05
-			
-			# 3. 功率因数合理性（避免过度偏离）
-			pf_penalty = -abs(pf - 1.0) * 0.1  # 轻微惩罚偏离单位功率因数
-			
-			# PV总奖励
-			pv_reward = power_reward + voltage_support_reward + pf_penalty
-			total_reward += pv_reward
-		
-		# 按PV数量归一化
-		return total_reward / max(pv_count, 1)
-	
+		states = self.env.obs.get('pv_statuses', {})
+		return float(np.mean([v[0] for v in states.values()])) * 0.5 if states else 0.0
+
 	def reward_main(self, capdiff: List[float], regdiff: List[float],
 				   soc_err: List[float], discharge_err: List[float],
 				   pv_diff: Optional[List[float]] = None) -> float:
@@ -416,7 +350,7 @@ class VVCReward:
 		control_r = self.control_reward(capdiff, regdiff, soc_err, discharge_err, pv_diff)
 		pv_r = self.pv_reward()
 		voltage_c = self.voltage_cost()
-		main_r = self.reward_main(capdiff, regdiff, soc_err, discharge_err, pv_diff)
+		main_r = (self.weights['powerloss'] * powerloss_r + self.weights['control'] * control_r + self.weights['pv'] * pv_r)
 		
 		# 电压合规率计算
 		voltage_compliance_rate = self._calculate_voltage_compliance()
@@ -496,10 +430,11 @@ class VVCReward:
 				- 信息字典：包含约束成本cost_voltage等详细信息
 		"""
 		# 计算主奖励
-		main_reward = self.reward_main(cd, rd, soc, dis, pv_diff)
+		main_reward = None  # 在 get_reward_info 中只计算一次，避免更新两次平滑历史
 		
 		# 生成详细信息
 		info = self.get_reward_info(cd, rd, soc, dis, pv_diff)
+		main_reward = info['reward_main']
 		
 		# 兼容性：记录违规节点（如果需要）
 		if record_node:

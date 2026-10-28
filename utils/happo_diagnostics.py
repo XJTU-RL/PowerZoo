@@ -311,7 +311,7 @@ class HAPPODiagnostics:
 					self.writer.add_scalar(f'{prefix}/mean', 
 										  tensor.mean().item(), self.global_step)
 					self.writer.add_scalar(f'{prefix}/std', 
-										  tensor.std().item(), self.global_step)
+										  tensor.std(unbiased=False).item(), self.global_step)
 					
 			# 打印警告
 			if not stability_info['is_stable']:

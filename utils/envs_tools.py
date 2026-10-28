@@ -89,6 +89,11 @@ def make_power_env(env_name, env_args, rank, seed):
 def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
     if n_threads < 1:
         raise ValueError("并行环境数必须 >= 1")
+    if env_name == "smartgrid":
+        import copy
+        env_args = copy.deepcopy(env_args)
+        if evaluation:
+            env_args["data"]["split"] = "validation"
 
     def get_env_fn(rank):
         def init_env():

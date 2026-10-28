@@ -8,3 +8,9 @@ env:
   use_render: false
   record_node: false
   dss_act: false
+  use_lagrangian_reward: true
+  data:
+    source: synthetic
+    seed: 2026
+    step_seconds: 60
+    episodes_per_split: 12

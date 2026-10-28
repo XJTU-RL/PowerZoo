@@ -220,12 +220,14 @@ Load.d846_848sb.vminpu=.85
 Load.d846_848rb.vminpu=.85
 
 !BATTERY DEFINITIONS
-New Generator.batt1 bus1=890.1.2.3 kV=4.16 kW=0 PF=1 conn=Delta Model=1
-New Generator.batt2 bus1=832.1.2.3 kV=24.9 kW=0 PF=1 conn=Delta Model=1
+! 显式基准：研究用储能额定100kW/200kWh，初始SOC50%，充放电效率95%。
+New Storage.batt1 bus1=890.1.2.3 phases=3 kV=4.16 conn=Delta kWRated=100 kWhRated=200 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %IdlingkW=0 dispmode=external state=idling
+New Storage.batt2 bus1=832.1.2.3 phases=3 kV=24.9 conn=Delta kWRated=100 kWhRated=200 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %IdlingkW=0 dispmode=external state=idling
 
 ! ========== PV SYSTEM CONFIGURATION - AGGRESSIVE PLAN ==========
 ! Total PV Capacity: 1020 kW (57% penetration)
-! Load PV system definitions (curves will be loaded by Python per worker)
+! PV 物理曲线由 DSS 定义；时序由统一数据入口提供。
+redirect pv_physics.dss
 ! redirect pv_systems_base.dss - PV系统配置由Python按worker动态注入
 
 ! Set up control and analysis parameters

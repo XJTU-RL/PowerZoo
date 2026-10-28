@@ -49,3 +49,10 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 3. 参数流程：统一已有配置加载入口、覆盖优先级、未知参数校验和最终配置快照。
 
 第一阶段不修改奖励函数、电气约束或训练算法语义。后续阶段分别讨论目标与验收。
+
+## SmartGrid 数据与运行任务
+
+从 `01926ba2` 建立 `codex/smartgrid-data-runtime`，目录为
+`D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`。环境依赖不变，RL/物理模型改动在此分支单独验收。
+除通用运行检查外，执行 `python scripts/check_smartgrid.py --train --require-cuda` 和
+`python -m pytest tests/test_smartgrid_dataset_runtime.py -o addopts="" -q`。

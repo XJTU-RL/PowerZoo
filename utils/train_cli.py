@@ -81,6 +81,25 @@ def main(argv=None, *, default_env=None):
         parser.error(str(exc))
     from runners import RUNNER_REGISTRY
 
+    if config.main_args["env"] == "smartgrid":
+        from envs.smartgrid.data_process.dataset import prepare_dataset
+        from envs.smartgrid.base_env.env_config import SmartGridConfig
+        from utils.config_validation import build_dataclass
+
+        cfg = build_dataclass(SmartGridConfig, config.env_args)
+        dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
+        # 父进程先生成/验证；worker 读取同一数据集，快照记录实际 manifest 路径。
+        config.env_args["data"]["path"] = str(dataset.path)
+        config.env_args["data"]["manifest_sha256"] = dataset.sha256
+        config.files[str(dataset.path)] = dataset.sha256
+        for key in ("path", "manifest_sha256"):
+            config.history.setdefault(f"env.data.{key}", []).append(
+                {
+                    "source": "runtime dataset preparation",
+                    "value": config.env_args["data"][key],
+                }
+            )
+
     runner = RUNNER_REGISTRY[config.main_args["algo"]](
         config.runner_args(), config.algo_args, config.env_args
     )

@@ -1,0 +1,86 @@
+"""共享 SmartGrid 内核的 SB3 PPO 集中控制基线。"""
+
+from pathlib import Path
+import argparse
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--config", default="configs/experiments/smartgrid_synthetic_smoke.yaml"
+    )
+    p.add_argument("--steps", type=int, default=240)
+    p.add_argument("--output", default="results/smartgrid_single/ppo")
+    args = p.parse_args()
+    if args.steps < 1:
+        p.error("--steps 必须为正数")
+    from stable_baselines3 import PPO
+    from utils.config_pipeline import ConfigLoader
+    from utils.config_validation import build_dataclass
+    from envs.smartgrid.base_env.env_config import SmartGridConfig
+    from envs.smartgrid.single_agent.adapter import SingleAgentVVCEnv
+
+    cfg = ConfigLoader().load(experiment=args.config)
+    if cfg.main_args["env"] != "smartgrid":
+        p.error("仅支持 SmartGrid 实验配置")
+    env = SingleAgentVVCEnv(build_dataclass(SmartGridConfig, cfg.env_args))
+    try:
+        n_steps = max(2, int(cfg.algo_args["train"]["episode_length"]))
+        model = PPO(
+            "MlpPolicy",
+            env,
+            n_steps=n_steps,
+            batch_size=n_steps,
+            n_epochs=1,
+            learning_rate=cfg.algo_args["model"]["lr"],
+            gamma=cfg.algo_args["algo"]["gamma"],
+            gae_lambda=cfg.algo_args["algo"]["gae_lambda"],
+            policy_kwargs={"net_arch": cfg.algo_args["model"]["hidden_sizes"]},
+            device="cpu",
+            seed=cfg.algo_args["seed"]["seed"],
+            verbose=1,
+        )
+        model.learn(total_timesteps=args.steps)
+        output = Path(args.output).resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        model.save(output)
+        cfg.env_args["data"].update(
+            path=str(env.core.dataset.path), manifest_sha256=env.core.dataset.sha256
+        )
+        cfg.files[str(env.core.dataset.path)] = env.core.dataset.sha256
+        for key in ("path", "manifest_sha256"):
+            cfg.history.setdefault(f"env.data.{key}", []).append(
+                {
+                    "source": "runtime dataset preparation",
+                    "value": cfg.env_args["data"][key],
+                }
+            )
+        cfg.save(output.with_suffix(".environment.yaml"))
+        import json
+
+        output.with_suffix(".sb3.json").write_text(
+            json.dumps(
+                {
+                    "algorithm": "SB3 PPO",
+                    "steps": model.num_timesteps,
+                    "n_steps": n_steps,
+                    "batch_size": n_steps,
+                    "n_epochs": 1,
+                    "learning_rate": model.learning_rate,
+                    "gamma": model.gamma,
+                    "gae_lambda": model.gae_lambda,
+                    "device": "cpu",
+                    "action_adapter": "Box with discrete-device quantization",
+                },
+                indent=2,
+            )
+        )
+    finally:
+        env.close()
+
+
+if __name__ == "__main__":
+    main()

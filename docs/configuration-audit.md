@@ -1,3 +1,8 @@
+> 后续更新：`codex/smartgrid-data-runtime` 已解决本文记录的 SmartGrid 数据入口、重复奖励计算、
+> 原生context隔离及单/多智能体仿真分叉。新增支持的SB3入口为 train_smartgrid.py，
+> 旧研究脚本不再维护。下文是配置重构阶段的历史审计；当前实现与验收见
+> [SmartGrid 数据与运行设计](smartgrid-data-runtime.md)。
+
 # 参数流代码审计与验收记录
 
 本次从环境修复提交 `28e25a7c` 建立独立 `codex/config-pipeline` 分支。

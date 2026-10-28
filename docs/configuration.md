@@ -179,5 +179,6 @@ SmartGrid 和 District 的嵌套 dataclass 同样检查未知字段。Stackelber
 
 本次统一的是五类电力环境的公共 MARL 入口。只有提供标准八节字典的算法默认文件才能
 使用此入口；QMix、2TS、旧 DAN-HAPPO 和 SN-MAPPO 配置/runner 契约尚不一致，会明确拒绝。
-SB3 单智能体训练仍是独立旧入口，其配置路径和底层 API 问题尚未完成迁移。
+SmartGrid 已提供共用内核的 SB3 PPO 入口 `examples/single_agent/scripts/train_smartgrid.py`；
+旧研究脚本不再作为支持入口。数据配置、单位、动作及验证见 [SmartGrid 说明](smartgrid-data-runtime.md)。
 完整代码定位、遗留路径和验证结果见 [参数流审计](configuration-audit.md)。

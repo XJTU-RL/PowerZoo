@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor 
 
 历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
 本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
-checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\config-pipeline`，
-分支为 `codex/config-pipeline`；环境修复单独保留在 `codex/windows-environment`。
+checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`，
+分支为 `codex/smartgrid-data-runtime`；环境修复单独保留在 `codex/windows-environment`。
 
 CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
 CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。
@@ -81,7 +81,7 @@ Conda 配置启用 `PYTHONUTF8=1`，避免 Windows 默认编码影响中文注�
 
 实际代码使用：
 
-- `envs/vvc/vvc/circuit.py`、`envs/smartgrid/circuit_system/circuit.py`：`import dss`；
+- `envs/vvc/vvc/circuit.py`、`envs/smartgrid/circuit_system/runtime.py`：`import dss`；
 - `envs/dsr/core/circuit.py`：`import opendssdirect`。
 
 因此环境同时安装 `dss-python==0.15.7`、其原生后端 `dss-python-backend==0.14.5`，
@@ -132,19 +132,22 @@ python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13
 python examples/multi_agent/scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ```
 
-结果按训练器配置写入 `results/`。当前环境实现会在 `node_systems/` 下生成 worker DSS
+结果按训练器配置写入 `results/`。部分旧环境实现会在 `node_systems/` 下生成 worker DSS
 和 episode 负荷文件；不要将这些运行产物作为模型修改提交。
 
 ### 需要单独处理的现有问题
 
-- SmartGrid 的初始化会寻找 `month_*`、`irrad_*`、`temperature_*` 等原始时序数据；
-  默认仓库不包含这套完整输入，安装成功不能替代数据准备。
-- 现有单智能体入口位于 `examples/single_agent/scripts/`；底层旧环境传给新版
-  `LoadProfile` 的参数已不匹配，依赖安装不能修复这一接口问题。
-  不要将多智能体 `VVCEnv` 直接传给 SB3 PPO，也不要使用旧版 README 的 `VVCEnv(**config)`。
-- 不将所有环境、PV 方案和算法组合描述为已在 Windows 完整通过；以具体运行记录为准。
+- SmartGrid 已接入可复现的合成数据和统一文件入口，无需缺失的 month/irrad/temperature CSV 即可训练。
+  单、多智能体共用一套独立 DSS context 内核；实际验证范围见 [SmartGrid 数据与运行设计](docs/smartgrid-data-runtime.md)。
+- 旧单智能体脚本与 SingleAgentTrainingConfig 不再作为支持入口。集中控制基线使用
+  `examples/single_agent/scripts/train_smartgrid.py`，与 MARL 共用环境配置和仿真。
+- 其他电路、研究算法和浏览器UI组合仍需逐项验证，不以短训练代表收敛。
 
-配置覆盖已统一；后续算法/环境研究应优先处理单智能体接口、时间截断、求解异常和实际控制动作生效。
+```powershell
+python examples/multi_agent/scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
+python scripts/check_smartgrid.py --train --require-cuda
+python examples/single_agent/scripts/train_smartgrid.py --steps 240
+```
 
 ## 测试
 

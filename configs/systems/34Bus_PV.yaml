@@ -18,13 +18,13 @@ devices:
     count: 2
     action_space: discrete
   regulators:
-    count: 2
+    count: 6  # 六个单相 RegControl，以 DSS 实际设备为准
     action_num: 33
   batteries:
     count: 2
     action_num: 33
   pv_systems:
-    count: 3
+    count: 9  # 默认 aggressive；其他方案见 pv_plans，运行时从 DSS 枚举
     control_enabled: true
     action_space: continuous  # 连续控制
 
@@ -67,7 +67,7 @@ pv_plans:
     total_capacity_kw: 900
     penetration_rate: 0.508
   aggressive:
-    description: "高渗透率方案（1080kW, 61% 渗透率）"
+    description: "高渗透率方案（1020kW Pmpp / 1769kW DSS 额定负荷）"
     pv_count: 9
-    total_capacity_kw: 1080
-    penetration_rate: 0.61
+    total_capacity_kw: 1020
+    penetration_rate: 0.576597

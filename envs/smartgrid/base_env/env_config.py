@@ -11,6 +11,7 @@ SmartGrid 环境统一配置系统
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 import math
+from envs.smartgrid.data_process.dataset import DataConfig
 
 
 @dataclass
@@ -83,6 +84,7 @@ class SmartGridConfig:
     dss_file: str = "ieee34Mod1_duty.dss"
     max_episode_steps: int = 360
     seed: int = 123456
+    data: DataConfig = field(default_factory=DataConfig)
 
     # === 设备控制配置 ===
     # 使用 default_factory 避免可变默认值问题
@@ -143,12 +145,73 @@ class SmartGridConfig:
 
     def __post_init__(self):
         """验证并处理配置"""
+        if isinstance(self.data, dict):
+            self.data = DataConfig(**self.data)
+        if self.useS or self.big2small or self.state_type != "EP" or self.for_LLM:
+            raise ValueError(
+                "SmartGrid 当前支持 EP 全状态适配；useS/big2small/for_LLM 尚未接入"
+            )
+        if (
+            not self.capacitor.control_enabled
+            or not self.regulator.control_enabled
+            or not self.battery.control_enabled
+            or self.capacitor.action_num != 2
+            or self.regulator.is_continuous
+            or self.dss_act
+        ):
+            raise ValueError("当前支持启用 CRB、二状态电容器、离散调压器和策略控制")
+        for device in (self.regulator, self.battery, self.pv):
+            if not device.is_continuous and int(device.action_num) != device.action_num:
+                raise ValueError("离散 action_num 必须是整数")
+        if (
+            self.battery.action_num != float("inf")
+            and int(self.battery.action_num) % 2 != 1
+        ):
+            raise ValueError("电池离散动作数必须为奇数，包含零功率动作")
+        if (
+            self.data.source == "synthetic"
+            and self.max_episode_steps * self.data.step_seconds > 86400
+        ):
+            raise ValueError("合成场景长度不能超过一天")
+        if (
+            self.pv_data_source
+            or self.temperature_data_source
+            or self.load_noise
+            or self.scale != 1.0
+        ):
+            raise ValueError(
+                "旧时序路径/scale/load_noise 已移除，请使用 data.path/load_scale/noise"
+            )
         # 验证设备配置
         self.capacitor.validate("Capacitor")
         self.regulator.validate("Regulator")
         self.battery.validate("Battery")
         if self.pv.control_enabled:
             self.pv.validate("PV")
+        from dataclasses import asdict
+
+        for name, value in asdict(self.reward_weights).items():
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"reward_weights.{name} 必须是非负有限值")
+        if not math.isfinite(self.power_base) or self.power_base <= 0:
+            raise ValueError("power_base 必须为正有限值")
+        for name in (
+            "voltage_threshold",
+            "target_cost",
+            "lambda_min",
+            "lambda_init",
+            "lambda_max",
+            "lambda_lr",
+            "lambda_momentum",
+        ):
+            if not math.isfinite(getattr(self, name)):
+                raise ValueError(f"{name} 必须为有限值")
+        if not 0 <= self.voltage_threshold < 1 or self.target_cost < 0:
+            raise ValueError("电压死区或 target_cost 无效")
+        if not 0 <= self.lambda_min <= self.lambda_init <= self.lambda_max:
+            raise ValueError("lambda_min/init/max 的顺序无效")
+        if self.lambda_lr < 0 or not 0 <= self.lambda_momentum < 1:
+            raise ValueError("lambda_lr 或 momentum 无效")
 
         # 验证时间步
         if self.max_episode_steps < 1:
@@ -157,7 +220,7 @@ class SmartGridConfig:
             )
 
         # 验证电压约束
-        if self.voltage_min >= self.voltage_max:
+        if not 0 < self.voltage_min < self.voltage_max < 2:
             raise ValueError(
                 f"voltage_min({self.voltage_min}) 必须小于 voltage_max({self.voltage_max})"
             )
