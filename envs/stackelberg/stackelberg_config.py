@@ -16,8 +16,8 @@ class StackelbergConfig:
     """Stackelberg VVC 环境配置 — 唯一数据源
 
     所有字段都有合理默认值，可通过 from_env_args() 从训练脚本的
-    env_args dict 覆盖。子配置 (tou_config 等) 保留为 dict 类型，
-    因为 StackelbergBaseEnv 尚未迁移到 typed config。
+    env_args dict 覆盖。ESS、聚合、异步观测、监控子配置仍以字典交给旧核心，
+    允许的键在本类校验，不能用任意字典隐藏未实现参数。
     """
 
     # 系统配置
@@ -32,23 +32,17 @@ class StackelbergConfig:
     state_type: str = "EP"
     ess_config: dict = field(default_factory=dict)
     stackelberg_config: dict = field(default_factory=dict)
-    circuit_adapter_config: dict = field(default_factory=dict)
     history_length: int = 5
     der_profile: Optional[list] = None
     dss_act: bool = False
 
     # 子配置 (dict 类型，结构灵活)
-    tou_config: Optional[dict] = None
-    tier_config: Optional[dict] = None
-    reward_weights: Optional[dict] = None
     load_aggregation: Optional[dict] = None
     async_config: Optional[dict] = None
     monitoring_config: Optional[dict] = None
-    n1_security: Optional[dict] = None
 
     # 运行时
     worker_idx: Optional[int] = None
-    use_render: bool = False
     use_load_noise: bool = False
     scale: float = 1.0
     exp_name: Optional[str] = None
@@ -59,3 +53,48 @@ class StackelbergConfig:
         from utils.config_validation import legacy_env_config
 
         return legacy_env_config(cls, env_args)
+
+    def validate(self):
+        # 这些子配置尚由旧核心消费字典；在配置定义所在文件限制真实支持的键。
+        supported = {
+            "ess_config": {
+                "capacity",
+                "max_power",
+                "eta_c",
+                "eta_o",
+                "retention_factor",
+                "initial_soc",
+            },
+            "stackelberg_config": {"price_bounds", "dr_incentive_bounds"},
+            "async_config": {"partial_observability", "observation_noise"},
+            "monitoring_config": {
+                "enable",
+                "log_dir",
+                "save_interval",
+                "plot_interval",
+                "track_convergence",
+                "track_nash_gap",
+            },
+            "load_aggregation": {
+                "method",
+                "use_electrical_distance",
+                "priority_weights",
+                "spectral_clusters",
+                "consider_power_flow",
+            },
+        }
+        for name, fields in supported.items():
+            values = getattr(self, name) or {}
+            unknown = set(values) - fields
+            if unknown:
+                raise ValueError(f"{name}: 未实现或未知参数 {sorted(unknown)}")
+        aggregation = self.load_aggregation or {}
+        if aggregation.get("method", "zone") not in ("zone", "priority", "graph"):
+            raise ValueError(
+                "正式控制链只接入zone/priority/graph聚合，动态重聚合尚未接入"
+            )
+        if (self.async_config or {}).get("observation_noise", 0) < 0:
+            raise ValueError("observation_noise不能为负")
+        if self.n_consumer_agents < 1 or self.history_length < 1:
+            raise ValueError("Stackelberg消费者数量和历史长度必须为正整数")
+        return True

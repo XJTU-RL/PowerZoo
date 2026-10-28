@@ -1,37 +1,22 @@
-# 环境字段与训练参数分开；公共解析器展开一次引用。
-training_ref: dsr_default
 system_ref: 123Bus
 env:
   env_name: dsr
-  scenario_name: ieee123_restoration
   dss_file: IEEE123Master.dss
   max_episode_steps: 15
   n_dg: 7
   n_pv: 9
   n_switch: 20
-  n_load_levels: 3
   use_load_aggregation: true
   n_load_agents: null
   load_aggregation_method: zone
   v_min: 0.95
   v_max: 1.05
-  max_load_per_step: 500.0
   reward_restore: 20.0
   reward_voltage: 1.0
   reward_overload: 1.0
   reward_done: -5.0
-  fault_scenarios: 5
   min_faults: 3
   max_faults: 5
-  use_action_mask: true
-  use_dynamic_network: true
-  use_render: false
-  record_node: true
-  load_noise: false
-  scale: 1.0
-  overload_threshold: 1.0
-  use_emergency_rating: false
-  log_overload_details: false
   pv_power_levels: 11
   load_action_levels: 2
   pv_max_power: 150.0
@@ -48,13 +33,44 @@ env:
   success_threshold: 0.9
   restoration_threshold: 0.95
   recent_episodes_window: 10
-  ieee123_load_count: 85
   monitoring:
-    detailed_logging: true
-    log_frequency: 10
     visualization: true
-    anomaly_detection: true
-    save_snapshots: true
-    metrics_aggregation: mean
     visualization_interval: 50
-    save_final_report: true
+train:
+  n_rollout_threads: 3
+  num_env_steps: 10000000
+  episode_length: 15
+  eval_interval: 25
+  save_interval: 25
+  use_linear_lr_decay: false
+  model_dir: null
+eval:
+  use_eval: true
+  n_eval_rollout_threads: 1
+model:
+  lr: 5e-4
+  critic_lr: 5e-4
+  opti_eps: 1e-5
+  weight_decay: 0
+  gain: 0.01
+  use_feature_normalization: true
+  hidden_sizes:
+  - 128
+  - 128
+  data_chunk_length: 5
+algo:
+  ppo_epoch: 5
+  clip_param: 0.2
+  entropy_coef: 0.01
+  value_loss_coef: 1
+  use_clipped_value_loss: true
+  use_max_grad_norm: true
+  max_grad_norm: 10.0
+  use_gae: true
+  gamma: 0.99
+  gae_lambda: 0.95
+  use_huber_loss: true
+  huber_delta: 10.0
+  use_policy_active_masks: true
+  actor_num_mini_batch: 1
+  critic_num_mini_batch: 1

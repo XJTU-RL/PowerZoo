@@ -279,7 +279,7 @@ def test_district_integer_paths_and_count_consistency():
     "field", ["tou_config", "tier_config", "reward_weights", "n1_security"]
 )
 def test_unsupported_stackelberg_features_are_explicit(field):
-    with pytest.raises(ConfigError, match="尚未消费"):
+    with pytest.raises(ConfigError, match="未知参数"):
         ConfigLoader().load(
             "happo", "stackelberg_13bus", values={"env": {field: {"enable": True}}}
         )

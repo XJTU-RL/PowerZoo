@@ -23,15 +23,14 @@ def make_env(env_name_or_config, dss_act=False, worker_idx=None, config_dict=Non
         system = {"34Bus_pv": "34Bus_PV"}.get(env_name_or_config, env_name_or_config)
         values = (config_dict or {}).get("env_args", config_dict or {})
         values = dict(values)
-        values["dss_act"] = dss_act
+        if dss_act:
+            raise ValueError("SmartGrid只支持策略控制，不支持dss_act")
         if system != "34Bus_PV":
             values.setdefault("pv_plan", "none")
         loaded = ConfigLoader().load(
             "happo", "smartgrid", system_ref=system, values={"env": values}
         )
         config = build_dataclass(SmartGridConfig, loaded.env_args)
-    if worker_idx is not None:
-        config = config.with_worker_idx(worker_idx)
     return Env(str(get_data_root()), config)
 
 

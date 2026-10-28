@@ -18,7 +18,7 @@ class Env(gym.Env):
             else SmartGridConfig.from_env_args(config_or_info)
         )
         cfg = self.config
-        if cfg.dss_act or dss_act or cfg.useS:
+        if dss_act:
             raise ValueError("新内核由策略控制设备；dss_act/useS 尚无正式适配")
         self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
         system = Path(cfg.dss_folder or f"node_systems/{cfg.system_name}")
@@ -59,7 +59,7 @@ class Env(gym.Env):
             self.circuit.bus_names,
             self.circuit.topology,
         )
-        self.useS, self.use_render = cfg.useS, cfg.use_render
+        self.useS, self.use_render = False, False
         self.wrap_observation, self.observe_load = True, False
         self.agent_spaces = (
             [gym.spaces.Discrete(2) for _ in self.cap_names]

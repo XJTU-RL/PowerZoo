@@ -1,7 +1,8 @@
 # 训练入口与参数流整理
 
-本次从 `3f47f9f4` 建立 `codex/training-entrypoints`，工作目录为
-`D:\Exps\PowerZoo-worktrees\training-entrypoints`。不修改主工作区，不合并或推送。
+入口整理从 `3f47f9f4` 建立 `codex/training-entrypoints`。后续配置精简在
+`codex/config-simplicity`（基于 `1c0f050e`），当前目录为
+`D:\Exps\PowerZoo-worktrees\config-simplicity`。不修改主工作区，不合并或推送。
 
 ## 当前结构
 
@@ -27,14 +28,14 @@ flowchart TD
 | --- | --- |
 | `configs/algos_cfgs/` | 算法默认值及其字段/类型依据 |
 | `configs/systems/` | 系统路径、设备说明、拓扑及系统级配置 |
-| `configs/envs_cfgs/` | 环境参数与 `system_ref/training_ref` 选择 |
-| `configs/training/` | 可复用训练参数；环境常规预设与通用smoke预设 |
+| `configs/envs_cfgs/` | 聚焦某环境的参数、推荐训练节与系统选择 |
+| `configs/training/smoke.yaml` | 五类环境真正共用的短训练参数 |
 | `configs/experiments/` | 某次实验的选择与差异 |
 | 环境dataclass | 该环境允许的字段、类型及约束 |
 | DSS模型 | 实际电气设备、额定值、接线与原生物理参数 |
 
-原DSR三个预设和District文件中混在环境参数旁的算法节，已移到对应的
-`configs/training/*_default.yaml`，原默认值保持不变。五个smoke实验均通过
+DSR三个预设和District的推荐训练节放回对应环境文件，保持一处修改；
+只引用一次的 `configs/training/*_default.yaml` 已删除。五个smoke实验均通过
 `training_ref: smoke` 共用一份CPU HAPPO训练设置，不再复制网络、采样和优化器参数。
 这是一层明确引用，没有递归继承、插值或新的配置框架。
 
@@ -116,22 +117,25 @@ python scripts/check_training.py
 
 ## 实际验收及边界
 
-2026-10-28，本机Windows/Python3.10/Torch2.6.0+cu124/RTX3080：
+2026-10-28，配置精简后重新验收，本机Windows/Python3.10/Torch2.6.0+cu124/RTX3080：
 
 - 五类环境通过 `scripts/check_training.py` 从公共CLI分别执行CPU HAPPO训练240步、10次更新，
-  在第5和第10次更新各评估2个回合，完成模型保存，210个本轮模型文件的张量均为有限值。
+  在第5和第10次更新各评估2个回合，完成模型保存，140个本轮模型文件的张量均为有限值。共享smoke显式每10次更新保存，
+  不继承长训练的保存周期；模型文件数因此与前期记录不同。
+- 另用不同的电价/24小时倍率、SOC边界、关闭邻居观测完成District 240步/10次更新及评估，
+  12个模型文件参数有限。行为测试分别核对这些参数的实际效果。
 - 模型验收在临时副本上执行，结束后清理副本；检查脚本会汇总失败并返回非零。
 - 通用Windows运行检查通过原生DSS双接口、VVC单/双worker、CPU/CUDA短训练。
 - SmartGrid专项检查完成六类360步场景、双worker自动reset、CPU/CUDA各240步训练、
-  12个validation回合、SB3 PPO96步；本轮132个MARL模型文件参数均为有限值。
+  12个validation回合、SB3 PPO96步；本轮88个MARL模型文件参数均为有限值。
 - 回归测试覆盖参数来源、重放、UI与CLI、归档内容、字典/typed边界、种子冻结、
-  日志长标签、错误返回停止，以及原生数据/动作/能量和单/多智能体一致性：175 passed，0 skipped。
+  日志长标签、错误返回停止，以及原生数据/动作/能量和单/多智能体一致性：202 passed，0 skipped。
 - `pip check`、活动Python编译与Git差异检查通过。归档30个文件的内容摘要已与基点提交逐项核对。
 
 测试命令：
 
 ```powershell
-python -m pytest tests/test_training_entrypoints.py tests/test_configuration_contract.py tests/test_config_pipeline.py tests/test_unified_config.py tests/test_smartgrid_dataset_runtime.py tests/test_windows_runtime.py tests/envs/smartgrid/test_env_config.py tests/envs/smartgrid/test_single_agent.py -o addopts='' -q
+python -m pytest tests/test_configuration_effects.py tests/envs/vvc/test_env_register.py tests/test_training_entrypoints.py tests/test_configuration_contract.py tests/test_config_pipeline.py tests/test_unified_config.py tests/test_smartgrid_dataset_runtime.py tests/test_windows_runtime.py tests/envs/smartgrid/test_env_config.py tests/envs/smartgrid/test_single_agent.py -o addopts='' -q
 ```
 
 本轮DSR恢复任务记录了5次潮流未收敛告警，报告明确保留该数量。
@@ -140,6 +144,7 @@ SmartGrid仍有低电压场景；各环境短训练均不用于宣称策略收�
 其他电路、算法组合及浏览器界面需要分别验证，本次UI只验证注册、配置生成和启动路径。
 
 完整输出在 `results/validation/entrypoints/`，五环境结果为`report.json`及各环境日志；
-模型在`results/entrypoints/runs/`。生成结果不提交Git。
+模型在`results/entrypoints/runs/`。本次配置精简的pytest、Windows运行、SmartGrid运行及
+District差异训练日志另外汇总于`results/validation/config_simplicity/`。生成结果不提交Git。
 验收快照记录的`dss_folder`是已清理的临时副本；若要继续使用验收权重，需显式把该路径
 覆盖为相应正式模型目录。正常启动训练时的配置快照则记录用户指定的模型路径。

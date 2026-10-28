@@ -44,7 +44,7 @@ def test_seeded_reset_and_gymnasium_episode(config):
 
 
 def test_discrete_baseline_uses_product_free_multidiscrete(config):
-    config.pv.action_num = 5
+    config.pv_act_num = 5
     env = SingleAgentVVCEnv(config, action_space_type="discrete")
     try:
         assert isinstance(env.action_space, gym.spaces.MultiDiscrete)

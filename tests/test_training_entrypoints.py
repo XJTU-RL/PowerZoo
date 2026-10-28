@@ -83,7 +83,7 @@ def test_district_passes_typed_object_without_reparse(monkeypatch):
     assert env._parse_config(typed) is typed
 
 
-def test_presets_separate_environment_from_algorithm_sections():
+def test_focused_presets_inline_one_off_training_and_reuse_shared_smoke():
     import yaml
 
     for family in ENVIRONMENTS:
@@ -91,7 +91,9 @@ def test_presets_separate_environment_from_algorithm_sections():
         document = yaml.safe_load(
             (ROOT / f"configs/envs_cfgs/{profile}.yaml").read_text(encoding="utf-8")
         )
-        assert set(document) <= {"env", "system_ref", "training_ref"}
+        assert not str(document.get("training_ref", "")).endswith("_default")
+        if family in ("dsr", "district_dispatch"):
+            assert "train" in document
     for path in (ROOT / "configs/experiments").glob("*smoke.yaml"):
         cfg = ConfigLoader().load(experiment=path)
         assert cfg.algo_args["train"]["num_env_steps"] == 240

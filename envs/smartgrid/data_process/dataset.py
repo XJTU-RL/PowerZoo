@@ -1,6 +1,7 @@
 """SmartGrid 的唯一时序格式、可复现合成器和严格读取器（不导入 DSS）。"""
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
+from envs.smartgrid.base_env.env_config import DataConfig, GROUPS
 from hashlib import sha256
 from pathlib import Path
 import csv
@@ -18,42 +19,8 @@ UNITS = {
     "irradiance": "kW/m2",
     "temperature": "degC_array",
 }
-GROUPS = ("residential", "commercial", "industrial")
 SCENARIOS = ("sunny", "cloudy", "cloud_ramp", "evening_peak", "high_pv", "night")
 COLUMNS = ("time_s", *("load_" + g for g in GROUPS), "irradiance", "temperature")
-
-
-@dataclass
-class DataConfig:
-    source: str = "synthetic"
-    path: str | None = None  # manifest.json；相对路径以仓库根目录解析
-    manifest_sha256: str | None = None
-    seed: int = 2026  # 数据种子与策略/worker 种子相互独立
-    step_seconds: int = 60
-    episodes_per_split: int = 12
-    split: str = "train"
-    load_scale: float = 1.0
-    irradiance_scale: float = 1.0
-    noise: float = 0.025
-    load_groups: dict[str, str] = field(default_factory=dict)
-
-    def __post_init__(self):
-        if self.source not in ("synthetic", "files"):
-            raise ValueError("data.source 必须为 synthetic 或 files")
-        if self.source == "files" and not self.path:
-            raise ValueError("files 数据源必须指定 data.path")
-        if self.split not in ("train", "validation", "test"):
-            raise ValueError("data.split 必须为 train/validation/test")
-        if not 0 <= self.seed < 2**32 or not 1 <= self.step_seconds <= 3600:
-            raise ValueError("无效数据种子或 step_seconds（1..3600）")
-        if self.episodes_per_split < 6:
-            raise ValueError("episodes_per_split 至少为6，覆盖六类场景")
-        if not (0 < self.load_scale <= 3 and 0 < self.irradiance_scale <= 1.5):
-            raise ValueError("数据倍率超出合成器支持范围")
-        if not 0 <= self.noise <= 0.2:
-            raise ValueError("data.noise 必须在 [0, 0.2]")
-        if any(g not in GROUPS for g in self.load_groups.values()):
-            raise ValueError(f"load_groups 的值必须属于 {GROUPS}")
 
 
 def _digest(path):

@@ -2,7 +2,7 @@
 
 本内核首先在 `codex/smartgrid-data-runtime` 完成，从配置重构提交 `01926ba2` 创建。
 后续入口整理继承于 `codex/training-entrypoints`，见[入口说明](training-entrypoints.md)。
-Windows 工作目录为 `D:\Exps\PowerZoo-worktrees\smartgrid-data-runtime`。
+当前整合后的 Windows 工作目录为 `D:\Exps\PowerZoo-worktrees\config-simplicity`。
 正式基线为 IEEE34 + aggressive PV；验证结果说明运行与更新有效，不代表策略收敛。
 
 ## 从短训练开始
@@ -67,6 +67,10 @@ PV864 原来是三相设备接单相864.1，产生不供电的虚假相节点；
 单相变压器和单相PV，采用对应相电压。新内核不会过滤零电压来隐藏接线问题。
 aggressive 模型实际为9个PV、总 Pmpp **1020kW**，6个单相调压器；以原生读数为准。
 
+SmartGrid 的字段、数据和奖励类型集中在 `envs/smartgrid/base_env/env_config.py`。
+动作直接配置 `reg_act_num/bat_act_num/pv_act_num/pv_control_enabled`，无需逐层设备包装。
+数据读写和生成实现留在 dataset.py，纯配置预览不加载仿真依赖。
+
 ## 合成器的明确假设
 
 每个数据集产生 train/validation/test 三个集合，各默认12个独立场景。
@@ -95,7 +99,8 @@ python scripts/generate_smartgrid_data.py --output results/datasets/smartgrid_da
 python scripts/train.py --env smartgrid --set env.max_episode_steps=1440 --set env.data.source=files --set env.data.path=results/datasets/smartgrid_day/manifest.json
 ```
 
-生成器拒绝覆盖非空输出目录。`source=files` 只读取指定清单；适用于已生成数据或外部实测
+生成器拒绝覆盖非空输出目录。`source=files` 只读取指定清单，非默认的生成器参数会报错，避免误以为可再次缩放文件数据；
+场景数量来自清单。适用于已生成数据或外部实测
 数据的显式转换结果。仓库气象TXT的质量标志、列索引、环境/组件温度转换仍需专门审查，
 此实现不会自动把它们变成“实测复现数据”。旧 month/irrad/temperature 加载器不再用于训练。
 
@@ -170,14 +175,14 @@ IEEE34的低电压场景会真实报告违规；不会通过过滤测点或伪�
 
 | 检查 | 实测结果 |
 | --- | --- |
-| 相关pytest | 154 passed，0 skipped；含23项新数据/原生运行验收 |
+| 相关pytest | 202 passed，0 skipped（配置精简后的整组相关回归） |
 | 通用Windows运行检查 | `POWERZOO_RUNTIME_OK`，两套原生DSS接口、VVC单/双worker、CPU/CUDA更新通过 |
 | SmartGrid原生场景 | 六类各360步均收敛，实际设备数2电容/6调压器/2储能/9PV |
 | SmartGrid spawn | 2 workers ×26步，跨24步回合自动reset，观测形状[2,19,153] |
 | HAPPO CPU | 240步、10次更新；独立validation数据共12个评估回合 |
 | HAPPO CUDA | 240步、10次更新 |
 | SB3 PPO | 96步、4次更新，保存模型及实际参数JSON |
-| 保存模型 | 本次132个MARL模型文件中的张量全部为有限值 |
+| 保存模型 | 本次88个MARL模型文件中的张量全部为有限值 |
 | 安装及语法 | `pip check`、相关Python编译和`git diff --check`通过 |
 
 测试命令：

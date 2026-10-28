@@ -1,6 +1,7 @@
 # tests/test_unified_config.py
 """Unified config architecture tests"""
 import pytest
+from utils.config_validation import ConfigError
 from pathlib import Path
 
 
@@ -95,15 +96,14 @@ class TestSmartGridConfigFromEnvArgs:
             },
         }
         config = SmartGridConfig.from_env_args(env_args)
-        assert config.battery.is_continuous
-        assert config.pv.control_enabled
+        assert config.bat_act_num == float("inf")
+        assert config.pv_control_enabled
         assert config.reward_weights.power_loss == 0.4
 
     def test_unknown_keys_ignored(self):
         from envs.smartgrid.base_env.env_config import SmartGridConfig
-        env_args = {'totally_unknown_key': 'should_not_crash'}
-        config = SmartGridConfig.from_env_args(env_args)
-        assert not hasattr(config, 'totally_unknown_key')
+        with pytest.raises(ConfigError):
+            SmartGridConfig.from_env_args({"unknown_key": True})
 
     def test_defaults_used_when_empty(self):
         from envs.smartgrid.base_env.env_config import SmartGridConfig
@@ -192,13 +192,13 @@ class TestDSRConfigFromEnvArgs:
 
     def test_unknown_keys_ignored(self):
         from envs.dsr.core.config import DSRConfig
-        config = DSRConfig.from_env_args({'unknown_key': 'ignored'})
-        assert config.system_name == '123Bus'  # default
+        with pytest.raises(ConfigError):
+            DSRConfig.from_env_args({"unknown_key": True})
 
     def test_none_values_use_default(self):
         from envs.dsr.core.config import DSRConfig
-        config = DSRConfig.from_env_args({'system_name': None})
-        assert config.system_name == '123Bus'  # default, not None
+        with pytest.raises(ConfigError):
+            DSRConfig.from_env_args({"system_name": None})
 
     def test_all_dataclass_fields_accepted(self):
         """Any field defined in DSRConfig should be accepted from env_args"""
@@ -207,8 +207,9 @@ class TestDSRConfigFromEnvArgs:
         # Get all field names
         field_names = [f.name for f in dataclasses.fields(DSRConfig)]
         # Verify we can pass any field
-        assert 'fault_scenarios' in field_names  # was "dead" before
-        assert 'n1_security' not in field_names or True  # may not be a field
+        assert "fault_scenarios" not in field_names
+        assert "min_faults" in field_names and "max_faults" in field_names
+        assert "use_dynamic_network" not in field_names
 
 
 class TestStackelbergConfigFromEnvArgs:
@@ -239,15 +240,13 @@ class TestStackelbergConfigFromEnvArgs:
 
     def test_dict_sub_configs_passthrough(self):
         from envs.stackelberg.stackelberg_config import StackelbergConfig
-        tou = {'peak_hours': [8, 9, 10]}
-        env_args = {'tou_config': tou}
-        config = StackelbergConfig.from_env_args(env_args)
-        assert config.tou_config == tou
+        with pytest.raises(ConfigError):
+            StackelbergConfig.from_env_args({"tou_config": {"peak_hours": [8, 9]}})
 
     def test_unknown_keys_ignored(self):
         from envs.stackelberg.stackelberg_config import StackelbergConfig
-        config = StackelbergConfig.from_env_args({'totally_unknown': True})
-        assert config.system_name == '13Bus'  # default
+        with pytest.raises(ConfigError):
+            StackelbergConfig.from_env_args({"unknown_key": True})
 
 
 class TestVVCConfigFromEnvArgs:
@@ -278,21 +277,21 @@ class TestVVCConfigFromEnvArgs:
 
     def test_pv_control_alias(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
-        config = VVCConfig.from_env_args({'pv_control': True})
-        assert config.pv_control_enabled is True
+        with pytest.raises(ConfigError):
+            VVCConfig.from_env_args({"pv_control": True})
 
     def test_pv_flag_from_env_info_style(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
-        config = VVCConfig.from_env_args({'pv': True})
-        assert config.pv_control_enabled is True
+        with pytest.raises(ConfigError):
+            VVCConfig.from_env_args({"pv": True})
 
     def test_defaults(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
         config = VVCConfig.from_env_args({})
         assert config.system_name == '13Bus'
         assert config.reg_act_num == 33
-        assert config.pv_act_num == 33
-        assert config.pv_control_enabled is False
+        assert not hasattr(config, "pv_act_num")
+        assert not hasattr(config, "pv_control_enabled")
 
     def test_to_env_info(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
@@ -304,10 +303,8 @@ class TestVVCConfigFromEnvArgs:
 
     def test_to_env_info_with_pv(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
-        config = VVCConfig(pv_control_enabled=True, pv_act_num=33)
-        info = config.to_env_info()
-        assert info['pv'] is True
-        assert info['pv_act_num'] == 33
+        with pytest.raises(TypeError):
+            VVCConfig(pv_control_enabled=True, pv_act_num=33)
 
     def test_to_sys_info(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
@@ -318,13 +315,13 @@ class TestVVCConfigFromEnvArgs:
 
     def test_unknown_keys_ignored(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
-        config = VVCConfig.from_env_args({'unknown_key': 'ignored'})
-        assert config.system_name == '13Bus'
+        with pytest.raises(ConfigError):
+            VVCConfig.from_env_args({"unknown_key": True})
 
     def test_none_values_use_default(self):
         from envs.vvc.vvc.vvc_config import VVCConfig
-        config = VVCConfig.from_env_args({'system_name': None})
-        assert config.system_name == '13Bus'
+        with pytest.raises(ConfigError):
+            VVCConfig.from_env_args({"system_name": None})
 
     def test_env_specific_config_reward_weights(self):
         from envs.vvc.vvc.vvc_config import VVCConfig

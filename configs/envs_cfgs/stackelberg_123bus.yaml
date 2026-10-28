@@ -5,31 +5,25 @@ env:
   max_episode_steps: 24
   n_consumer_agents: 20
   ess_config:
-    total_capacity: 10.0
     initial_soc: 0.5
-    efficiency_charge: 0.95
-    efficiency_discharge: 0.95
-    self_discharge_rate: 0.001
     max_power: 2.0
+    capacity: 10.0
+    eta_c: 0.95
+    eta_o: 0.95
+    retention_factor: 0.999
   monitoring_config:
     enable: true
     log_dir: logs/stackelberg_123bus
     save_interval: 100
     plot_interval: 50
-    experiment_name: null
     track_convergence: true
     track_nash_gap: true
-    track_carbon: true
   async_config:
-    consumer_delay: 1
-    action_persistence: 1
-    enable_action_prediction: false
     partial_observability: false
     observation_noise: 0.0
   load_aggregation:
     method: priority
     use_electrical_distance: true
-    zone_definitions: null
     priority_weights:
       residential: 1.0
       commercial: 2.0

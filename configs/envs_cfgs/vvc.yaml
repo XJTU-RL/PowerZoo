@@ -3,7 +3,6 @@ system_ref: 13Bus
 env:
   env_name: 13Bus
   useS: false
-  big2small: false
   use_render: false
   record_node: false
   max_episode_steps: 24

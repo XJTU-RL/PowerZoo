@@ -63,3 +63,11 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 `D:\Exps\PowerZoo-worktrees\training-entrypoints`。所有环境共用 `scripts/train.py`；
 检查脚本为 `scripts/check_training.py`，归档与参数流说明见
 [入口整理说明](training-entrypoints.md)。本分支继承此前修复，不自动合并到main。
+
+
+## 配置精简任务
+
+从 `1c0f050e` 建立 `codex/config-simplicity`，目录为
+`D:\Exps\PowerZoo-worktrees\config-simplicity`。单次引用的训练预设合并回环境文件，
+真实共享的 smoke 设置保留；字段删除与保留依据实际消费者，详见[配置说明](configuration.md)。
+训练验证沿用公共检查脚本，不添加另一套长期训练入口。

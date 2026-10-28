@@ -1,409 +1,32 @@
-# -*- coding: utf-8 -*-
-"""
-@File      : env_register.py
-@Time      : 2025-04-08 17:52
-@Author    : Xiaodong Zheng
-@Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 该文件主要用于管理电力系统仿真环境的配置信息，并提供创建和管理仿真环境的工具。
-- 关键组件及职责：
-  - `_SYS_INFO`：以系统名称为键，存储电力系统的固定信息，如源节点、节点大小等。
-  - `_ENV_INFO`：以环境名称为键，存储环境所需的必要信息，如系统名称、DSS 文件等，并更新系统信息。
-  - `get_info_and_folder`：根据环境名称获取环境信息和系统文件夹路径，支持缩放比例设置。
-  - `make_base_env`：根据环境名称创建仿真环境，支持多线程工作模式。
-  - `remove_parallel_dss`：移除并行运行时生成的 DSS 文件。
-- 工作流程：通过字典存储系统和环境信息，在创建环境时，根据环境名称获取相应信息，若为多线程模式则复制并修改 DSS 文件，最后创建环境实例。
-"""
-# 
-# SPDX-License-Identifier: MIT
+"""VVC工厂；配置只由ConfigLoader解析，不再维护另一份系统/环境默认表。"""
 
 import os
 import re
 from envs.vvc.vvc.env import Env
 from utils.path_utils import get_node_systems_dir
 
-# map from system_name to fixed information of the system
 
-# 电力系统的固定信息，以系统名称为键
-_SYS_INFO = {
-    '13Bus': {
-        'source_bus': 'sourcebus',      # 电力系统中的源节点
-        'node_size': 500,              # 节点的大小
-        'shift': 10,                   # 节点位置的偏移
-        'show_node_labels': True,       # 是否显示节点标签
-        'load_noise':True               #是否使用噪声
-    },
-
-    '34Bus': {
-        'source_bus': 'sourcebus',
-        'node_size': 500,
-        'shift': 80,
-        'show_node_labels': True,
-        'load_noise':False    
-    },
-
-    '123Bus': {
-        'source_bus': '150',
-        'node_size': 400,
-        'shift': 80,
-        'show_node_labels': True,
-        'load_noise':False 
-    },
-
-    '8500-Node': {
-        'source_bus': 'e192860',
-        'node_size': 10,
-        'shift': 0,
-        'show_node_labels': False
-    }
-}
-
-
-# map from env_name to the necessary information
-_ENV_INFO = {
-    '13Bus': {
-        'system_name': '13Bus',             # 电力系统的名称
-        'dss_file': 'IEEE13Nodeckt_daily.dss',  # 使用的OpenDSS DSS文件
-        'max_episode_steps': 24,            # 每个仿真episode的最大步数
-        'reg_act_num': 33,                  # 可用的调节动作数量
-        'bat_act_num': 33,                  # 可用的电池动作数量
-        'power_w': 10.0,                   # 与功率相关的奖励权重
-        'cap_w': 1.0/33,                   # 与电容相关的奖励权重
-        'reg_w': 1.0/33,                   # 与调节动作相关的奖励权重
-        'soc_w': 0.0/33,                   # 与电池状态相关的奖励权重
-        'dis_w': 6.0/33                    # 与电池放电动作相关的奖励权重
-    },
-   
-    '13Bus_cbat': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 6.0/33,
-    },
-   
-    '13Bus_soc': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 20.0/33,
-        'dis_w': 1.0/33
-    },
-
-    '13Bus_cbat_soc': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 20.0/33,
-        'dis_w': 1.0/33,
-    },
-
-    '34Bus': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-    },
-    '34Bus_pv': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'irrad_dss': 'irrad_up_down.dss',
-        'for_LLM': False,
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-        'pv': True,
-    },
-    '34Bus_cbat': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-    },
-
-    '34Bus_soc': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 4.0/33,
-    },
-
-    '34Bus_cbat_soc': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 4.0/33,
-    },
-
-    '123Bus': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 7.0/33,
-    },
-
-    '123Bus_cbat': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 7.0/33,
-    },
-
-    '123Bus_soc': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    '123Bus_cbat_soc': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 500.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    '8500Node': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 200.0/33,
-    },
-    
-    '8500Node_cbat': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 200.0/33,
-    },
-
-
-    '8500Node_soc': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 10000/33,
-        'dis_w': 100/33,
-    },
-
-    '8500Node_cbat_soc': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 24,
-        'reg_act_num': 33,
-        'bat_act_num': float('inf'),
-        'power_w': 1.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 10000/33,
-        'dis_w': 100/33,
-    },
-
-    # DSR (Distribution System Restoration) environments
-    'dsr': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 15,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 20.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    'dsr_13bus': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 10,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 20.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    'dsr_34bus': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 12,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 20.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 5.0/33,
-    },
-
-    'dsr_8500node': {
-        'system_name': '8500-Node',
-        'dss_file': 'Master_daily.dss',
-        'max_episode_steps': 20,
-        'reg_act_num': 33,
-        'bat_act_num': 33,
-        'power_w': 20.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 100.0/33,
-    },
-
-    # Stackelberg game environments
-    'stackelberg_13bus': {
-        'system_name': '13Bus',
-        'dss_file': 'IEEE13Nodeckt_daily.dss',
-        'max_episode_steps': 24,
-        'is_stackelberg': True,
-        'n_consumer_agents': 8,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 6.0/33,
-    },
-
-    'stackelberg_34bus': {
-        'system_name': '34Bus',
-        'dss_file': 'ieee34Mod1_daily.dss',
-        'max_episode_steps': 24,
-        'is_stackelberg': True,
-        'n_consumer_agents': 12,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 10.0/33,
-    },
-
-    'stackelberg_123bus': {
-        'system_name': '123Bus',
-        'dss_file': 'IEEE123Master_daily.dss',
-        'max_episode_steps': 24,
-        'is_stackelberg': True,
-        'n_consumer_agents': 20,
-        'power_w': 10.0,
-        'cap_w': 1.0/33,
-        'reg_w': 1.0/33,
-        'soc_w': 0.0/33,
-        'dis_w': 7.0/33,
-    }
-}
-
-# add system information to environment
-for env in _ENV_INFO.keys():
-    sys = _ENV_INFO[env]['system_name']
-    _ENV_INFO[env].update(_SYS_INFO[sys])
-
-
-
-####################### functions ########################
 def get_info_and_folder(env_name):
-    # check env scale and env name
-    is_scaled = re.match('.*(_s)([0-9]*[.])?[0-9]+?', env_name)
-    if is_scaled:
-        matched_str = is_scaled.group(0)
-        idx = matched_str.rfind('_s')
-        env_name = matched_str[:idx]
-        scale = float(matched_str[idx+2:])
-    assert env_name in _ENV_INFO, env_name + ' not implemented'
+    """兼容旧名称与_s倍率，但所有默认值复用正式解析器。"""
+    from utils.config_pipeline import ConfigLoader
+    from utils.config_validation import build_dataclass, expand_legacy_variant
+    from envs.vvc.vvc.vvc_config import VVCConfig
 
-    # get base_info
-    base_info = _ENV_INFO[env_name].copy()
-    if is_scaled:
-        base_info['scale'] = scale
-        base_info['soc_w'] = base_info['soc_w'] * (scale**2)
+    matched = re.fullmatch(r"(.+)_s([0-9]+(?:\.[0-9]+)?)", env_name)
+    scale = float(matched[2]) if matched else None
+    name = matched[1] if matched else env_name
+    variant = dict(expand_legacy_variant(name) or {})
+    system = variant.pop("system_ref", name)
+    loaded = ConfigLoader().load(
+        "happo", "vvc", system_ref=system, values={"env": variant}
+    )
+    config = build_dataclass(VVCConfig, loaded.env_args)
+    if scale is not None:
+        config.scale = scale
+        config.soc_w *= scale**2
+    info = {**config.to_env_info(), **config.to_sys_info()}
+    return info, str(get_node_systems_dir())
 
-    # 按项目结构定位，避免 Windows 盘符根目录和任意 worktree 名称导致无限循环。
-    folder_path = str(get_node_systems_dir())
-    return base_info, folder_path
 
 def make_base_env(config_or_name, dss_act=False, worker_idx=None):
     """创建 VVC 基础环境
@@ -416,7 +39,7 @@ def make_base_env(config_or_name, dss_act=False, worker_idx=None):
 
     if isinstance(config_or_name, VVCConfig):
         config = config_or_name
-        # 合并 env_info + sys_info，与 _ENV_INFO 合并后格式一致
+        # 旧核心需要一个明确字典视图；不重新解析默认配置
         base_info = config.to_env_info()
         base_info.update(config.to_sys_info())
 
@@ -450,7 +73,7 @@ def make_base_env(config_or_name, dss_act=False, worker_idx=None):
         info['dss_file'] = info['dss_file'][:-4] + '_' + str(worker_idx) + '.dss'
         info['worker_idx'] = worker_idx
         return Env(folder_path, info, dss_act)
-        
+
 def remove_parallel_dss(env_name, num_workers):
     from envs.vvc.vvc.vvc_config import VVCConfig
     if isinstance(env_name, VVCConfig):

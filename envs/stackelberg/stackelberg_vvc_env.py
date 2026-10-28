@@ -40,7 +40,7 @@ class StackelbergVVCEnv:
     - Implements asynchronous hierarchical decision making
     - Provides comprehensive monitoring
     """
-    
+
     def __init__(self, config_or_args, rank=None):
         """Initialize Stackelberg PowerZoo environment.
 
@@ -72,12 +72,11 @@ class StackelbergVVCEnv:
         # Create load aggregator
         load_agg_config = self.env_config.get('load_aggregation', {
             'method': 'zone',
-            'max_loads_per_agent': 5,
         })
         self.load_aggregator = IntelligentLoadAggregator(
             self.base_env.circuit,
-            method=load_agg_config.get('method', 'bus_proximity'),
-            config=load_agg_config
+            method=load_agg_config.get("method", "zone"),
+            config=load_agg_config,
         )
 
         # Perform load aggregation
@@ -139,22 +138,27 @@ class StackelbergVVCEnv:
             'seed': cfg.seed,
             'worker_idx': cfg.worker_idx,
             'n_consumer_agents': cfg.n_consumer_agents,
-            'use_render': cfg.use_render,
             'use_load_noise': cfg.use_load_noise,
             'scale': cfg.scale,
         }
 
         # Pass through dict sub-configs
-        for key in ['tou_config', 'tier_config', 'reward_weights',
-                    'load_aggregation', 'async_config', 'monitoring_config', 'n1_security',
-                    'ess_config', 'stackelberg_config', 'circuit_adapter_config',
-                    'history_length', 'der_profile', 'dss_act']:
+        for key in [
+            "load_aggregation",
+            "async_config",
+            "monitoring_config",
+            "ess_config",
+            "stackelberg_config",
+            "history_length",
+            "der_profile",
+            "dss_act",
+        ]:
             val = getattr(cfg, key, None)
             if val is not None:
                 env_config[key] = val
 
         return env_config
-    
+
     def _setup_vvc_compatibility(self):
         """Setup properties for PowerZoo compatibility."""
         # Number of agents
@@ -194,7 +198,7 @@ class StackelbergVVCEnv:
         # Other properties
         self.discrete = False  # Continuous actions
         self.episode_limit = self.max_episode_steps
-    
+
     def reset(self, choose=None):
         """
         Reset environment (PowerZoo compatible).
@@ -226,7 +230,7 @@ class StackelbergVVCEnv:
         self.logger.info(f"Episode {self.current_episode} started")
 
         return local_obs, share_obs, avail_actions
-    
+
     def step(self, actions):
         """
         Execute environment step (PowerZoo compatible).
@@ -387,7 +391,7 @@ class StackelbergVVCEnv:
             "n_consumer_agents": self.n_agents - 1,
         }
         return env_info
-    
+
     def get_obs_size(self):
         """Get observation size."""
         # Return size of first agent's observation space
@@ -395,11 +399,11 @@ class StackelbergVVCEnv:
             return self.observation_spaces[0].shape[0]
         else:
             return self.observation_spaces[0].n
-    
+
     def get_state_size(self):
         """Get global state size (consistent with share_observation_space)."""
         return self.share_observation_space[0].shape[0]
-    
+
     def get_total_actions(self):
         """Get total number of actions (for discrete action spaces)."""
         if hasattr(self.action_spaces[0], 'n'):
@@ -407,43 +411,43 @@ class StackelbergVVCEnv:
         else:
             # Continuous actions
             return -1
-    
+
     def get_stats(self):
         """Get environment statistics."""
         if hasattr(self.async_wrapper, 'monitor') and self.async_wrapper.monitor:
             return self.async_wrapper.monitor.get_summary_statistics()
         return {}
-    
+
     def save_replay(self):
         """Save replay data."""
         if self.monitor:
             self.monitor.save_monitoring_data()
-    
+
     def close(self):
         """Clean up environment."""
         if self.monitor:
             self.monitor.close()
-        
+
         if hasattr(self.async_wrapper, 'close'):
             self.async_wrapper.close()
-        
+
         self.logger.info("Environment closed")
-    
+
     # Additional methods for PowerZoo compatibility
     def seed(self, seed=None):
         """Set random seed."""
         if hasattr(self.base_env, 'seed') and callable(self.base_env.seed):
             self.base_env.seed(seed)
-    
+
     def render(self, mode='human'):
         """Render environment."""
         if hasattr(self.base_env, 'render'):
             return self.base_env.render(mode)
-    
+
     def get_phase_info(self):
         """Get current phase information (UC decision or consumer response)."""
         return self.async_wrapper.get_phase_info()
-    
+
     def get_monitoring_data(self):
         """Get monitoring data if available."""
         if self.monitor:

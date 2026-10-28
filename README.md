@@ -18,6 +18,10 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 算法以 `runners/__init__.py` 中的注册表为准；包含 HAPPO、MAPPO、SHOM、
 MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组合需要分别验证。
 
+配置遵循“共享入口、环境专用字段、实验只写差异”。同一环境的设置与推荐训练节可放在
+同一个 YAML，仅对真正重复使用的内容提取引用；未知或未实现参数直接报错。
+使用与实际生效边界见[配置说明](docs/configuration.md)。
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
@@ -46,8 +50,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor 
 
 历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
 本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
-checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\training-entrypoints`，
-分支为 `codex/training-entrypoints`；环境修复单独保留在 `codex/windows-environment`。
+checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\config-simplicity`，
+分支为 `codex/config-simplicity`；环境修复单独保留在 `codex/windows-environment`。
 
 CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
 CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。

@@ -81,7 +81,7 @@ def test_dataset_rejects_damage(tmp_path, damage):
 
 def test_manifest_pin_and_files_entry(tmp_path):
     path = generate_dataset(tmp_path / "data", DataConfig(episodes_per_split=6), 24)
-    cfg = DataConfig(source="files", path=str(path), episodes_per_split=6)
+    cfg = DataConfig(source="files", path=str(path))
     assert prepare_dataset(cfg, 24).path == path
     cfg.manifest_sha256 = "bad"
     with pytest.raises(ValueError, match="摘要"):

@@ -5,24 +5,19 @@ env:
   max_episode_steps: 24
   n_consumer_agents: 8
   ess_config:
-    total_capacity: 2.0
     initial_soc: 0.5
-    efficiency_charge: 0.95
-    efficiency_discharge: 0.95
-    self_discharge_rate: 0.001
     max_power: 0.5
+    capacity: 2.0
+    eta_c: 0.95
+    eta_o: 0.95
+    retention_factor: 0.999
   monitoring_config:
     enable: true
     log_dir: logs/stackelberg_13bus
     save_interval: 100
     plot_interval: 50
-    experiment_name: null
     track_convergence: true
     track_nash_gap: true
-    track_carbon: true
   async_config:
-    consumer_delay: 1
-    action_persistence: 1
-    enable_action_prediction: false
     partial_observability: false
     observation_noise: 0.0

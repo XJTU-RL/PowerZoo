@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
-"""VVC 环境配置 — 替代 env_register._ENV_INFO 硬编码字典
-
-VVCConfig 是 VVC 环境的唯一配置数据源。
-通过 from_env_args() 从 env_args dict 构建，修复了历史键名不匹配问题
-(episode_length vs max_episode_steps, pv_control vs pv_control_enabled)，
-消除了 _ENV_INFO 中的硬编码默认值。
-
-_ENV_INFO 和 _SYS_INFO 保留在 env_register.py 作为过渡期兜底。
-"""
+"""VVC实际配置字段；系统与实验默认值来自公共YAML解析器。"""
 import dataclasses
 from dataclasses import dataclass
 from typing import Optional, Union
@@ -17,7 +9,7 @@ from typing import Optional, Union
 class VVCConfig:
     """VVC 环境配置 — 唯一数据源
 
-    字段与 _ENV_INFO 条目 + _SYS_INFO 条目一一对应。
+    字段由VVC核心和包装器实际消费。
     默认值取自 '13Bus' 配置。
     """
 
@@ -34,18 +26,15 @@ class VVCConfig:
     # 设备动作维度
     reg_act_num: int = 33
     bat_act_num: Union[int, float] = 33
-    pv_act_num: Union[int, float] = 33
-    pv_control_enabled: bool = False
-    irrad_dss: Optional[str] = None
 
-    # 奖励权重 (与 _ENV_INFO 键一一对应)
+    # 奖励权重（旧核心直接读取）
     power_w: float = 10.0
     cap_w: float = 0.0303  # 1.0/33
     reg_w: float = 0.0303  # 1.0/33
     soc_w: float = 0.0
     dis_w: float = 0.1818  # 6.0/33
 
-    # 显示配置 (来自 _SYS_INFO)
+    # 显示与负荷曲线配置
     node_size: int = 500
     shift: int = 10
     show_node_labels: bool = True
@@ -55,11 +44,9 @@ class VVCConfig:
     scale: float = 1.0
     use_render: bool = False
     useS: bool = False
-    big2small: bool = False
     state_type: str = "EP"
     record_node: bool = False
     dss_act: bool = False
-    for_LLM: bool = False
     env_name: str = "13Bus"  # for backward compat (close() 需要)
 
     @classmethod
@@ -72,7 +59,7 @@ class VVCConfig:
     def to_env_info(self) -> dict:
         """转为 env_register.make_base_env 期望的 dict 格式 (legacy compat)
 
-        合并 _ENV_INFO + _SYS_INFO 的内容，供 Env.__init__() 消费。
+        只提供 Env.__init__() 实际读取的控制与奖励字段。
         """
         info = {
             "system_name": self.system_name,
@@ -89,17 +76,10 @@ class VVCConfig:
             "dis_w": self.dis_w,
             "scale": self.scale,
         }
-        if self.pv_control_enabled:
-            info["pv"] = True
-            info["pv_act_num"] = self.pv_act_num
-        if self.irrad_dss:
-            info["irrad_dss"] = self.irrad_dss
-        if self.for_LLM:
-            info["for_LLM"] = True
         return info
 
     def to_sys_info(self) -> dict:
-        """转为 _SYS_INFO 提供的 dict 格式 (legacy compat)"""
+        """旧核心需要的系统视图（不读取另一份默认配置）"""
         return {
             "source_bus": self.source_bus,
             "node_size": self.node_size,

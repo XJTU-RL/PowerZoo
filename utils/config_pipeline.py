@@ -231,6 +231,97 @@ class ConfigLoader:
         """保留旧 API；加载器已不缓存配置内容。"""
 
     def _system_values(self, system, family):
+
+        def check(values, allowed, path):
+            if not isinstance(values, dict):
+                raise ConfigError(f"{path}必须是映射")
+            unknown = set(values) - set(allowed)
+            if unknown:
+                raise ConfigError(f"{path}: 未知或无消费者的系统参数 {sorted(unknown)}")
+
+        district = "districts" in system
+        check(
+            system,
+            {
+                "system",
+                "episode",
+                "devices",
+                "constraints",
+                "display",
+                "default_rewards",
+            }
+            | ({"districts", "tie_lines", "district_devices"} if district else set()),
+            "system document",
+        )
+        check(
+            system.get("system", {}),
+            {"name", "dss_file", "dss_folder", "source_bus"},
+            "system",
+        )
+        check(system.get("episode", {}), {"max_steps"}, "episode")
+        check(
+            system.get("display", {}),
+            {"node_size", "shift", "show_node_labels", "load_noise"},
+            "display",
+        )
+        check(
+            system.get("constraints", {}),
+            {
+                "voltage_min",
+                "voltage_max",
+                "soc_min",
+                "soc_max",
+                "soc_init",
+                "soc_healthy_min",
+                "soc_healthy_max",
+            },
+            "constraints",
+        )
+        weights = environment_class(
+            "district_dispatch" if district else "smartgrid"
+        )().reward_weights
+        check(system.get("default_rewards", {}), asdict(weights), "default_rewards")
+        devices = system.get("devices", {})
+        if district:
+            districts = system["districts"]
+            zones = set(districts) - {"count"}
+            if zones != set(devices) or districts.get("count") != len(zones):
+                raise ConfigError("districts.count、分区清单与devices分区必须一致")
+            for zone in zones:
+                check(
+                    districts[zone],
+                    {"name", "buses", "boundary_bus", "boundary_buses"},
+                    f"districts.{zone}",
+                )
+                check(
+                    devices[zone],
+                    {"pv_systems", "storage", "ev_chargers"},
+                    f"devices.{zone}",
+                )
+                for group, units in devices[zone].items():
+                    capacity_fields = {
+                        "pv_systems": {"capacity_kw"},
+                        "storage": {"capacity_kwh", "max_power_kw"},
+                        "ev_chargers": {"max_power_kw"},
+                    }[group]
+                    for unit in units:
+                        check(
+                            unit,
+                            {"name", "bus"} | capacity_fields,
+                            f"devices.{zone}.{group}",
+                        )
+        else:
+            check(devices, {"regulators", "batteries", "pv_systems"}, "devices")
+            for name, values in devices.items():
+                check(
+                    values,
+                    (
+                        {"action_num", "control_enabled"}
+                        if name == "pv_systems"
+                        else {"action_num"}
+                    ),
+                    f"devices.{name}",
+                )
         info = system.get("system", {})
         values = {
             key: info[key]
@@ -242,16 +333,17 @@ class ConfigLoader:
         if "max_steps" in system.get("episode", {}):
             values["max_episode_steps"] = system["episode"]["max_steps"]
         if family in ("vvc", "smartgrid"):
-            values.update(system.get("display", {}))
-            values.pop("show_labels", None)
+            if family == "vvc":
+                values.update(system.get("display", {}))
+            else:
+                values.pop("source_bus", None)
             values["environment_specific"] = {
                 "devices": system.get("devices", {}),
                 "reward_weights": system.get("default_rewards", {}),
                 "constraints": system.get("constraints", {}),
             }
         elif family in ("dsr", "district_dispatch"):
-            if family == "district_dispatch":
-                values.pop("source_bus", None)
+            values.pop("source_bus", None)
             for old, new in (("voltage_min", "v_min"), ("voltage_max", "v_max")):
                 if old in system.get("constraints", {}):
                     values[new] = system["constraints"][old]
@@ -481,8 +573,8 @@ class ConfigLoader:
                     raise ConfigError(
                         f"{source}: 旧课程策略没有训练消费者；training_ref 只接受算法参数节"
                     )
-                merge(result.training_config, source)
-        for profile, source in profiles:
+                training_source = source
+        for index, (profile, source) in enumerate(profiles):
             profile = copy.deepcopy(profile)
             for key in ("system_ref", "training_ref"):
                 profile.pop(key, None)
@@ -500,6 +592,9 @@ class ConfigLoader:
                 values = profile.pop("env", {})
                 values.pop("system_ref", None)
                 merge({**profile, "env": normalize_env(values, family)}, source)
+            if not replay and index == 0 and result.training_config is not None:
+                # 环境文件包含推荐训练设置；显式选择的共享训练预设覆盖它。
+                merge(result.training_config, training_source)
 
         # main_args 只描述选择，不能被环境里的 env_name 或算法里的名字悄悄改写。
         merge({"run": result.main_args}, "final entry point selection")
@@ -625,31 +720,6 @@ class ConfigLoader:
             if value != math.inf and (value < 2 or int(value) != value):
                 raise ConfigError(f"env.{name} 必须为 >= 2 的整数或 .inf")
         family = environment_family(config.main_args["env"])
-        if family == "stackelberg":
-            allowed_ess = {
-                "capacity",
-                "total_capacity",
-                "max_power",
-                "eta_c",
-                "eta_o",
-                "eta_s",
-                "efficiency_charge",
-                "efficiency_discharge",
-                "retention_factor",
-                "initial_soc",
-            }
-            if set(env["ess_config"]) - allowed_ess:
-                raise ConfigError(
-                    "env.ess_config 含未实现的参数："
-                    + str(sorted(set(env["ess_config"]) - allowed_ess))
-                )
-            for key in ("tou_config", "tier_config", "reward_weights", "n1_security"):
-                if env.get(key) is not None:
-                    raise ConfigError(
-                        f"env.{key}: Stackelberg 底层尚未消费此配置，请勿把它当成有效实验参数"
-                    )
-            if env["n_consumer_agents"] < 1 or env["history_length"] < 1:
-                raise ConfigError("Stackelberg 消费者数量和历史长度必须为正整数")
         if family == "district_dispatch":
             for index, topology in env["district_topology"].items():
                 devices = env["district_devices"][index]
@@ -662,27 +732,6 @@ class ConfigLoader:
                         raise ConfigError(
                             f"env.district_devices.{index}.{count}: 必须与 district_topology 中的实际设备数一致"
                         )
-        if family == "vvc" and env.get("pv_control_enabled"):
-            raise ConfigError("VVC 底层电路尚未实现 PV 控制；请使用 smartgrid 环境")
-        if family == "smartgrid":
-            if (
-                env["power_base"] <= 0
-                or env["voltage_threshold"] < 0
-                or env["lambda_lr"] < 0
-                or not env["lambda_min"] <= env["lambda_init"] <= env["lambda_max"]
-            ):
-                raise ConfigError("SmartGrid 奖励归一化基值、死区或 Lagrange 参数无效")
-            if env["regulator"]["action_num"] == math.inf:
-                raise ConfigError(
-                    "env.regulator.action_num: SmartGrid 调压器只支持离散控制"
-                )
-            if (
-                env["capacitor"]["action_num"] != 2
-                or not env["capacitor"]["control_enabled"]
-                or not env["regulator"]["control_enabled"]
-                or not env["battery"]["control_enabled"]
-            ):
-                raise ConfigError("SmartGrid 底层尚未实现关闭 CRB 控制或非二值电容动作")
         if env.get("dss_act") and not algo["render"]["use_render"]:
             raise ConfigError(
                 "env.dss_act=true 会启用 DSS 自动控制，使 RL 动作无效；训练时请关闭"

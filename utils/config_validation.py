@@ -169,12 +169,12 @@ def typed_value(value, annotation, path):
     raise ConfigError(f"{path}: 期望 {annotation}，实际为 {value!r}")
 
 
-def build_dataclass(cls, values, path="env", strict=True):
+def build_dataclass(cls, values, path="env"):
     if not isinstance(values, dict):
         raise ConfigError(f"{path}: 必须是映射，实际为 {values!r}")
     fields = {field.name for field in dataclasses.fields(cls)}
     unknown = set(values) - fields
-    if strict and unknown:
+    if unknown:
         raise ConfigError(
             f"{path}: 未知参数 {', '.join(map(str, sorted(unknown)))}；不会静默忽略"
         )
@@ -186,7 +186,7 @@ def build_dataclass(cls, values, path="env", strict=True):
     }
     try:
         config = cls(**converted)
-        if hasattr(config, "validate") and cls.__name__ != "DeviceConfig":
+        if hasattr(config, "validate"):
             config.validate()
         return config
     except (AssertionError, TypeError, ValueError) as exc:
@@ -215,10 +215,16 @@ def normalize_env(values, family):
     }
     if family == "vvc":
         aliases.update(pv_control="pv_control_enabled", pv="pv_control_enabled")
-    if family == "stackelberg" and "system_name" not in result:
-        suffix = str(result.get("env_name", "")).lower().removeprefix("stackelberg_")
+    elif family == "smartgrid":
+        aliases.update(pv_control="pv_control_enabled")
+    if family == "stackelberg" and "env_name" in result:
+        suffix = str(result["env_name"]).lower().removeprefix("stackelberg_")
         if suffix in ("13bus", "34bus", "123bus"):
-            result["system_name"] = suffix[:-3] + "Bus"
+            system = suffix[:-3] + "Bus"
+            if "system_name" in result and result["system_name"] != system:
+                raise ConfigError("env_name与system_name冲突")
+            result["system_name"] = system
+            result.pop("env_name")
     if family in ("dsr", "district_dispatch"):
         aliases.update(voltage_min="v_min", voltage_max="v_max")
     for old, new in aliases.items():
@@ -234,6 +240,15 @@ def normalize_env(values, family):
     legacy = result.pop("environment_specific", result.pop("env_specific_config", {}))
     if not isinstance(legacy, dict):
         raise ConfigError("env.environment_specific 必须是映射")
+    unknown = set(legacy) - {
+        "system_name",
+        "dss_file",
+        "constraints",
+        "reward_weights",
+        "devices",
+    }
+    if unknown:
+        raise ConfigError(f"env.environment_specific: 未知参数 {sorted(unknown)}")
     for key in ("system_name", "dss_file"):
         if key in legacy and key not in result:
             result[key] = legacy[key]
@@ -253,6 +268,9 @@ def normalize_env(values, family):
             if short in result:
                 result["reward_weights"][name] = result.pop(short)
     devices = legacy.get("devices", {})
+    unknown = set(devices) - {"regulators", "batteries", "pv_systems", "capacitors"}
+    if unknown:
+        raise ConfigError(f"env.devices: 未知设备组 {sorted(unknown)}")
     for group, name, short in (
         ("regulators", "regulator", "reg_act_num"),
         ("batteries", "battery", "bat_act_num"),
@@ -262,32 +280,63 @@ def normalize_env(values, family):
         device = devices.get(group, {})
         if not device:
             continue
+        unknown = set(device) - {"action_num", "action_space", "control_enabled"}
+        if unknown:
+            raise ConfigError(
+                f"env.devices.{group}: 未知或无消费者的参数 {sorted(unknown)}"
+            )
+        if device.get("action_space", "discrete") not in ("discrete", "continuous"):
+            raise ConfigError(f"env.devices.{group}: 未知action_space")
+        if group != "pv_systems" and device.get("control_enabled") is False:
+            raise ConfigError("尚未实现关闭CRB控制")
+        if group == "capacitors" and (
+            device.get("action_num", 2) != 2
+            or device.get("action_space") == "continuous"
+        ):
+            raise ConfigError("电容器仅支持固定二状态动作")
         action_num = (
             float("inf")
             if device.get("action_space") == "continuous"
             else device.get("action_num")
         )
-        if family == "smartgrid":
-            mapped = {key: device[key] for key in ("control_enabled",) if key in device}
-            if action_num is not None:
-                mapped["action_num"] = action_num
-            result[name] = deep_merge(mapped, result.get(name, {}))
-        elif family == "vvc":
+        if family == "vvc" and group == "pv_systems":
+            raise ConfigError("VVC没有PV控制实现，请选择smartgrid")
+        if family in ("vvc", "smartgrid"):
             if short and action_num is not None:
                 result.setdefault(short, action_num)
             if group == "pv_systems" and "control_enabled" in device:
                 result.setdefault("pv_control_enabled", device["control_enabled"])
     if family == "smartgrid":
-        for short, name in (
-            ("reg_act_num", "regulator"),
-            ("bat_act_num", "battery"),
-            ("pv_act_num", "pv"),
+        # 仅在输入边界迁移旧嵌套设备格式，运行期只有四个真实动作字段。
+        for name, target in (
+            ("regulator", "reg_act_num"),
+            ("battery", "bat_act_num"),
+            ("pv", "pv_act_num"),
+            ("capacitor", None),
         ):
-            if short in result:
-                result.setdefault(name, {})["action_num"] = result.pop(short)
-        for old in ("pv_control", "pv_control_enabled"):
-            if old in result:
-                result.setdefault("pv", {})["control_enabled"] = result.pop(old)
+            if name not in result:
+                continue
+            device = result.pop(name)
+            if not isinstance(device, dict) or set(device) - {
+                "action_num",
+                "control_enabled",
+            }:
+                raise ConfigError(f"env.{name}: 未知旧设备配置")
+            if target and "action_num" in device:
+                if target in result and result[target] != device["action_num"]:
+                    raise ConfigError(f"env.{name}与{target}冲突")
+                result[target] = device["action_num"]
+            if name == "pv" and "control_enabled" in device:
+                if (
+                    "pv_control_enabled" in result
+                    and result["pv_control_enabled"] != device["control_enabled"]
+                ):
+                    raise ConfigError("env.pv与pv_control_enabled冲突")
+                result["pv_control_enabled"] = device["control_enabled"]
+            elif device.get("control_enabled") is False or (
+                name == "capacitor" and device.get("action_num", 2) != 2
+            ):
+                raise ConfigError("SmartGrid未实现关闭CRB或非二状态电容器")
     for key, value in (result.pop("constraint_overrides", None) or {}).items():
         result[aliases.get(key, key)] = value
     if family == "district_dispatch" and "district_configs" in result:
@@ -303,6 +352,17 @@ def normalize_env(values, family):
         ess = result["ess_config"]
         if not isinstance(ess, dict):
             raise ConfigError("env.ess_config 必须是映射")
+        for old, new in {
+            "total_capacity": "capacity",
+            "efficiency_charge": "eta_c",
+            "efficiency_discharge": "eta_o",
+            "eta_s": "retention_factor",
+        }.items():
+            if old in ess:
+                value = ess.pop(old)
+                if new in ess and ess[new] != value:
+                    raise ConfigError(f"env.ess_config.{old}与{new}冲突")
+                ess[new] = value
         if "self_discharge_rate" in ess:
             rate = typed_value(
                 ess.pop("self_discharge_rate"),
@@ -320,7 +380,7 @@ def normalize_env(values, family):
 
 
 def legacy_env_config(cls, values):
-    """旧 Python 接口保留兼容；正式训练在 ConfigLoader 处严格校验。"""
+    """旧名称可迁移，未知字段和非法null同样报错，不再静默吞掉配置。"""
     families = {
         "VVCConfig": "vvc",
         "SmartGridConfig": "smartgrid",
@@ -329,8 +389,4 @@ def legacy_env_config(cls, values):
         "DistrictDispatchConfig": "district_dispatch",
     }
     normalized = normalize_env(values, families[cls.__name__])
-    return build_dataclass(
-        cls,
-        {key: value for key, value in normalized.items() if value is not None},
-        strict=False,
-    )
+    return build_dataclass(cls, normalized)

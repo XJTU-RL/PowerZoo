@@ -1,13 +1,7 @@
-# 系统参数只在 systems/ 中声明；这里仅保留该训练环境的差异。
 system_ref: 34Bus_PV
 env:
   pv_plan: aggressive
   max_episode_steps: 360
-  useS: false
-  big2small: false
-  use_render: false
-  record_node: false
-  dss_act: false
   use_lagrangian_reward: true
   data:
     source: synthetic
