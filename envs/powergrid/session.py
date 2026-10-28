@@ -97,6 +97,24 @@ class DSSSession:
         )
         self.native = self.dss.ActiveCircuit
         self.native.Solution.dblHour = seconds / 3600
+        # Enabled变化会重建全局NodeRef；停用元件的NodeOrder不能再作为相别权威。
+        self._connections = {}
+        for element in self.native.AllElementNames:
+            self.require_element(element)
+            obj = self.native.ActiveCktElement
+            if obj.NumTerminals:
+                self._connections[element.lower()] = {
+                    "buses": list(obj.BusNames),
+                    "nodes": list(map(int, obj.NodeOrder)),
+                    "phases": int(obj.NumPhases),
+                    "conductors": int(obj.NumConductors),
+                    "terminals": int(obj.NumTerminals),
+                }
+        self.bus_phase_nodes = {name: [] for name in self.native.AllBusNames}
+        for node in self.native.AllNodeNames:
+            bus, _, phase = node.rpartition(".")
+            if phase in ("1", "2", "3"):
+                self.bus_phase_nodes[bus.lower()].append(int(phase))
         discover(self)
         self.topology = nx.MultiGraph()
         for element in sorted(self.native.AllElementNames):
@@ -245,6 +263,10 @@ class DSSSession:
             elif element.startswith("Capacitor."):
                 self.native.Capacitors.Name = element.split(".", 1)[1]
                 trace["measured"] = {"state": int(self.native.Capacitors.States[0])}
+            elif element.startswith("Line."):
+                from envs.powergrid.topology import is_closed
+
+                trace["measured"] = {"closed": int(is_closed(self.connection(element)))}
             else:
                 p, q = (
                     self.powers(element)
@@ -280,16 +302,43 @@ class DSSSession:
         self.require_element(element)
         obj = self.native.ActiveCktElement
         return {
-            "buses": list(obj.BusNames),
-            "phases": int(obj.NumPhases),
-            "conductors": int(obj.NumConductors),
-            "terminals": int(obj.NumTerminals),
-            "nodes": np.asarray(obj.NodeOrder).astype(int).tolist(),
+            **self.connection(element),
             "currents_a": np.asarray(obj.CurrentsMagAng)[::2].astype(float).tolist(),
             "powers": np.asarray(obj.TotalPowers).reshape(-1, 2).astype(float).tolist(),
             "losses": (np.asarray(obj.Losses, dtype=float) / 1000).tolist(),
             "normal_amps": float(obj.NormalAmps),
         }
+
+    def connection(self, element):
+        """无需求解的原生连接、可用状态和逐端子逐导体开断状态。"""
+        self.require_element(element)
+        obj = self.native.ActiveCktElement
+        geometry = self._connections.get(element.lower())
+        if (
+            geometry is None
+            or list(obj.BusNames) != geometry["buses"]
+            or obj.NumConductors != geometry["conductors"]
+        ):
+            raise RuntimeError("元件连接清单改变，须通过模型重新编译；不能沿用旧相别")
+        return {
+            **geometry,
+            "buses": list(geometry["buses"]),
+            "nodes": list(geometry["nodes"]),
+            "enabled": bool(obj.Enabled),
+            "open": [
+                [bool(obj.IsOpen(t, c)) for c in range(1, obj.NumConductors + 1)]
+                for t in range(1, obj.NumTerminals + 1)
+            ],
+        }
+
+    def enable_elements(self, states):
+        """整帧验证原生Enabled开关；故障不可修复等业务规则由任务约束。"""
+        for element, enabled in states.items():
+            self.require_element(element)
+            if type(enabled) is not bool:
+                raise ValueError("Enabled状态必须为布尔值")
+        for element, enabled in states.items():
+            self.command(f"Edit {element} enabled={'yes' if enabled else 'no'}")
 
     def branch_state(self):
         result = {}
@@ -357,6 +406,11 @@ class DSSSession:
             or not self.native.Solution.Converged
         ):
             raise RuntimeError("失败会话不能读取为正常物理状态")
+        active_buses = {
+            node.rpartition(".")[0].lower()
+            for node in self.native.AllNodeNames
+            if node.rpartition(".")[2] in ("1", "2", "3")
+        }
         elements = [
             e
             for e in self.native.AllElementNames
@@ -364,7 +418,10 @@ class DSSSession:
         ]
         return GridState(
             self.time_s,
-            {n: self.phase_voltages(n) for n in self.bus_names},
+            {
+                n: self.phase_voltages(n) if n in active_buses else {}
+                for n in self.bus_names
+            },
             {e: tuple(-self.powers(e)) for e in sorted(elements)},
             tuple(-self.total_power()),
             tuple(self.total_loss()),

@@ -16,19 +16,21 @@ def main(
         p.error("--steps 必须为正数")
     from stable_baselines3 import PPO
     from utils.config_pipeline import ConfigLoader
+    from utils.config_validation import environment_family
     from utils.training_setup import prepare_run
     from utils.envs_tools import make_power_env
     from envs.powergrid.adapters import CentralizedAdapter
 
     cfg = ConfigLoader().load(experiment=args.config)
-    family = cfg.main_args["env"]
-    if family not in ("vvc", "smartgrid", "district_dispatch") or (
+    family = environment_family(cfg.main_args["env"])
+    if family not in ("vvc", "smartgrid", "district_dispatch", "dsr") or (
         expected_family and family != expected_family
     ):
-        p.error("当前集中控制基线支持VVC/SmartGrid/District同步任务")
+        p.error("当前集中控制基线支持VVC/SmartGrid/District/DSR同步任务")
     prepare_run(cfg)
     wrapper = make_power_env(family, cfg.env_args, 0, cfg.env_args["seed"])
-    env = CentralizedAdapter(wrapper.env)
+    action_mode = "discrete" if family == "dsr" else "continuous"
+    env = CentralizedAdapter(wrapper.env, action_space_type=action_mode)
     try:
         n_steps = max(2, int(cfg.algo_args["train"]["episode_length"]))
         model = PPO(
@@ -74,7 +76,11 @@ def main(
                     "gamma": model.gamma,
                     "gae_lambda": model.gae_lambda,
                     "device": "cpu",
-                    "action_adapter": "Box with discrete-device quantization",
+                    "action_adapter": (
+                        "MultiDiscrete group choices"
+                        if action_mode == "discrete"
+                        else "Box with discrete-device quantization"
+                    ),
                 },
                 indent=2,
             )

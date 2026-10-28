@@ -23,8 +23,8 @@ class OperationalLogger(BaseLogger):
             phase_violation_minutes=0.0,
             capacitor_operations=0.0,
             regulator_steps=0.0,
-            voltage_min_pu=float("inf"),
-            voltage_max_pu=float("-inf"),
+            voltage_min_pu=None,
+            voltage_max_pu=None,
         )
 
         record.update({key: 0.0 for key in cls.extra_sum_keys})
@@ -63,12 +63,13 @@ class OperationalLogger(BaseLogger):
         )
         record["capacitor_operations"] += infos["capacitor_ctrl"]
         record["regulator_steps"] += infos["regulator_ctrl"]
-        record["voltage_min_pu"] = min(
-            record["voltage_min_pu"], infos["voltage_min_pu"]
-        )
-        record["voltage_max_pu"] = max(
-            record["voltage_max_pu"], infos["voltage_max_pu"]
-        )
+        for key, reduce in (("voltage_min_pu", min), ("voltage_max_pu", max)):
+            if infos[key] is not None:
+                record[key] = (
+                    infos[key]
+                    if record[key] is None
+                    else reduce(record[key], infos[key])
+                )
 
     def per_step(self, data):
         super().per_step(data)
@@ -81,9 +82,13 @@ class OperationalLogger(BaseLogger):
     def _publish(self, records, prefix):
         if not records:
             return {}
-        result = {key: float(np.mean([r[key] for r in records])) for key in records[0]}
+        result = {}
+        for key in records[0]:
+            values = [r[key] for r in records if r[key] is not None]
+            result[key] = float(np.mean(values)) if values else None
         for key, value in result.items():
-            self.writer.add_scalar(prefix + "/" + key, value, self.total_num_steps)
+            if value is not None:
+                self.writer.add_scalar(prefix + "/" + key, value, self.total_num_steps)
         return result
 
     def episode_log(self, *args):

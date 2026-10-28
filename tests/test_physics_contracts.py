@@ -42,7 +42,7 @@ def test_retired_smartgrid_sources_are_recoverable_and_not_active():
         )
 
 
-@pytest.mark.parametrize("family", ["dsr", "stackelberg"])
+@pytest.mark.parametrize("family", ["stackelberg"])
 def test_unrebuilt_physics_is_rejected_before_training_preparation(family):
     from utils.config_pipeline import ConfigLoader
     from utils.training_setup import prepare_run

@@ -19,6 +19,21 @@ _LENGTH_TO_KM = {
 def extract_bus_data(env):
     result = {}
     for name, phases in env.physical_state.voltages_pu.items():
+        if not phases:
+            result[name] = {
+                "name": name,
+                "active_in_solution": False,
+                "phase_nodes": [],
+                "v_mag_pu": [],
+                "v_angle_deg": [],
+                "v_mag_kv": [],
+                "n_phases": 0,
+                "base_kv": None,
+                "coord_defined": False,
+                "x": None,
+                "y": None,
+            }
+            continue
         env.circuit.native.SetActiveBus(name)
         bus = env.circuit.native.ActiveBus
         nodes = list(bus.Nodes)
@@ -26,6 +41,7 @@ def extract_bus_data(env):
         defined = bool(bus.Coorddefined)
         result[name] = {
             "name": name,
+            "active_in_solution": True,
             "v_mag_pu": list(phases.values()),
             "phase_nodes": list(phases),
             "v_angle_deg": [
@@ -53,6 +69,8 @@ def extract_line_data(env):
         result[name] = {
             "name": name,
             "type": "line",
+            "enabled": info["enabled"],
+            "open": info["open"],
             "bus1": info["buses"][0].split(".")[0],
             "bus2": info["buses"][1].split(".")[0],
             "length_native": length,
@@ -75,6 +93,8 @@ def extract_transformer_data(env):
         element.split(".", 1)[1]: {
             "name": element.split(".", 1)[1],
             "type": "transformer",
+            "enabled": info["enabled"],
+            "open": info["open"],
             "bus1": info["buses"][0].split(".")[0],
             "bus2": info["buses"][1].split(".")[0],
             "kva": info["winding_kva"][0],
@@ -233,9 +253,9 @@ def extract_circuit_summary(env):
             and e.split(".", 1)[1] in env.circuit.svgs
         ),
         "power_loss_pct": state.losses[0] / env.base_load_kw * 100,
-        "v_mean_pu": float(np.mean(volts)),
-        "v_min_pu": min(volts),
-        "v_max_pu": max(volts),
+        "v_mean_pu": float(np.mean(volts)) if volts else None,
+        "v_min_pu": min(volts) if volts else None,
+        "v_max_pu": max(volts) if volts else None,
         "active_balance_error_kw": state.active_balance_error_kw,
     }
 

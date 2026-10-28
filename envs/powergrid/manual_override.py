@@ -1,5 +1,6 @@
 """按正式设备ID和真实动作空间进行手动覆盖。"""
 
+import json
 import numpy as np
 from envs.render_common.engine.base_manual_override import BaseManualOverride
 
@@ -18,6 +19,12 @@ class DeviceManualOverride(BaseManualOverride):
         return cls(env)
 
     def get_action_labels(self, agent_id):
+        if "choices" in self.schema[agent_id]:
+            return [
+                self.schema[agent_id]["group"]
+                + " "
+                + json.dumps(self.schema[agent_id]["choices"])
+            ]
         if "controls" in self.schema[agent_id]:
             return [
                 c["element"] + " " + component

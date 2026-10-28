@@ -1,0 +1,335 @@
+{
+  "revision": "b0b540a9",
+  "files": [
+    {
+      "original": "envs/dsr/README.md",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/README.md",
+      "sha256": "1d265489ba179c2485b20fa5a9820fe52ce9c32483981ac9d20dec417d360bb6",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/__init__.py",
+      "sha256": "2426e86b0ebdb636929215d952535366853f38f2b26fe7fe3c5cccff44a66fc5",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/core/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/core/__init__.py",
+      "sha256": "2c13b15390c2174ee886092d6a4ba6c8831c0a5c967a8b5af9bea988e40cad8f",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/core/circuit.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/core/circuit.py",
+      "sha256": "3cc5252f262a610cb8b111073299450ceb18a7cb4d31d5f329048089ba70c7d7",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/core/config.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/core/config.py",
+      "sha256": "ec2c209ea420ed770b2c1e1830043287994c10b438f494a942279c85777ee1e1",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/core/dsr_core.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/core/dsr_core.py",
+      "sha256": "aa60dec099e2246fc75e59783921430919c63c26f1587a9b938d8c7f7d4aa7c5",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/core/loadprofile.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/core/loadprofile.py",
+      "sha256": "f918ec1d6860f4d980d9d98b6e79ac76bbc6a97bb26cfd6f92e31fdd75550ee3",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/dsr_env.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/dsr_env.py",
+      "sha256": "22b5bd878e2df2055abaef84646fca8aec8cec23c839351fa29ce1cbbc9d878f",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/dsr_logger.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/dsr_logger.py",
+      "sha256": "703a2d997637a5539606ae73f75735333bedb3834abcbb231d60738729da945f",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/dsr_monitor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/dsr_monitor.py",
+      "sha256": "2ebe139c99a0777a866bb67465f742df29258d63857d30bd87b67f3c2ff96801",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/__init__.py",
+      "sha256": "50370ddd559f446d86d58a54ea45d1e2d7199ed92cec4389259239594c906080",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/render/assets/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/assets/__init__.py",
+      "sha256": "8b084a9f378124b2b1a51563bf3c22444eb7ff33692017da28b2136ae56987ed",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/assets/bus_coordinates.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/assets/bus_coordinates.py",
+      "sha256": "aeef0aa6d3048540b0b98b443c03eb5c60cabef48df9a562d050959ea13353d1",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/__init__.py",
+      "sha256": "fcee326c4ed4dd304ac6984f93793870da46ac4272efe98f329755cce8e9491a",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/bus_data_extractor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/bus_data_extractor.py",
+      "sha256": "6a562de9c741f447086ade4617c242c7efa57cf6dbd42b302771df044d6a26fd",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/circuit_data_extractor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/circuit_data_extractor.py",
+      "sha256": "9596287199a10f7addc29154fbea8735830e0d94e005839b4adb66c1778a1953",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/device_data_extractor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/device_data_extractor.py",
+      "sha256": "1399e8ef7a77b72cc18b1c513b92aed61a51e4c3bc2671bc73b2816b7ac52d74",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/line_data_extractor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/line_data_extractor.py",
+      "sha256": "68f417f4f30658a292ad84d08226be2c0f71b6a274aa7947e4b98cb4640dbdbe",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/restoration_data_extractor.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/restoration_data_extractor.py",
+      "sha256": "b99b98a91e7466353cd93cc1452b531808e4a3cef6da38ea4a5b2bfc34776be1",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/data/snapshot_assembler.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/data/snapshot_assembler.py",
+      "sha256": "89c5b1305a09e5d182c6d6d0b755d7646a78a9650f4944ee53a64aae00bd73a2",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/engine/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/engine/__init__.py",
+      "sha256": "9b0aa0d6f92493ca994f55889061ae9e9823aca0f154d9856ec29b85696b8615",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/render/engine/episode_runner.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/engine/episode_runner.py",
+      "sha256": "af687bff28af3fd658ed0c7fbfff3dc3764d9c07eff19b0666475e388c9217c0",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/render/engine/manual_override.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/engine/manual_override.py",
+      "sha256": "7813cf356ced1760813486c30326ddfd80b82b657ddfa216300168064ea2def1",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/dsr/render/engine/stress_test_runner.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/engine/stress_test_runner.py",
+      "sha256": "f5e33eb7cb4294c3ac7cd5f2f5c9b2bdccd740da77e0f766473ffb6c2daaec8a",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/export/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/export/__init__.py",
+      "sha256": "116ea187a67c9abd4c6d6293c29574e031e61d9a5648f981493894da5d55301e",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/export/csv_exporter.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/export/csv_exporter.py",
+      "sha256": "a19e8995186cfe878fbf15897b559ce45973ca088d7b5750f28e38c9c5b8ca3f",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/export/report_generator.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/export/report_generator.py",
+      "sha256": "cd9e3a4456387887603f9196b8ce05c422f964fa5bf5813c5bee144273f8710d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/render_app.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/render_app.py",
+      "sha256": "568c1e23ba3cb2b2215dbe73ac0cc61250a6db17cec8f24068286616ca0e6728",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/__init__.py",
+      "sha256": "bc33a53e29299cce8538f65599df366948df5a6fbcd1ebd3393df53616b2a902",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_analytics.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_analytics.py",
+      "sha256": "154e7e00bc3c59283469118da297aff06f42b1e392c45619101869ff39a12530",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_data_export.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_data_export.py",
+      "sha256": "60ccc37937e96627b56e60f5463486204b45ae1ab33e6568d2b21e7d638f9305",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_episode_recorder.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_episode_recorder.py",
+      "sha256": "94c914785e330a265aade16a2319371a0498df6165c639f51e3a88d75303300a",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_live_inference.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_live_inference.py",
+      "sha256": "4765d75e5ace00b9a261bc9993eb4a6a1b9c1ea724d819a0da87baf6da0ee5fa",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_model_inspector.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_model_inspector.py",
+      "sha256": "4eda31e3d28c83e62dfaa167889f2bb3771b53aa842d1d60c512f69c32a30ec4",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_playback.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_playback.py",
+      "sha256": "0e11b1e6d8708cefaa5af1c516a67fcb062bf7bc7b70529155442a4c8ba99799",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_stress_test.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_stress_test.py",
+      "sha256": "551ac81c2736d16fbb7f8d3b3f56a25b07e76140133b5f8ce59ae803f8ba15dc",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/tabs/tab_training_progress.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/tabs/tab_training_progress.py",
+      "sha256": "41457be4b5e6c919a6152c0c77b608467e880fa9a7be28c5eb8f12b52d726b06",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/__init__.py",
+      "sha256": "a8b021e3714d1f0f77559f969dc3671b68340d782a14d7c1c98a267abde45c0e",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/mpl/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/mpl/__init__.py",
+      "sha256": "f728d002696bd00e342b37f8880250c8de189c7cd102982b7b815c36b7ad8b5d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/mpl/episode_animation.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/mpl/episode_animation.py",
+      "sha256": "20ea0a6aed177b3877142232750ffc0832579897c4e6d49ed100e13d83b516cc",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/mpl/static_report_plots.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/mpl/static_report_plots.py",
+      "sha256": "0452d73ff13aa416f2e44dd665ee11b9eb06ea983e2d868bc62d2c3f3b4dc4fb",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/mpl/topology_animator.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/mpl/topology_animator.py",
+      "sha256": "5fa4c9672abcaecb803b7c066c9b4f11d9ac639449fd6d44c207d09fd9dd1a77",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/__init__.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/__init__.py",
+      "sha256": "af68bf610ac590ed6e75f219e192482b145978e76bc8f4ba738f6e768a753693",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/device_schedule_chart.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/device_schedule_chart.py",
+      "sha256": "764d10f3592f4e2252962104ea8c9d75a1d868645d7b09c968cf36531b89f734",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/network_state_chart.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/network_state_chart.py",
+      "sha256": "3bc97c089d969c1dd12bc8ada4313684b1d068751b50190b4ceb401502dff228",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/restoration_progress.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/restoration_progress.py",
+      "sha256": "a41ad4eb844f96f6375602d19ba33fe582bf775529a8725243e6cdda09e1fb6e",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/reward_breakdown.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/reward_breakdown.py",
+      "sha256": "5d58adb88834089f0e92bad6ea4640f508b328c99595b4311abea4b33d500ce7",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/topology_graph.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/topology_graph.py",
+      "sha256": "41026860f56399d44c5ebc9e853dfd24eb615ce6bd9f817bf8b8326d76f49f36",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/voltage_heatmap.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/voltage_heatmap.py",
+      "sha256": "3fa418c48e1f88bb9db649a1fcb2c51f3da163c38701738b76bfcec6b2d691bc",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/render/viz/plotly/voltage_profile.py",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/render/viz/plotly/voltage_profile.py",
+      "sha256": "f71c9ea93220fe50792e4636a9f831193d8d52bf778f0f80ff9a4a341127c5e5",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/dsr/specifications.md",
+      "archive": "archive/physics_refactor_dsr/envs/dsr/specifications.md",
+      "sha256": "2bfea67e21606ccc2c24596322e5721367ae6c945a15ae5c3b60da55e1e25308",
+      "disposition": "retired"
+    },
+    {
+      "original": "configs/envs_cfgs/dsr.yaml",
+      "archive": "archive/physics_refactor_dsr/configs/envs_cfgs/dsr.yaml",
+      "sha256": "4742f1134f9cc804644a8e9f282a2970801d8d02bde0bd2f616447ac3e01a9e9",
+      "disposition": "replaced"
+    },
+    {
+      "original": "configs/envs_cfgs/dsr_13bus.yaml",
+      "archive": "archive/physics_refactor_dsr/configs/envs_cfgs/dsr_13bus.yaml",
+      "sha256": "a69c5e7463c7e5af58e034bf43953b2877059e6fc22aacfb63d619b7fc56666f",
+      "disposition": "replaced"
+    },
+    {
+      "original": "configs/envs_cfgs/dsr_8500node.yaml",
+      "archive": "archive/physics_refactor_dsr/configs/envs_cfgs/dsr_8500node.yaml",
+      "sha256": "4b5978c484305ba8be167bdf5c2f6caedbf4c624825311abe6b80ca70964cb3e",
+      "disposition": "retired"
+    },
+    {
+      "original": "configs/experiments/dsr_13bus_smoke.yaml",
+      "archive": "archive/physics_refactor_dsr/configs/experiments/dsr_13bus_smoke.yaml",
+      "sha256": "dc2bc263393b0024208f7622a787648fc0f75a220fe73519e78c35a1f46b86dd",
+      "disposition": "replaced"
+    }
+  ]
+}

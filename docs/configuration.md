@@ -2,7 +2,7 @@
 
 > 后续物理与任务审查发现：参数到达Python消费者并不保证其影响电气状态或最终优化目标。
 > 旧District的价格抵消、储能时钟与虚拟交换已在区域重建中替换，见[区域调度](district-physics.md)。
-> DSR与Stackelberg仍待重建，见[物理一致性方案](physical-consistency-plan.md)。配置解析验收不能代替电气/交互验收。
+> DSR已重建为[有源静态恢复](dsr-physics.md)，Stackelberg仍待重建。配置解析验收不能代替电气/交互验收。
 
 公共多智能体入口、UI、环境配置类共用一条解析链。不引入 Hydra、插值语言或递归继承。
 配置预览只需要 Python 3.10 和 PyYAML，不初始化 Torch、OpenDSS、Gradio 或环境。
@@ -135,9 +135,12 @@ District 的拓扑、位置、容量用于建立运行对象，必须与 DSS 对
   只在入口迁移一次。连续调压器、关闭 CRB 控制、非二值电容尚未实现，正式入口拒绝这些组合。
   配置、DataConfig、RewardWeights 都定义在 `envs/smartgrid/base_env/env_config.py`；
   数据读写与生成留在 dataset.py，配置预览不再导入 NumPy/Pandas/DSS。
-- **DSR**：使用恢复环境自己的配置，训练参数已从旧平铺字段移到真实 `train/model/algo/eval`
-  各节；13/8500 预设指定静态 DSS 主文件。恢复算法内部仍存在按系统名估算负荷和限制
-  PV/开关数量的研究逻辑，见审计文档，不将其描述成动态拓扑自适应。
+- **DSR**：`data`指定故障JSON、split、SHA256与工程区间秒数；`control_groups`绑定真实
+  Switch Line/Load，`priorities`按真实Load ID定义服务权重，额定值和相别只从DSS读取。
+  电压/热约束、操作成本与非法动作成本均进入实际服务评价和奖励，实际交付电量与合格服务量分别报告。
+  默认小网络和IEEE13派生算例已验收，旧8500预设已退役；详见[恢复任务说明](dsr-physics.md)。
+  新算例使用独立`configs/envs_cfgs/dsr_<case>.yaml`，以`--env dsr_<case>`选择，避免覆盖现有算例
+  时意外继承设备归属。映射逐键合并（空映射不会清除父值），列表整体替换。
 - **Stackelberg**：消费者数量、ESS、真实价格边界、历史长度等进入底层。
   ESS 的 `retention_factor` 是每步保留比例，旧 `self_discharge_rate: 0.001` 在入口转换为
   `retention_factor: 0.999`，避免把损失率误当作保留率；尚未实现的 ESS min_soc/max_soc 会拒绝。

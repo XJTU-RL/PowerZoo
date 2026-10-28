@@ -10,7 +10,7 @@
 - [x] P1：公共物理核心，PV/Storage/SVG原生校准，SmartGrid迁移。
 - [x] P2：VVC迁移与两种任务基准，见[VVC迁移记录](vvc-physics.md)。
 - [x] P3：区域协同调度重建，见[区域调度记录](district-physics.md)。
-- [ ] P4：静态故障恢复重建。
+- [x] P4：静态故障恢复重建，见[恢复记录](dsr-physics.md)。
 - [ ] P5：顺序定价博弈重建。
 
 ## SmartGrid验收
@@ -104,7 +104,7 @@ python scripts/check_smartgrid.py --config configs/experiments/smartgrid_svg_smo
 
 P0保护提交：`af98d86c`拒绝EP非团队奖励；`48237b08`在正式准备阶段阻断DSR、District、Stackelberg旧物理训练。
 配置预览和只读审查仍可使用；每个任务完成重建与实际验收后，才移除相应阻断。
-P2已将正式VVC迁移到同一公共物理层；旧Circuits暂仅供已阻断的DSR/Stackelberg研究路径。
+P2已将正式VVC迁移到同一公共物理层；P4之后旧Circuits仅供已阻断的Stackelberg研究路径。
 项目其他旧测试中仍存在猜测类名/过时接口；本记录只声称列明的相关回归通过，不声称全仓测试全绿。
 Gradio页面未做浏览器交互验收；本轮已验证数据快照、动作覆盖、扫描配置和真实checkpoint回放引擎。
 
@@ -144,4 +144,28 @@ TOU规则在六个全天场景的总目标成本低于固定DER控制，但部�
 数据、动作和约束范围见专项说明；原生模型摘要75155b0a3766274642cc36df351ba1dc823e212fc5da6babbee769d8d3830ddd。
 完整报告在results/validation/district/report.json，当前整组回归和各专项日志在results/validation/physics_refactor/p3_*.log。
 
-P4/P5尚未完成；DSR/Stackelberg继续由prepare_run阻断旧实现训练。整个物理/环境重构目标保持进行中。
+该阶段之后的P4完成情况见下；P5与全局收尾仍待完成，整个物理/环境重构目标保持进行中。
+
+## P4实际结果
+
+- DSR改为真实有源静态恢复，控制组绑定原生开关与Load，不再存在随机DG位置、假PV动作和Enabled恢复率。
+  两套算例为小网络与IEEE13派生备用路径，3个actor动作数分别7/3/3与7/3/5，全局观测63/295维。
+- 公共物理层增加逐端子/导体开断、动态导通图、真实Vsource参考与变压器供电路径；永久故障与操作位置分开。
+  单独掩码和联合径向性均校验，非法组合整帧拒绝；写入前验证且先开后合。
+- 以原生交付P、相源连接、电压和供电路径容量分别计实际供电与合格恢复服务，原生秒数积分kWh。
+  失电与求解失败、负荷停用与故障、带电越限与未供电分别记录。PV/Storage失源时停用注入，不作为虚构黑启动源。
+- 编译连接几何固定，避免Enabled变化后停用元件NodeOrder相别重排；节点退出求解有明确in_solution状态。
+  固定观测不随停用负荷改变尺寸，原生快照不补电压；整网无量测统计为null，不伪造1pu/0功率/50%SOC。
+- 每套3个split×4场景×2规则×12步完整运行，并分别穷举32/64种控制状态核对静态AC末状态恢复上限。
+  IEEE13测试集主干故障约100%，变压器故障88.46%，双区段75.68%，源停运0；不把不可恢复负荷计为成功。
+  最大有功残差约8.72e-7/6.10e-5kW，仍采用50W门槛。
+- 每套双worker跨reset、CPU/CUDA HAPPO各240步/10更新与各8个validation回合；24个保存参数文件有限。
+  三个actor实际恢复回放12步，修复共享推理器离散掩码缺少batch维度的问题。
+  集中PPO使用真实MultiDiscrete操作空间，各96步/4更新并恢复回放12步。
+- 55个旧DSR源/配置/页面按原提交字节和摘要归档；旧8500恢复预设退出正式入口，GUI未迁移。
+  数据仍由公共prepare_run准备，故障JSON使用恢复专属字段，无强制天气或重复额定值。
+
+当前专项报告为results/validation/dsr/report.json；P4验收日志为results/validation/physics_refactor/p4_*.log。
+SmartGrid普通/SVG、VVC三馈线、District及Windows原生/CPU/CUDA检查在公共层改动后再次验收。
+相关整组313项回归通过、无跳过；pip check通过。包含开断几何、全网无量测、真实掩码回放和先开后合转换断言。
+P5顺序定价与全局P0收尾尚未完成；Stackelberg旧实现继续阻断正式训练。

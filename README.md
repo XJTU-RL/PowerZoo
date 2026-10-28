@@ -9,7 +9,7 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 | --- | --- | --- |
 | `vvc` | `envs/vvc/` | 经典电压无功控制；13/34/123共用原生物理层并已短训练验收 |
 | `smartgrid` | `envs/smartgrid/` | 模块化电网控制，含 PV、奖励和日志组件 |
-| `dsr` | `envs/dsr/` | 配电网恢复 |
+| `dsr / dsr_13bus` | `envs/dsr/` | 小网络/IEEE13派生有源恢复；真实开关、故障、供电计量及HAPPO/PPO验收 |
 | `stackelberg_13bus/34bus/123bus` | `envs/stackelberg/` | Stackelberg 博弈控制 |
 | `district_dispatch` | `envs/district_dispatch/` | 真实区域DER协同调度，原生计量与成本；HAPPO/PPO短训练验收 |
 
@@ -24,8 +24,9 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 
 当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
 设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
-[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid、VVC和区域调度已迁移并验收，恢复/定价任务仍阻断旧实现训练，见[实施记录](docs/physics-refactor-progress.md)。
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid、VVC、区域调度和有源静态恢复已迁移并验收，Stackelberg仍阻断旧实现训练，见[实施记录](docs/physics-refactor-progress.md)。
 区域设备归属、真实P/Q计量、TOU成本与局部观测见[区域调度说明](docs/district-physics.md)。
+恢复场景、实际供电/合格服务、节点有效性与故障基准见[恢复说明](docs/dsr-physics.md)。
 
 ## Windows 安装
 
@@ -158,9 +159,9 @@ python scripts/check_smartgrid.py --train --require-cuda
 python examples/single_agent/scripts/train_smartgrid.py --steps 240
 ```
 
-五类环境共用 `scripts/train.py` 和各自实验 YAML；目前正式训练验收为VVC、SmartGrid、District，
-使用各自的 `check_vvc/check_smartgrid/check_district.py` 运行完整专项检查。
-DSR与Stackelberg旧实现会在正式训练前拒绝。结构与历史清理清单见[入口整理说明](docs/training-entrypoints.md)。
+五类环境共用 `scripts/train.py` 和各自实验 YAML；目前正式训练验收为VVC、SmartGrid、District、DSR，
+使用各自的 `check_vvc/check_smartgrid/check_district/check_dsr.py` 运行完整专项检查。
+Stackelberg旧实现会在正式训练前拒绝。结构与历史清理清单见[入口整理说明](docs/training-entrypoints.md)。
 
 ## 测试
 

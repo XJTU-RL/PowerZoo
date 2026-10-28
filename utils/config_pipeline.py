@@ -275,11 +275,7 @@ class ConfigLoader:
                 "reward_weights": system.get("default_rewards", {}),
                 "constraints": system.get("constraints", {}),
             }
-        elif family == "dsr":
-            for old, new in (("voltage_min", "v_min"), ("voltage_max", "v_max")):
-                if old in system.get("constraints", {}):
-                    values[new] = system["constraints"][old]
-        elif family == "district_dispatch":
+        elif family in ("dsr", "district_dispatch"):
             values.update(system.get("constraints", {}))
         return normalize_env(values, family)
 

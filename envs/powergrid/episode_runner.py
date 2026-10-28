@@ -70,7 +70,7 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
             self._current_obs = [wrapped]
             self._current_share_obs = [wrapped]
 
-        self._current_avail_actions = [None] * self._n_agents
+        self._current_avail_actions = self._available_actions(env)
 
         logger.info(
             f"Device task created: system={getattr(cfg, 'system_name', 'unknown')}, "
@@ -114,7 +114,15 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
             rewards,
             dones,
             infos,
-            [None] * self._n_agents,
+            self._available_actions(self._env),
+        )
+
+    @staticmethod
+    def _available_actions(env):
+        return (
+            env.available_actions()
+            if hasattr(env, "available_actions")
+            else [None] * len(env.agent_spaces)
         )
 
     def _actor_observations(self, env, obs):
@@ -156,7 +164,13 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         """
         actions = np.zeros((self._n_agents, max(self._sizes)), dtype=np.float32)
         for i, (space, size) in enumerate(zip(self._env.agent_spaces, self._sizes)):
-            actions[i, :size] = np.asarray(space.sample()).reshape(-1)
+            mask = self._available_actions(self._env)[i]
+            value = (
+                self._env.rng.choice(np.flatnonzero(mask))
+                if mask is not None
+                else space.sample()
+            )
+            actions[i, :size] = np.asarray(value).reshape(-1)
         return actions
 
     def _build_config_summary(self):

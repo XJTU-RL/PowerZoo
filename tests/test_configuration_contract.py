@@ -27,7 +27,6 @@ def write(path, data):
         "smartgrid",
         "dsr",
         "dsr_13bus",
-        "dsr_8500node",
         "stackelberg_13bus",
         "stackelberg_34bus",
         "stackelberg_123bus",

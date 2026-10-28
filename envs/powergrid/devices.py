@@ -150,9 +150,32 @@ def prepare(session, requests):
         ):
             raise ValueError(f"{element}指令必须为有限数值")
         applied = dict(request)
-        if kind == "Load" and name in session.loads:
-            allowed = {"kw", "kvar"}
-            parts = [f"{key}={value:.12g}" for key, value in request.items()]
+        if kind == "Line":
+            if set(request) != {"closed"} or request["closed"] not in (0, 1):
+                raise ValueError("线路开关需要closed=0或1")
+            if session.read_property(element, "switch").lower() not in ("yes", "true"):
+                raise ValueError(f"{element}没有声明为物理开关")
+            if request["closed"] and not session.connection(element)["enabled"]:
+                raise ValueError(f"不能闭合不可用支路{element}")
+            operation = "Close" if request["closed"] else "Open"
+            commands.extend(
+                f"{operation} {element} term={t}"
+                for t in range(1, session.native.ActiveCktElement.NumTerminals + 1)
+            )
+            trace[element] = {"requested": dict(request), "applied": applied}
+            continue
+        elif kind == "Load" and name in session.loads:
+            allowed = {"kw", "kvar", "enabled"}
+            if "enabled" in request and request["enabled"] not in (0, 1):
+                raise ValueError("Load.enabled需要0或1")
+            parts = [
+                (
+                    f"enabled={'yes' if value else 'no'}"
+                    if key == "enabled"
+                    else f"{key}={value:.12g}"
+                )
+                for key, value in request.items()
+            ]
         elif kind == "Capacitor" and name in session.capacitors:
             allowed = {"state"}
             if len(session.capacitors[name]) != 1 or request.get("state") not in (0, 1):

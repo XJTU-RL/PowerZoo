@@ -1,7 +1,7 @@
 # 训练入口与参数流整理
 
-> 本页保留入口整理阶段的历史验收。物理重构后正式训练为VVC、SmartGrid、District；
-> DSR/Stackelberg旧实现被阻断。当前工作分支为codex/physics-refactor，完成范围见[实施记录](physics-refactor-progress.md)。
+> 本页保留入口整理阶段的历史验收。物理重构后正式训练为VVC、SmartGrid、District和有源静态恢复DSR；
+> Stackelberg旧实现仍被阻断。当前工作分支为codex/physics-refactor，完成范围见[实施记录](physics-refactor-progress.md)。
 
 入口整理从 `3f47f9f4` 建立 `codex/training-entrypoints`。后续配置精简在
 `codex/config-simplicity`（基于 `1c0f050e`），当前目录为

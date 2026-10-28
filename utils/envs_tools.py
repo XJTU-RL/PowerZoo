@@ -67,7 +67,10 @@ def make_power_env(env_name, env_args, rank, seed):
 def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
     if n_threads < 1:
         raise ValueError("并行环境数必须 >= 1")
-    if env_name in ("smartgrid", "vvc", "powerzoo", "district_dispatch"):
+    from utils.config_validation import environment_family
+
+    family = environment_family(env_name) if env_name != "lag" else env_name
+    if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
         import copy
 
         env_args = copy.deepcopy(env_args)

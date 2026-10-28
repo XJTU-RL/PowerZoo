@@ -3,7 +3,6 @@
 import secrets
 
 LEGACY_PHYSICS = {
-    "dsr": "PV动作、电源绑定及实际供电判定尚未完成物理重建",
     "stackelberg": "本轮价格到响应的时序及逐主体收益采样尚未重建",
 }
 
@@ -34,13 +33,19 @@ def prepare_run(config):
             config.history.setdefault(path, []).append(
                 {"source": "runtime seed selection", "value": value}
             )
-    if family in ("smartgrid", "vvc", "district_dispatch"):
-        from envs.powergrid.scenario import DataConfig, prepare_dataset
-
+    if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
         data = config.env_args["data"]
-        dataset = prepare_dataset(
-            DataConfig(**data), config.env_args["max_episode_steps"]
-        )
+        if family == "dsr":
+            from envs.dsr.core.config import FaultDataConfig
+            from envs.dsr.core.scenario import RestorationDataset
+
+            dataset = RestorationDataset(FaultDataConfig(**data))
+        else:
+            from envs.powergrid.scenario import DataConfig, prepare_dataset
+
+            dataset = prepare_dataset(
+                DataConfig(**data), config.env_args["max_episode_steps"]
+            )
         data.update(path=str(dataset.path), manifest_sha256=dataset.sha256)
         config.files[str(dataset.path)] = dataset.sha256
         for key in ("path", "manifest_sha256"):

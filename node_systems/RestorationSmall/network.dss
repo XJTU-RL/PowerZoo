@@ -1,0 +1,13 @@
+! Hand-checkable source-connected restoration loop; static devices and initial switches.
+Clear
+New Circuit.restore basekv=12.47 pu=1 bus1=source phases=3
+New Transformer.sub phases=3 windings=2 xhl=1
+~ wdg=1 bus=source kv=12.47 kva=1000 conn=wye
+~ wdg=2 bus=root kv=4.16 kva=1000 conn=wye
+New Line.feed_a bus1=root bus2=a phases=3 r1=.01 x1=.01 r0=.03 x0=.03 length=1 units=km switch=yes normamps=200
+New Line.feed_b bus1=root bus2=b phases=3 r1=.01 x1=.01 r0=.03 x0=.03 length=1 units=km switch=yes normamps=200
+New Line.tie bus1=a bus2=b phases=3 r1=.01 x1=.01 r0=.03 x0=.03 length=1 units=km switch=yes normamps=200
+New Load.critical bus1=a phases=3 kv=4.16 kw=100 kvar=20 model=1
+New Load.ordinary bus1=b phases=3 kv=4.16 kw=50 kvar=10 model=1
+Open Line.tie term=1
+Set VoltageBases=[12.47,4.16]

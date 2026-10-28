@@ -176,6 +176,8 @@ class InferenceEngine:
                 avail = None
                 if available_actions is not None and agent_id < len(available_actions):
                     avail = available_actions[agent_id]
+                    if avail is not None:
+                        avail = np.asarray(avail, dtype=np.float32).reshape(1, -1)
 
                 act_tensor, _, new_rnn = actor.forward(
                     obs_input,

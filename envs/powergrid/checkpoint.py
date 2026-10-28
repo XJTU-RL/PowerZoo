@@ -9,7 +9,7 @@ from utils.physics_manifest import validate_checkpoint
 
 
 def load_checkpoint(checkpoint_dir, device="cpu", expected_family=None):
-    from utils.config_validation import environment_class
+    from utils.config_validation import environment_class, environment_family
     from utils.environment_registry import environment_spec
 
     directory = Path(checkpoint_dir).resolve()
@@ -24,8 +24,8 @@ def load_checkpoint(checkpoint_dir, device="cpu", expected_family=None):
     if snapshot is None:
         raise ValueError("模型缺少config.resolved.yaml；不能猜测策略尺寸或环境配置")
     cfg = ConfigLoader().load(experiment=snapshot)
-    family = cfg.main_args["env"]
-    if family not in ("vvc", "smartgrid", "district_dispatch") or (
+    family = environment_family(cfg.main_args["env"])
+    if family not in ("vvc", "smartgrid", "district_dispatch", "dsr") or (
         expected_family and family != expected_family
     ):
         raise ValueError("检查点任务与当前回放入口不一致")

@@ -225,9 +225,7 @@ def normalize_env(values, family):
                 raise ConfigError("env_name与system_name冲突")
             result["system_name"] = system
             result.pop("env_name")
-    if family == "dsr":
-        aliases.update(voltage_min="v_min", voltage_max="v_max")
-    elif family == "district_dispatch":
+    if family in ("dsr", "district_dispatch"):
         aliases.update(v_min="voltage_min", v_max="voltage_max")
     for old, new in aliases.items():
         if old in result:

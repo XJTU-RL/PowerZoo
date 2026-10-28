@@ -154,14 +154,13 @@ class TestDSRConfigFromEnvArgs:
         from envs.dsr.core.config import DSRConfig
 
         env_args = {
-            "system_name": "123Bus",
-            "max_episode_steps": 15,
-            "n_dg": 7,
-            "reward_restore": 20.0,
+            "system_name": "RestorationSmall",
+            "max_episode_steps": 12,
+            "priorities": {"Load.critical": 3.},
         }
         config = DSRConfig.from_env_args(env_args)
-        assert config.system_name == "123Bus"
-        assert config.n_dg == 7
+        assert config.system_name == "RestorationSmall"
+        assert config.priorities["Load.critical"] == 3.
 
     def test_unknown_keys_ignored(self):
         from envs.dsr.core.config import DSRConfig
@@ -184,7 +183,8 @@ class TestDSRConfigFromEnvArgs:
         field_names = [f.name for f in dataclasses.fields(DSRConfig)]
         # Verify we can pass any field
         assert "fault_scenarios" not in field_names
-        assert "min_faults" in field_names and "max_faults" in field_names
+        assert "data" in field_names and "control_groups" in field_names
+        assert "n_dg" not in field_names and "n_pv" not in field_names
         assert "use_dynamic_network" not in field_names
 
 
