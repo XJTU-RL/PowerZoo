@@ -1,3 +1,4 @@
 # Optional browser UIs; not needed for OpenDSS or command-line training.
 gradio>=5.0,<6.0
-plotly>=5.0,<7.0
+# Existing charts use Plotly 5 attributes removed in 6; see its migration guide.
+plotly==5.24.1

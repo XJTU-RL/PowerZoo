@@ -6,3 +6,5 @@ black==25.1.0
 flake8==7.2.0
 mypy==1.15.0
 build==1.2.2.post1
+# Headless checks of physical plot units and signs; no browser server needed.
+plotly==5.24.1
