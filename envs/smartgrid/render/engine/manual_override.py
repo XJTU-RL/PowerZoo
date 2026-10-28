@@ -1,106 +1,46 @@
-"""
-SmartGrid Manual Override
-SmartGrid 手动动作覆盖管理器
+"""按正式设备ID和真实动作空间进行手动覆盖。"""
 
-继承 BaseManualOverride，为 SmartGrid 的 CRBP 动作空间
-提供语义标签（电容器 on/off、调压器 tap、电池功率、PV 削减）。
-"""
-
-import logging
-from typing import List
-
+import numpy as np
 from envs.render_common.engine.base_manual_override import BaseManualOverride
-
-logger = logging.getLogger(__name__)
 
 
 class SmartGridManualOverride(BaseManualOverride):
-	"""SmartGrid 手动动作覆盖管理器
+    def __init__(self, env):
+        self.spaces = env.agent_spaces
+        self.schema = env.get_physics_manifest()["action_schema"]
+        super().__init__(
+            len(self.spaces),
+            [1 if hasattr(s, "n") else s.shape[0] for s in self.spaces],
+        )
 
-	Args:
-		n_agents: 智能体数量（SmartGrid 通常为 1）
-		action_dims: 每个智能体的动作维度列表
-		cap_num: 电容器数量
-		reg_num: 调压器数量
-		bat_num: 电池数量
-		pv_num: 光伏数量
-		pv_control_enabled: 是否启用 PV 控制
-	"""
+    @classmethod
+    def from_env(cls, env):
+        return cls(env)
 
-	def __init__(
-		self,
-		n_agents: int,
-		action_dims: List[int],
-		cap_num: int = 0,
-		reg_num: int = 0,
-		bat_num: int = 0,
-		pv_num: int = 0,
-		pv_control_enabled: bool = False,
-	):
-		super().__init__(n_agents, action_dims)
-		self.cap_num = cap_num
-		self.reg_num = reg_num
-		self.bat_num = bat_num
-		self.pv_num = pv_num
-		self.pv_control_enabled = pv_control_enabled
+    def get_action_labels(self, agent_id):
+        element = self.schema[agent_id]["element"]
+        if element.startswith("PVSystem.") and self.action_dims[agent_id] == 2:
+            return [
+                element + " available P command [-1,1]",
+                element + " Q command [-1,1]",
+            ]
+        return [element + " " + self.schema[agent_id]["space"]]
 
-	def get_action_labels(self, agent_id: int) -> List[str]:
-		"""获取动作维度的语义标签
+    def set_agent_override(self, agent_id, values):
+        self._validate_indices(agent_id, 0)
+        values = np.asarray(values, dtype=np.float32).reshape(-1)
+        space = self.spaces[agent_id]
+        if len(values) != self.action_dims[agent_id] or not np.isfinite(values).all():
+            raise ValueError("动作长度或数值无效")
+        if hasattr(space, "n"):
+            valid = values[0] == int(values[0]) and space.contains(int(values[0]))
+        else:
+            valid = space.contains(values)
+        if not valid:
+            raise ValueError(f"动作超出{self.schema[agent_id]['element']}的{space}")
+        for index, value in enumerate(values):
+            self.set_override(agent_id, index, float(value))
+        self.enabled = True
 
-		SmartGrid 动作空间布局 (CRBP):
-		[cap_0, ..., cap_N, reg_0, ..., reg_M, bat_0, ..., bat_K, pv_0, ..., pv_J]
-
-		Args:
-			agent_id: 智能体索引
-
-		Returns:
-			动作标签列表
-		"""
-		labels: List[str] = []
-
-		# 电容器 (on/off)
-		for i in range(self.cap_num):
-			labels.append(f"Cap_{i} (on/off)")
-
-		# 调压器 (tap position)
-		for i in range(self.reg_num):
-			labels.append(f"Reg_{i} (tap)")
-
-		# 电池 (power)
-		for i in range(self.bat_num):
-			labels.append(f"Bat_{i} (power)")
-
-		# PV (如果启用)
-		if self.pv_control_enabled:
-			for i in range(self.pv_num):
-				labels.append(f"PV_{i} (P_ratio)")
-				labels.append(f"PV_{i} (PF)")
-
-		return labels
-
-	@classmethod
-	def from_env(cls, env) -> "SmartGridManualOverride":
-		"""从 SmartGrid Env 实例创建
-
-		Args:
-			env: SmartGrid Env 实例
-
-		Returns:
-			SmartGridManualOverride 实例
-		"""
-		action_dim = env.ActionSpace.dim()
-		cap_num = env.cap_num
-		reg_num = env.reg_num
-		bat_num = env.bat_num
-		pv_num = env.pv_num
-		pv_control = getattr(env, "pv_control_enabled", False)
-
-		return cls(
-			n_agents=1,
-			action_dims=[action_dim],
-			cap_num=cap_num,
-			reg_num=reg_num,
-			bat_num=bat_num,
-			pv_num=pv_num,
-			pv_control_enabled=pv_control,
-		)
+    def has_overrides(self):
+        return self.enabled and bool(self._overrides)

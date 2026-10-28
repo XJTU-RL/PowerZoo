@@ -24,7 +24,7 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 
 当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
 设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
-[物理一致性与场景环境方案](docs/physical-consistency-plan.md)（设计，尚未实施）。
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid公共物理层已进入实施验收，其他任务尚待迁移，见[实施记录](docs/physics-refactor-progress.md)。
 
 ## Windows 安装
 
@@ -54,8 +54,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_windows.ps1 -TorchFlavor 
 
 历史提交中存在字面文件名 `.github/instructions/*.instructions.md`，Windows 无法检出。
 本次修复将它改名为 `general.instructions.md`；旧远端提交仍可能在 clone 后报告
-checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\config-simplicity`，
-分支为 `codex/config-simplicity`；环境修复单独保留在 `codex/windows-environment`。
+checkout 失败。本机当前开发目录为 `D:\Exps\PowerZoo-worktrees\physics-refactor`，
+分支为 `codex/physics-refactor`；环境修复单独保留在 `codex/windows-environment`。
 
 CUDA 版本需要兼容的 NVIDIA 驱动。使用官方 PyTorch wheel 时不需要额外安装完整
 CUDA Toolkit；OpenDSS 潮流求解仍在 CPU 上执行，CUDA 用于 PyTorch 网络计算。

@@ -1,0 +1,91 @@
+{
+  "baseline": "fab44772",
+  "reason": "SmartGrid obsolete physics/data path; replaced by DSSSession, runtime_env, ScenarioDataset and native physical assertions",
+  "files": [
+    {
+      "original": "envs/smartgrid/base_env/core_env.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/base_env/core_env.py.txt",
+      "sha256": "eea90432544f0fa237cc2095574b4f1adafe4559af2a7293eee8498ce6b9b198"
+    },
+    {
+      "original": "envs/smartgrid/base_env/vvc_config.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/base_env/vvc_config.py.txt",
+      "sha256": "ea975ccc3b9973a023962d635b09d25b826174d26d857602bded3910df8e0788"
+    },
+    {
+      "original": "envs/smartgrid/circuit_system/circuit.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/circuit_system/circuit.py.txt",
+      "sha256": "8fdddfc41dce1eef37aaac2761bdd837d30bbec54b08ec834c6a0b72d1a2e2ed"
+    },
+    {
+      "original": "envs/smartgrid/circuit_system/components/base.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/circuit_system/components/base.py.txt",
+      "sha256": "0bd0c2831c1b4d26a9104e3168caaddf1741c59e68e4e143bb00b604945ee494"
+    },
+    {
+      "original": "envs/smartgrid/circuit_system/components/edge_components.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/circuit_system/components/edge_components.py.txt",
+      "sha256": "b9fb35314e788c55bddf176c27eebf30bf4f4806a32d512603bb265a9d48fe40"
+    },
+    {
+      "original": "envs/smartgrid/circuit_system/components/node_components.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/circuit_system/components/node_components.py.txt",
+      "sha256": "872385eda369af88f3db4bb7ca99205dcfa0998d722d38696e092c6d32eed158"
+    },
+    {
+      "original": "envs/smartgrid/circuit_system/components/__init__.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/circuit_system/components/__init__.py.txt",
+      "sha256": "85cb5e491de0c8951df3d0226a8c779935f6b3f3beb131279b40fcda4b628cfd"
+    },
+    {
+      "original": "envs/smartgrid/data_process/loadprofile.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/data_process/loadprofile.py.txt",
+      "sha256": "ccca5618adc30a6dc82527e8537653cddffab81b03f6aa1619f72a3df12ca9d6"
+    },
+    {
+      "original": "envs/smartgrid/data_process/loadprofile_config.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/data_process/loadprofile_config.py.txt",
+      "sha256": "b874ed069844548a07f5c5bd64eb1c019b2ab1ba7655524dba5de30460e28ccd"
+    },
+    {
+      "original": "envs/smartgrid/data_process/loadprofile_core.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/data_process/loadprofile_core.py.txt",
+      "sha256": "350594df4512477bf771b1be1de25b170942848927b4ee4c46b423d491cb7e09"
+    },
+    {
+      "original": "envs/smartgrid/data_process/loadprofile_dss_parser.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/data_process/loadprofile_dss_parser.py.txt",
+      "sha256": "3e3adf2c881e8ba4764d97d965b7d0a2035e03a2fd0c0f0953f20db50a318b81"
+    },
+    {
+      "original": "envs/smartgrid/data_process/loadprofile_episode.py",
+      "archive": "archive/physics_refactor_smartgrid/envs/smartgrid/data_process/loadprofile_episode.py.txt",
+      "sha256": "3a7d906179ad1d99ce8beec1176e8f67bf3a4a35c0f4ec1c3c54a5d4b364ddb9"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_base_env.py",
+      "archive": "archive/physics_refactor_smartgrid/tests/envs/smartgrid/test_base_env.py.txt",
+      "sha256": "5a7b659f5a49771e36796b263d4c48a31ffcc9f2042f7586d1864dcd2d2ac11f"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_circuit_system.py",
+      "archive": "archive/physics_refactor_smartgrid/tests/envs/smartgrid/test_circuit_system.py.txt",
+      "sha256": "eb5b6ec59cecdc8d748e94913addc35ac7fc38df80f254fb33d5f3951a2f8a49"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_data_process.py",
+      "archive": "archive/physics_refactor_smartgrid/tests/envs/smartgrid/test_data_process.py.txt",
+      "sha256": "7c8847c6d0604da24f024c61d210ef437b3e4811c80cc6b2a9c1397170025192"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_integration.py",
+      "archive": "archive/physics_refactor_smartgrid/tests/envs/smartgrid/test_integration.py.txt",
+      "sha256": "e447d8091ceaeb9289b9d1a90bec26ec16c57ff0bf7376458f1d56c024427ea1"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_smartgrid_env.py",
+      "archive": "archive/physics_refactor_smartgrid/tests/envs/smartgrid/test_smartgrid_env.py.txt",
+      "sha256": "8ce3874b1c1d9899d31a901ff0472f75b7936b55624a773f667507f6f450173d"
+    }
+  ]
+}

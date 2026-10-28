@@ -23,11 +23,30 @@ def test_ep_rejects_non_shared_rewards_before_mutating_buffers():
         buffer.insert.assert_not_called()
 
 
-@pytest.mark.parametrize("family",["dsr","district_dispatch","stackelberg"])
+def test_retired_smartgrid_sources_are_recoverable_and_not_active():
+    import json
+    from hashlib import sha256
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    manifest = json.loads(
+        (root / "archive/physics_refactor_smartgrid/manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for record in manifest["files"]:
+        assert not (root / record["original"]).exists()
+        assert (
+            sha256((root / record["archive"]).read_bytes()).hexdigest()
+            == record["sha256"]
+        )
+
+
+@pytest.mark.parametrize("family", ["dsr", "district_dispatch", "stackelberg"])
 def test_unrebuilt_physics_is_rejected_before_training_preparation(family):
     from utils.config_pipeline import ConfigLoader
     from utils.training_setup import prepare_run
 
-    cfg = ConfigLoader().load("happo",family)
-    with pytest.raises(ValueError,match="待重建研究实现"):
+    cfg = ConfigLoader().load("happo", family)
+    with pytest.raises(ValueError, match="待重建研究实现"):
         prepare_run(cfg)

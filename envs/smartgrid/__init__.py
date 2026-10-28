@@ -3,21 +3,14 @@
 from importlib import import_module
 
 _EXPORTS = {
-    "Env": (".base_env.core_env", "Env"),
-    "ActionSpace": (".base_env.core_env", "ActionSpace"),
+    "Env": (".base_env.runtime_env", "Env"),
     "VVCEnv": (".base_env.vvc_env", "VVCEnv"),
     "OptimizedVVCEnv": (".base_env.vvc_env", "OptimizedVVCEnv"),
-    "Circuits": (".circuit_system", "Circuits"),
-    "LoadProfile": (".data_process.loadprofile", "LoadProfile"),
+    "DSSSession": ("envs.powergrid.session", "DSSSession"),
+    "SmartGridConfig": (".base_env.env_config", "SmartGridConfig"),
+    "ScenarioDataset": (".data_process.dataset", "ScenarioDataset"),
     "make_base_env": (".base_env.env_register", "make_base_env"),
     "remove_parallel_dss": (".base_env.env_register", "remove_parallel_dss"),
-    "OpenDSSScenario": (".base_env.vvc_config", "OpenDSSScenario"),
-    "OpenDSSConstraints": (".base_env.vvc_config", "OpenDSSConstraints"),
-    "OpenDSSMetrics": (".base_env.vvc_config", "OpenDSSMetrics"),
-    "VVCEnvConfig": (".base_env.vvc_config", "VVCEnvConfig"),
-    "OpenDSSExpertRules": (".base_env.vvc_config", "OpenDSSExpertRules"),
-    "OpenDSSStateAnalyzer": (".base_env.vvc_config", "OpenDSSStateAnalyzer"),
-    "VVCActionSelector": (".base_env.vvc_config", "VVCActionSelector"),
 }
 __all__ = list(_EXPORTS)
 
@@ -45,7 +38,7 @@ def get_env_info(env_name):
     from utils.config_pipeline import ConfigLoader
 
     system = {"34Bus_pv": "34Bus_PV"}.get(env_name, env_name)
-    values = {"env": {"pv_plan": None}} if system != "34Bus_PV" else None
+    values = {"env": {"pv_plan": "none"}} if system != "34Bus_PV" else None
     return (
         ConfigLoader()
         .load("happo", "smartgrid", system_ref=system, values=values)

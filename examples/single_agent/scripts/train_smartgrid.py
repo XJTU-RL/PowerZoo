@@ -52,6 +52,16 @@ def main():
         cfg.save(output.with_suffix(".environment.yaml"))
         import json
 
+        output.with_suffix(".physics.json").write_text(
+            json.dumps(
+                env.core.get_physics_manifest(),
+                ensure_ascii=False,
+                indent=2,
+                allow_nan=False,
+            ),
+            encoding="utf-8",
+        )
+
         output.with_suffix(".sb3.json").write_text(
             json.dumps(
                 {

@@ -2,7 +2,8 @@
 
 本内核首先在 `codex/smartgrid-data-runtime` 完成，从配置重构提交 `01926ba2` 创建。
 后续入口整理继承于 `codex/training-entrypoints`，见[入口说明](training-entrypoints.md)。
-当前整合后的 Windows 工作目录为 `D:\Exps\PowerZoo-worktrees\config-simplicity`。
+当前物理重构工作目录为 `D:\Exps\PowerZoo-worktrees\physics-refactor`，分支 `codex/physics-refactor`。
+公共物理层、原生储能、SVG、回放及本轮证据见[物理实施记录](physics-refactor-progress.md)。
 正式基线为 IEEE34 + aggressive PV；验证结果说明运行与更新有效，不代表策略收敛。
 
 ## 从短训练开始
@@ -126,14 +127,14 @@ time_s,load_residential,load_commercial,load_industrial,irradiance,temperature
 
 - 每个电容器一个Discrete(2)，每个调压器一个Discrete(action_num)，按 DSS MinTap/MaxTap映射。
 - 电池离散动作必须为奇数，中心是0功率，两端为额定充/放电；连续动作[-1,1]。
-  先按额定功率、SOC、保留容量与效率限制动作，再以求解后的实际端口kW积分能量。
-  snapshot求解不自动推进SOC，能量只由共享内核更新一次。
+  先按额定功率、SOC、保留容量与效率限制动作，由原生 Storage 在 `FinishTimeStep()` 更新能量。
+  snapshot及可用PV功率探测不推进SOC；每个成功区间只调用一次原生收尾，Python不再重复积分。
 - 连续PV动作是 `[有功保留命令, 无功命令]`，两维范围[-1,1]。
   第一维映射为可用光能的0..100%保留比例；第二维映射为剩余kVA圆内的正负无功。
-  无功范围按DSS原生温度曲线修正后的直流功率保守估计剩余容量，实际功率仍由DSS求解并受原生kVA限制。
+  有功基于同一原生引擎在当前天气下的可用AC功率，无功受该有功下的kVA圆及原生kvarMax/kvarMaxAbs共同限制。
   离散PV动作只控制有功保留比例，无功为0。
 - HAPPO高斯动作执行前投影到设备空间；内核仍严格拒绝非法离散动作、NaN和维度错误。
-- reset 在首条数据上做初始潮流，不推进储能；step t 使用第t条区间数据，在区间末求解并积分。
+- reset 在首条数据上做初始潮流，不推进储能；step t 使用第t条区间数据，按准静态恒定区间求潮流，再推进原生时钟和Storage能量一次。
   观测包括设备状态、真实电压、天气、三组负荷倍率与回合进度；启用拉格朗日奖励时也包含λ。
 - 数据定义完整的有限时域任务，场景结束是 `terminated=True, truncated=False`，
   不借助时间截断mask丢弃末步奖励。若未来添加外部训练时间限制，需另行处理terminal observation。
@@ -143,7 +144,7 @@ time_s,load_residential,load_commercial,load_industrial,irradiance,temperature
   此实现是环境端的拉格朗日惩罚，不宣称是带安全保证的CMDP求解器。
 - 奖励组件每步只计算一次，日志不会再次更新平滑历史。
   日志的 `pv_utilization` 兼容键现在明确表示实际kW/原始Pmpp，界面显示“PV出力/Pmpp”，
-  它不是相对于当天天气可用功率的利用率。网损比例统一以实际总负荷有功为分母。
+  它不是相对于当天天气可用功率的利用率。网损比例以固定的原生 Load 铭牌kW之和为分母，避免动作改变电压/负荷后同时改变归一化基准。
 
 ## 单智能体与多智能体
 

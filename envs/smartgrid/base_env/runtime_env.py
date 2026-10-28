@@ -1,6 +1,8 @@
 """唯一仿真内核；单/多智能体适配器共用数据、动作、DSS、奖励与时间语义。"""
 
 from pathlib import Path
+from hashlib import sha256
+import json
 import numpy as np
 import gymnasium as gym
 from envs.smartgrid.base_env.env_config import SmartGridConfig
@@ -25,7 +27,7 @@ class Env(gym.Env):
         if not system.is_absolute():
             system = Path(folder_path) / system
         self.circuit = SmartGridCircuit(
-            system, cfg.dss_file, cfg.pv_plan, cfg.data.step_seconds
+            system, cfg.dss_file, cfg.pv_plan, cfg.data.step_seconds, cfg.svg_elements
         )
         unknown_loads = set(cfg.data.load_groups) - set(self.circuit.loads)
         if unknown_loads:
@@ -55,6 +57,7 @@ class Env(gym.Env):
         self.cap_num, self.reg_num, self.bat_num, self.pv_num = map(
             len, (self.cap_names, self.reg_names, self.bat_names, self.pv_names)
         )
+        self.svg_names = list(self.circuit.svgs)
         self.all_bus_names, self.topology = (
             self.circuit.bus_names,
             self.circuit.topology,
@@ -70,7 +73,15 @@ class Env(gym.Env):
                 if self.pv_control_enabled
                 else []
             )
+            + [self._space(float("inf"), 1) for _ in self.svg_names]
         )
+        self.base_load_kw = sum(load.kw for load in self.circuit.loads.values())
+        if self.base_load_kw <= 0:
+            self.circuit.close()
+            raise ValueError("SmartGrid需要正的原生负荷基准")
+        if any(len(states) != 1 for states in self.circuit.capacitors.values()):
+            self.circuit.close()
+            raise ValueError("SmartGrid当前只支持单级电容器")
         self.action_space = gym.spaces.Tuple(self.agent_spaces)
         self.reward_func = VVCReward(self, cfg)
         self.use_cmdp = cfg.use_cmdp
@@ -111,18 +122,16 @@ class Env(gym.Env):
 
     def _apply_data(self, index):
         row = self.profile[index]
-        c = self.circuit.native
+        requests = {}
         for name, base in self.circuit.loads.items():
             group = self.dataset.group_for(name, self.config.data.load_groups)
-            c.Loads.Name = name
-            c.Loads.kW, c.Loads.kvar = (
-                base.kw * row[1 + group],
-                base.kvar * row[1 + group],
-            )
-        for name in self.pv_names:
-            c.PVSystems.Name = name
-            c.PVSystems.Irradiance = float(row[4])
-            self.circuit.command(f"Edit PVSystem.{name} temperature={row[5]:.12g}")
+            ratio = float(row[1 + group])
+            requests["Load." + name] = {
+                "kw": base.kw * ratio,
+                "kvar": base.kvar * ratio,
+            }
+        self.circuit.apply(requests)
+        self.circuit.set_pv_conditions(float(row[4]), float(row[5]))
         self.current_row = row
 
     def _pv_action(self, name, action):
@@ -131,44 +140,21 @@ class Env(gym.Env):
             fraction, qcommand = (float(action[0]) + 1) / 2, float(action[1])
         else:
             fraction, qcommand = float(action[0]) / (self.pv_act_num - 1), 0.0
-        c = self.circuit.native
-        c.PVSystems.Name = name
-        # 对可用太阳能进行削减，原始 Pmpp/kVA 基准保存在对象中。
-        c.PVSystems.Pmpp = pv.pmpp * fraction
-        gain = 1.0
-        if pv.pt_curve and pv.pt_curve.lower() not in ("none", "(none)"):
-            c.XYCurves.Name = pv.pt_curve
-            c.XYCurves.x = float(self.current_row[5])
-            gain = max(0.0, float(c.XYCurves.y))
-        # 以模型原生温度曲线修正后的直流功率保守估计剩余 kVA。
-        estimate = min(pv.kva, pv.pmpp * fraction * self.current_row[4] * gain)
-        q = qcommand * np.sqrt(max(0, pv.kva**2 - estimate**2))
-        self.circuit.command(f"Edit PVSystem.{name} kvar={q:.12g}")
+        kw = fraction * self.available_pv_kw[name]
+        headroom = np.sqrt(max(0, pv.kva**2 - kw**2))
+        qlimit = min(headroom, pv.kvar_max if qcommand >= 0 else pv.kvar_max_abs)
+        q = qcommand * qlimit
         diff = abs(pv.fraction - fraction) + abs(pv.q_fraction - qcommand)
         pv.fraction, pv.q_fraction = fraction, qcommand
-        return diff
+        return {"kw": kw, "kvar": q}, diff
 
     def _storage_action(self, name, action):
-        bat = self.circuit.batteries[name]
         fraction = (
             float(action[0])
             if self.bat_act_num == float("inf")
             else 2 * float(action[0]) / (self.bat_act_num - 1) - 1
         )
-        dt = self.config.data.step_seconds / 3600
-        kw = fraction * bat.max_kw
-        if kw >= 0:
-            kw = min(
-                kw, max(0, bat.soc - bat.reserve) * bat.max_kwh * bat.eta_discharge / dt
-            )
-        else:
-            kw = max(kw, -(1 - bat.soc) * bat.max_kwh / bat.eta_charge / dt)
-        state = "discharging" if kw > 0 else "charging" if kw < 0 else "idling"
-        prop = "%discharge" if kw >= 0 else "%charge"
-        self.circuit.command(
-            f"Edit Storage.{name} state={state} {prop}={abs(kw)/bat.max_kw*100:.12g} kvar=0"
-        )
-        bat.kw = kw
+        return {"kw": fraction * self.circuit.batteries[name].max_kw}
 
     def _actions(self, action):
         values = np.asarray(action, dtype=float).reshape(-1)
@@ -198,40 +184,48 @@ class Env(gym.Env):
         if self.t >= self.horizon:
             raise RuntimeError("回合已结束，请先 reset")
         parts = iter(self._actions(action))
+        self.circuit.begin_interval(float(self.profile[self.t, 0]))
         self._apply_data(self.t)
-        c = self.circuit.native
         capdiff, regdiff, pvdiff = [], [], []
+        requests = {}
         for name in self.cap_names:
-            c.Capacitors.Name = name
-            old = c.Capacitors.States[0]
+            old = self.circuit.capacitor_state(name)[0]
             value = int(next(parts)[0])
-            c.Capacitors.States = [value] * len(c.Capacitors.States)
+            requests["Capacitor." + name] = {"state": value}
             capdiff.append(abs(value - old))
         for name, reg in self.circuit.regulators.items():
             index = int(next(parts)[0])
-            c.Transformers.Name, c.Transformers.Wdg = reg.transformer, reg.winding
             tap = reg.mintap + index / (self.reg_act_num - 1) * (
                 reg.maxtap - reg.mintap
             )
-            regdiff.append(abs(tap - c.Transformers.Tap) / (reg.maxtap - reg.mintap))
-            c.Transformers.Tap = tap
+            regdiff.append(
+                abs(tap - self.circuit.regulator_tap(name)) / (reg.maxtap - reg.mintap)
+            )
+            requests["RegControl." + name] = {"tap": tap}
         for name in self.bat_names:
-            self._storage_action(name, next(parts))
+            requests["Storage." + name] = self._storage_action(name, next(parts))
+        self.circuit.apply(requests)
+        # 可用AC功率来自同一引擎的无时间探测，保留Pmpp、效率和温度基准。
+        self.available_pv_kw = self.circuit.available_pv_power()
+        requests = {}
         if self.pv_control_enabled:
             for name in self.pv_names:
-                pvdiff.append(self._pv_action(name, next(parts)))
-        self.circuit.solve(float(self.current_row[0] + self.config.data.step_seconds))
+                request, diff = self._pv_action(name, next(parts))
+                requests["PVSystem." + name] = request
+                pvdiff.append(diff)
+        for name in self.svg_names:
+            value = float(next(parts)[0])
+            dev = self.circuit.svgs[name]
+            requests["Generator." + name] = {
+                "kvar": value * (dev.kvar_max if value >= 0 else dev.kvar_max_abs)
+            }
+        self.circuit.apply(requests)
+        self.circuit.solve()
+        self.circuit.finish_interval()
+        self.applied_control_vector = self._control_vector()
         soc_err, dis_err = [], []
         for name, bat in self.circuit.batteries.items():
             power = -self.circuit.powers("Storage." + name)[0]
-            dt = self.config.data.step_seconds / 3600
-            energy = (
-                power * dt / bat.eta_discharge
-                if power > 0
-                else power * dt * bat.eta_charge
-            )
-            bat.soc = float(np.clip(bat.soc - energy / bat.max_kwh, bat.reserve, 1))
-            self.circuit.command(f"Edit Storage.{name} %stored={bat.soc*100:.12g}")
             soc_err.append(abs(bat.soc - bat.initial_soc))
             dis_err.append(max(0, power) / bat.max_kw)
         self.t += 1
@@ -266,34 +260,62 @@ class Env(gym.Env):
             raise RuntimeError("奖励出现非有限值")
         return self.wrap_obs(self.obs), float(reward), done, info
 
-    def _observe(self):
-        c = self.circuit.native
-        caps, regs = {}, {}
+    def _control_vector(self):
+        """各控制量的实际下发设定，统一用于平滑成本；不对动作变化量再作差分。"""
+        trace, values = self.circuit.trace, []
         for name in self.cap_names:
-            c.Capacitors.Name = name
-            caps[name] = c.Capacitors.States[0]
+            values.append(trace["Capacitor." + name]["applied"]["state"])
         for name, reg in self.circuit.regulators.items():
-            c.Transformers.Name, c.Transformers.Wdg = reg.transformer, reg.winding
-            regs[name] = (c.Transformers.Tap - reg.mintap) / (reg.maxtap - reg.mintap)
-        pvs = {}
-        for name, pv in self.circuit.pvs.items():
-            p, q = -self.circuit.powers("PVSystem." + name)
-            pvs[name] = [p / max(pv.pmpp, 1e-9), q / max(pv.kva, 1e-9)]
+            tap = trace["RegControl." + name]["applied"]["tap"]
+            values.append((tap - reg.mintap) / (reg.maxtap - reg.mintap))
+        for name, bat in self.circuit.batteries.items():
+            values.append(trace["Storage." + name]["applied"]["kw"] / bat.max_kw)
+        if self.pv_control_enabled:
+            for name, pv in self.circuit.pvs.items():
+                applied = trace["PVSystem." + name]["applied"]
+                values.extend(
+                    [
+                        applied["kw"] / max(self.available_pv_kw[name], 1e-9),
+                        applied["kvar"] / pv.kva,
+                    ]
+                )
+        for name, svg in self.circuit.svgs.items():
+            values.append(trace["Generator." + name]["applied"]["kvar"] / svg.kva)
+        return values
+
+    def _observe(self):
+        self.physical_state = self.circuit.read_state()
+        powers = {n.lower(): v for n, v in self.physical_state.injections.items()}
         self.obs = {
             "bus_voltages": {
-                n: self.circuit.bus_voltage(n) for n in self.all_bus_names
+                n: list(v.values()) for n, v in self.physical_state.voltages_pu.items()
             },
-            "cap_statuses": caps,
-            "reg_statuses": regs,
+            "cap_statuses": {
+                n: self.circuit.capacitor_state(n)[0] for n in self.cap_names
+            },
+            "reg_statuses": {
+                n: (self.circuit.regulator_tap(n) - r.mintap) / (r.maxtap - r.mintap)
+                for n, r in self.circuit.regulators.items()
+            },
             "bat_statuses": {
-                n: [b.soc, -self.circuit.powers("Storage." + n)[0] / b.max_kw]
+                n: [b.soc, powers["storage." + n][0] / b.max_kw]
                 for n, b in self.circuit.batteries.items()
             },
-            "pv_statuses": pvs,
-            "power_loss_ratio": float(
-                self.circuit.total_loss()[0]
-                / max(self.circuit.total_load_power()[0], 1)
-            ),
+            "pv_statuses": {
+                n: [
+                    powers["pvsystem." + n][0] / pv.pmpp,
+                    powers["pvsystem." + n][1] / pv.kva,
+                ]
+                for n, pv in self.circuit.pvs.items()
+            },
+            "svg_statuses": {
+                n: [
+                    powers["generator." + n][0] / dev.kva,
+                    powers["generator." + n][1] / dev.kva,
+                ]
+                for n, dev in self.circuit.svgs.items()
+            },
+            "power_loss_ratio": self.physical_state.losses[0] / self.base_load_kw,
             "time": self.t,
         }
 
@@ -305,9 +327,8 @@ class Env(gym.Env):
             "reg_statuses",
             "bat_statuses",
             "pv_statuses",
+            "svg_statuses",
         ):
-            if key == "pv_statuses" and not self.pv_control_enabled:
-                continue
             for value in obs[key].values():
                 values.extend(np.asarray(value).reshape(-1))
         values.extend(
@@ -325,6 +346,29 @@ class Env(gym.Env):
             raise RuntimeError("观测出现非有限值")
         return result
 
+    def get_physics_manifest(self):
+        elements = (
+            ["Capacitor." + n for n in self.cap_names]
+            + ["RegControl." + n for n in self.reg_names]
+            + ["Storage." + n for n in self.bat_names]
+            + (
+                ["PVSystem." + n for n in self.pv_names]
+                if self.pv_control_enabled
+                else []
+            )
+        )
+        elements += ["Generator." + n for n in self.svg_names]
+        schema = [
+            {"element": element, "space": str(space)}
+            for element, space in zip(elements, self.agent_spaces)
+        ]
+        digest = sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
+        return {
+            **self.circuit.manifest(),
+            "action_schema": schema,
+            "action_schema_sha256": digest,
+        }
+
     def _info(self):
         phases = [v for values in self.obs["bus_voltages"].values() for v in values]
         count = sum(
@@ -341,8 +385,24 @@ class Env(gym.Env):
         pv_kw = sum(p[0] for p in pv_powers)
         rated = sum(pv.pmpp for pv in self.circuit.pvs.values())
         storage = [-self.circuit.powers("Storage." + n)[0] for n in self.bat_names]
+        loadings = [
+            b["loading_pu"]
+            for b in self.physical_state.branches.values()
+            if b["loading_pu"] is not None
+        ]
         return {
+            "max_branch_loading_pu": max(loadings) if loadings else None,
+            "branch_overload_count": sum(x > 1 for x in loadings),
+            "unrated_branch_count": len(self.physical_state.branches) - len(loadings),
             "dataset_sha256": self.dataset.sha256,
+            "physics_model_sha256": self.circuit.model_sha256,
+            "control_trace": {
+                k: v for k, v in self.circuit.trace.items() if not k.startswith("Load.")
+            },
+            "active_balance_error_kw": self.physical_state.active_balance_error_kw,
+            "svg_reactive_power_kvar": float(
+                sum(-self.circuit.powers("Generator." + n)[1] for n in self.svg_names)
+            ),
             "scenario_id": self.entry["id"],
             "scenario": self.entry["scenario"],
             "step": self.t,
@@ -392,25 +452,9 @@ class Env(gym.Env):
         self.entry, self.profile = self.dataset.episodes[index]
         self.t, self.episode_costs = 0, []
         self.reward_func.reset_episode()
-        c = self.circuit.native
-        for name in self.cap_names:
-            c.Capacitors.Name = name
-            c.Capacitors.States = [1] * len(c.Capacitors.States)
-        for reg in self.circuit.regulators.values():
-            c.Transformers.Name, c.Transformers.Wdg = reg.transformer, reg.winding
-            c.Transformers.Tap = reg.initial
-        for name, bat in self.circuit.batteries.items():
-            bat.soc, bat.kw = bat.initial_soc, 0
-            self.circuit.command(
-                f"Edit Storage.{name} state=idling %stored={bat.soc*100}"
-            )
+        self.circuit.reset(seconds=float(self.profile[0, 0]))
         self._apply_data(0)
-        for name in self.pv_names:
-            self._pv_action(
-                name,
-                [1, 0] if self.pv_act_num == float("inf") else [self.pv_act_num - 1],
-            )
-        self.circuit.solve(float(self.current_row[0]))
+        self.available_pv_kw = self.circuit.available_pv_power()
         self._observe()
         return self.wrap_obs(self.obs)
 

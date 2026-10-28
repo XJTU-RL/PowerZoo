@@ -34,32 +34,70 @@ def test_both_native_dss_apis_solve():
     assert "DSS" in result["dss_version"]
 
 
-def test_pv_config_respects_another_process_lock(tmp_path):
-    """A busy lock must prevent writing; generation can resume after release."""
+def test_dataset_respects_another_process_lock(tmp_path, monkeypatch):
+    """真正的数据入口在另一进程持锁时不能写文件，释放后只生成一套数据。"""
+    import hashlib
+    import json
+    import time
     from filelock import FileLock
+    from envs.smartgrid.base_env.env_config import DataConfig
+    from envs.smartgrid.data_process import dataset
 
-    from envs.smartgrid.data_process.loadprofile_config import ConfigGenerator
-
-    root = Path(__file__).resolve().parents[1]
-    with FileLock(str(tmp_path / ".pv_config.lock")):
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "import sys; "
-                "from envs.smartgrid.data_process.loadprofile_config import ConfigGenerator; "
-                "assert not ConfigGenerator(sys.argv[1], 24).ensure_default_pv_config()",
-                str(tmp_path),
-            ],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=30,
+    cfg = DataConfig(episodes_per_split=6)
+    key = hashlib.sha256(
+        json.dumps(dataset._generation(cfg, 24), sort_keys=True).encode()
+    ).hexdigest()[:20]
+    folder = tmp_path / "results/smartgrid_data" / key
+    folder.parent.mkdir(parents=True)
+    marker = tmp_path / "waiting"
+    code = """import sys
+from pathlib import Path
+from envs.smartgrid.data_process import dataset
+from envs.smartgrid.base_env.env_config import DataConfig
+dataset.ROOT=Path(sys.argv[1])
+original=dataset.FileLock
+class SignalingLock(original):
+    def acquire(self,*a,**k):
+        Path(sys.argv[2]).write_text('waiting')
+        return super().acquire(*a,**k)
+dataset.FileLock=SignalingLock
+dataset.prepare_dataset(DataConfig(episodes_per_split=6),24)
+"""
+    lock = FileLock(str(folder) + ".lock")
+    lock.acquire()
+    process = subprocess.Popen(
+        [sys.executable, "-c", code, str(tmp_path), str(marker)],
+        cwd=Path(__file__).resolve().parents[1],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        deadline = time.monotonic() + 20
+        while (
+            not marker.exists()
+            and process.poll() is None
+            and time.monotonic() < deadline
+        ):
+            time.sleep(0.02)
+        assert marker.exists() and process.poll() is None
+        assert not folder.exists()
+        lock.release()
+        stdout, stderr = process.communicate(timeout=30)
+        assert process.returncode == 0, (stdout, stderr)
+        before = sorted(
+            (p.relative_to(folder), p.read_bytes())
+            for p in folder.rglob("*")
+            if p.is_file()
         )
-        assert result.returncode == 0, result.stdout + result.stderr
-        assert not list(tmp_path.glob("*.dss"))
-
-    assert ConfigGenerator(str(tmp_path), 24).ensure_default_pv_config()
-    assert (tmp_path / "pv_data.dss").is_file()
-    assert len(list(tmp_path.glob("pv_data_*.dss"))) == 8
+        monkeypatch.setattr(dataset, "ROOT", tmp_path)
+        dataset.prepare_dataset(cfg, 24)
+        assert before == sorted(
+            (p.relative_to(folder), p.read_bytes())
+            for p in folder.rglob("*")
+            if p.is_file()
+        )
+    finally:
+        lock.release()
+        if process.poll() is None:
+            process.kill()
+            process.communicate()

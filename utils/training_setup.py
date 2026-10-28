@@ -19,7 +19,9 @@ def prepare_run(config):
 
     family = environment_family(config.main_args["env"])
     if family in LEGACY_PHYSICS:
-        raise ValueError(f"{family}当前为待重建研究实现：{LEGACY_PHYSICS[family]}；不能将运行成功当作有效训练。参见docs/physical-consistency-plan.md")
+        raise ValueError(
+            f"{family}当前为待重建研究实现：{LEGACY_PHYSICS[family]}；不能将运行成功当作有效训练。参见docs/physical-consistency-plan.md"
+        )
     seed = config.algo_args["seed"]
     if not seed["seed_specify"]:
         seed["seed"] = secrets.randbelow(2**32)

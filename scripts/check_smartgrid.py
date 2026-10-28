@@ -8,15 +8,17 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_EXPERIMENT = "configs/experiments/smartgrid_synthetic_smoke.yaml"
 
 
-def check_native():
+def check_native(experiment=DEFAULT_EXPERIMENT):
     import numpy as np
     from utils.config_pipeline import ConfigLoader
     from utils.envs_tools import make_power_env
 
     cfg = ConfigLoader().load(
-        "happo", "smartgrid", values={"env": {"data": {"episodes_per_split": 6}}}
+        experiment=experiment,
+        values={"env": {"max_episode_steps": 360, "data": {"episodes_per_split": 6}}},
     )
     env = make_power_env("smartgrid", cfg.env_args, 0, 0)
     core, records = env.env, []
@@ -30,30 +32,76 @@ def check_native():
         ]
         a += [core.bat_act_num // 2] * core.bat_num
         a += [v for _ in core.pv_names for v in (1, 0)]
-        for i in range(6):
-            core.reset(load_profile_idx=i)
-            rewards = []
-            for _ in range(core.horizon):
-                _, reward, done, info = core.step(a)
-                assert info["dss_converged"] and np.isfinite(reward)
-                rewards.append(reward)
-            assert done
-            records.append(
-                dict(
-                    scenario=info["scenario"],
-                    steps=core.horizon,
-                    mean_reward=float(np.mean(rewards)),
-                    pv_kw=info["pv_power_kw"],
-                    voltage_min_pu=info["voltage_min_pu"],
-                    voltage_max_pu=info["voltage_max_pu"],
+        a += [0] * len(core.svg_names)
+        for controller in ("fixed", "native_cap_reg"):
+            for i in range(6):
+                core.reset(load_profile_idx=i)
+                samples = []
+                for _ in range(core.horizon):
+                    if controller == "fixed":
+                        _, reward, done, info = core.step(a)
+                        assert np.isfinite(reward)
+                    else:
+                        # 比较原生RegControl/CapControl；Storage空闲、PV最大可用有功、SVG零Q。
+                        # 只采集物理指标，避免把未计算的任务奖励填为零。
+                        c = core.circuit
+                        c.begin_interval(float(core.profile[core.t, 0]))
+                        core._apply_data(core.t)
+                        c.apply({"Storage." + n: {"kw": 0} for n in c.batteries})
+                        c.available_pv_power()
+                        c.solve(native_controls=True)
+                        c.finish_interval()
+                        core.t += 1
+                        core._observe()
+                        info = core._info()
+                        done = core.t == core.horizon
+                    assert info["dss_converged"]
+                    assert abs(info["active_balance_error_kw"]) < 0.05, {
+                        "controller": controller,
+                        "scenario": i,
+                        "step": core.t,
+                        "error_kw": info["active_balance_error_kw"],
+                        "grid_kw": info["total_power_kw"],
+                        "load_kw": info["total_load_kw"],
+                        "loss_kw": info["power_loss_kw"],
+                        "pv_kw": info["pv_power_kw"],
+                    }
+                    samples.append(info)
+                assert done
+                dt = core.config.data.step_seconds
+                records.append(
+                    dict(
+                        controller=controller,
+                        scenario=info["scenario"],
+                        steps=core.horizon,
+                        loss_kwh=sum(s["power_loss_kw"] for s in samples) * dt / 3600,
+                        grid_import_kwh=sum(s["total_power_kw"] for s in samples)
+                        * dt
+                        / 3600,
+                        pv_kwh=sum(s["pv_power_kw"] for s in samples) * dt / 3600,
+                        phase_violation_minutes=sum(
+                            s["voltage_violation_count"] for s in samples
+                        )
+                        * dt
+                        / 60,
+                        voltage_min_pu=min(s["voltage_min_pu"] for s in samples),
+                        voltage_max_pu=max(s["voltage_max_pu"] for s in samples),
+                        max_branch_loading_pu=max(
+                            s["max_branch_loading_pu"] for s in samples
+                        ),
+                        max_balance_error_kw=max(
+                            abs(s["active_balance_error_kw"]) for s in samples
+                        ),
+                        final_soc={n: b.soc for n, b in core.circuit.batteries.items()},
+                    )
                 )
-            )
         return {
             "counts": {
                 "capacitors": core.cap_num,
                 "regulators": core.reg_num,
                 "storage": core.bat_num,
                 "pv": core.pv_num,
+                "svg": len(core.svg_names),
             },
             "dataset": str(core.dataset.path),
             "dataset_sha256": core.dataset.sha256,
@@ -63,13 +111,13 @@ def check_native():
         env.close()
 
 
-def check_spawn():
+def check_spawn(experiment=DEFAULT_EXPERIMENT):
     import numpy as np
     from utils.config_pipeline import ConfigLoader
     from utils.envs_tools import make_train_env
 
     cfg = ConfigLoader().load(
-        "happo", "smartgrid", values={"env": {"max_episode_steps": 24}}
+        experiment=experiment, values={"env": {"max_episode_steps": 24}}
     )
     env = make_train_env("smartgrid", 0, 2, cfg.env_args)
     try:
@@ -95,9 +143,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--train", action="store_true")
     p.add_argument("--require-cuda", action="store_true")
+    p.add_argument("--config", default=DEFAULT_EXPERIMENT)
+    p.add_argument("--output", default="results/validation/smartgrid")
     a = p.parse_args()
-    report = {"native": check_native(), "spawn": check_spawn()}
-    output = ROOT / "results/validation/smartgrid"
+    report = {"native": check_native(a.config), "spawn": check_spawn(a.config)}
+    output = (ROOT / a.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     if a.train:
         previous_models = set((output / "runs").rglob("*.pt"))
@@ -122,13 +172,13 @@ def main():
                         sys.executable,
                         "scripts/train.py",
                         "--config",
-                        "configs/experiments/smartgrid_synthetic_smoke.yaml",
+                        a.config,
                         "--exp-name",
                         f"check_{device}",
                         "--set",
                         f"device.cuda={'true' if device == 'cuda' else 'false'}",
                         "--set",
-                        "logger.log_dir=results/validation/smartgrid/runs",
+                        f"logger.log_dir={(output / 'runs').as_posix()}",
                         *evaluation,
                     ],
                     cwd=ROOT,
@@ -148,6 +198,8 @@ def main():
                 [
                     sys.executable,
                     "examples/single_agent/scripts/train_smartgrid.py",
+                    "--config",
+                    a.config,
                     "--steps",
                     "96",
                     "--output",
@@ -177,6 +229,35 @@ def main():
             checked += 1
         assert checked > 0, "训练没有保存模型"
         report["finite_model_files"] = checked
+        from envs.smartgrid.render.engine.checkpoint import load_checkpoint
+        from envs.smartgrid.render.engine.episode_runner import SmartGridEpisodeRunner
+        import numpy as np
+
+        checkpoint = max(
+            (
+                p.parent
+                for p in set((output / "runs").rglob("actor_agent0.pt"))
+                - previous_models
+            ),
+            key=lambda p: p.stat().st_mtime,
+        )
+        engine = load_checkpoint(checkpoint)
+        runner = SmartGridEpisodeRunner(engine.config, engine, project_root=str(ROOT))
+        try:
+            episode = runner.run_episode(seed=5, max_steps=24)
+            assert episode.episode_length == 24 and len(episode.snapshots) == 25
+            assert np.isclose(
+                episode.total_reward,
+                sum(s["info"]["reward_total"] for s in episode.snapshots[1:]),
+                rtol=1e-6,
+            )
+            report["checkpoint_replay"] = {
+                "steps": 24,
+                "actors": engine.n_agents,
+                "reward": episode.total_reward,
+            }
+        finally:
+            runner.close()
     (output / "report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )

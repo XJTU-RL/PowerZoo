@@ -4,7 +4,6 @@ from importlib import import_module
 
 _EXPORTS = {
     "Env": ("envs.smartgrid.base_env.env", "Env"),
-    "ActionSpace": ("envs.smartgrid.base_env.env", "ActionSpace"),
     "VVCEnv": ("envs.smartgrid.base_env.vvc_env", "VVCEnv"),
     "OptimizedVVCEnv": ("envs.smartgrid.base_env.vvc_env", "OptimizedVVCEnv"),
     "make_base_env": ("envs.smartgrid.base_env.env_register", "make_base_env"),

@@ -71,3 +71,10 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 `D:\Exps\PowerZoo-worktrees\config-simplicity`。单次引用的训练预设合并回环境文件，
 真实共享的 smoke 设置保留；字段删除与保留依据实际消费者，详见[配置说明](configuration.md)。
 训练验证沿用公共检查脚本，不添加另一套长期训练入口。
+
+## 物理层与任务重构
+
+从 `fab44772` 建立 `codex/physics-refactor`，目录为
+`D:\Exps\PowerZoo-worktrees\physics-refactor`。阶段方案见[设计](physical-consistency-plan.md)，
+实际完成范围、命令、基线和已知限制见[实施记录](physics-refactor-progress.md)。
+先校准SmartGrid，再逐一迁移其他任务；不将未通过电气/收益/交互验收的旧环境标为可用。

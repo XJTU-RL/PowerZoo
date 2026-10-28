@@ -86,7 +86,7 @@ class SmartGridConfig:
     env_name: str = "34Bus_pv"
     system_name: str = "34Bus_PV"
     dss_folder: Optional[str] = None
-    dss_file: str = "ieee34Mod1_duty.dss"
+    dss_file: str = "network.dss"
     max_episode_steps: int = 360
     seed: int = 123456
     data: DataConfig = field(default_factory=DataConfig)
@@ -96,6 +96,7 @@ class SmartGridConfig:
     bat_act_num: Union[int, float] = 33
     pv_act_num: Union[int, float] = float("inf")
     pv_control_enabled: bool = True
+    svg_elements: list[str] = field(default_factory=list)
     pv_plan: Optional[str] = None
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     voltage_min: float = 0.95
@@ -119,6 +120,11 @@ class SmartGridConfig:
     def __post_init__(self):
         if isinstance(self.data, dict):
             self.data = DataConfig(**self.data)
+        if len(set(self.svg_elements)) != len(self.svg_elements) or any(
+            not element.startswith("Generator.") or len(element) <= len("Generator.")
+            for element in self.svg_elements
+        ):
+            raise ValueError("svg_elements需要不重复的Generator原生元件ID")
         if self.state_type != "EP":
             raise ValueError("SmartGrid只支持EP全状态观测")
         if (

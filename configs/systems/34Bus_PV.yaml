@@ -2,4 +2,4 @@
 system:
   name: 34Bus_PV
   dss_folder: node_systems/34Bus_PV
-  dss_file: ieee34Mod1_duty.dss
+  dss_file: network.dss

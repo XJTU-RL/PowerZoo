@@ -30,6 +30,9 @@ class VVCEnv:
             for s in self.action_space
         ]
 
+    def get_physics_manifest(self):
+        return self.env.get_physics_manifest()
+
     def _observations(self, obs):
         return [obs.copy() for _ in self.action_space]
 

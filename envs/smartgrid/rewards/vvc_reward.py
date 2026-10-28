@@ -341,7 +341,11 @@ class VVCReward:
         smoothing_penalty = 0.0
         if self.use_action_smoothing and self.previous_actions is not None:
             # 使用前面已经转换的列表（避免重复转换）
-            current_actions = capdiff_list + regdiff_list + pv_diff_list
+            current_actions = getattr(
+                self.env,
+                "applied_control_vector",
+                capdiff_list + regdiff_list + pv_diff_list,
+            )
 
             if len(current_actions) == len(self.previous_actions):
                 # 计算动作差异的L1范数
@@ -356,7 +360,13 @@ class VVCReward:
         # 更新动作缓存
         if self.use_action_smoothing:
             # 使用前面已经转换的列表（避免重复转换）
-            self.previous_actions = capdiff_list + regdiff_list + pv_diff_list
+            self.previous_actions = list(
+                getattr(
+                    self.env,
+                    "applied_control_vector",
+                    capdiff_list + regdiff_list + pv_diff_list,
+                )
+            )
 
         # 组合控制奖励
         total_control_cost = (
