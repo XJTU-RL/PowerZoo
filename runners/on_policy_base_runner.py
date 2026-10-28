@@ -704,6 +704,13 @@ class OnPolicyBaseRunner:
             rnn_states_critic,  # EP: (n_threads, dim), FP: (n_threads, n_agents, dim)
         ) = data
 
+        if self.state_type == "EP" and not np.allclose(
+            rewards, rewards[:, :1], rtol=1e-6, atol=1e-7
+        ):
+            raise ValueError(
+                "EP只支持共享团队奖励；各智能体奖励不一致，不能只保存第一个奖励。"
+                "局部奖励或一般和博弈需要明确的逐主体价值和采样契约。"
+            )
         dones_env = np.all(dones, axis=1)  # if all agents are done, then env is done
         rnn_states[
             dones_env == True
