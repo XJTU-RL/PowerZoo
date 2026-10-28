@@ -2,6 +2,12 @@
 
 import secrets
 
+LEGACY_PHYSICS = {
+    "district_dispatch": "储能时钟、区域计量及经济奖励尚未完成物理重建",
+    "dsr": "PV动作、电源绑定及实际供电判定尚未完成物理重建",
+    "stackelberg": "本轮价格到响应的时序及逐主体收益采样尚未重建",
+}
+
 
 def prepare_run(config):
     """确定一次实际种子和数据集，并把派生值记入来源表。
@@ -9,6 +15,11 @@ def prepare_run(config):
     env_args 是唯一可序列化配置。消费方 dataclass 在 worker 构造一次，
     此处只读取已校验的数据配置，不重复构造完整环境配置。
     """
+    from utils.config_validation import environment_family
+
+    family = environment_family(config.main_args["env"])
+    if family in LEGACY_PHYSICS:
+        raise ValueError(f"{family}当前为待重建研究实现：{LEGACY_PHYSICS[family]}；不能将运行成功当作有效训练。参见docs/physical-consistency-plan.md")
     seed = config.algo_args["seed"]
     if not seed["seed_specify"]:
         seed["seed"] = secrets.randbelow(2**32)

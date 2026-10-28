@@ -21,3 +21,13 @@ def test_ep_rejects_non_shared_rewards_before_mutating_buffers():
     runner.critic_buffer.insert.assert_not_called()
     for buffer in runner.actor_buffer:
         buffer.insert.assert_not_called()
+
+
+@pytest.mark.parametrize("family",["dsr","district_dispatch","stackelberg"])
+def test_unrebuilt_physics_is_rejected_before_training_preparation(family):
+    from utils.config_pipeline import ConfigLoader
+    from utils.training_setup import prepare_run
+
+    cfg = ConfigLoader().load("happo",family)
+    with pytest.raises(ValueError,match="待重建研究实现"):
+        prepare_run(cfg)
