@@ -22,6 +22,10 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 同一个 YAML，仅对真正重复使用的内容提取引用；未知或未实现参数直接报错。
 使用与实际生效边界见[配置说明](docs/configuration.md)。
 
+当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
+设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)（设计，尚未实施）。
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
