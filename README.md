@@ -11,7 +11,7 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 | `smartgrid` | `envs/smartgrid/` | 模块化电网控制，含 PV、奖励和日志组件 |
 | `dsr` | `envs/dsr/` | 配电网恢复 |
 | `stackelberg_13bus/34bus/123bus` | `envs/stackelberg/` | Stackelberg 博弈控制 |
-| `district_dispatch` | `envs/district_dispatch/` | 区域协调调度 |
+| `district_dispatch` | `envs/district_dispatch/` | 真实区域DER协同调度，原生计量与成本；HAPPO/PPO短训练验收 |
 
 `powerzoo` 是 `vvc` 的历史别名。历史文档中的 PowerZoo_LLM 通常指 SmartGrid
 相关实现，并不代表安装后自动具备独立的大语言模型服务。
@@ -24,7 +24,8 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 
 当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
 设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
-[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid和VVC已迁移并验收，区域调度/恢复/定价任务尚待重建，见[实施记录](docs/physics-refactor-progress.md)。
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid、VVC和区域调度已迁移并验收，恢复/定价任务仍阻断旧实现训练，见[实施记录](docs/physics-refactor-progress.md)。
+区域设备归属、真实P/Q计量、TOU成本与局部观测见[区域调度说明](docs/district-physics.md)。
 
 ## Windows 安装
 
@@ -157,8 +158,9 @@ python scripts/check_smartgrid.py --train --require-cuda
 python examples/single_agent/scripts/train_smartgrid.py --steps 240
 ```
 
-五类环境已统一使用 `scripts/train.py` 和各自实验 YAML；运行 `python scripts/check_training.py`
-可在模型副本上逐项执行 CPU HAPPO 训练与评估。结构与清理清单见 [入口整理说明](docs/training-entrypoints.md)。
+五类环境共用 `scripts/train.py` 和各自实验 YAML；目前正式训练验收为VVC、SmartGrid、District，
+使用各自的 `check_vvc/check_smartgrid/check_district.py` 运行完整专项检查。
+DSR与Stackelberg旧实现会在正式训练前拒绝。结构与历史清理清单见[入口整理说明](docs/training-entrypoints.md)。
 
 ## 测试
 

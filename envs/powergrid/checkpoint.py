@@ -25,7 +25,7 @@ def load_checkpoint(checkpoint_dir, device="cpu", expected_family=None):
         raise ValueError("模型缺少config.resolved.yaml；不能猜测策略尺寸或环境配置")
     cfg = ConfigLoader().load(experiment=snapshot)
     family = cfg.main_args["env"]
-    if family not in ("vvc", "smartgrid") or (
+    if family not in ("vvc", "smartgrid", "district_dispatch") or (
         expected_family and family != expected_family
     ):
         raise ValueError("检查点任务与当前回放入口不一致")
@@ -42,7 +42,7 @@ def load_checkpoint(checkpoint_dir, device="cpu", expected_family=None):
         engine = InferenceEngine(
             str(directory),
             len(spaces),
-            [env.observation_space.shape[0]] * len(spaces),
+            [space.shape[0] for space in wrapper.observation_space],
             sizes,
             hidden_size=cfg.algo_args["model"]["hidden_sizes"][-1],
             device=device,

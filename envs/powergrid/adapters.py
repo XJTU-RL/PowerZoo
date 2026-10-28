@@ -4,6 +4,44 @@ import numpy as np
 import gymnasium as gym
 
 
+def parse_actions(action, spaces):
+    """校验整帧物理动作；高斯actor的投影在MARL边界完成。"""
+    values = np.asarray(action, dtype=float).reshape(-1)
+    sizes = [1 if isinstance(s, gym.spaces.Discrete) else s.shape[0] for s in spaces]
+    if len(values) != sum(sizes) or not np.isfinite(values).all():
+        raise ValueError(f"动作需要{sum(sizes)}个有限数值")
+    parts, offset = [], 0
+    for space, size in zip(spaces, sizes):
+        part = values[offset : offset + size]
+        offset += size
+        if isinstance(space, gym.spaces.Discrete):
+            if part[0] != int(part[0]) or not 0 <= part[0] < space.n:
+                raise ValueError(f"无效离散动作：{part[0]}")
+        elif (part < space.low - 1e-5).any() or (part > space.high + 1e-5).any():
+            raise ValueError("连续动作超出空间")
+        else:
+            part = np.clip(part, space.low, space.high)
+        parts.append(part)
+    return parts
+
+
+def actor_action_frame(spaces, actions):
+    """异构actor输出去padding并投影到正式空间，训练与回放共用。"""
+    if len(actions) != len(spaces):
+        raise ValueError(f"需要{len(spaces)}个智能体动作")
+    flat = []
+    for space, value in zip(spaces, actions):
+        dimension = 1 if isinstance(space, gym.spaces.Discrete) else space.shape[0]
+        array = np.asarray(value, dtype=float).reshape(-1)
+        if len(array) < dimension or not np.isfinite(array[:dimension]).all():
+            raise ValueError("智能体动作维度不足或数值无效")
+        part = array[:dimension]
+        if isinstance(space, gym.spaces.Box):
+            part = np.clip(part, space.low, space.high)
+        flat.extend(part)
+    return flat
+
+
 class DeviceMARLAdapter:
     def __init__(self, env, rank=None):
         self.env, self.config, self.rank = env, env.config, rank
@@ -30,26 +68,17 @@ class DeviceMARLAdapter:
     def _observations(self, obs):
         return [obs.copy() for _ in self.action_space]
 
+    def _shared_observations(self, obs):
+        return [obs.copy() for _ in self.action_space]
+
     def step(self, actions):
-        if len(actions) != self.n_agents:
-            raise ValueError(f"需要 {self.n_agents} 个智能体动作")
-        flat = []
-        for space, value in zip(self.action_space, actions):
-            dimension = 1 if isinstance(space, gym.spaces.Discrete) else space.shape[0]
-            array = np.asarray(value).reshape(-1)
-            if len(array) < dimension:
-                raise ValueError("智能体动作维度不足")
-            part = array[:dimension]
-            if isinstance(space, gym.spaces.Box):
-                # HAPPO 的高斯策略可以输出界外动作，执行前投影到设备空间。
-                part = np.clip(part, space.low, space.high)
-            flat.extend(part)
+        flat = actor_action_frame(self.action_space, actions)
         obs, reward, done, info = self.env.step(flat)
         if info.get("TimeLimit.truncated"):
             info["bad_transition"] = True
         return (
             self._observations(obs),
-            self._observations(obs),
+            self._shared_observations(obs),
             np.full((self.n_agents, 1), reward, dtype=np.float32),
             np.full(self.n_agents, done, dtype=bool),
             [dict(info) for _ in self.action_space],
@@ -60,7 +89,7 @@ class DeviceMARLAdapter:
         obs = self.env.reset()
         return (
             self._observations(obs),
-            self._observations(obs),
+            self._shared_observations(obs),
             self.get_avail_actions(),
         )
 

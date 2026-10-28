@@ -1,5 +1,8 @@
 # 训练入口与参数流整理
 
+> 本页保留入口整理阶段的历史验收。物理重构后正式训练为VVC、SmartGrid、District；
+> DSR/Stackelberg旧实现被阻断。当前工作分支为codex/physics-refactor，完成范围见[实施记录](physics-refactor-progress.md)。
+
 入口整理从 `3f47f9f4` 建立 `codex/training-entrypoints`。后续配置精简在
 `codex/config-simplicity`（基于 `1c0f050e`），当前目录为
 `D:\Exps\PowerZoo-worktrees\config-simplicity`。不修改主工作区，不合并或推送。
@@ -102,7 +105,7 @@ UI展示元信息服从公共配置契约：过滤重复键或缺少标准节的
 conda activate powerzoo-win
 python scripts/train.py --config configs/experiments/smartgrid_synthetic_smoke.yaml
 python scripts/train.py --config configs/experiments/dsr_13bus_smoke.yaml --print-config
-python scripts/train.py --config configs/experiments/district_dispatch_smoke.yaml --explain env.soc_init
+python scripts/train.py --config configs/experiments/district_dispatch_smoke.yaml --explain env.market.base_price_yuan_kwh
 python scripts/check_training.py
 ```
 

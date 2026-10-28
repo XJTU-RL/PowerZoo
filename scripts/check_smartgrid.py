@@ -140,7 +140,10 @@ def check_spawn(experiment=DEFAULT_EXPERIMENT):
     try:
         obs, _, _ = env.reset()
         for _ in range(26):  # 覆盖自动 reset
-            actions = np.zeros((2, len(env.action_space), 2), dtype=np.float32)
+            dimension = max(
+                1 if hasattr(s, "n") else s.shape[0] for s in env.action_space
+            )
+            actions = np.zeros((2, len(env.action_space), dimension), dtype=np.float32)
             for i, space in enumerate(env.action_space):
                 if hasattr(space, "n"):
                     actions[:, i, 0] = space.n // 2

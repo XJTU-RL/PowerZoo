@@ -1,3 +1,4 @@
 # Archive manifests verify original bytes, including original line endings.
 archive/physics_refactor_smartgrid/** -text -diff
 archive/physics_refactor_vvc/** -text -diff
+archive/physics_refactor_district/** -text -diff

@@ -221,3 +221,26 @@ def test_native_finish_failure_invalidates_measurements(model):
             session.begin_interval(0)
     finally:
         session.close()
+
+
+def test_incomplete_native_controls_cannot_finish_or_publish_state(model):
+    session = DSSSession(model, "model.dss")
+    try:
+        session.begin_interval(0)
+        session.native = SimpleNamespace(
+            Solution=SimpleNamespace(
+                dblHour=0.0,
+                Converged=True,
+                ControlActionsDone=False,
+                SolveSnap=lambda: None,
+            )
+        )
+        with pytest.raises(RuntimeError, match="控制循环"):
+            session.solve(native_controls=True)
+        with pytest.raises(RuntimeError):
+            session.finish_interval()
+        with pytest.raises(RuntimeError):
+            session.read_state()
+        assert session.time_s == 0
+    finally:
+        session.close()

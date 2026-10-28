@@ -150,7 +150,7 @@ def test_frozen_snapshot_does_not_reload_system(tmp_path):
 
     loader._read = read
     replay = loader.load(experiment=snapshot)
-    assert replay.env_args["district_topology"][2]["pv_systems"][0]["name"] == "pv_d2_1"
+    assert replay.env_args["regions"][2]["controls"][0] == "PVSystem.pv_d2_1"
 
 
 def test_ui_preview_and_training_read_identical_values(tmp_path, monkeypatch):
@@ -269,16 +269,16 @@ def test_smartgrid_weights_reach_reward_formula():
     assert first.voltage_range == (0.92, 1.08)
 
 
-def test_district_integer_paths_and_count_consistency():
+def test_district_rejects_duplicate_capacity_and_uses_market_override():
     config = ConfigLoader().load(
-        "happo",
-        "district_dispatch",
-        overrides={"env.district_devices.2.storage_capacity_kwh": 400},
+        "happo", "district_dispatch", overrides={"env.market.base_price_yuan_kwh": 0.8}
     )
-    assert config.env_args["district_devices"][2]["storage_capacity_kwh"] == 400
-    with pytest.raises(ConfigError, match="实际设备数"):
+    assert config.env_args["market"]["base_price_yuan_kwh"] == 0.8
+    with pytest.raises(ConfigError, match="district_devices"):
         ConfigLoader().load(
-            "happo", "district_dispatch", overrides={"env.district_devices.2.n_pv": 5}
+            "happo",
+            "district_dispatch",
+            overrides={"env.district_devices.2.storage_capacity_kwh": 400},
         )
 
 
@@ -292,36 +292,30 @@ def test_unsupported_stackelberg_features_are_explicit(field):
         )
 
 
-def test_district_consumes_market_rewards_and_topology():
+def test_district_consumes_market_costs_and_native_bindings():
     from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
+    from envs.district_dispatch.core.dispatch_core import DistrictDispatchCore
 
     config = ConfigLoader().load(
         "happo",
         "district_dispatch",
         values={
             "env": {
-                "base_price_yuan_kwh": 0.7,
-                "soc_init": 0.6,
-                "reward_weights": {"economic_dispatch": 4.0},
+                "market": {"base_price_yuan_kwh": 0.7},
+                "costs": {"terminal_energy_yuan_kwh": 4.0},
             }
         },
     )
-    env = DistrictDispatchEnv.__new__(DistrictDispatchEnv)
-    env.rank = 3
-    consumer = env._parse_config(config.env_args)
-    assert consumer.base_price_yuan_kwh == 0.7
-    assert consumer.soc_init == 0.6
-    assert consumer.reward_weights.economic_dispatch == 4
-    assert consumer.district_devices[2].n_pv == 1
-    from envs.district_dispatch.core.dispatch_core import DistrictDispatchCore
-
-    core = DistrictDispatchCore.__new__(DistrictDispatchCore)
-    core.config = consumer
-    core.system_def = core._load_system_definition()
-    districts = core._build_districts()
-    assert len(districts[2].pv_units) == 1
-    assert districts[2].storage_units[0].capacity_kwh == 300
-    assert districts[2].storage_units[0].soc == 0.6
+    consumer = DistrictDispatchEnv._parse_config(config.env_args)
+    assert consumer.market.base_price_yuan_kwh == 0.7
+    assert consumer.costs.terminal_energy_yuan_kwh == 4.0
+    assert consumer.regions[2].controls == ["PVSystem.pv_d2_1", "Storage.ess_d2"]
+    core = DistrictDispatchCore(consumer)
+    try:
+        assert core.circuit.batteries["ess_d2"].max_kwh == 300
+        assert core.circuit.batteries["ess_d2"].soc == 0.5
+    finally:
+        core.close()
 
 
 def test_stackelberg_bridge_preserves_fields():

@@ -1,31 +1,68 @@
 system_ref: District_34Bus_3Zone
 env:
-  env_name: district_dispatch
-  n_districts: 3
   max_episode_steps: 96
+  regions:
+  - name: upstream
+    buses:
+    - '800'
+    - '802'
+    - '806'
+    - '808'
+    - '810'
+    - '812'
+    - '814'
+    - 814r
+    - '816'
+    - '818'
+    - '820'
+    - '822'
+    - '824'
+    - '826'
+    - '828'
+    - '830'
+    - pv_bus_d0_1
+    - pv_bus_d0_2
+    - sourcebus
+    controls:
+    - PVSystem.pv_d0_1
+    - PVSystem.pv_d0_2
+    - Storage.ess_d0
+  - name: midstream
+    buses:
+    - '832'
+    - '834'
+    - '836'
+    - '838'
+    - '840'
+    - '842'
+    - '844'
+    - '846'
+    - '848'
+    - '850'
+    - '852'
+    - 852r
+    - '854'
+    - '856'
+    - '858'
+    - '860'
+    - '862'
+    - '864'
+    - pv_bus_d1_1
+    - pv_bus_d1_2
+    controls:
+    - PVSystem.pv_d1_1
+    - PVSystem.pv_d1_2
+    - Storage.ess_d1
+    - Generator.svg_mid
+  - name: downstream
+    buses:
+    - '888'
+    - '890'
+    - pv_bus_d2_1
+    controls:
+    - PVSystem.pv_d2_1
+    - Storage.ess_d2
   use_neighbor_obs: true
-  max_neighbors: 2
-  v_min: 0.95
-  v_max: 1.05
-  soc_min: 0.1
-  soc_max: 0.9
-  soc_healthy_min: 0.2
-  soc_healthy_max: 0.8
-  soc_init: 0.5
-  charge_efficiency: 0.95
-  discharge_efficiency: 0.95
-  base_price_yuan_kwh: 0.5
-  carbon_intensity: 0.6
-  carbon_price: 0.05
-  reward_weights:
-    economic_dispatch: 1.0
-    voltage_compliance: 2.0
-    loss_minimization: 0.5
-    carbon_reduction: 0.3
-    exchange_balance: 0.2
-    storage_health: 0.1
-  load_noise: true
-  noise_std: 0.05
 train:
   n_rollout_threads: 1
   num_env_steps: 5000000

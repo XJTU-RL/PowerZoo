@@ -22,10 +22,10 @@ def main(
 
     cfg = ConfigLoader().load(experiment=args.config)
     family = cfg.main_args["env"]
-    if family not in ("vvc", "smartgrid") or (
+    if family not in ("vvc", "smartgrid", "district_dispatch") or (
         expected_family and family != expected_family
     ):
-        p.error("当前集中控制基线仅支持已校准的VVC/SmartGrid任务")
+        p.error("当前集中控制基线支持VVC/SmartGrid/District同步任务")
     prepare_run(cfg)
     wrapper = make_power_env(family, cfg.env_args, 0, cfg.env_args["seed"])
     env = CentralizedAdapter(wrapper.env)

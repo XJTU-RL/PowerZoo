@@ -239,83 +239,30 @@ class ConfigLoader:
             if unknown:
                 raise ConfigError(f"{path}: 未知或无消费者的系统参数 {sorted(unknown)}")
 
-        district = "districts" in system
         check(
             system,
-            {
-                "system",
-                "episode",
-                "devices",
-                "constraints",
-                "default_rewards",
-            }
-            | ({"districts", "tie_lines", "district_devices"} if district else set()),
+            {"system", "episode", "devices", "constraints", "default_rewards"},
             "system document",
         )
-        check(
-            system.get("system", {}),
-            {"name", "dss_file", "dss_folder"},
-            "system",
-        )
+        check(system.get("system", {}), {"name", "dss_file", "dss_folder"}, "system")
         check(system.get("episode", {}), {"max_steps"}, "episode")
         check(
-            system.get("constraints", {}),
-            {
-                "voltage_min",
-                "voltage_max",
-                "soc_min",
-                "soc_max",
-                "soc_init",
-                "soc_healthy_min",
-                "soc_healthy_max",
-            },
-            "constraints",
+            system.get("constraints", {}), {"voltage_min", "voltage_max"}, "constraints"
         )
-        weights = environment_class(
-            "district_dispatch" if district else "smartgrid"
-        )().reward_weights
+        weights = environment_class("smartgrid")().reward_weights
         check(system.get("default_rewards", {}), asdict(weights), "default_rewards")
         devices = system.get("devices", {})
-        if district:
-            districts = system["districts"]
-            zones = set(districts) - {"count"}
-            if zones != set(devices) or districts.get("count") != len(zones):
-                raise ConfigError("districts.count、分区清单与devices分区必须一致")
-            for zone in zones:
-                check(
-                    districts[zone],
-                    {"name", "buses", "boundary_bus", "boundary_buses"},
-                    f"districts.{zone}",
-                )
-                check(
-                    devices[zone],
-                    {"pv_systems", "storage", "ev_chargers"},
-                    f"devices.{zone}",
-                )
-                for group, units in devices[zone].items():
-                    capacity_fields = {
-                        "pv_systems": {"capacity_kw"},
-                        "storage": {"capacity_kwh", "max_power_kw"},
-                        "ev_chargers": {"max_power_kw"},
-                    }[group]
-                    for unit in units:
-                        check(
-                            unit,
-                            {"name", "bus"} | capacity_fields,
-                            f"devices.{zone}.{group}",
-                        )
-        else:
-            check(devices, {"regulators", "batteries", "pv_systems"}, "devices")
-            for name, values in devices.items():
-                check(
-                    values,
-                    (
-                        {"action_num", "control_enabled"}
-                        if name == "pv_systems"
-                        else {"action_num"}
-                    ),
-                    f"devices.{name}",
-                )
+        check(devices, {"regulators", "batteries", "pv_systems"}, "devices")
+        for name, values in devices.items():
+            check(
+                values,
+                (
+                    {"action_num", "control_enabled"}
+                    if name == "pv_systems"
+                    else {"action_num"}
+                ),
+                f"devices.{name}",
+            )
         info = system.get("system", {})
         values = {key: info[key] for key in ("dss_file", "dss_folder") if key in info}
         if "name" in info:
@@ -328,76 +275,12 @@ class ConfigLoader:
                 "reward_weights": system.get("default_rewards", {}),
                 "constraints": system.get("constraints", {}),
             }
-        elif family in ("dsr", "district_dispatch"):
+        elif family == "dsr":
             for old, new in (("voltage_min", "v_min"), ("voltage_max", "v_max")):
                 if old in system.get("constraints", {}):
                     values[new] = system["constraints"][old]
-            if family == "district_dispatch":
-                values["n_districts"] = system.get("districts", {}).get("count", 3)
-                values["reward_weights"] = system.get("default_rewards", {})
-                values.update(
-                    {
-                        key: value
-                        for key, value in system.get("constraints", {}).items()
-                        if key.startswith("soc_")
-                    }
-                )
-                mapped_devices = {}
-                topology = {}
-                for zone, devices in system.get("devices", {}).items():
-                    index = int(zone.removeprefix("zone_"))
-                    zone_info = system.get("districts", {}).get(zone, {})
-                    boundaries = zone_info.get(
-                        "boundary_buses", zone_info.get("boundary_bus", [])
-                    )
-                    topology[index] = {
-                        "name": zone_info.get("name", zone),
-                        "buses": [str(bus) for bus in zone_info.get("buses", [])],
-                        "boundary_buses": (
-                            [boundaries] if isinstance(boundaries, str) else boundaries
-                        ),
-                        **{
-                            group: [
-                                {"name": unit["name"], "bus": str(unit["bus"])}
-                                for unit in devices.get(group, [])
-                            ]
-                            for group in ("pv_systems", "storage", "ev_chargers")
-                        },
-                    }
-                    mapped = {}
-                    for group, count, capacity_fields in (
-                        ("pv_systems", "n_pv", {"capacity_kw": "pv_capacity_kw"}),
-                        (
-                            "storage",
-                            "n_storage",
-                            {
-                                "capacity_kwh": "storage_capacity_kwh",
-                                "max_power_kw": "storage_max_power_kw",
-                            },
-                        ),
-                        (
-                            "ev_chargers",
-                            "n_ev_charger",
-                            {"max_power_kw": "ev_max_power_kw"},
-                        ),
-                    ):
-                        units = devices.get(group, [])
-                        mapped[count] = len(units)
-                        for old, new in capacity_fields.items():
-                            capacities = {unit[old] for unit in units}
-                            if len(capacities) > 1:
-                                raise ConfigError(
-                                    f"{zone}.{group}: 当前 District 配置类只支持同组设备使用相同容量"
-                                )
-                            if capacities:
-                                mapped[new] = capacities.pop()
-                    mapped_devices[index] = mapped
-                if mapped_devices:
-                    values["district_devices"] = mapped_devices
-                    values["district_topology"] = topology
-                for key in ("tie_lines", "district_devices"):
-                    if key in system:
-                        values[key] = system[key]
+        elif family == "district_dispatch":
+            values.update(system.get("constraints", {}))
         return normalize_env(values, family)
 
     @staticmethod
@@ -703,18 +586,6 @@ class ConfigLoader:
             if value != math.inf and (value < 2 or int(value) != value):
                 raise ConfigError(f"env.{name} 必须为 >= 2 的整数或 .inf")
         family = environment_family(config.main_args["env"])
-        if family == "district_dispatch":
-            for index, topology in env["district_topology"].items():
-                devices = env["district_devices"][index]
-                for group, count in (
-                    ("pv_systems", "n_pv"),
-                    ("storage", "n_storage"),
-                    ("ev_chargers", "n_ev_charger"),
-                ):
-                    if devices[count] != len(topology[group]):
-                        raise ConfigError(
-                            f"env.district_devices.{index}.{count}: 必须与 district_topology 中的实际设备数一致"
-                        )
         if env.get("dss_act") and not algo["render"]["use_render"]:
             raise ConfigError(
                 "env.dss_act=true 会启用 DSS 自动控制，使 RL 动作无效；训练时请关闭"

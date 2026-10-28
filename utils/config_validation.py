@@ -225,8 +225,10 @@ def normalize_env(values, family):
                 raise ConfigError("env_name与system_name冲突")
             result["system_name"] = system
             result.pop("env_name")
-    if family in ("dsr", "district_dispatch"):
+    if family == "dsr":
         aliases.update(voltage_min="v_min", voltage_max="v_max")
+    elif family == "district_dispatch":
+        aliases.update(v_min="voltage_min", v_max="voltage_max")
     for old, new in aliases.items():
         if old in result:
             value = result.pop(old)
@@ -339,15 +341,6 @@ def normalize_env(values, family):
                 raise ConfigError("SmartGrid未实现关闭CRB或非二状态电容器")
     for key, value in (result.pop("constraint_overrides", None) or {}).items():
         result[aliases.get(key, key)] = value
-    if family == "district_dispatch" and "district_configs" in result:
-        result["district_devices"] = {
-            int(str(key).replace("zone_", "").replace("district_", "")): value
-            for key, value in result.pop("district_configs").items()
-        }
-    if family == "district_dispatch" and "tie_lines" in result:
-        for tie in result["tie_lines"]:
-            if "name" in tie:
-                tie["line_name"] = tie.pop("name")
     if family == "stackelberg" and "ess_config" in result:
         ess = result["ess_config"]
         if not isinstance(ess, dict):

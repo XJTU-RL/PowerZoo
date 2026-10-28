@@ -18,6 +18,12 @@ class DeviceManualOverride(BaseManualOverride):
         return cls(env)
 
     def get_action_labels(self, agent_id):
+        if "controls" in self.schema[agent_id]:
+            return [
+                c["element"] + " " + component
+                for c in self.schema[agent_id]["controls"]
+                for component in c["components"]
+            ]
         element = self.schema[agent_id]["element"]
         if element.startswith("PVSystem.") and self.action_dims[agent_id] == 2:
             return [
@@ -37,7 +43,7 @@ class DeviceManualOverride(BaseManualOverride):
         else:
             valid = space.contains(values)
         if not valid:
-            raise ValueError(f"动作超出{self.schema[agent_id]['element']}的{space}")
+            raise ValueError(f"动作超出{self.schema[agent_id]}的{space}")
         for index, value in enumerate(values):
             self.set_override(agent_id, index, float(value))
         self.enabled = True
@@ -55,6 +61,6 @@ class DeviceManualOverride(BaseManualOverride):
         else:
             valid = space.low[action_idx] <= value <= space.high[action_idx]
         if not valid:
-            raise ValueError(f"动作超出{self.schema[agent_id]['element']}的{space}")
+            raise ValueError(f"动作超出{self.schema[agent_id]}的{space}")
         super().set_override(agent_id, action_idx, value)
         self.enabled = True

@@ -110,7 +110,7 @@ class DSSSession:
                     self.topology.add_edge(buses[0], bus, key=element, element=element)
 
     def require_element(self, element):
-        if self.native.SetActiveElement(element) <= 0:
+        if self.native.SetActiveElement(element) < 0:
             raise ValueError(f"DSS设备不存在：{element}")
 
     def read_property(self, element, key):
@@ -184,6 +184,8 @@ class DSSSession:
                 self.native.Solution.SolveSnap()
                 if not self.native.Solution.Converged:
                     raise RuntimeError(f"DSS在{self.time_s}s未收敛")
+                if native_controls and not self.native.Solution.ControlActionsDone:
+                    raise RuntimeError("DSS原生控制循环尚未完成")
                 limited = False
                 for name, dev in self.svgs.items():
                     element = "Generator." + name

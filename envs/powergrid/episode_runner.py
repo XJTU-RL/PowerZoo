@@ -1,6 +1,6 @@
 """实际设备空间上的随机/策略回放；团队奖励在回放中只统计一次。"""
 
-import os
+from pathlib import Path
 import logging
 from typing import Any, Dict, List, Optional
 import numpy as np
@@ -29,7 +29,7 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         project_root: str = "",
     ):
         super().__init__(config, inference_engine, collect_snapshots)
-        self.project_root = project_root or os.getcwd()
+        self.project_root = project_root or str(Path(__file__).resolve().parents[2])
         self._n_agents: int = 0
         self._action_dim: int = 0
 
@@ -63,7 +63,7 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
 
         # BaseEpisodeRunner 需要的 obs 列表
         if isinstance(obs, np.ndarray):
-            self._current_obs = [obs] * self._n_agents
+            self._current_obs = self._actor_observations(env, obs)
             self._current_share_obs = [obs] * self._n_agents
         else:
             wrapped = env.wrap_obs(env.obs).astype(np.float32)
@@ -91,16 +91,16 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         """
         values = np.asarray(actions)
         if values.ndim == 2 and values.shape[0] == self._n_agents:
-            action = np.concatenate(
-                [row[:size] for row, size in zip(values, self._sizes)]
-            )
+            from envs.powergrid.adapters import actor_action_frame
+
+            action = actor_action_frame(self._env.agent_spaces, values)
         else:
             action = values.reshape(-1)
         obs, reward, done, info = self._env.step(action)
 
         # 转为 MARL 格式
         if isinstance(obs, np.ndarray):
-            obs_list = [obs.astype(np.float32)] * self._n_agents
+            obs_list = self._actor_observations(self._env, obs.astype(np.float32))
         else:
             obs_list = [self._env.wrap_obs(self._env.obs).astype(np.float32)]
 
@@ -108,7 +108,17 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         dones = np.array([done], dtype=bool)
         infos = [info]
 
-        return obs_list, obs_list, rewards, dones, infos, [None]
+        return (
+            obs_list,
+            [obs.astype(np.float32)] * self._n_agents,
+            rewards,
+            dones,
+            infos,
+            [None] * self._n_agents,
+        )
+
+    def _actor_observations(self, env, obs):
+        return [obs.copy() for _ in env.agent_spaces]
 
     def _take_snapshot(
         self,

@@ -1,272 +1,140 @@
-# -*- coding: utf-8 -*-
-"""
-District Dispatch Configuration
-区域调度环境配置数据类
+"""区域协同调度配置：原生设备绑定、物理时序和有单位的费用。"""
 
-采用 dataclass 模式，与 DSR/SmartGrid 保持一致。
-"""
-
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
-
-from envs.district_dispatch.constants import (
-	VOLTAGE, STORAGE, MARKET, EPISODE, EXCHANGE
-)
+from dataclasses import dataclass, field, asdict
+import math
+from envs.powergrid.config import DataConfig
 
 
 @dataclass
-class DevicePlacement:
-    name: str = ''
-    bus: str = ''
+class RegionConfig:
+    name: str = ""
+    buses: list[str] = field(default_factory=list)
+    controls: list[str] = field(default_factory=list)
 
 
 @dataclass
-class DistrictTopology:
-    name: str = ''
-    buses: List[str] = field(default_factory=list)
-    boundary_buses: List[str] = field(default_factory=list)
-    pv_systems: List[DevicePlacement] = field(default_factory=list)
-    storage: List[DevicePlacement] = field(default_factory=list)
-    ev_chargers: List[DevicePlacement] = field(default_factory=list)
+class MarketConfig:
+    base_price_yuan_kwh: float = 0.5
+    tou_multipliers: list[float] = field(
+        default_factory=lambda: [
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.8,
+            1.0,
+            1.5,
+            1.5,
+            1.2,
+            1.0,
+            1.0,
+            1.0,
+            1.2,
+            1.5,
+            1.5,
+            1.5,
+            1.2,
+            1.0,
+            0.8,
+            0.5,
+            0.5,
+            0.5,
+        ]
+    )
+    sell_ratio: float = 0.8
+    carbon_intensity_kg_kwh: float = 0.6
+    carbon_price_yuan_kg: float = 0.05
+
+    def __post_init__(self):
+        if len(self.tou_multipliers) != 24 or any(
+            not math.isfinite(v) or v < 0 for v in self.tou_multipliers
+        ):
+            raise ValueError("market.tou_multipliers必须是24个非负有限数")
+        for key in (
+            "base_price_yuan_kwh",
+            "sell_ratio",
+            "carbon_intensity_kg_kwh",
+            "carbon_price_yuan_kg",
+        ):
+            value = getattr(self, key)
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"market.{key}必须非负有限")
+        if self.sell_ratio > 1:
+            raise ValueError("sell_ratio必须在[0,1]")
+
+    def price_at(self, seconds):
+        buy = self.base_price_yuan_kwh * self.tou_multipliers[int(seconds // 3600) % 24]
+        return buy, buy * self.sell_ratio
 
 
 @dataclass
-class DistrictDeviceConfig:
-	"""单台区设备配置"""
-	n_pv: int = 2						# PV系统数量
-	n_storage: int = 1					# 储能系统数量
-	n_ev_charger: int = 1				# EV充电桩数量
-	pv_capacity_kw: float = 200.0		# 单个PV容量(kW)
-	storage_capacity_kwh: float = 500.0	# 单个储能容量(kWh)
-	storage_max_power_kw: float = 100.0	# 储能最大功率(kW)
-	ev_max_power_kw: float = 50.0		# EV充电桩最大功率(kW)
+class DispatchCosts:
+    scale_yuan: float = 100.0
+    battery_wear_yuan_kwh: float = 0.01
+    curtailment_yuan_kwh: float = 0.05
+    voltage_yuan_pu2_h: float = 100000.0
+    thermal_yuan_pu2_h: float = 10000.0
+    terminal_energy_yuan_kwh: float = 2.0
 
-
-@dataclass
-class TieLineConfig:
-	"""联络线配置"""
-	from_district: int = 0				# 源台区索引
-	to_district: int = 1				# 目标台区索引
-	from_bus: str = ""					# 源母线名称
-	to_bus: str = ""					# 目标母线名称
-	line_name: str = ""					# 联络线名称
-	capacity_kw: float = EXCHANGE.DEFAULT_CAPACITY_KW
-
-
-@dataclass
-class DispatchRewardWeights:
-	"""调度奖励权重"""
-	economic_dispatch: float = 1.0		# 经济调度
-	voltage_compliance: float = 2.0		# 电压合规
-	loss_minimization: float = 0.5		# 网损最小化
-	carbon_reduction: float = 0.3		# 碳排放减少
-	exchange_balance: float = 0.2		# 功率交换平衡
-	storage_health: float = 0.1			# 储能健康
+    def __post_init__(self):
+        for key, value in asdict(self).items():
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"costs.{key}必须非负有限")
+        if self.scale_yuan <= 0:
+            raise ValueError("costs.scale_yuan必须为正，且不依赖本轮电价")
 
 
 @dataclass
 class DistrictDispatchConfig:
-    """区域调度环境主配置"""
-
-    # === 基础配置 ===
-    env_name: str = "district_dispatch"
-    state_type: str = "EP"
-    dss_folder: Optional[str] = None
-    district_topology: Dict[int, DistrictTopology] = field(default_factory=dict)
     system_name: str = "District_34Bus_3Zone"
-    dss_file: str = "district_master.dss"
-    max_episode_steps: int = EPISODE.DEFAULT_MAX_STEPS
-    seed: int = 42
+    dss_folder: str | None = None
+    dss_file: str = "network.dss"
+    overlays: list[str] = field(default_factory=list)
+    seed: int = 123456
+    max_episode_steps: int = 96
+    data: DataConfig = field(default_factory=lambda: DataConfig(step_seconds=900))
+    regions: list[RegionConfig] = field(default_factory=list)
+    voltage_min: float = 0.95
+    voltage_max: float = 1.05
+    use_neighbor_obs: bool = True
+    state_type: str = "EP"
+    market: MarketConfig = field(default_factory=MarketConfig)
+    costs: DispatchCosts = field(default_factory=DispatchCosts)
 
-    # === 台区配置 ===
-    n_districts: int = 3
-
-    # 各台区设备配置（按台区索引）
-    district_devices: Dict[int, DistrictDeviceConfig] = field(
-		default_factory=lambda: {
-			0: DistrictDeviceConfig(n_pv=2, n_storage=1, n_ev_charger=1),
-			1: DistrictDeviceConfig(n_pv=2, n_storage=1, n_ev_charger=1),
-			2: DistrictDeviceConfig(n_pv=1, n_storage=1, n_ev_charger=0),
-		}
-	)
-
-    # 联络线配置
-    tie_lines: List[TieLineConfig] = field(
-		default_factory=lambda: [
-			TieLineConfig(
-				from_district=0, to_district=1,
-				from_bus="830", to_bus="854",
-				line_name="tie_0_1",
-				capacity_kw=500.0,
-			),
-			TieLineConfig(
-				from_district=1, to_district=2,
-				from_bus="848", to_bus="890",
-				line_name="tie_1_2",
-				capacity_kw=300.0,
-			),
-		]
-	)
-
-    # === 物理约束 ===
-    v_min: float = VOLTAGE.MIN_PU
-    v_max: float = VOLTAGE.MAX_PU
-    soc_min: float = STORAGE.SOC_MIN
-    soc_max: float = STORAGE.SOC_MAX
-    soc_healthy_min: float = STORAGE.SOC_HEALTHY_MIN
-    soc_healthy_max: float = STORAGE.SOC_HEALTHY_MAX
-    soc_init: float = STORAGE.SOC_INIT
-    charge_efficiency: float = STORAGE.CHARGE_EFFICIENCY
-    discharge_efficiency: float = STORAGE.DISCHARGE_EFFICIENCY
-
-    # === 市场参数 ===
-    base_price_yuan_kwh: float = MARKET.BASE_PRICE_YUAN_KWH
-    carbon_intensity: float = MARKET.CARBON_INTENSITY
-    carbon_price: float = MARKET.CARBON_PRICE
-    tou_multipliers: List[float] = field(
-		default_factory=lambda: list(MARKET.TOU_MULTIPLIERS)
-	)
-
-    # === 奖励权重 ===
-    reward_weights: DispatchRewardWeights = field(
-		default_factory=DispatchRewardWeights
-	)
-
-    # === 观测空间配置 ===
-    use_neighbor_obs: bool = True		# 是否在观测中包含邻居信息
-    max_neighbors: int = 2				# 最大邻居数
-
-    # === 运行时配置 ===
-    worker_idx: Optional[int] = None
-    load_noise: bool = True				# 负荷随机噪声
-    noise_std: float = 0.05			# 噪声标准差
+    def __post_init__(self):
+        if isinstance(self.data, dict):
+            self.data = DataConfig(**self.data)
+        if isinstance(self.market, dict):
+            self.market = MarketConfig(**self.market)
+        if isinstance(self.costs, dict):
+            self.costs = DispatchCosts(**self.costs)
+        self.regions = [
+            RegionConfig(**r) if isinstance(r, dict) else r for r in self.regions
+        ]
+        if self.state_type != "EP":
+            raise ValueError("区域协同调度采用EP共享团队价值，不能丢弃部分主体奖励")
+        if not 0 < self.voltage_min < self.voltage_max < 2:
+            raise ValueError("电压上下界无效")
+        if self.max_episode_steps < 1 or (
+            self.data.source == "synthetic"
+            and self.max_episode_steps * self.data.step_seconds > 86400
+        ):
+            raise ValueError("合成调度窗口必须为正且不超过一天")
+        names = [r.name for r in self.regions]
+        if len(names) != len(set(names)) or any(not name for name in names):
+            raise ValueError("区域名称必须非空且唯一")
+        for region in self.regions:
+            if not region.buses or not region.controls:
+                raise ValueError("每个调度区域必须有母线及可控DER")
+            if len(region.buses) != len(set(region.buses)) or len(
+                region.controls
+            ) != len(set(region.controls)):
+                raise ValueError(f"{region.name}存在重复绑定")
 
     @classmethod
-    def from_env_args(cls, env_args):
+    def from_env_args(cls, values):
         from utils.config_validation import legacy_env_config
-        return legacy_env_config(cls, env_args)
 
-    def get_max_action_dim(self) -> int:
-        """
-		计算所有台区中最大动作维度（用于零填充对齐）
-
-		动作向量 per agent:
-		- 与每个邻居的有功交换: n_neighbors
-		- 与每个邻居的无功交换: n_neighbors
-		- PV削减率: n_pv
-		- 储能控制: n_storage
-		- EV调制: n_ev_charger
-		"""
-        max_dim = 0
-        for d_id in range(self.n_districts):
-            dev = self.district_devices.get(d_id, DistrictDeviceConfig())
-            n_neighbors = self._count_neighbors(d_id)
-            dim = (
-				n_neighbors * 2		# 有功 + 无功交换
-				+ dev.n_pv			# PV削减
-				+ dev.n_storage		# 储能控制
-				+ dev.n_ev_charger	# EV调制
-			)
-            max_dim = max(max_dim, dim)
-        return max_dim
-
-    def get_max_obs_dim(self) -> int:
-        """
-		计算所有台区中最大观测维度
-
-		观测向量 per agent:
-		- 台区电压统计: 3 (v_min, v_max, v_mean)
-		- 本地负荷: 2 (P_load, Q_load)
-		- PV状态: n_pv * 2 (available, actual)
-		- 储能状态: n_storage * 2 (soc, current_power)
-		- EV负荷: n_ev_charger
-		- 功率交换: 2 (exchange_in, exchange_out)
-		- 邻居信息: n_neighbors * 2 (v_mean, net_load)
-		- 时间: 2 (time_of_day, electricity_price)
-		"""
-        max_dim = 0
-        for d_id in range(self.n_districts):
-            dev = self.district_devices.get(d_id, DistrictDeviceConfig())
-            n_neighbors = self._count_neighbors(d_id) if self.use_neighbor_obs else 0
-            dim = (
-                3  # 电压统计
-                + 2  # 本地负荷
-                + dev.n_pv * 2  # PV状态
-                + dev.n_storage * 2  # 储能状态
-                + dev.n_ev_charger  # EV负荷
-                + 2  # 功率交换汇总
-                + n_neighbors * 2  # 邻居信息
-                + 2  # 时间+电价
-            )
-            max_dim = max(max_dim, dim)
-        return max_dim
-
-    def get_share_obs_dim(self) -> int:
-        """
-		计算共享观测维度 (centralized critic)
-
-		全局观测 = 所有台区本地观测拼接 + 系统级聚合
-		"""
-        total_local = self.get_max_obs_dim() * self.n_districts
-        system_level = 6	# total_load, total_gen, total_loss, sys_v_min, sys_v_max, sys_v_mean
-        market_level = 2	# price, carbon_intensity
-        return total_local + system_level + market_level
-
-    def _count_neighbors(self, district_id: int) -> int:
-        """计算台区的邻居数"""
-        neighbors = set()
-        for tl in self.tie_lines:
-            if tl.from_district == district_id:
-                neighbors.add(tl.to_district)
-            elif tl.to_district == district_id:
-                neighbors.add(tl.from_district)
-        return min(len(neighbors), self.max_neighbors)
-
-    def get_neighbor_ids(self, district_id: int) -> List[int]:
-        """获取台区的邻居台区ID列表"""
-        neighbors = set()
-        for tl in self.tie_lines:
-            if tl.from_district == district_id:
-                neighbors.add(tl.to_district)
-            elif tl.to_district == district_id:
-                neighbors.add(tl.from_district)
-        return sorted(list(neighbors))[:self.max_neighbors]
-
-    def get_tie_line(self, from_id: int, to_id: int) -> Optional[TieLineConfig]:
-        """获取两台区之间的联络线配置"""
-        for tl in self.tie_lines:
-            if (tl.from_district == from_id and tl.to_district == to_id) or \
-				(tl.from_district == to_id and tl.to_district == from_id):
-                return tl
-        return None
-
-    def validate(self) -> bool:
-        """验证配置合理性"""
-        assert self.n_districts >= 2, "至少需要2个台区"
-        assert self.max_episode_steps > 0, "max_episode_steps必须为正"
-        assert 0 < self.v_min < self.v_max < 2.0, "无效的电压边界"
-        assert 0 <= self.soc_min < self.soc_max <= 1.0, "无效的SOC边界"
-
-        assert self.soc_min <= self.soc_init <= self.soc_max, "初始SOC必须位于边界内"
-        assert (
-            self.soc_min <= self.soc_healthy_min < self.soc_healthy_max <= self.soc_max
-        ), "健康SOC范围必须位于物理边界内"
-        assert (
-            self.base_price_yuan_kwh > 0
-            and len(self.tou_multipliers) == 24
-            and all(x > 0 for x in self.tou_multipliers)
-        ), "电价和24小时倍率必须为正"
-        assert (
-            0 < self.charge_efficiency <= 1 and 0 < self.discharge_efficiency <= 1
-        ), "储能效率必须位于(0,1]"
-        # 验证联络线引用的台区存在
-        for tl in self.tie_lines:
-            assert (
-                0 <= tl.from_district < self.n_districts
-            ), f"联络线引用了无效台区: {tl.from_district}"
-            assert 0 <= tl.to_district < self.n_districts, \
-				f"联络线引用了无效台区: {tl.to_district}"
-            assert tl.from_district != tl.to_district, \
-				"联络线的两端不能是同一台区"
-
-        return True
+        return legacy_env_config(cls, values)

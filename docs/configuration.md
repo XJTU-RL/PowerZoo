@@ -1,8 +1,8 @@
 # 配置使用与扩展
 
 > 后续物理与任务审查发现：参数到达Python消费者并不保证其影响电气状态或最终优化目标。
-> District的电价/碳价归一化、储能推进，以及EP的非共享奖励等问题，见
-> [物理一致性方案](physical-consistency-plan.md)。本页的配置解析验收不能代替这些专项修复。
+> 旧District的价格抵消、储能时钟与虚拟交换已在区域重建中替换，见[区域调度](district-physics.md)。
+> DSR与Stackelberg仍待重建，见[物理一致性方案](physical-consistency-plan.md)。配置解析验收不能代替电气/交互验收。
 
 公共多智能体入口、UI、环境配置类共用一条解析链。不引入 Hydra、插值语言或递归继承。
 配置预览只需要 Python 3.10 和 PyYAML，不初始化 Torch、OpenDSS、Gradio 或环境。
@@ -143,12 +143,10 @@ District 的拓扑、位置、容量用于建立运行对象，必须与 DSS 对
   `retention_factor: 0.999`，避免把损失率误当作保留率；尚未实现的 ESS min_soc/max_soc 会拒绝。
   `tou_config/tier_config/reward_weights/n1_security` 原本未被底层消费，已从配置类删除，任何值均拒绝。
   扩展这些能力应先实现消费逻辑，再开放配置；不从论文描述推定它们已经实现。
-- **District**：市场价、SOC、效率、奖励、设备容量均到达消费方；拓扑在解析时展开，
-  核心不再重新读取系统 YAML。电价曲线实际使用 `base_price_yuan_kwh/tou_multipliers`，
-  逐小时倍率按24小时轴插值；SOC 控制门限使用配置边界，关闭 `use_neighbor_obs` 真正缩短本地
-  观测，同时保留物理交换动作。SOC 门限是动作保护，并非完整的逐步能量可行性证明。
-  当前同一台区的同类设备使用统一单机容量，异构容量在
-  解析时拒绝；扩展时可以将设备配置改为逐设备 dataclass。
+- **District**：`regions`绑定真实母线和PV/Storage/SVG；容量、效率、SOC只从DSS读取。
+  `market`与`costs`分别计算有单位的TOU金额和代理代价，固定尺度归一化，不抵消电价。
+  `use_neighbor_obs`控制一跳邻区信息，不存在普通交流联络线P/Q动作。
+  系统YAML只选模型和默认电压约束，不再投影另一套设备拓扑，详见[区域调度说明](district-physics.md)。
 
 ## 最终值、来源和重放
 
@@ -188,8 +186,8 @@ SmartGrid、DSR、District 的嵌套 dataclass 同样检查未知字段。Stacke
 少量字典子配置，但允许的实际键在 StackelbergConfig.validate() 限定；拼写错误也会报错。
 聚合专属参数只在对应方法中使用，例如 `priority_weights` 用于 priority，
 `spectral_clusters/consider_power_flow` 用于 graph，不能把条件分支的配置理解成所有模式都生效。
-公共 CLI 可以替换完整列表，不支持 `list.0.field` 逐项索引；整数键映射支持
-`--set env.district_devices.2.storage_capacity_kwh=400`。
+公共 CLI 可以替换完整列表，不支持 `list.0.field` 逐项索引；例如可直接覆盖
+`--set env.market.base_price_yuan_kwh=0.7`。设备容量应修改DSS，不存在第二份district_devices容量表。
 
 ## 支持范围
 
@@ -206,7 +204,7 @@ DSR 和 District 各自推荐的训练节与环境设置放在同一个环境文
 详见[入口整理说明](training-entrypoints.md)。
 
 
-## 按实际消费者精简（2026-10-28）
+## 配置精简历史（物理重建前的2026-10-28基线）
 
 遵循三个判断：同一用途且只被引用一次的内容放在一起；不同物理问题保留各自配置；
 只有存在实际读取并影响行为的参数才进入正式字段。单纯赋值、转发、日志描述不算控制能力。
@@ -246,7 +244,7 @@ VVC 的旧 `_ENV_INFO/_SYS_INFO` 默认表已删除，字符串工厂也调用�
 ## VVC与SmartGrid共享物理入口
 
 正式VVC不再构造to_env_info/to_sys_info视图，worker中的同一配置对象直接传给任务。
-两类任务共享powergrid的DataConfig/ScenarioDataset、设备动作与观测清单及DSSSession，奖励各自定义。
+VVC、SmartGrid、District共享powergrid的DataConfig/ScenarioDataset、唯一运行场景换算及DSSSession，任务目标各自定义。
 VVC的data.step_seconds默认3600，SmartGrid默认60；环境时长与算法采样长度仍分别设置。
 旧VVC的scale/load_noise/显示/灵敏度标志已退役，使用实际data.load_scale/data.noise，详见[VVC记录](vvc-physics.md)。
 系统文件只定义模型路径、动作分辨率、约束和基准权重；不再接受无消费者的display/source_bus设置。

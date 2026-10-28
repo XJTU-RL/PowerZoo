@@ -653,11 +653,11 @@ class OnPolicyBaseRunner:
             # 检查PV智能体（通常在后面的agent id）
             pv_agents = [i for i in range(self.num_agents) if agent_action_dims[i] > 1]
             if pv_agents:
-                print(f"检测到多维动作智能体 (PV系统): {pv_agents}")
+                print(f"检测到多维动作智能体: {pv_agents}")
                 for pv_id in pv_agents[:3]:  # 仅显示前3个以避免输出过多
                     pv_actions = actions[0, pv_id, : agent_action_dims[pv_id]]
                     print(
-                        f"  PV智能体 {pv_id}: 动作={pv_actions} (维度={len(pv_actions)})"
+                        f"  智能体 {pv_id}: 动作={pv_actions} (维度={len(pv_actions)})"
                     )
 
             print("=" * 35)

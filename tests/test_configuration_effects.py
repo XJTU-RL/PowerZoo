@@ -19,85 +19,27 @@ def district_config(**changes):
     return build_dataclass(environment_class("district_dispatch"), cfg.env_args)
 
 
-def district_core(config):
-    from envs.district_dispatch.core.dispatch_core import DistrictDispatchCore
-    from envs.district_dispatch.core.loadprofile import DistrictLoadProfile
-
-    core = DistrictDispatchCore.__new__(DistrictDispatchCore)
-    core.config = config
-    core.system_def = core._load_system_definition()
-    core.districts = core._build_districts()
-    core.max_obs_dim = config.get_max_obs_dim()
-    core.current_step = 0
-    core.load_profile = DistrictLoadProfile(config)
-    return core
-
-
-def test_price_and_hourly_multipliers_change_actual_step_price():
-    from envs.district_dispatch.core.loadprofile import DistrictLoadProfile
-
-    base = district_config()
-    original = DistrictLoadProfile(base)
-    doubled = DistrictLoadProfile(
-        district_config(base_price_yuan_kwh=base.base_price_yuan_kwh * 2)
-    )
-    for step in range(base.max_episode_steps):
-        assert doubled.get_step_data(step, False)["price"] == pytest.approx(
-            original.get_electricity_price(step) * 2
-        )
-    hourly = list(range(1, 25))
-    profile = DistrictLoadProfile(
-        district_config(tou_multipliers=hourly, base_price_yuan_kwh=0.7)
+def test_hourly_prices_have_declared_units_and_no_hidden_profile():
+    cfg = district_config(
+        market={"base_price_yuan_kwh": 0.7, "tou_multipliers": list(range(1, 25))}
     )
     for hour in range(24):
-        assert profile.get_electricity_price(hour * 4) == pytest.approx(
-            hourly[hour] * 0.7
-        )
-    flat = DistrictLoadProfile(
-        district_config(tou_multipliers=[1.0] * 24, base_price_yuan_kwh=0.7)
-    )
-    assert flat.get_electricity_price(40) == 0.7
-    assert flat.get_price_normalized(40) == 0.5
+        buy, sell = cfg.market.price_at(hour * 3600)
+        assert buy == pytest.approx(0.7 * (hour + 1))
+        assert sell == pytest.approx(buy * cfg.market.sell_ratio)
 
 
-@pytest.mark.parametrize("soc,command", [(0.25, 1.0), (0.75, -1.0)])
-def test_storage_limits_reach_actual_control_guard(soc, command):
-    configs = [
-        district_config(),
-        district_config(
-            soc_min=0.3, soc_max=0.7, soc_healthy_min=0.3, soc_healthy_max=0.7
-        ),
-    ]
-    powers = []
-    for config in configs:
-        district = district_core(config).districts[0]
-        for storage in district.storage_units:
-            storage.soc = soc
-        adapter = Mock()
-        district.apply_controls(
-            adapter,
-            np.zeros(len(district.pv_units)),
-            np.full(len(district.storage_units), command),
-            np.zeros(len(district.ev_chargers)),
-        )
-        assert adapter.set_storage_power.called
-        powers.append(adapter.set_storage_power.call_args.args[1])
-    assert powers[0] * command > 0
-    assert powers[1] == 0
-
-
-def test_neighbor_option_changes_actual_observation_but_not_action_space():
-    enabled = district_core(district_config())
-    disabled = district_core(district_config(use_neighbor_obs=False))
-    disabled._get_neighbor_info = Mock(side_effect=AssertionError("不应读取邻居"))
-    data = {"time_of_day": 0.0}
-    with_neighbors = enabled._build_all_obs(data)
-    without = disabled._build_all_obs(data)
-    assert enabled.max_obs_dim > disabled.max_obs_dim
-    assert all(len(obs) == disabled.max_obs_dim for obs in without)
-    assert all(len(obs) == enabled.max_obs_dim for obs in with_neighbors)
-    assert enabled.config.get_max_action_dim() == disabled.config.get_max_action_dim()
-    disabled._get_neighbor_info.assert_not_called()
+def test_native_capacity_cannot_be_shadowed_by_task_config():
+    for key in (
+        "soc_min",
+        "soc_init",
+        "soc_max",
+        "district_devices",
+        "n_districts",
+        "load_noise",
+    ):
+        with pytest.raises(ConfigError, match=key):
+            district_config(**{key: 0.3})
 
 
 @pytest.mark.parametrize(

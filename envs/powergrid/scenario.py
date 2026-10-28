@@ -131,6 +131,16 @@ def generate_dataset(output, config=None, steps=360):
     return output / "manifest.json"
 
 
+def apply_operating_row(session, row, dataset, mapping):
+    """运行控制场景到原生Load/PV的唯一换算，不推进时间或能量。"""
+    requests = {}
+    for name, base in session.loads.items():
+        ratio = float(row[1 + dataset.group_for(name, mapping)])
+        requests["Load." + name] = {"kw": base.kw * ratio, "kvar": base.kvar * ratio}
+    session.apply(requests)
+    session.set_pv_conditions(float(row[4]), float(row[5]))
+
+
 def prepare_dataset(config, steps):
     """显式文件优先；合成缓存按全部生成参数寻址，用锁保证只生成一次。"""
     if config.path:

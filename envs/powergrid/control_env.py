@@ -6,7 +6,7 @@ import json
 import numpy as np
 import gymnasium as gym
 from envs.powergrid.session import DSSSession
-from envs.powergrid.scenario import prepare_dataset
+from envs.powergrid.scenario import prepare_dataset, apply_operating_row
 
 
 class DeviceControlEnv(gym.Env):
@@ -122,18 +122,8 @@ class DeviceControlEnv(gym.Env):
             space.seed((seed + i) % 2**32)
 
     def _apply_data(self, index):
-        row = self.profile[index]
-        requests = {}
-        for name, base in self.circuit.loads.items():
-            group = self.dataset.group_for(name, self.config.data.load_groups)
-            ratio = float(row[1 + group])
-            requests["Load." + name] = {
-                "kw": base.kw * ratio,
-                "kvar": base.kvar * ratio,
-            }
-        self.circuit.apply(requests)
-        self.circuit.set_pv_conditions(float(row[4]), float(row[5]))
-        self.current_row = row
+        self.current_row = row = self.profile[index]
+        apply_operating_row(self.circuit, row, self.dataset, self.config.data.load_groups)
 
     def _pv_action(self, name, action):
         pv = self.circuit.pvs[name]
@@ -158,28 +148,9 @@ class DeviceControlEnv(gym.Env):
         return {"kw": fraction * self.circuit.batteries[name].max_kw}
 
     def _actions(self, action):
-        values = np.asarray(action, dtype=float).reshape(-1)
-        expected = sum(
-            1 if isinstance(s, gym.spaces.Discrete) else s.shape[0]
-            for s in self.agent_spaces
-        )
-        if len(values) != expected or not np.isfinite(values).all():
-            raise ValueError(f"动作应有 {expected} 个有限数值，收到 {values}")
-        parts, i = [], 0
-        for space in self.agent_spaces:
-            n = 1 if isinstance(space, gym.spaces.Discrete) else space.shape[0]
-            part, i = values[i : i + n], i + n
-            if isinstance(space, gym.spaces.Discrete):
-                if part[0] != int(part[0]) or not 0 <= part[0] < space.n:
-                    raise ValueError(f"无效离散动作 {part[0]}，空间 {space}")
-            elif (np.abs(part) > 1.00001).any():
-                raise ValueError(f"连续动作超出 [-1,1]：{part}")
-            parts.append(
-                np.clip(part, -1, 1)
-                if not isinstance(space, gym.spaces.Discrete)
-                else part
-            )
-        return parts
+        from envs.powergrid.adapters import parse_actions
+
+        return parse_actions(action, self.agent_spaces)
 
     def step(self, action):
         if self.t >= self.horizon:
