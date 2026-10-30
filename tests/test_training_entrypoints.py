@@ -16,7 +16,7 @@ from utils.training_setup import prepare_run
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("family", list(ENVIRONMENTS))
+@pytest.mark.parametrize("family", [n for n,s in ENVIRONMENTS.items() if s.interaction == "synchronous"])
 def test_worker_uses_one_typed_config_and_registered_wrapper(family, monkeypatch):
     from utils import envs_tools
 
@@ -41,7 +41,7 @@ def test_worker_uses_one_typed_config_and_registered_wrapper(family, monkeypatch
     assert cfg.env_args["seed"] != 2000  # worker不能污染原始配置
 
 
-@pytest.mark.parametrize("family", list(ENVIRONMENTS))
+@pytest.mark.parametrize("family", [n for n,s in ENVIRONMENTS.items() if s.interaction == "synchronous"])
 def test_global_dss_engines_are_process_isolated_even_one_worker(family, monkeypatch):
     from utils import envs_tools
 
@@ -106,9 +106,9 @@ def test_ui_only_advertises_public_configuration_entries():
     assert "vvc_single" not in ENV_REGISTRY
     assert "happo" in ALGO_REGISTRY and "dan_happo" not in ALGO_REGISTRY
     for algo in ALGO_REGISTRY:
-        ConfigLoader().load(algo, "vvc")
+        ConfigLoader().load(algo, "stackelberg" if algo == "sequential_ppo" else "vvc")
     for env in ENV_REGISTRY:
-        ConfigLoader().load("happo", env)
+        ConfigLoader().load("sequential_ppo" if env.startswith("stackelberg") else "happo", env)
 
 
 def test_archived_files_are_preserved_and_not_importable():

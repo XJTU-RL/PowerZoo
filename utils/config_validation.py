@@ -217,14 +217,6 @@ def normalize_env(values, family):
         aliases.update(pv_control="pv_control_enabled", pv="pv_control_enabled")
     elif family == "smartgrid":
         aliases.update(pv_control="pv_control_enabled")
-    if family == "stackelberg" and "env_name" in result:
-        suffix = str(result["env_name"]).lower().removeprefix("stackelberg_")
-        if suffix in ("13bus", "34bus", "123bus"):
-            system = suffix[:-3] + "Bus"
-            if "system_name" in result and result["system_name"] != system:
-                raise ConfigError("env_name与system_name冲突")
-            result["system_name"] = system
-            result.pop("env_name")
     if family in ("dsr", "district_dispatch"):
         aliases.update(v_min="voltage_min", v_max="voltage_max")
     for old, new in aliases.items():
@@ -339,34 +331,6 @@ def normalize_env(values, family):
                 raise ConfigError("SmartGrid未实现关闭CRB或非二状态电容器")
     for key, value in (result.pop("constraint_overrides", None) or {}).items():
         result[aliases.get(key, key)] = value
-    if family == "stackelberg" and "ess_config" in result:
-        ess = result["ess_config"]
-        if not isinstance(ess, dict):
-            raise ConfigError("env.ess_config 必须是映射")
-        for old, new in {
-            "total_capacity": "capacity",
-            "efficiency_charge": "eta_c",
-            "efficiency_discharge": "eta_o",
-            "eta_s": "retention_factor",
-        }.items():
-            if old in ess:
-                value = ess.pop(old)
-                if new in ess and ess[new] != value:
-                    raise ConfigError(f"env.ess_config.{old}与{new}冲突")
-                ess[new] = value
-        if "self_discharge_rate" in ess:
-            rate = typed_value(
-                ess.pop("self_discharge_rate"),
-                float,
-                "env.ess_config.self_discharge_rate",
-            )
-            if not 0 <= rate <= 1:
-                raise ConfigError(
-                    "env.ess_config.self_discharge_rate 必须在 0 到 1 之间"
-                )
-            if "retention_factor" in ess and ess["retention_factor"] != 1 - rate:
-                raise ConfigError("ESS 自放电损失率与 retention_factor 冲突")
-            ess["retention_factor"] = 1 - rate
     return result
 
 

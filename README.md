@@ -10,13 +10,14 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 | `vvc` | `envs/vvc/` | 经典电压无功控制；13/34/123共用原生物理层并已短训练验收 |
 | `smartgrid` | `envs/smartgrid/` | 模块化电网控制，含 PV、奖励和日志组件 |
 | `dsr / dsr_13bus` | `envs/dsr/` | 小网络/IEEE13派生有源恢复；真实开关、故障、供电计量及HAPPO/PPO验收 |
-| `stackelberg_13bus/34bus/123bus` | `envs/stackelberg/` | Stackelberg 博弈控制 |
+| `stackelberg / stackelberg_13bus` | `envs/stackelberg/` | 真实价格先于负荷响应、逐主体结算；顺序独立PPO短训练验收 |
 | `district_dispatch` | `envs/district_dispatch/` | 真实区域DER协同调度，原生计量与成本；HAPPO/PPO短训练验收 |
 
 `powerzoo` 是 `vvc` 的历史别名。历史文档中的 PowerZoo_LLM 通常指 SmartGrid
 相关实现，并不代表安装后自动具备独立的大语言模型服务。
-算法以 `runners/__init__.py` 中的注册表为准；包含 HAPPO、MAPPO、SHOM、
-MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组合需要分别验证。
+同步算法实现登记在`runners/__init__.py`；登记不等于经过正式适配和训练验收。
+当前运行/恢复任务验收HAPPO与集中PPO，定价任务使用公共入口分派的`sequential_ppo`。
+MAPPO、SHOM、MADDPG、HASAC、QMix等其余组合仍需单独验证，不能据旧SN-MAPPO名称推定顺序博弈正确。
 
 配置遵循“共享入口、环境专用字段、实验只写差异”。同一环境的设置与推荐训练节可放在
 同一个 YAML，仅对真正重复使用的内容提取引用；未知或未实现参数直接报错。
@@ -24,9 +25,10 @@ MADDPG、HASAC、QMix 和两时间尺度 VVC 等。不同环境与算法的组�
 
 当前短训练验收不等同于全部任务的物理与学习目标正确。对DSR、District和Stackelberg进一步审查发现的
 设备映射、能量时钟、目标函数与奖励契约问题，以及分阶段建设建议，见
-[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；SmartGrid、VVC、区域调度和有源静态恢复已迁移并验收，Stackelberg仍阻断旧实现训练，见[实施记录](docs/physics-refactor-progress.md)。
+[物理一致性与场景环境方案](docs/physical-consistency-plan.md)；五类任务均已按明确范围迁移并验收，见[实施记录](docs/physics-refactor-progress.md)。
 区域设备归属、真实P/Q计量、TOU成本与局部观测见[区域调度说明](docs/district-physics.md)。
 恢复场景、实际供电/合格服务、节点有效性与故障基准见[恢复说明](docs/dsr-physics.md)。
+顺序定价的现金账本、阶段响应、独立收益训练和建模范围见[定价说明](docs/pricing-physics.md)。
 
 ## Windows 安装
 
@@ -91,8 +93,8 @@ Conda 配置启用 `PYTHONUTF8=1`，避免 Windows 默认编码影响中文注�
 
 实际代码使用：
 
-- `envs/vvc/vvc/circuit.py`、`envs/smartgrid/circuit_system/runtime.py`：`import dss`；
-- `envs/dsr/core/circuit.py`：`import opendssdirect`。
+- 五类正式环境均通过`envs/powergrid/session.py`使用`dss.DSS.NewContext()`；
+- `scripts/check_runtime.py`同时验证DSS-Python与OpenDSSDirect原生绑定；旧全局物理核心已归档。
 
 因此环境同时安装 `dss-python==0.15.7`、其原生后端 `dss-python-backend==0.14.5`，
 以及 `opendssdirect-py==0.9.4`。Windows wheel 自带 DSS 原生引擎，

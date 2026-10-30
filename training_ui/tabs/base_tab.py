@@ -5,6 +5,7 @@ import gradio as gr
 import yaml
 from utils.config_pipeline import read_yaml, UniqueKeyLoader, ALGORITHM_SECTIONS
 from utils.config_validation import ConfigError
+from utils.environment_registry import environment_spec
 from training_ui.core.config_builder import (
     resolve_config,
     build_config,
@@ -18,6 +19,7 @@ class BaseEnvironmentTab:
 
     def build(self):
         root = Path(__file__).resolve().parents[2]
+        sequential = environment_spec(self.env_name).interaction == "sequential"
         profiles = sorted(
             path.stem
             for path in (root / "configs/envs_cfgs").glob("*.yaml")
@@ -26,6 +28,7 @@ class BaseEnvironmentTab:
         algorithms = sorted(
             path.stem
             for path in (root / "configs/algos_cfgs").glob("*.yaml")
+            if (path.stem == "sequential_ppo") == sequential
             if all(
                 isinstance(read_yaml(path).get(key), dict) for key in ALGORITHM_SECTIONS
             )
@@ -69,7 +72,11 @@ class BaseEnvironmentTab:
                 "采样长度用 train.episode_length，单局长度用 env.max_episode_steps；随机种子只设置 seed.seed。"
             )
             with gr.Row():
-                algo = gr.Dropdown(choices=algorithms, value="happo", label="算法")
+                algo = gr.Dropdown(
+                    choices=algorithms,
+                    value="sequential_ppo" if sequential else "happo",
+                    label="算法",
+                )
                 env = gr.Dropdown(
                     choices=profiles, value=self.env_name, label="环境配置"
                 )

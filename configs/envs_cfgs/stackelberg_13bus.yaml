@@ -1,23 +1,55 @@
-system_ref: 13Bus
 env:
   system_name: 13Bus
-  dss_file: IEEE13bus_battery_adaptive.dss
+  dss_file: network.dss
   max_episode_steps: 24
-  n_consumer_agents: 8
-  ess_config:
-    initial_soc: 0.5
-    max_power: 0.5
-    capacity: 2.0
-    eta_c: 0.95
-    eta_o: 0.95
-    retention_factor: 0.999
-  monitoring_config:
-    enable: true
-    log_dir: logs/stackelberg_13bus
-    save_interval: 100
-    plot_interval: 50
-    track_convergence: true
-    track_nash_gap: true
-  async_config:
-    partial_observability: false
-    observation_noise: 0.0
+  consumers:
+  - name: household
+    loads:
+    - '611'
+    - 634a
+    - 634b
+    - 634c
+    - '645'
+    - '646'
+    - '652'
+    discomfort_yuan_per_kwh: 1.0
+  - name: business
+    loads:
+    - 670a
+    - 670b
+    - 670c
+    - '671'
+    - 675a
+    - 675b
+    - 675c
+    - '692'
+    discomfort_yuan_per_kwh: 1.5
+  wholesale_prices_yuan_per_kwh:
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.6
+  - 0.6
+  - 0.6
+  - 0.6
+  - 0.3
+  - 0.3
+  - 0.3
+  data:
+    step_seconds: 3600
+    episodes_per_split: 6
+    load_scale: 0.5

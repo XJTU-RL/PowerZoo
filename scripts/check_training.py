@@ -20,6 +20,39 @@ PROFILES = {
 }
 
 
+def check_sequential_run(text, output, family, profile):
+    import torch
+    from envs.stackelberg.training import load_checkpoint, collect_episode
+
+    marker = "SEQUENTIAL_PPO_OK "
+    run = Path(
+        next(line.split(marker, 1)[1] for line in text.splitlines() if marker in line)
+    )
+    summary = json.loads((run / "summary.json").read_text(encoding="utf-8"))
+    assert summary["physical_steps"] == 240 and summary["policy_updates"] == 10
+    assert summary["validation_episodes"] == 4
+    env, models = load_checkpoint(run / "checkpoint")
+    try:
+        _, records = collect_episode(env, models, training=False)
+        assert len(records) == 24
+        assert all(
+            torch.isfinite(p).all() for m in models for p in m.policy.parameters()
+        )
+    finally:
+        env.close()
+        for model in models:
+            model.get_env().close()
+    return {
+        "profile": profile,
+        "steps": 240,
+        "updates": 10,
+        "evaluation_calls": 2,
+        "finite_model_files": len(models),
+        "replay_steps": 24,
+        "log": str(output / f"{family}.log"),
+    }
+
+
 def check(family, output):
     from utils.config_pipeline import ConfigLoader
 
@@ -64,6 +97,13 @@ def check(family, output):
                 check=True,
                 timeout=240,
             )
+        if family == "stackelberg":
+            sequential_result = check_sequential_run(
+                (output / f"{family}.log").read_text(encoding="utf-8"),
+                output,
+                family,
+                profile,
+            )
     import torch
 
     text = (output / f"{family}.log").read_text(encoding="utf-8")
@@ -77,6 +117,9 @@ def check(family, output):
         )
     ):
         raise RuntimeError("训练日志记录了运行错误，请查看对应日志")
+
+    if family == "stackelberg":
+        return sequential_result
 
     checkpoints = [
         p

@@ -28,13 +28,12 @@ def write(path, data):
         "dsr",
         "dsr_13bus",
         "stackelberg_13bus",
-        "stackelberg_34bus",
-        "stackelberg_123bus",
+        "stackelberg",
         "district_dispatch",
     ],
 )
 def test_profile_roundtrip(env, tmp_path):
-    original = ConfigLoader().load("happo", env)
+    original = ConfigLoader().load("sequential_ppo" if env.startswith("stackelberg") else "happo", env)
     snapshot = tmp_path / "resolved.yaml"
     original.save(snapshot)
     replay = ConfigLoader().load(experiment=snapshot)
@@ -287,7 +286,7 @@ def test_district_rejects_duplicate_capacity_and_uses_market_override():
 def test_unsupported_stackelberg_features_are_explicit(field):
     with pytest.raises(ConfigError, match="未知参数"):
         ConfigLoader().load(
-            "happo", "stackelberg_13bus", values={"env": {field: {"enable": True}}}
+            "sequential_ppo", "stackelberg_13bus", values={"env": {field: {"enable": True}}}
         )
 
 
@@ -317,38 +316,24 @@ def test_district_consumes_market_costs_and_native_bindings():
         core.close()
 
 
-def test_stackelberg_bridge_preserves_fields():
-    from envs.stackelberg.stackelberg_vvc_env import StackelbergVVCEnv
+def test_pricing_config_reaches_native_task_once():
+    from envs.stackelberg.pricing_env import SequentialPricingEnv
     from envs.stackelberg.stackelberg_config import StackelbergConfig
-    from envs.stackelberg.stackelberg_game.stackelberg_base_env import (
-        StackelbergBaseEnv,
-    )
-
-    config = ConfigLoader().load(
-        "happo",
-        "stackelberg_13bus",
-        values={
-            "env": {
-                "n_consumer_agents": 3,
-                "ess_config": {"capacity": 77},
-                "history_length": 9,
-            }
-        },
-    )
-    wrapper = StackelbergVVCEnv.__new__(StackelbergVVCEnv)
-    wrapper.config = build_dataclass(StackelbergConfig, config.env_args)
-    values = wrapper._build_env_config()
-    assert values["ess_config"]["capacity"] == 77
-    assert values["history_length"] == 9
-    assert values["ess_config"]["retention_factor"] == pytest.approx(0.999)
-    core = StackelbergBaseEnv.__new__(StackelbergBaseEnv)
-    assert core._get_consumer_count(values) == 3
+    cfg = ConfigLoader().load('sequential_ppo', 'stackelberg', values={'env': {'network_cost_yuan_per_hour': 77.0}})
+    typed = build_dataclass(StackelbergConfig, cfg.env_args)
+    env = SequentialPricingEnv(typed)
+    try:
+        assert env.config is typed
+        assert env.config.network_cost_yuan_per_hour == 77.0
+        assert env.groups == [['household'], ['business']]
+    finally:
+        env.close()
 
 
 def test_preview_has_no_runtime_imports():
     code = (
         "from utils.config_pipeline import ConfigLoader; import sys; "
-        "[ConfigLoader().load('happo', e) for e in ('vvc','smartgrid','dsr','district_dispatch','stackelberg_13bus')]; "
+        "[ConfigLoader().load('sequential_ppo' if e.startswith('stackelberg') else 'happo', e) for e in ('vvc','smartgrid','dsr','district_dispatch','stackelberg_13bus')]; "
         "assert not {'torch', 'dss', 'opendssdirect', 'gradio'} & set(sys.modules)"
     )
     subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True, timeout=20)

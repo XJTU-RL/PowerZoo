@@ -11,8 +11,13 @@ class EnvironmentSpec:
     wrapper_module: str
     wrapper_class: str
     isolate_process: bool = True
+    interaction: str = "synchronous"
 
     def create(self, config, rank):
+        if self.interaction != "synchronous":
+            raise ValueError(
+                "顺序任务须使用sequential_ppo阶段采样，不能创建同步MARL worker"
+            )
         wrapper = getattr(import_module(self.wrapper_module), self.wrapper_class)
         return wrapper(config, rank=rank)
 
@@ -33,8 +38,9 @@ ENVIRONMENTS = {
     "stackelberg": EnvironmentSpec(
         "envs.stackelberg.stackelberg_config",
         "StackelbergConfig",
-        "envs.stackelberg.stackelberg_vvc_env",
-        "StackelbergVVCEnv",
+        "envs.stackelberg.pricing_env",
+        "SequentialPricingEnv",
+        interaction="sequential",
     ),
     "district_dispatch": EnvironmentSpec(
         "envs.district_dispatch.core.config",

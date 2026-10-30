@@ -38,6 +38,14 @@ class EnvMeta:
 # ---------------------------------------------------------------------------
 
 ALGO_REGISTRY: dict[str, AlgoMeta] = {
+    "sequential_ppo": AlgoMeta(
+        name="sequential_ppo",
+        display_name="Sequential independent PPO",
+        family="sequential",
+        config_file="sequential_ppo.yaml",
+        description="阶段采样、逐主体SB3 PPO，不保证均衡收敛",
+        compatible_envs=["stackelberg", "stackelberg_13bus"],
+    ),
     # --- On-Policy HA Series (Heterogeneous-Agent, sequential update) ---
     "happo": AlgoMeta(
         name="happo",
@@ -158,6 +166,7 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 # ---------------------------------------------------------------------------
 
 ALGO_FAMILIES: dict[str, list[str]] = {
+    "Sequential": ["sequential_ppo"],
     "On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "dan_happo"],
     "On-Policy MA": ["mappo", "sn_mappo"],
     "Off-Policy HA": ["haddpg", "hatd3", "hasac", "had3qn"],
@@ -204,27 +213,14 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
         display_name="Stackelberg 13-Bus",
         config_file="stackelberg_13bus.yaml",
         description="13-bus Stackelberg leader-follower game environment",
-        default_agents=9,
-        default_system_ref="13Bus",
-        available_systems=["13Bus"],
+        default_agents=3,
     ),
-    "stackelberg_34bus": EnvMeta(
-        name="stackelberg_34bus",
-        display_name="Stackelberg 34-Bus",
-        config_file="stackelberg_34bus.yaml",
-        description="34-bus Stackelberg leader-follower game environment",
-        default_agents=11,
-        default_system_ref="34Bus",
-        available_systems=["34Bus"],
-    ),
-    "stackelberg_123bus": EnvMeta(
-        name="stackelberg_123bus",
-        display_name="Stackelberg 123-Bus",
-        config_file="stackelberg_123bus.yaml",
-        description="123-bus large-scale Stackelberg game environment",
-        default_agents=123,
-        default_system_ref="123Bus",
-        available_systems=["123Bus"],
+    "stackelberg": EnvMeta(
+        name="stackelberg",
+        display_name="Pricing Small",
+        config_file="stackelberg.yaml",
+        description="本轮价格先于真实负荷响应的独立收益任务",
+        default_agents=3,
     ),
     "dsr": EnvMeta(
         name="dsr",

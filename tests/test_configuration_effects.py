@@ -54,7 +54,7 @@ def test_native_capacity_cannot_be_shadowed_by_task_config():
 )
 def test_retired_no_op_fields_cannot_silently_enter_training(family, key):
     with pytest.raises(ConfigError, match=key):
-        ConfigLoader().load("happo", family, values={"env": {key: True}})
+        ConfigLoader().load("sequential_ppo" if family == "stackelberg" else "happo", family, values={"env": {key: True}})
 
 
 def test_unused_system_knobs_and_component_keys_are_rejected():
@@ -63,9 +63,9 @@ def test_unused_system_knobs_and_component_keys_are_rejected():
     system["devices"]["regulators"]["count"] = 900
     with pytest.raises(ConfigError, match="count"):
         loader._system_values(system, "vvc")
-    with pytest.raises(ConfigError, match="consumer_delay"):
+    with pytest.raises(ConfigError, match="async_config"):
         loader.load(
-            "happo",
+            "sequential_ppo",
             "stackelberg",
             values={"env": {"async_config": {"consumer_delay": 5}}},
         )

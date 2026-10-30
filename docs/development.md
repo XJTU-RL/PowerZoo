@@ -78,3 +78,29 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 `D:\Exps\PowerZoo-worktrees\physics-refactor`。阶段方案见[设计](physical-consistency-plan.md)，
 实际完成范围、命令、基线和已知限制见[实施记录](physics-refactor-progress.md)。
 先校准SmartGrid，再逐一迁移其他任务；不将未通过电气/收益/交互验收的旧环境标为可用。
+
+### 继续增加算例与任务
+
+日常开发先继续或基于`codex/physics-refactor`的已验收提交创建新的`codex/<topic>`分支和同级worktree。
+本轮不自动合并到main；此前环境/config修复已经沿本分支提交历史继承，无需再复制旧环境目录。
+
+仅换馈线、负荷水平、控制分组、价格或故障时，优先新增现有任务的**独立算例YAML**：
+
+1. 在`node_systems/<case>/`保存静态DSS入口与依赖，明确原生设备、接线、额定值和控制假设。
+   不在运行时重写设备定义，不在YAML重复容量表；新增设备类型先补原生响应/单位/能力边界测试。
+2. 在`configs/envs_cfgs/<family>_<case>.yaml`选择DSS、数据和任务专属绑定。
+   `--env <family>_<case>`选择该文件，公共解析器将其归一到任务家族；不需要改第二个系统名称映射。
+   同一算例反复引用的内容才提取引用。列表整体替换，映射逐键合并，空映射不会清空父值。
+3. 运行任务复用`DataConfig/ScenarioDataset`，恢复使用故障manifest；两者都通过`prepare_run`冻结路径与SHA256。
+   外部数据先显式换算成对应格式，不通过截断、循环、补电压或猜测基准让环境运行。
+4. 写最小实验文件，`--print-config/--explain/--validate-config`检查最终值；再做实际native基线、短训练和保存模型的恢复回放。
+
+目标、事件或决策顺序变化才新建任务类。任务直接组合`DSSSession`，在需要时复用
+`DeviceControlEnv`的固定拓扑运行流程；不要继承SmartGrid的CMDP或强迫所有任务共享同一种奖励。
+配置定义集中在任务dataclass，`utils/environment_registry.py`登记配置/包装器及交互类型。
+同步协作任务可接公共adapter和HAPPO，但必须满足团队收益契约；非合作顺序任务需像定价任务一样
+明确阶段观测、独立收益与匹配的收集器，不能仅改`state_type=FP`或算法名称。
+公共层尚未提供频率、暂态或保护协调能力，这些目标需要先建设匹配的物理模型。
+
+当前复现命令和边界分别见[SmartGrid实施记录](physics-refactor-progress.md)、[VVC](vvc-physics.md)、
+[区域调度](district-physics.md)、[恢复](dsr-physics.md)、[顺序定价](pricing-physics.md)。

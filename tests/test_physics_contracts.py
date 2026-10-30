@@ -42,11 +42,8 @@ def test_retired_smartgrid_sources_are_recoverable_and_not_active():
         )
 
 
-@pytest.mark.parametrize("family", ["stackelberg"])
-def test_unrebuilt_physics_is_rejected_before_training_preparation(family):
+def test_pricing_cannot_enter_cooperative_team_training():
     from utils.config_pipeline import ConfigLoader
-    from utils.training_setup import prepare_run
-
-    cfg = ConfigLoader().load("happo", family)
-    with pytest.raises(ValueError, match="待重建研究实现"):
-        prepare_run(cfg)
+    from utils.config_validation import ConfigError
+    with pytest.raises(ConfigError, match='sequential_ppo'):
+        ConfigLoader().load('happo', 'stackelberg')

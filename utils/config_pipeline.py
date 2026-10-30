@@ -351,7 +351,7 @@ class ConfigLoader:
         algo = algo or selected.get("algo", "happo")
         env = env or selected.get("env", "vvc")
         env = "vvc" if env == "powerzoo" else env
-        profile_name = "stackelberg_13bus" if env == "stackelberg" else env
+        profile_name = env
         family = environment_family(env)
         env = family
         cls = environment_class(env)
@@ -582,6 +582,15 @@ class ConfigLoader:
             if value != math.inf and (value < 2 or int(value) != value):
                 raise ConfigError(f"env.{name} 必须为 >= 2 的整数或 .inf")
         family = environment_family(config.main_args["env"])
+        sequential = config.main_args["algo"] == "sequential_ppo"
+        if (family == "stackelberg") != sequential:
+            raise ConfigError(
+                "Stackelberg顺序非合作任务只使用sequential_ppo；同步协作任务不能使用该训练器"
+            )
+        if sequential:
+            from envs.stackelberg.training import validate_settings
+
+            validate_settings(config)
         if env.get("dss_act") and not algo["render"]["use_render"]:
             raise ConfigError(
                 "env.dss_act=true 会启用 DSS 自动控制，使 RL 动作无效；训练时请关闭"

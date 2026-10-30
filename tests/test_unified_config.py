@@ -192,30 +192,25 @@ class TestStackelbergConfigFromEnvArgs:
     """Test StackelbergConfig.from_env_args()"""
 
     def test_basic_fields(self):
+        from utils.config_pipeline import ConfigLoader
         from envs.stackelberg.stackelberg_config import StackelbergConfig
+        values = ConfigLoader().load('sequential_ppo','stackelberg').env_args
+        config = StackelbergConfig.from_env_args(values)
+        assert config.system_name == 'PricingSmall'
+        assert config.consumers[0].loads == ['household']
 
-        env_args = {
-            "system_name": "13Bus",
-            "max_episode_steps": 24,
-            "n_consumer_agents": 8,
-        }
-        config = StackelbergConfig.from_env_args(env_args)
-        assert config.system_name == "13Bus"
-        assert config.n_consumer_agents == 8
-
-    def test_extracts_system_from_env_name(self):
-        from envs.stackelberg.stackelberg_config import StackelbergConfig
-
-        env_args = {"env_name": "stackelberg_34Bus"}
-        config = StackelbergConfig.from_env_args(env_args)
-        assert config.system_name == "34Bus"
+    def test_retired_system_profiles_are_not_advertised(self):
+        from utils.config_pipeline import ConfigLoader
+        for case in ('stackelberg_34bus', 'stackelberg_123bus'):
+            with pytest.raises(FileNotFoundError): ConfigLoader().load('sequential_ppo',case)
 
     def test_max_episode_steps_alias(self):
+        from utils.config_pipeline import ConfigLoader
         from envs.stackelberg.stackelberg_config import StackelbergConfig
-
-        env_args = {"num_steps": 48}
-        config = StackelbergConfig.from_env_args(env_args)
-        assert config.max_episode_steps == 48
+        values = ConfigLoader().load('sequential_ppo','stackelberg').env_args
+        values['num_steps'] = values.pop('max_episode_steps')
+        config = StackelbergConfig.from_env_args(values)
+        assert config.max_episode_steps == 24
 
     def test_dict_sub_configs_passthrough(self):
         from envs.stackelberg.stackelberg_config import StackelbergConfig

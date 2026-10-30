@@ -2,11 +2,6 @@
 
 import secrets
 
-LEGACY_PHYSICS = {
-    "stackelberg": "本轮价格到响应的时序及逐主体收益采样尚未重建",
-}
-
-
 def prepare_run(config):
     """确定一次实际种子和数据集，并把派生值记入来源表。
 
@@ -16,10 +11,6 @@ def prepare_run(config):
     from utils.config_validation import environment_family
 
     family = environment_family(config.main_args["env"])
-    if family in LEGACY_PHYSICS:
-        raise ValueError(
-            f"{family}当前为待重建研究实现：{LEGACY_PHYSICS[family]}；不能将运行成功当作有效训练。参见docs/physical-consistency-plan.md"
-        )
     seed = config.algo_args["seed"]
     if not seed["seed_specify"]:
         seed["seed"] = secrets.randbelow(2**32)
@@ -33,7 +24,7 @@ def prepare_run(config):
             config.history.setdefault(path, []).append(
                 {"source": "runtime seed selection", "value": value}
             )
-    if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
+    if family in ("smartgrid", "vvc", "district_dispatch", "dsr", "stackelberg"):
         data = config.env_args["data"]
         if family == "dsr":
             from envs.dsr.core.config import FaultDataConfig

@@ -82,6 +82,11 @@ def main(argv=None, *, default_env=None):
     from utils.training_setup import prepare_run
 
     prepare_run(config)
+    if config.main_args["algo"] == "sequential_ppo":
+        from envs.stackelberg.training import train
+
+        train(config)
+        return config
     from runners import RUNNER_REGISTRY
 
     runner = RUNNER_REGISTRY[config.main_args["algo"]](

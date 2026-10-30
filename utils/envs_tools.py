@@ -70,6 +70,8 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
     from utils.config_validation import environment_family
 
     family = environment_family(env_name) if env_name != "lag" else env_name
+    if family == "stackelberg":
+        raise ValueError("顺序任务不能使用同步MARL worker；请用sequential_ppo")
     if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
         import copy
 

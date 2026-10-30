@@ -3,3 +3,5 @@ archive/physics_refactor_smartgrid/** -text -diff
 archive/physics_refactor_vvc/** -text -diff
 archive/physics_refactor_district/** -text -diff
 archive/physics_refactor_dsr/** -text -diff
+
+archive/physics_refactor_stackelberg/** -text -diff
