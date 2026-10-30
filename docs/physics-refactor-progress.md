@@ -2,16 +2,16 @@
 
 目标：完成[物理一致性与环境重建方案](physical-consistency-plan.md)的全部阶段，优先完成并校验SmartGrid。
 基线 `fab44772`；分支 `codex/physics-refactor`；工作目录 `D:\Exps\PowerZoo-worktrees\physics-refactor`。
-本记录按实际证据更新；整个重构目标尚未完成，不将阶段验收称为五环境全部可用。
+本记录按实际证据更新；P0–P5已按本页及专项说明的明确范围完成，不将运行验收称为策略收敛或任意电力场景均已支持。
 
 ## 阶段
 
-- [ ] P0：固定反例、支持边界、训练奖励/交互契约（已完成共享奖励保护和旧实现训练阻断，后续随各任务重建补全反例）。
+- [x] P0：固定反例、支持边界、训练奖励/交互契约；各阶段补全后进行全局收尾。
 - [x] P1：公共物理核心，PV/Storage/SVG原生校准，SmartGrid迁移。
 - [x] P2：VVC迁移与两种任务基准，见[VVC迁移记录](vvc-physics.md)。
 - [x] P3：区域协同调度重建，见[区域调度记录](district-physics.md)。
 - [x] P4：静态故障恢复重建，见[恢复记录](dsr-physics.md)。
-- [ ] P5：顺序定价博弈重建。
+- [x] P5：顺序定价博弈重建，见[定价说明](pricing-physics.md)。
 
 ## SmartGrid验收
 
@@ -104,7 +104,7 @@ python scripts/check_smartgrid.py --config configs/experiments/smartgrid_svg_smo
 
 P0保护提交：`af98d86c`拒绝EP非团队奖励；`48237b08`在正式准备阶段阻断DSR、District、Stackelberg旧物理训练。
 配置预览和只读审查仍可使用；每个任务完成重建与实际验收后，才移除相应阻断。
-P2已将正式VVC迁移到同一公共物理层；P4之后旧Circuits仅供已阻断的Stackelberg研究路径。
+P2已将正式VVC迁移到同一公共物理层；P4时旧Circuits仅供已阻断的Stackelberg路径，P5完成后已一并归档。
 项目其他旧测试中仍存在猜测类名/过时接口；本记录只声称列明的相关回归通过，不声称全仓测试全绿。
 Gradio页面未做浏览器交互验收；本轮已验证数据快照、动作覆盖、扫描配置和真实checkpoint回放引擎。
 
@@ -117,7 +117,7 @@ IEEE13另有CUDA HAPPO240步/10更新及12个验证回合。普通/SVG SmartGrid
 CPU/CUDA HAPPO、PPO和19/20个actor的实际恢复回放。相关整组272项回归通过、无跳过。
 依赖与原生/Windows/CUDA检查通过；Plotly可选图表依赖修正单独提交为54173a39。
 完整边界、物理修正和复现命令见[VVC迁移记录](vvc-physics.md)。
-后续P3区域协作已完成下述阶段验收；接下来为P4静态恢复重建。
+P2之后的P3/P4/P5完成情况见下。
 
 ## P3实际结果
 
@@ -144,7 +144,7 @@ TOU规则在六个全天场景的总目标成本低于固定DER控制，但部�
 数据、动作和约束范围见专项说明；原生模型摘要75155b0a3766274642cc36df351ba1dc823e212fc5da6babbee769d8d3830ddd。
 完整报告在results/validation/district/report.json，当前整组回归和各专项日志在results/validation/physics_refactor/p3_*.log。
 
-该阶段之后的P4完成情况见下；P5与全局收尾仍待完成，整个物理/环境重构目标保持进行中。
+该阶段之后的P4/P5与全局收尾情况见下。
 
 ## P4实际结果
 
@@ -168,4 +168,46 @@ TOU规则在六个全天场景的总目标成本低于固定DER控制，但部�
 当前专项报告为results/validation/dsr/report.json；P4验收日志为results/validation/physics_refactor/p4_*.log。
 SmartGrid普通/SVG、VVC三馈线、District及Windows原生/CPU/CUDA检查在公共层改动后再次验收。
 相关整组313项回归通过、无跳过；pip check通过。包含开断几何、全网无量测、真实掩码回放和先开后合转换断言。
-P5顺序定价与全局P0收尾尚未完成；Stackelberg旧实现继续阻断正式训练。
+P4提交为9af37fbf。之后完成的顺序定价与全局收尾见下；旧Stackelberg路径已归档。
+
+## P5实际结果
+
+- 使用独立`SequentialPricingEnv`，直接组合公共DSSSession，不继承SmartGrid任务或同步团队adapter。
+  `publish_price→当前价格观测→跟随者采样→respond→一次FinishTimeStep`有原生时钟和真实策略采样断言。
+- 小网络与IEEE13两套真实负荷需求响应；1个运营者、2个用户，13/16/16维观测，5/3/3个离散动作。
+  每个真实Load恰好归属一个用户；取消计数、占位DER、重复ESS状态和伪Nash监测配置。
+- 按真实交付kWh计用户电费，同笔转移计运营者收入；批发成本含原生损耗，用户不适与网络代理成本有公开公式和元单位。
+  固定物理动作下零售价翻倍，电费翻倍而批发成本保持；独立账本校验全主体效用之和。
+- 首版用户仅削减负荷，未实现回补/用户储能/售电/参与退出；不把合成偏好或网络代理成本称为现实标定。
+- 每套36条完整轨迹（3split×6场景×2规则×24步），各split/场景首区间穷举5价格×9响应。
+  小恒PQ例与独立解析用户响应一致；每价重新求用户纯响应，按公开字典序选择，再比较领导者收益。
+  固定价格下的全天响应对照不称为动态最优；IEEE13最大有功残差约6.01e-5kW。
+- `sequential_ppo`复用SB3 PPO，各主体独立策略、价值、优化器、GAE和buffer；真实采样测试验证三个收益分别进入各自轨迹。
+  两套CPU/CUDA各240工程步/10更新、4个validation回合；三个模型实际恢复回放24步。
+  Windows双独立进程各48步跨reset；训练器本身首版仍为单采样进程。
+- 回放核对模型/引擎/绑定/动作/观测/经济假设，支持仓库外cwd；篡改契约明确拒绝。
+  已训练策略仍有正的阶段单边偏离收益，不宣称均衡收敛；领导者偏离会重新调用本轮价格下的用户策略。
+- 62个旧源/配置/测试文件按原提交字节与SHA256归档；最后的全局VVC Circuits与旧负荷生成器无活动消费者，已退役。
+  旧导入冒烟测试由真实五类环境构造/原生转移与专项行为测试替代，不以skip保留失效测试。
+
+专项报告为results/validation/pricing/report.json，训练/回放及原生测试日志为p5_pricing.log。
+公共训练CLI五任务各240步/10更新/两次独立验证全部通过，定价三模型另实际恢复24步；原生Windows/CPU/CUDA检查与pip check通过。
+
+## P0全局收尾与证据
+
+| 原始问题 | 当前可复现的保护与证据 |
+| --- | --- |
+| PV动作仅改Python变量 | test_powergrid_session的原生PV功率/能力、test_smartgrid_physics半可用功率与SVG响应 |
+| Storage时间/SOC冻结或重复推进 | 原生Storage功率/效率/边界/dt/reset/零时间求解，finish失败不发布量测 |
+| 价格/碳价被归一化抵消 | District固定物理动作下真实元金额比例、900/3600秒积分、进出口账本 |
+| Enabled被当作恢复供电 | DSR断源、缺相、过载与实际交付/合格服务分离，永久故障不可重合 |
+| 跟随者使用上一轮价格 | Pricing本轮price进入实际actor观测与buffer，广播不推进工程时间 |
+| EP丢失其余主体收益 | EP在写buffer前拒绝非团队收益；Pricing使用真实逐主体SB3 buffer/价值/回放 |
+| 源模型污染/状态相互串扰 | 只读源+临时副本、模型摘要、双context/Windows spawn与不同cwd恢复 |
+| 占位配置/猜测类名测试 | 未消费字段拒绝、真实动作/观测schema、退役字节清单、真实构造/转移替代空断言 |
+
+全仓首轮审计发现10项过期测试/兼容性问题：算法fixture缺必需字段、buffer旧签名、研究类名过期、任务命名/shape错误预期、Gym与Gymnasium空间混用。
+fixture改用正式配置或当前实际签名；未增加假的生产默认值。真实空间兼容问题修正`trans_tools`，保留两种API语义及MultiDiscrete.nvec。
+未跳过失败；最终全仓393项通过、0失败、0跳过，结果见results/validation/physics_refactor/final_repository_tests.log。
+五任务公共入口检查为p5_entrypoints.log，Windows/CPU/CUDA运行检查为p5_runtime.log，均以成功标记结束。
+未来新增算例与独立任务的最小流程见[开发约定](development.md#继续增加算例与任务)。
