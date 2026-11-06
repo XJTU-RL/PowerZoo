@@ -1,6 +1,6 @@
 # Sync HuggingFace Space
 # ============================================================================
-# Automatically pushes huggingface_space/ contents to the HF Space repo
+# Automatically pushes huggingface_spaces/powerzoo/ contents to the HF Space repo
 # whenever changes are pushed to main.
 # ============================================================================
 
@@ -10,7 +10,7 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "huggingface_space/**"
+      - "huggingface_spaces/powerzoo/**"
   workflow_dispatch:
 
 jobs:
@@ -28,8 +28,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Configure git for HF push
-          cd huggingface_space
-          git init
+          cd huggingface_spaces/powerzoo
+          git init --initial-branch=main
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git remote add hf https://huggingface.co:${HF_TOKEN}@huggingface.co/spaces/XJTU-RL/PowerZoo

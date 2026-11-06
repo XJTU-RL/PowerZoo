@@ -549,7 +549,7 @@ FIGURES = {
 def main():
 	output_dir = Path(__file__).resolve().parent.parent
 	gh_dir = output_dir / "docs" / "assets"
-	hf_dir = output_dir / "huggingface_space" / "data"
+	hf_dir = output_dir / "huggingface_spaces" / "powerzoo" / "data"
 	gh_dir.mkdir(parents=True, exist_ok=True)
 	hf_dir.mkdir(parents=True, exist_ok=True)
 

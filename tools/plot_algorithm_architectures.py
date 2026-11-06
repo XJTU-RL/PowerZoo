@@ -536,7 +536,7 @@ def main():
 	)
 
 	# Export JSON data for HuggingFace Space
-	hf_data_dir = output_dir / "huggingface_space" / "data"
+	hf_data_dir = output_dir / "huggingface_spaces" / "powerzoo" / "data"
 	hf_data_dir.mkdir(parents=True, exist_ok=True)
 
 	fig_hierarchy.write_json(str(hf_data_dir / "algorithm_hierarchy.json"))

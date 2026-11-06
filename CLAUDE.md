@@ -278,7 +278,7 @@ IEEE标准测试系统的OpenDSS模型：
 * `tools/`: 工具脚本（`analyze_imports.py`, `test_imports.py`, `test_pv_injection.py`）
 
 ### 部署与展示
-* `huggingface_space/`: HuggingFace Space Gradio应用
+* `huggingface_spaces/`: HuggingFace Space Gradio应用集合（`powerzoo/` 为主站）
   * `app.py`: 5标签页交互式应用
   * `data/`: 预处理JSON数据
 * `docs/`: GitHub Pages静态站点（从 /docs 部署）
