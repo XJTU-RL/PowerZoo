@@ -1,246 +1,65 @@
-# PowerZoo环境说明
+# PowerZoo 环境说明
 
-## 环境概述
+本文是当前五类电力任务的导航。安装步骤见 [README](README.md)，
+配置字段与覆盖顺序见 [配置说明](docs/configuration.md)。旧版直接向构造器传入
+`dss_folder_path`、`reward_type: "powerzoo"` 的示例已不适用。
 
-PowerZoo是基于OpenDSS的电力系统强化学习环境，采用CRBP架构（电容器Capacitor、调压器Regulator、电池Battery、光伏PV），支持多智能体协同控制和混合动作空间。
+## 任务与入口
 
-## 动作空间
+| 环境参数 | 任务 | 说明 |
+| --- | --- | --- |
+| `vvc` | 经典电压无功控制 | [VVC 物理与训练记录](docs/vvc-physics.md) |
+| `smartgrid` | 模块化电网控制，含 PV、Storage、SVG 与 CMDP 奖励 | [数据和运行设计](docs/smartgrid-data-runtime.md) |
+| `district_dispatch` | 区域 DER 协同调度、实际功率计量与成本 | [区域调度说明](docs/district-physics.md) |
+| `dsr` / `dsr_13bus` | 有源静态配电网恢复 | [恢复任务说明](docs/dsr-physics.md) |
+| `stackelberg` / `stackelberg_13bus` | 顺序定价、真实负荷响应与逐主体结算 | [顺序定价说明](docs/pricing-physics.md) |
 
-### 架构设计
-- **混合动作空间**：支持离散动作和连续动作的组合
-- **设备类型**：电容器(C)、调压器(R)、电池(B)、光伏(P)
-- **实现类**：`ActionSpace`类封装所有动作空间逻辑
+`powerzoo` 是 `vvc` 的历史别名。DSR 当前表示恢复任务，不沿用旧版需求侧响应语义。
+环境注册集中在 [`utils/environment_registry.py`](utils/environment_registry.py)。
 
-### 具体动作
+## 配置和训练
 
-#### 1. 电容器动作（离散）
-- **动作数量**：每个电容器2个动作
-- **动作含义**：0=断开，1=投入
-- **控制目标**：无功功率补偿
+从项目或任务 worktree 根目录运行公共入口：
 
-#### 2. 调压器动作（离散）
-- **动作数量**：`reg_act_num`个档位（默认33）
-- **动作含义**：调压器分接头位置
-- **控制目标**：电压调节
-
-#### 3. 电池动作（离散/连续可配置）
-- **离散模式**：`bat_act_num`个功率等级
-- **连续模式**：`bat_act_num = float('inf')`，动作范围[-1,1]
-- **控制目标**：有功功率充放电
-
-#### 4. 光伏动作（离散/连续可配置）
-- **启用条件**：`pv_control_enabled = True`
-- **连续模式**：每个PV系统2维动作
-  - 维度1：有功功率比例 [-1,1] → [0,1]×Pmpp
-  - 维度2：功率因数 [-1,1]
-- **离散模式**：`pv_act_num`个功率等级
-
-### 动作空间构建
-```python
-# 离散动作
-discrete_actions = [2]*cap_num + [reg_act_num]*reg_num + [bat_act_num]*bat_num + [pv_act_num]*pv_num
-
-# 连续动作维度
-continuous_shape = bat_num + pv_num*2  # (电池连续时) + (PV连续时：有功+功率因数)
-
-# 最终空间
-if continuous_shape > 0:
-    space = Tuple((MultiDiscrete(discrete_actions), Box(-1, 1, (continuous_shape,))))
-else:
-    space = MultiDiscrete(discrete_actions)
+```bash
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ```
 
-## 状态空间
+第一条展示最终配置，第二条校验参数，第三条实际启动训练。
+通过 `--set env.voltage_min=0.94` 等完整字段路径覆盖参数；实验文件只写差异。
+环境专用参数由对应 dataclass 校验，DSS 模型和运行数据由公共运行准备流程处理。
+完整优先级、场景数据约定、结果重放和新增算例方法见 [配置说明](docs/configuration.md)。
 
-### 观测组件
+同步电力任务使用独立 spawn worker；顺序定价由同一入口分派到 `sequential_ppo`。
+算法登记不代表每种环境组合都经过训练验收，不能仅更换算法名称推定兼容。
+配置校验也不代替实际潮流、训练和物理行为验证。
 
-#### 1. 节点电压 (`bus_voltages`)
-- **数据类型**：字典，键为节点名称
-- **数值范围**：[0.8, 1.2] p.u.
-- **物理含义**：各节点的电压幅值
+## 共享物理层与集中控制
 
-#### 2. 电容器状态 (`cap_statuses`)
-- **数据类型**：离散数组
-- **数值范围**：{0, 1}
-- **物理含义**：电容器投切状态
+五类任务使用 [`envs/powergrid/`](envs/powergrid/) 的原生 DSS context、设备与场景组件，
+各自保留任务目标、奖励和交互顺序。模型容量、接线与设备额定值取自 DSS。
+运行时使用模型副本，场景数据按 manifest、单位、时间和摘要校验。
 
-#### 3. 调压器状态 (`reg_statuses`)
-- **数据类型**：离散数组
-- **数值范围**：[0, reg_act_num-1]
-- **物理含义**：调压器分接头位置
+集中式基线用于与多智能体控制比较，不另写一套物理仿真：
 
-#### 4. 电池状态 (`bat_statuses`)
-- **数据类型**：字典，每个电池2维
-- **维度1**：SOC (State of Charge) [0, 1]
-- **维度2**：功率输出 [-1, 1]
-- **物理含义**：电池荷电状态和功率状态
+- SmartGrid：[`SingleAgentVVCEnv`](envs/smartgrid/single_agent/adapter.py)，使用 `SmartGridConfig`；
+  运行方法见 [集中控制说明](envs/smartgrid/single_agent/README.md)。
+- 经典 VVC：[`SingleAgentVVCEnv`](envs/vvc/single_agent.py)，使用 VVC 任务配置。
+- 公共集中控制训练：[`scripts/train_centralized.py`](scripts/train_centralized.py)。
 
-#### 5. 光伏状态 (`pv_statuses`，可选）
-- **启用条件**：`pv_control_enabled = True`
-- **数据类型**：字典，每个PV系统2维
-- **维度1**：有功功率输出比例 [0, 1]
-- **维度2**：功率因数 [-1, 1]
+两类同名适配器对应不同任务，不能相互替代。旧权重标定工具因存在占位实现已退役，
+当前不提供自动 P95 奖励标定能力。
 
-#### 6. 负荷曲线 (`load_profile_t`，可选）
-- **启用条件**：`observe_load = True`
-- **数据类型**：数组
-- **数值范围**：[0, 1]
-- **物理含义**：当前时刻的负荷水平
+## 运行检查与历史材料
 
-### 观测空间配置
-```python
-# 扁平化观测（wrap_observation=True）
-observation_space = Box(low=combined_low, high=combined_high)
+安装基线验证使用 `python scripts/check_runtime.py --train`；各任务还有
+`check_vvc.py`、`check_smartgrid.py`、`check_district.py`、`check_dsr.py` 和 `check_pricing.py`。
+命令参数、验收范围和已知限制以各任务说明和
+[物理实施记录](docs/physics-refactor-progress.md) 为准，短训练不证明策略已收敛。
 
-# 字典观测（wrap_observation=False）
-observation_space = Dict({
-    'bus_voltages': Box(0.8, 1.2, shape=(nnode,)),
-    'cap_statuses': MultiDiscrete([2]*cap_num),
-    'reg_statuses': MultiDiscrete([reg_act_num]*reg_num),
-    'bat_statuses': Dict({bat: Box([0,-1], [1,1]) for bat in bat_names}),
-    'pv_statuses': Dict({pv: Box([0,-1], [1,1]) for pv in pv_names})  # 可选
-})
-```
-
-## 奖励函数
-
-### 设计理念
-- **多目标优化**：平衡系统效率、电压质量和控制成本
-- **约束感知**：强化电压约束和系统稳定性
-- **可配置权重**：支持不同应用场景的权重调整
-
-### 奖励组件
-
-#### 1. 功率损耗奖励 (`powerloss_reward`)
-```python
-reward = -current_loss_ratio * power_w
-```
-- **目标**：最小化系统功率损耗
-- **权重**：`power_w`（默认10.0）
-
-#### 2. 电压奖励 (`voltage_reward`)
-```python
-# 标准约束：0.95 ≤ V ≤ 1.05 p.u.
-violation = sum(max(0, V-1.05) + max(0, 0.95-V) for V in all_voltages)
-reward = -violation
-```
-- **目标**：维持电压在安全范围内
-- **约束**：IEEE标准电压范围
-
-#### 3. 控制奖励 (`ctrl_reward`)
-```python
-reward = -(cap_w*cap_changes + reg_w*reg_changes + 
-          soc_w*soc_errors + dis_w*discharge_errors + 
-          pv_w*pv_changes)
-```
-- **目标**：减少控制动作频繁变化
-- **权重配置**：
-  - `cap_w`：电容器动作权重
-  - `reg_w`：调压器动作权重
-  - `soc_w`：电池SOC偏差权重（终端时刻）
-  - `dis_w`：电池放电动作权重
-  - `pv_w`：光伏控制动作权重
-
-#### 4. 约束感知奖励（可选）
-- **增强电压奖励**：渐进式惩罚机制
-- **功率平衡奖励**：系统功率平衡优化
-- **PV优化奖励**：光伏发电效率优化
-
-### 综合奖励
-```python
-total_reward = ctrl_reward + voltage_reward + powerloss_reward * 0.1 + 
-               power_balance_reward + pv_optimization_reward
-```
-
-## 环境配置
-
-### 主要参数
-- `max_episode_steps`：仿真时长（小时）
-- `reg_act_num`：调压器动作数量（默认33）
-- `bat_act_num`：电池动作数量（默认33或inf）
-- `pv_control`：是否启用PV控制（默认False）
-- `pv_act_num`：PV动作数量（默认inf连续控制）
-- `scale`：负荷缩放因子
-
-### 预定义环境
-- `13Bus`：IEEE 13节点系统
-- `34Bus`：IEEE 34节点系统
-- `34Bus_pv`：带PV控制的34节点系统
-- `123Bus`：IEEE 123节点系统
-- `8500Node`：大规模8500节点系统
-
-### 变体说明
-- `_cbat`：连续电池控制
-- `_soc`：考虑SOC约束
-- `_pv`：启用PV控制
-- `_discrete`：离散PV控制
-- `_s{scale}`：负荷缩放版本
-
-## 使用示例
-
-### PowerZoo环境
-
-```python
-from envs.vvc import VVCEnv
-
-# 创建基础环境
-config = {
-	"dss_file": "path/to/ieee13Nodeckt.dss",
-	"num_agents": 3,
-	"episode_length": 96
-}
-env = VVCEnv(**config)
-
-# 环境交互
-obs = env.reset()
-if isinstance(env.action_space, list):
-	actions = [space.sample() for space in env.action_space]
-else:
-	actions = env.action_space.sample()
-obs, reward, done, info = env.step(actions)
-```
-
-### PowerZoo_LLM环境
-
-```python
-from envs.smartgrid.base_env import VVCEnv
-
-# 创建完整环境
-config = {
-	"dss_folder_path": "path/to/34Bus_PV_Aggressive",
-	"dss_file": "ieee34Mod1_duty.dss",
-	"num_agents": 10,
-	"episode_length": 96,
-	"reward_type": "powerzoo"
-}
-env = VVCEnv(**config)
-
-# 环境交互
-obs = env.reset()
-if isinstance(env.action_space, list):
-	actions = [space.sample() for space in env.action_space]
-elif isinstance(env.action_space, dict):
-	actions = {key: space.sample() for key, space in env.action_space.items()}
-else:
-	actions = env.action_space.sample()
-obs, reward, done, info = env.step(actions)
-```
-
-### 单智能体环境（使用gymnasium）
-
-```python
-from envs.smartgrid.single_agent import SingleAgentVVCEnv
-
-# 创建单智能体环境
-config = {
-	"dss_folder_path": "path/to/34Bus_PV_Aggressive",
-	"max_episode_steps": 96
-}
-env = SingleAgentVVCEnv(**config)
-
-# 使用Stable-Baselines3训练
-from stable_baselines3 import PPO
-
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100000)
-```
+旧实现保存在 [`archive/`](archive/)，带 manifest 和内容校验。
+[物理一致性方案](docs/physical-consistency-plan.md) 的原始问题章节、
+[配置审计](docs/configuration-audit.md) 与 `docs/plans/` 中的历史设计保留用于追溯，
+不能作为现行 API 的用法指南。开发分支、测试与提交约定见 [开发流程](docs/development.md)。

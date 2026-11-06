@@ -1,5 +1,7 @@
 # 34Bus PV 变体合并与配置驱动化 Implementation Plan
 
+> 历史计划（2026-03-08）：已被 [统一配置架构提案](2026-03-16-unified-config-architecture.md) 纳入替代。当前 PV 方案选择与公共物理层以 [配置说明](../configuration.md) 和 [SmartGrid 运行设计](../smartgrid-data-runtime.md) 为准；下文保留原始计划，不作为执行清单。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 将 4 个 34Bus PV 变体目录（44MB、90%+ 重复文件）合并为单一目录 + `pv_plans/` 配置驱动方案，实现通过 YAML 参数 `pv_plan` 切换 PV 方案。

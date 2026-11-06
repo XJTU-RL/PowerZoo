@@ -143,194 +143,79 @@
 
 ---
 
-# 项目概述 (Project Overview)
+# 项目概述
 
-PowerZoo 是一个用于电力系统智能控制的多智能体强化学习框架，支持多种MARL算法和电力系统仿真环境。
+PowerZoo 使用 Python、PyTorch 与 OpenDSS 研究电力系统强化学习控制。
+现行开发约定以 [AGENTS.md](AGENTS.md) 和 [开发流程](docs/development.md) 为准；
+环境、配置及验收边界分别查阅下列入口，不从历史目录或算法名称推断支持能力。
 
-## 核心技术栈
-* **强化学习框架**: 自研MARL框架，支持HAPPO、MAPPO、HATRPO等15种算法
-* **电力系统仿真**: OpenDSS (通过 dss-python)
-* **深度学习**: PyTorch
-* **配置管理**: YAML + Python dataclass
-* **部署展示**: HuggingFace Space (Gradio) + GitHub Pages
+## 当前代码结构
 
----
+| 目录或入口 | 职责 |
+| --- | --- |
+| `scripts/train.py` | 公共训练入口；按任务分派同步 MARL 或顺序 PPO |
+| `scripts/train_centralized.py` | 公共集中控制训练入口 |
+| `utils/environment_registry.py` | 环境配置类、包装器与交互类型注册 |
+| `utils/config_pipeline.py`、`utils/config_validation.py` | 配置合并、来源记录和字段校验 |
+| `utils/train_cli.py`、`utils/training_setup.py` | CLI 与运行准备 |
+| `envs/powergrid/` | DSSSession、设备控制、场景数据、快照、checkpoint 和集中控制适配器 |
+| `envs/render_common/` | 公共回放与渲染组件 |
+| `envs/env_wrappers.py` | 向量环境及进程包装 |
+| `algorithms/`、`runners/` | 策略/价值更新和训练采样；同步算法注册见 `runners/__init__.py` |
+| `models/`、`common/` | 网络、日志、值归一化及现役采样/回放缓冲区 |
+| `configs/envs_cfgs/` | 环境和算例预设；目录名不是 `envs_configs` |
+| `configs/algos_cfgs/`、`configs/experiments/` | 算法默认值和实验差异 |
+| `configs/systems/`、`configs/training/` | 真正共享的系统选择和训练设置 |
+| `node_systems/` | 自包含 DSS 算例及其相对路径依赖 |
+| `data/` | 外部数据处理工具与原始数据；正式运行场景遵循公共 manifest 契约 |
+| `training_ui/` | Gradio 训练配置界面，直接复用 YAML 和公共解析器 |
+| `examples/` | 兼容训练入口及 SmartGrid 集中控制示例 |
+| `tests/`、`scripts/check_*.py` | 单元、物理契约及真实运行检查 |
+| `tools/` | 算法展示图表生成工具 |
+| `docs/`、`huggingface_spaces/` | 项目说明、交互展示及独立 Space 应用 |
+| `archive/` | 带 manifest 的退役实现；现役测试校验归档内容，不直接删改 |
 
-# 文件夹结构 (File Structure)
+## 五类电力任务
 
-## 核心目录
+| 环境参数 | 现役实现 | 任务与边界 |
+| --- | --- | --- |
+| `vvc`（历史别名 `powerzoo`） | `envs/vvc/runtime_env.py` | 经典电压无功控制；集中式入口为 `envs/vvc/single_agent.py` |
+| `smartgrid` | `envs/smartgrid/base_env/runtime_env.py` | 独立 CMDP 奖励与 PV/Storage/SVG 控制；集中式入口为 `envs/smartgrid/single_agent/adapter.py` |
+| `district_dispatch` | `envs/district_dispatch/core/dispatch_core.py` | 区域设备协同、原生功率计量与成本 |
+| `dsr` / `dsr_13bus` | `envs/dsr/core/dsr_core.py` | 有源静态恢复，不是旧版需求侧响应占位实现 |
+| `stackelberg` / `stackelberg_13bus` | `envs/stackelberg/pricing_env.py` | 顺序价格与负荷响应，使用 `sequential_ppo`，不能接同步 MARL worker |
 
-### `algorithms/` - 强化学习算法
-* `actors/`: 策略网络实现（15种算法）
-  * `on_policy_base.py`: On-policy基类 → 派生 `happo.py`, `mappo.py`, `hatrpo.py`, `haa2c.py`, `sn_mappo.py`, `dan_happo.py`
-  * `off_policy_base.py`: Off-policy基类 → 派生 `haddpg.py`, `hatd3.py`, `hasac.py`, `maddpg.py`, `matd3.py`, `had3qn.py`
-  * `m_Qmix.py`: QMix独立实现
-* `critics/`: 价值网络实现
-  * `v_critic.py`: V值网络（On-policy用）
-  * `continuous_q_critic.py`, `discrete_q_critic.py`: Q值网络（Off-policy用）
-  * `twin_continuous_q_critic.py`, `soft_twin_continuous_q_critic.py`: Twin Q网络（TD3/SAC用）
-* `twots_vvc/`: 两时间尺度VVC算法
-  * `coordinator.py`: 慢-快时间尺度协调器
-  * `slow_sacd.py`: 慢时间尺度SACD（离散）
-  * `fast_ddpg.py`: 快时间尺度DDPG（连续）
-  * `env_manager.py`, `obs_processor.py`, `reward_processor.py`: 辅助模块
+VVC 与 SmartGrid 的同名单智能体适配器对应不同任务，不能相互替代。
+旧 `env.py` 等短转发模块是兼容路径，不是重复仿真实现。
+`utils/happo_monitor.py` 有独立日志分析 CLI；`envs/smartgrid/model_utils/` 保留历史模型/日志分析工具，
+其日志格式与可选依赖需单独验收，不能据此声称现行训练具备对应分析能力。
+旧奖励权重标定工具已退役，不再提供自动 P95 标定接口。
 
-### `envs/` - 强化学习环境
-四个主要环境 + 统一包装器：
-* `env_wrappers.py`: MARL框架兼容层（`ShareSubprocVecEnv`, `ShareDummyVecEnv`）
-* `vvc/`: VVC环境（基于OpenDSS的电压无功控制）
-  * `vvc_env.py`: 顶层环境入口
-  * `vvc/`: 核心实现（`circuit.py`, `env.py`, `env_register.py`, `loadprofile.py`）
-* `smartgrid/`: SmartGrid环境（模块化电网仿真）
-  * `base_env/`: 基础环境（`core_env.py`, `env.py`, `env_config.py`, `config_loader.py`）
-  * `circuit_system/`: 电路系统（`circuit.py`, `components/`）
-  * `data_process/`: 负荷曲线处理（`loadprofile.py` + 解析/配置/核心模块）
-  * `rewards/`: 奖励函数（`vvc_reward.py`, `lagrangian.py`, `calibration.py`）
-  * `logging/`: 日志系统（`unified_logger.py`, `visualization_manager.py`）
-  * `model_utils/`: 模型工具（`model_manager.py`, `system_analyzer.py`）
-  * `single_agent/`: 单智能体包装器
-* `stackelberg/`: Stackelberg博弈环境
-  * `stackelberg_vvc_env.py`: 顶层入口
-  * `stackelberg_game/`: 博弈核心（`stackelberg_base_env.py`, `circuit_adapter.py`, `env_factory.py`, `load_aggregator.py`）
-* `dsr/`: 需求侧响应环境
-  * `dsr_env.py`: 顶层入口
-  * `core/`: DSR核心（`dsr_core.py`, `circuit.py`, `config.py`, `loadprofile.py`）
+## 配置与支持范围
 
-### `runners/` - 训练运行器
-* `on_policy_base_runner.py` → `on_policy_ha_runner.py` (HA系列) / `on_policy_ma_runner.py` (MA系列)
-* `off_policy_base_runner.py` → `off_policy_ha_runner.py` / `off_policy_ma_runner.py`
-* `Qmix_base_runner.py` → `Qmix_runner.py`
-* `two_ts_runner.py`: 两时间尺度运行器
-* `shared/dsr_dan_runner.py`: DSR DAN专用运行器
+正式配置统一由 `ConfigLoader` 合并、规范化和校验。环境 dataclass 定义实际字段，
+实验只写差异，`--set` 使用完整路径；设备容量与接线以 DSS 为来源。
+从当前 worktree 根目录检查配置：
 
-### `models/` - 神经网络模型
-* `base/`: 基础组件（`mlp.py`, `cnn.py`, `rnn.py`, `distributions.py`, `act.py`, `dan.py` 等）
-* `policy_models/`: 策略模型
-  * `stochastic_policy.py`: 随机策略（On-policy用）
-  * `stochastic_mlp_policy.py`: MLP随机策略
-  * `deterministic_policy.py`: 确定性策略（Off-policy用）
-  * `squashed_gaussian_policy.py`: Squashed Gaussian策略（SAC用）
-  * `m_qmix_policy.py`, `qmix_mlp_policy.py`: QMix策略
-* `value_function_models/`: 价值函数模型
-  * `v_net.py`: V值网络
-  * `continuous_q_net.py`, `dueling_q_net.py`: Q值网络
-  * `agent_q_function.py`: Agent Q函数
-  * `mq_mixer.py`: QMix Mixer网络
+```bash
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --print-config
+python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml --validate-config
+```
 
-### `common/` - 公共组件
-* `base_logger.py`: 日志基类
-* `valuenorm.py`: 值归一化（PopArt/ValueNorm）
-* `buffers/`: 经验回放缓冲区
-  * On-policy: `on_policy_actor_buffer.py`, `on_policy_critic_buffer_ep/fp.py`, `shared_on_policy_actor_buffer.py`, `heterogeneous_on_policy_actor_buffer.py`
-  * Off-policy: `off_policy_buffer_base.py`, `off_policy_buffer_ep/fp.py`
-  * 2TS: `replay_fast.py`, `replay_slow.py`
+参数解析通过不等于原生 DSS 求解、算法收敛或电气目标正确。
+算法注册也不等于全部任务组合已适配；现行训练与限制见 [配置说明](docs/configuration.md)。
+安装依赖以 `requirements.txt` 为准；Windows 使用 `environment.windows.yml` 或
+`scripts/setup_windows.ps1`，完整约束见 `constraints/windows-py310.txt`。
 
-### `utils/` - 工具函数
-* `configs_tools.py`: 配置解析与合并工具
-* `envs_tools.py`: 环境创建工具
-* `models_tools.py`: 模型工具
-* `path_utils.py`: 路径解析工具
-* `unified_config_loader.py`: 统一配置加载器（system_ref模式）
-* `happo_diagnostics.py`, `happo_monitor.py`: HAPPO诊断与监控
-* `tensorboard_callback.py`: TensorBoard回调
-* `single_agent_tools.py`: 单智能体工具
-* `mlp_buffer.py`, `dan_buffer.py`: 特殊缓冲区
-* `trans_tools.py`, `trpo_util.py`, `discrete_util.py`, `popart.py`, `segment_tree.py`: 数学/算法工具
+## 文档与验证入口
 
-### `configs/` - 配置文件
-**注意：环境配置目录名是 `envs_cfgs` 不是 `envs_configs`**
-* `envs_cfgs/`: 环境配置
-  * `vvc.yaml`, `vvc_single.yaml`: VVC环境
-  * `smartgrid.yaml`: SmartGrid环境
-  * `smartgrid_pv_plans/`: SmartGrid PV变体（aggressive/conservative/optimized）
-  * `stackelberg_13bus.yaml`, `stackelberg_34bus.yaml`, `stackelberg_123bus.yaml`: Stackelberg环境
-  * `dsr.yaml`, `dsr_13bus.yaml`, `dsr_8500node.yaml`: DSR环境
-  * `gym.yaml`: Gym环境
-* `algos_cfgs/`: 算法配置（15种算法各一个YAML）
-* `single_agent_cfgs/`: 单智能体算法配置（ppo/ddpg/dqn/sac/td3/a2c/her）
-* `sys_cfgs/`: 系统级配置
-* `systems/`: IEEE标准系统定义（`_registry.yaml` + 各系统YAML）
-* `training/curriculum/`: 课程学习配置
-* `dan_happo_config.py`: DAN-HAPPO Python配置
+- [项目使用说明](README.md)、[环境导航](PowerZoo环境说明.md)、[开发流程](docs/development.md)
+- [配置与扩展](docs/configuration.md)、[训练入口](docs/training-entrypoints.md)
+- [物理重构实施记录](docs/physics-refactor-progress.md)、[原始问题与架构方案](docs/physical-consistency-plan.md)
+- [VVC](docs/vvc-physics.md)、[SmartGrid](docs/smartgrid-data-runtime.md)、[区域调度](docs/district-physics.md)、[恢复](docs/dsr-physics.md)、[顺序定价](docs/pricing-physics.md)
+- [训练界面](training_ui/README.md)、[SmartGrid 集中控制](envs/smartgrid/single_agent/README.md)
 
-### `examples/` - 示例脚本
-* `multi_agent/`
-  * `scripts/`: `train.py`(通用), `train_powerzoo.py`, `train_stackelberg.py`, `train_dsr_aggregation.py`, `train_dan_happo.py`
-  * `launchers/`: `quick_train_powerzoo_pv.sh`, `run_dsr_aggregation.sh`
-* `single_agent/`
-  * `scripts/`: `train_single.py`, `train_single_agent.py`, `train_with_enhanced_callback.py`
-  * `launchers/`: `train_single.sh`, `test_ddpg.sh`, `train_single_agent_powerzoo_pv.sh`, `train_single_pv_discrete.sh`
-
-### `node_systems/` - OpenDSS节点系统
-IEEE标准测试系统的OpenDSS模型：
-* `13Bus/`: 13节点系统
-* `34Bus/`, `34Bus_PV/`, `34Bus_PV_Aggressive/`, `34Bus_PV_Conservative/`, `34Bus_PV_Optimized/`: 34节点系统及PV变体
-* `123Bus/`: 123节点系统
-* `8500-Node/`, `9500-Node/`: 大规模节点系统
-* `dss_simulations/`: DSS仿真输出
-
-### `data/` - 数据文件
-* `Loads/`: 负荷数据（day_level/, minute_level/, temporal_analysis/）
-* `PV/`: 光伏发电数据（csv/, txt/, daily_data/, hourly_segments/, batch_visualizations/）
-
-### `models/` / `tests/` / `tools/`
-* `tests/`: pytest测试（`conftest.py` + 各模块测试 + `envs/vvc/`, `envs/smartgrid/` 专项测试）
-* `tools/`: 工具脚本（`analyze_imports.py`, `test_imports.py`, `test_pv_injection.py`）
-
-### 部署与展示
-* `huggingface_spaces/`: HuggingFace Space Gradio应用集合（`powerzoo/` 为主站）
-  * `app.py`: 5标签页交互式应用
-  * `data/`: 预处理JSON数据
-* `docs/`: GitHub Pages静态站点（从 /docs 部署）
-  * `index.html`, `css/style.css`, `js/main.js`
-  * `assets/`: 架构图SVG + Plotly交互式HTML/PNG
-* `training_frontend/`: 训练配置前端（TypeScript + React + Vite）
-
-### 其他
-* `docs/`: 架构文档（`PowerZoo_Architecture_Guide.md`, `architecture_review_report.md` 等）
-* `docs/archive/`: 过期文档和旧配置归档
-* `papers/`: 相关论文
-* `results/`: 训练结果输出（.gitignore中排除）
-
----
-
-# 环境配置注意事项
-
-## 环境名称区分（重要！）
-
-本项目中有多个名称相近的环境，**修改配置时务必确认目标环境**：
-
-| 环境名 | 配置文件 | 说明 |
-|--------|----------|------|
-| `powerzoo` | `configs/envs_cfgs/vvc.yaml` | PowerZoo VVC环境 |
-| `smartgrid` | `configs/envs_cfgs/smartgrid.yaml` | SmartGrid模块化环境 |
-| `stackelberg` | `configs/envs_cfgs/stackelberg_*.yaml` | Stackelberg博弈环境 |
-| `dsr` | `configs/envs_cfgs/dsr*.yaml` | 需求侧响应环境 |
-
-## 配置体系
-* 环境配置: `configs/envs_cfgs/` — 每个环境的参数定义
-* 系统配置: `configs/systems/` — IEEE标准系统定义（通过 `system_ref` 引用）
-* 算法配置: `configs/algos_cfgs/` — 算法超参数
-* 系统级配置: `configs/sys_cfgs/` — 全局系统参数
-
-## 算法体系（15种算法）
-
-| 类别 | 算法 | 更新机制 |
-|------|------|----------|
-| On-policy HA系列 | HAPPO, HATRPO, HAA2C | 顺序更新 + factor_batch |
-| On-policy MA系列 | MAPPO, SN-MAPPO | 同步更新 |
-| Off-policy HA系列 | HADDPG, HATD3, HASAC | 顺序更新 |
-| Off-policy MA系列 | MADDPG, MATD3 | 同步更新 |
-| 混合方法 | QMix, HAD3QN, SHOM | 值分解 |
-| 特殊 | DAN-HAPPO | 动态注意力网络 |
-| 两时间尺度 | 2TS-VVC (SACD+DDPG) | 慢-快协调 |
-
----
-
-# 其他注意事项
-
-* **图像绘制**: 一律不使用中文字体，图像中使用英文标注
-* **测试运行**: 使用 `pytest` 运行测试，配置在 `pytest.ini`
-* **环境安装**: 参考 `environment.yml` 和 `requirements.txt`
-* **CI/CD**: GitHub Actions工作流在 `.github/workflows/`
-* **归档策略**: 过期文档和旧配置统一归档到 `docs/archive/`，该目录已加入 `.gitignore`
+历史计划保留原始设计证据，阅读时先看状态说明。`docs/archive/` 当前被忽略，
+需要版本管理的历史文档不能直接移入该目录而不调整跟踪规则和链接。
+修改运行路径后执行相关 pytest 与真实运行检查，明确记录失败和跳过原因。
+图表使用英文标注；仿真产物写临时目录或结果目录，不覆盖受版本控制的模型和研究数据。

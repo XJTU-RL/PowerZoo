@@ -1,5 +1,7 @@
 # PowerZoo Code Standards Brandbook
 
+> 历史设计（2026-02-06）：保留当时的代码规范提案，不表示各项已全面实施。当前开发规则以 [AGENTS.md](../../AGENTS.md) 和 [开发流程](../development.md) 为准。
+
 > Design document for unified code standards across the PowerZoo project.
 > Created: 2026-02-06 | Branch: `refactor/code-standards`
 
