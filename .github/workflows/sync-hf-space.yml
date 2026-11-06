@@ -1,38 +1,68 @@
-# Sync HuggingFace Space
-# ============================================================================
-# Automatically pushes huggingface_spaces/powerzoo/ contents to the HF Space repo
-# whenever changes are pushed to main.
-# ============================================================================
-
+# Each Space retains its own files for independent builds. Shared copies must
+# match before publication. Configure HF_ZH_SPACE with the confirmed owner/repo
+# to enable Chinese publication; no destination is inferred from its directory.
 name: Sync HuggingFace Space
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "huggingface_spaces/powerzoo/**"
+      - "huggingface_spaces/**"
+      - "tools/sync_hf_shared_assets.py"
+      - "tools/plot_algorithm_*.py"
+      - "tests/test_hf_shared_assets.py"
+      - ".github/workflows/sync-hf-space.yml"
+  pull_request:
+    paths:
+      - "huggingface_spaces/**"
+      - "tools/sync_hf_shared_assets.py"
+      - "tools/plot_algorithm_*.py"
+      - "tests/test_hf_shared_assets.py"
+      - ".github/workflows/sync-hf-space.yml"
   workflow_dispatch:
 
 jobs:
-  sync:
-    name: Push to HuggingFace Space
+  check-shared-assets:
+    name: 校验共享资源
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: 验证同步工具
+        run: python3 -m unittest discover -s tests -p test_hf_shared_assets.py -v
+      - name: 检查中英主站和环境演示的共享资源
+        run: python3 tools/sync_hf_shared_assets.py --check
+
+  sync:
+    name: 同步 ${{ matrix.source }}
+    needs: check-shared-assets
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: powerzoo
+            target: XJTU-RL/PowerZoo
+          - source: powerzoo-zh
+            target: ${{ vars.HF_ZH_SPACE }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
+      - name: 提示未配置的中文发布目标
+        if: matrix.target == ''
+        run: echo '中文 Space 尚未配置 HF_ZH_SPACE，本次跳过发布。'
       - name: Push to HuggingFace Space
+        if: matrix.target != ''
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_SOURCE: ${{ matrix.source }}
+          SPACE_TARGET: ${{ matrix.target }}
         run: |
-          # Configure git for HF push
-          cd huggingface_spaces/powerzoo
+          cd "huggingface_spaces/$SPACE_SOURCE"
           git init --initial-branch=main
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git remote add hf https://huggingface.co:${HF_TOKEN}@huggingface.co/spaces/XJTU-RL/PowerZoo
+          git remote add hf "https://huggingface.co:${HF_TOKEN}@huggingface.co/spaces/${SPACE_TARGET}"
           git add .
           git commit -m "Sync from GitHub $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push hf main --force

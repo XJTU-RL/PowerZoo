@@ -14,6 +14,11 @@ Usage:
 """
 import json
 from pathlib import Path
+
+if __package__:
+    from .sync_hf_shared_assets import synchronize
+else:
+    from sync_hf_shared_assets import synchronize
 from typing import Any
 
 import plotly.graph_objects as go
@@ -547,38 +552,40 @@ FIGURES = {
 
 
 def main():
-	output_dir = Path(__file__).resolve().parent.parent
-	gh_dir = output_dir / "docs" / "assets"
-	hf_dir = output_dir / "huggingface_spaces" / "powerzoo" / "data"
-	gh_dir.mkdir(parents=True, exist_ok=True)
-	hf_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(__file__).resolve().parent.parent
+    gh_dir = output_dir / "docs" / "assets"
+    hf_dir = output_dir / "huggingface_spaces" / "powerzoo" / "data"
+    gh_dir.mkdir(parents=True, exist_ok=True)
+    hf_dir.mkdir(parents=True, exist_ok=True)
 
-	for key, (name, factory) in FIGURES.items():
-		print(f"Generating: {name} ...")
-		fig = factory()
+    for key, (name, factory) in FIGURES.items():
+        print(f"Generating: {name} ...")
+        fig = factory()
 
-		# HTML for GitHub Pages
-		fig.write_html(
-			str(gh_dir / f"{key}.html"),
-			include_plotlyjs="cdn",
-			full_html=True,
-			config={"displayModeBar": False, "staticPlot": False},
-		)
+        # HTML for GitHub Pages
+        fig.write_html(
+            str(gh_dir / f"{key}.html"),
+            include_plotlyjs="cdn",
+            full_html=True,
+            config={"displayModeBar": False, "staticPlot": False},
+        )
 
-		# JSON for HuggingFace Space
-		with open(hf_dir / f"{key}.json", "w") as f:
-			json.dump(json.loads(fig.to_json()), f)
+        # JSON for HuggingFace Space
+        with open(hf_dir / f"{key}.json", "w") as f:
+            json.dump(json.loads(fig.to_json()), f)
 
-		# PNG static image
-		try:
-			fig.write_image(str(gh_dir / f"{key}.png"), width=900, height=580, scale=2)
-		except Exception as e:
-			print(f"  PNG export skipped ({e})")
+        # PNG static image
+        try:
+            fig.write_image(str(gh_dir / f"{key}.png"), width=900, height=580, scale=2)
+        except Exception as e:
+            print(f"  PNG export skipped ({e})")
 
-		print(f"  ✓ {key}.html / .json / .png")
+        print(f"  ✓ {key}.html / .json / .png")
 
-	print(f"\nDone. Output dirs:\n  GitHub Pages: {gh_dir}\n  HF Space:     {hf_dir}")
+    synchronize(output_dir.resolve(), check=False)
+
+    print(f"\nDone. Output dirs:\n  GitHub Pages: {gh_dir}\n  HF Space:     {hf_dir}")
 
 
 if __name__ == "__main__":
-	main()
+    main()
