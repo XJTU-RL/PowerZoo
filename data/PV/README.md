@@ -2,6 +2,10 @@
 
 本目录包含用于处理MIDC气象数据并转换为OpenDSS兼容格式的完整工具链。
 
+原始输入保存在 `txt/`，脚本生成的 CSV、DSS、统计报告和批量图表不再纳入版本控制。
+新检出仓库后，先生成数据再运行提取或集成工具；不能直接运行缺少配套 CSV 的旧 DSS 输出。
+以下命令均从本目录运行。生成物用于数据准备，不是已经通过当前任务物理验收的算例。
+
 ## 核心脚本
 
 ### 1. 数据格式转换
@@ -11,10 +15,10 @@
 
 ```bash
 # 处理单个文件
-python PVdata_processing.py --input txt/202501.txt --output csv/
+python PVdata_processing.py txt/202501.txt -o csv/
 
 # 批量处理txt目录下所有文件
-python PVdata_processing.py --batch --input txt/ --output csv/
+python PVdata_processing.py txt/ --batch -o csv/
 ```
 
 #### `daily_processor.py` - 按日分割数据
@@ -22,10 +26,10 @@ python PVdata_processing.py --batch --input txt/ --output csv/
 
 ```bash
 # 处理单个文件并按日分割
-python daily_processor.py --input txt/202501.txt --output daily_data/
+python daily_processor.py txt/202501.txt -o daily_data/
 
 # 批量处理
-python daily_processor.py --batch --input txt/ --output daily_data/
+python daily_processor.py txt/ --batch -o daily_data/
 ```
 
 #### `extract_pv_data_from_csv.py` - 时间段数据提取
@@ -33,29 +37,27 @@ python daily_processor.py --batch --input txt/ --output daily_data/
 
 ```bash
 # 按天分割所有月份数据（默认8-17点）
-python extract_pv_data_from_csv.py --split-by-day
+python extract_pv_data_from_csv.py --base-dir daily_data/ --output-dir hourly_segments/ --split-by-day
 
 # 自定义时间段（6-18点）
-python extract_pv_data_from_csv.py --split-by-day --start-hour 6.0 --end-hour 18.0
+python extract_pv_data_from_csv.py --base-dir daily_data/ --output-dir hourly_segments/ --split-by-day --start-hour 6.0 --end-hour 18.0
 
 # 指定输出目录
-python extract_pv_data_from_csv.py --split-by-day --output-dir hourly_segments/
+python extract_pv_data_from_csv.py --base-dir daily_data/ --split-by-day --output-dir hourly_segments/
 ```
 
 ### 2. OpenDSS集成
 
 #### `pv_opendss_integrator.py` - PV数据与OpenDSS集成
 将处理后的PV数据集成到OpenDSS项目中。
+旧工具启动时就会初始化目标目录，连列出日期也应显式传入临时目录，避免使用旧机器的默认绝对路径。
 
 ```bash
-# 集成指定日期的数据
-python pv_opendss_integrator.py --date 2025-01-15 --dss-dir ../node_systems/34Bus_PV/
+# 查看已生成数据的日期
+python pv_opendss_integrator.py --pv-data-dir . --dss-project-dir /tmp/powerzoo-model-copy/ --list-dates
 
-# 批量集成多个日期
-python pv_opendss_integrator.py --batch --start-date 2025-01-01 --end-date 2025-01-31 --dss-dir ../node_systems/34Bus_PV/
-
-# 查看可用日期
-python pv_opendss_integrator.py --list-dates
+# 集成会写入目标模型目录；请传入临时副本，勿覆盖 node_systems 中的源模型。
+python pv_opendss_integrator.py --pv-data-dir . --date 2025-01-15 --dss-project-dir /tmp/powerzoo-model-copy/
 ```
 
 ### 3. 数据可视化
@@ -65,10 +67,8 @@ python pv_opendss_integrator.py --list-dates
 
 ```bash
 # 分析单个文件
-python data_visualizer.py --input txt/202501.txt --output visualization_results/
+python data_visualizer.py txt/202501.txt -o visualization_results/
 
-# 生成完整报告
-python data_visualizer.py --input txt/202501.txt --output visualization_results/ --full-report
 ```
 
 #### `batch_visualizer.py` - 批量可视化处理
@@ -76,24 +76,18 @@ python data_visualizer.py --input txt/202501.txt --output visualization_results/
 
 ```bash
 # 批量处理txt目录下所有文件
-python batch_visualizer.py --input txt/ --output batch_visualizations/
+python batch_visualizer.py txt/ -o batch_visualizations/
 
-# 生成HTML索引页面
-python batch_visualizer.py --input txt/ --output batch_visualizations/ --create-index
 ```
 
 ## 数据流程
 
 ```
-原始MIDC数据(txt/) 
-    ↓ PVdata_processing.py
-OpenDSS格式数据(csv/)
-    ↓ daily_processor.py  
-按日分割数据(daily_data/)
-    ↓ extract_pv_data_from_csv.py
-时间段数据(hourly_segments/)
-    ↓ pv_opendss_integrator.py
-OpenDSS项目集成
+原始MIDC数据(txt/)
+    ├─ PVdata_processing.py → 月度转换结果(csv/)
+    └─ daily_processor.py → 按日分割数据(daily_data/)
+         ├─ extract_pv_data_from_csv.py → 时间段数据(hourly_segments/)
+         └─ pv_opendss_integrator.py → OpenDSS项目副本
 ```
 
 ## 输出目录结构

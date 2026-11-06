@@ -428,6 +428,24 @@ newplot/
 data/PV/*.csv
 data/PV/*.png
 data/Load/*.png
+# Data preparation outputs: regenerate from retained inputs and scripts.
+data/PV/csv/
+data/PV/daily_data/
+data/PV/hourly_segments/
+data/PV/daily_segments/
+data/PV/batch_visualizations/
+data/PV/batch_visualization_results/
+data/PV/visualization_results/
+data/PV/generated_temperature/temperature_method*.csv
+data/PV/generated_temperature/temperature_comparison.png
+data/Loads/day_level/images/
+data/Loads/minute_level/*.csv
+data/Loads/minute_level/Loadshape*/
+data/Loads/minute_level/analysis_results/
+data/Loads/minute_level/interpolation_report.txt
+data/Loads/minute_level/comprehensive_interpolation_report.txt
+data/Loads/minute_level/interpolation_comparison_*.png
+data/Loads/temporal_analysis/
 node_systems/*.csv
 !node_systems/**/LoadShape1.csv
 !node_systems/**/LoadShape2.csv
