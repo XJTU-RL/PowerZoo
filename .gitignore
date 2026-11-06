@@ -451,6 +451,7 @@ node_systems/**/IEEE13Nodeckt_daily_*.dss
 node_systems/**/IEEE123Master_daily_*.dss
 !node_systems/**/IEEE123Master_daily.dss
 node_systems/**/IEEE123Loads_*.dss
+!node_systems/123Bus/IEEE123Loads_static.dss
 !node_systems/**/IEEE123Loads.dss
 node_systems/**/IEEE123Loads_daily_*.dss
 !node_systems/**/IEEE123Loads_daily.dss
@@ -463,3 +464,6 @@ logs/
 # Episode 负荷切片由 LoadProfile 生成，原始 LoadShape CSV 保持可追踪。
 node_systems/**/loadshape/data_without_noise/[0-9][0-9][0-9]/
 node_systems/**/loadshape/data_with_gaussian_noise/[0-9][0-9][0-9]/
+
+# Shared task worktrees
+.Codex/worktrees/

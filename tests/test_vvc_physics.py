@@ -75,6 +75,31 @@ def test_regulator_does_not_rewrite_numtaps_or_source_winding():
         env.close()
 
 
+def test_123bus_static_loads_preserve_nameplates_without_native_profiles():
+    """完整123Bus模型保留原始额定负荷，外生场景不再叠加原生曲线。"""
+    import re
+
+    source = (ROOT / "node_systems/123Bus/IEEE123Loads.dss").read_text()
+    expected = {}
+    for line in source.splitlines():
+        match = re.match(r"New\s+Load\.(\S+)", line, re.IGNORECASE)
+        if match:
+            kw = re.search(r"\bkW=([\d.]+)", line, re.IGNORECASE)
+            kvar = re.search(r"\bkvar=([\d.]+)", line, re.IGNORECASE)
+            expected[match.group(1).lower()] = (float(kw[1]), float(kvar[1]))
+    env = make_core("123Bus")
+    try:
+        assert set(env.circuit.loads) == set(expected)
+        for name, ratings in expected.items():
+            native = env.circuit.loads[name]
+            assert (native.kw, native.kvar) == pytest.approx(ratings)
+            for shape in ("daily", "yearly", "duty"):
+                value = env.circuit.read_property("Load." + name, shape)
+                assert value.lower() in ("", "none")
+    finally:
+        env.close()
+
+
 def test_classic_reward_uses_actual_tap_steps_and_terminal_energy():
     env = make_core(
         max_episode_steps=2,

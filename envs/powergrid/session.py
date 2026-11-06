@@ -30,7 +30,7 @@ class DSSSession:
             False,
         )
         self._temporary = tempfile.TemporaryDirectory(prefix="powerzoo-grid-")
-        self.folder = Path(self._temporary.name)
+        self.folder = Path(self._temporary.name).resolve()
         self.source = Path(model_folder).resolve()
         self.master, self.overlays = master, tuple(overlays)
         self.svg_elements = tuple(svg_elements)

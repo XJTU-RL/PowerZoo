@@ -174,10 +174,8 @@ class ShareVecEnv(ABC):
 
     @property
     def unwrapped(self):
-        if isinstance(self, VecEnvWrapper):
-            return self.venv.unwrapped
-        else:
-            return self
+        """返回当前向量环境；本项目没有额外的 VecEnvWrapper 包装层。"""
+        return self
 
     def get_viewer(self):
         if self.viewer is None:

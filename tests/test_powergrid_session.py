@@ -1,6 +1,8 @@
 """独立小电路的原生物理验收，不使用训练reward作为电气正确性证据。"""
 
 from hashlib import sha256
+import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -177,6 +179,35 @@ def test_paths_contexts_and_model_hash(model):
     finally:
         a.close()
         b.close()
+
+
+def test_temporary_model_root_is_canonical_before_containment_check(model, monkeypatch):
+    """临时目录别名解析后仍可加载模型，同时保持越界输入拒绝。"""
+    from envs.powergrid import session as session_module
+
+    temporary_directory = session_module.tempfile.TemporaryDirectory
+
+    def aliased_temporary_directory(*args, **kwargs):
+        """以相对路径模拟 Windows 短路径解析后的目录别名。"""
+        kwargs["dir"] = Path.cwd()
+        temporary = temporary_directory(*args, **kwargs)
+        return SimpleNamespace(
+            name=os.path.relpath(temporary.name, Path.cwd()),
+            cleanup=temporary.cleanup,
+        )
+
+    monkeypatch.setattr(
+        session_module.tempfile, "TemporaryDirectory", aliased_temporary_directory
+    )
+    session = DSSSession(model, "model.dss")
+    try:
+        session.solve()
+        assert session.folder == session.folder.resolve()
+        assert session.native.Solution.Converged
+        with pytest.raises(ValueError, match="模型目录内"):
+            session._input_path("../outside.dss")
+    finally:
+        session.close()
 
 
 @pytest.mark.parametrize(

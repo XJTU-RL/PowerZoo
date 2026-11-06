@@ -39,4 +39,4 @@ jobs:
       - name: Validate native DSS, actual rollout, spawn workers, and HAPPO update
         run: python scripts/check_runtime.py --train
       - name: Run Windows regression tests
-        run: python -m pytest tests/test_windows_runtime.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
+        run: python -m pytest tests/test_windows_runtime.py tests/test_powergrid_session.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
