@@ -124,6 +124,14 @@ def test_missing_ref_and_duplicate_yaml(tmp_path):
         read_yaml(path)
 
 
+def test_algorithm_catalog_can_be_read_by_training_ui():
+    """One malformed optional profile must not prevent UI catalog discovery."""
+    profiles = sorted((ROOT / "configs/algos_cfgs").glob("*.yaml"))
+    assert profiles
+    for path in profiles:
+        assert isinstance(read_yaml(path), dict), path.name
+
+
 def test_changes_are_not_cached(tmp_path):
     path = tmp_path / "profile.yaml"
     loader = ConfigLoader()
