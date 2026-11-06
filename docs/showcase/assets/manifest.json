@@ -1,0 +1,21 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1280
+  },
+  "data_sha256": "5c2222d7635d2efbe1656c959327fbf9060ce7222beab3368cbdb338d08fc82b",
+  "media": [
+    {
+      "path": "overview.png",
+      "sha256": "c719532709378381265816e4d17c0f019d690cc76b55f7c12dcf07afbbc93f19",
+      "source": "实际PowerZoo网页操作；基于data/vvc-13bus.json的54工况回放",
+      "type": "浏览器截屏"
+    },
+    {
+      "path": "walkthrough.mp4",
+      "sha256": "ebfb2d06628864244a51c25fc34e30b2756f475f774d73377793bc3f2dc5c229",
+      "source": "实际PowerZoo网页操作；基于data/vvc-13bus.json的54工况回放",
+      "type": "浏览器操作录屏"
+    }
+  ]
+}

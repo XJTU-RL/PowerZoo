@@ -1,5 +1,9 @@
 # PowerZoo
 
+[**打开交互展示**](https://xjtu-rl.github.io/PowerZoo/)：探索13节点馈线拓扑，回放54个可追溯的OpenDSS稳态工况，并了解五类研究任务。[展示数据与复现说明](docs/showcase/data/README.md)。
+
+[![PowerZoo交互算例展示](docs/showcase/assets/overview.png)](https://xjtu-rl.github.io/PowerZoo/)
+
 PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研究框架。
 代码包含自研多智能体训练器，以及面向 Stable-Baselines3 的单智能体接口。
 
