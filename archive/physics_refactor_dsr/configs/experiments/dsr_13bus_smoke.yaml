@@ -1,0 +1,9 @@
+run:
+  algo: happo
+  env: dsr_13bus
+  exp_name: dsr_smoke
+training_ref: smoke
+env:
+  max_episode_steps: 12
+  monitoring:
+    visualization: false

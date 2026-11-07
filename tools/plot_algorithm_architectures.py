@@ -14,6 +14,11 @@ Usage:
 import json
 from pathlib import Path
 
+if __package__:
+    from .sync_hf_shared_assets import synchronize
+else:
+    from sync_hf_shared_assets import synchronize
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -507,56 +512,58 @@ def create_runner_algorithm_matrix():
 
 # ── Output Generation ──────────────────────────────────────────
 def main():
-	"""Generate all architecture figures and export."""
-	output_dir = Path(__file__).parent.parent
+    """Generate all architecture figures and export."""
+    output_dir = Path(__file__).parent.parent
 
-	# Generate figures
-	fig_hierarchy = create_algorithm_hierarchy()
-	fig_pipeline = create_training_pipeline()
-	fig_matrix = create_runner_algorithm_matrix()
+    # Generate figures
+    fig_hierarchy = create_algorithm_hierarchy()
+    fig_pipeline = create_training_pipeline()
+    fig_matrix = create_runner_algorithm_matrix()
 
-	# Export standalone HTML files for GitHub Pages
-	gh_pages_dir = output_dir / "docs" / "assets"
-	gh_pages_dir.mkdir(parents=True, exist_ok=True)
+    # Export standalone HTML files for GitHub Pages
+    gh_pages_dir = output_dir / "docs" / "assets"
+    gh_pages_dir.mkdir(parents=True, exist_ok=True)
 
-	fig_hierarchy.write_html(
-		str(gh_pages_dir / "algorithm_hierarchy.html"),
-		include_plotlyjs="cdn",
-		full_html=False,
-	)
-	fig_pipeline.write_html(
-		str(gh_pages_dir / "training_pipeline.html"),
-		include_plotlyjs="cdn",
-		full_html=False,
-	)
-	fig_matrix.write_html(
-		str(gh_pages_dir / "runner_algorithm_matrix.html"),
-		include_plotlyjs="cdn",
-		full_html=False,
-	)
+    fig_hierarchy.write_html(
+        str(gh_pages_dir / "algorithm_hierarchy.html"),
+        include_plotlyjs="cdn",
+        full_html=False,
+    )
+    fig_pipeline.write_html(
+        str(gh_pages_dir / "training_pipeline.html"),
+        include_plotlyjs="cdn",
+        full_html=False,
+    )
+    fig_matrix.write_html(
+        str(gh_pages_dir / "runner_algorithm_matrix.html"),
+        include_plotlyjs="cdn",
+        full_html=False,
+    )
 
-	# Export JSON data for HuggingFace Space
-	hf_data_dir = output_dir / "huggingface_space" / "data"
-	hf_data_dir.mkdir(parents=True, exist_ok=True)
+    # Export JSON data for HuggingFace Space
+    hf_data_dir = output_dir / "huggingface_spaces" / "powerzoo" / "data"
+    hf_data_dir.mkdir(parents=True, exist_ok=True)
 
-	fig_hierarchy.write_json(str(hf_data_dir / "algorithm_hierarchy.json"))
-	fig_pipeline.write_json(str(hf_data_dir / "training_pipeline.json"))
-	fig_matrix.write_json(str(hf_data_dir / "runner_algorithm_matrix.json"))
+    fig_hierarchy.write_json(str(hf_data_dir / "algorithm_hierarchy.json"))
+    fig_pipeline.write_json(str(hf_data_dir / "training_pipeline.json"))
+    fig_matrix.write_json(str(hf_data_dir / "runner_algorithm_matrix.json"))
 
-	# Export static images
-	try:
-		img_dir = gh_pages_dir
-		fig_hierarchy.write_image(str(img_dir / "algorithm_hierarchy.png"), width=1100, height=650, scale=2)
-		fig_pipeline.write_image(str(img_dir / "training_pipeline.png"), width=1200, height=700, scale=2)
-		fig_matrix.write_image(str(img_dir / "runner_algorithm_matrix.png"), width=1100, height=500, scale=2)
-		print("Static images exported successfully.")
-	except Exception as e:
-		print(f"Warning: Static image export failed ({e}). HTML files are still available.")
+    # Export static images
+    try:
+        img_dir = gh_pages_dir
+        fig_hierarchy.write_image(str(img_dir / "algorithm_hierarchy.png"), width=1100, height=650, scale=2)
+        fig_pipeline.write_image(str(img_dir / "training_pipeline.png"), width=1200, height=700, scale=2)
+        fig_matrix.write_image(str(img_dir / "runner_algorithm_matrix.png"), width=1100, height=500, scale=2)
+        print("Static images exported successfully.")
+    except Exception as e:
+        print(f"Warning: Static image export failed ({e}). HTML files are still available.")
 
-	print(f"HTML fragments exported to: {gh_pages_dir}")
-	print(f"JSON data exported to: {hf_data_dir}")
-	print("Done!")
+    print(f"HTML fragments exported to: {gh_pages_dir}")
+    print(f"JSON data exported to: {hf_data_dir}")
+    synchronize(output_dir.resolve(), check=False)
+
+    print("Done!")
 
 
 if __name__ == "__main__":
-	main()
+    main()

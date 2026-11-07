@@ -1,87 +1,46 @@
-"""
-SmartGrid - 电力系统多智能体强化学习环境
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-该模块提供了基于OpenDSS的电力系统仿真环境，支持多智能体强化学习训练。
-"""
+from importlib import import_module
 
-# 核心环境类
-from .base_env.core_env import Env, ActionSpace
-from .base_env.vvc_env import VVCEnv, OptimizedVVCEnv
+_EXPORTS = {
+    "Env": (".base_env.runtime_env", "Env"),
+    "VVCEnv": (".base_env.vvc_env", "VVCEnv"),
+    "OptimizedVVCEnv": (".base_env.vvc_env", "OptimizedVVCEnv"),
+    "DSSSession": ("envs.powergrid.session", "DSSSession"),
+    "SmartGridConfig": (".base_env.env_config", "SmartGridConfig"),
+    "ScenarioDataset": (".data_process.dataset", "ScenarioDataset"),
+    "make_base_env": (".base_env.env_register", "make_base_env"),
+    "remove_parallel_dss": (".base_env.env_register", "remove_parallel_dss"),
+}
+__all__ = list(_EXPORTS)
 
-# 电路和负载管理
-from .circuit_system import Circuits
-from .data_process.loadprofile import LoadProfile
 
-# 环境注册和工具
-from .base_env.env_register import make_base_env, remove_parallel_dss
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value
 
 
-# 配置类
-from .base_env.vvc_config import (
-    OpenDSSScenario,
-    OpenDSSConstraints,
-    OpenDSSMetrics,
-    VVCEnvConfig,
-    OpenDSSExpertRules,
-    OpenDSSStateAnalyzer,
-    VVCActionSelector,
-)
-
-# 版本信息
 __version__ = "1.0.0"
+
 __author__ = "Xiaodong Zheng"
+
 __email__ = "zxd_xjtu@stu.xjtu.edu.cn"
 
-# 导出的公共API
-__all__ = [
-    # 核心环境
-    "Env",
-    "VVCEnv", 
-    "OptimizedVVCEnv",
-    
-    # 辅助类
-    "ActionSpace",
-    "Circuits",
-    "LoadProfile",
-    
-    # 工具函数
-    "make_base_env",
-    "remove_parallel_dss",
-
-    
-    # 配置类
-    "OpenDSSScenario",
-    "OpenDSSConstraints",
-    "OpenDSSMetrics",
-    "VVCEnvConfig",
-    "OpenDSSExpertRules",
-    "OpenDSSStateAnalyzer",
-    "VVCActionSelector",
-]
-
-# 环境配置常量
 SUPPORTED_SYSTEMS = ["13Bus", "34Bus", "123Bus", "8500Node"]
 
 
-# 环境信息查询
 def get_env_info(env_name):
-    """
-    获取环境信息
-    
-    Args:
-        env_name: 环境名称
-        
-    Returns:
-        dict: 环境配置信息
-    """
-    from .base_env.env_register import _ENV_INFO
-    
-    if env_name not in _ENV_INFO:
-        raise ValueError(f"不支持的环境: {env_name}. 支持的环境: {list(_ENV_INFO.keys())}")
-    
-    return _ENV_INFO[env_name]
+    """旧查询接口复用正式解析器，不读取另一份默认表。"""
+    from utils.config_pipeline import ConfigLoader
 
-
-# 日志配置
-import logging
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+    system = {"34Bus_pv": "34Bus_PV"}.get(env_name, env_name)
+    values = {"env": {"pv_plan": "none"}} if system != "34Bus_PV" else None
+    return (
+        ConfigLoader()
+        .load("happo", "smartgrid", system_ref=system, values=values)
+        .env_args
+    )

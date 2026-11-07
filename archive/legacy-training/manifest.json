@@ -1,0 +1,215 @@
+{
+  "base_commit": "3f47f9f4",
+  "files": [
+    {
+      "original": "examples/single_agent/scripts/train_single.py",
+      "archived": "archive/legacy-training/examples/single_agent/scripts/train_single.py.txt",
+      "reason": "独立旧配置/回调与共享 SmartGrid 内核不兼容",
+      "replacement": "examples/single_agent/scripts/train_smartgrid.py",
+      "sha256_lf": "8354d91013b9e1dd3ab7fbb71673b86c3fdd19e9bc45248cbe83423f8724e9d1"
+    },
+    {
+      "original": "examples/single_agent/scripts/train_single_agent.py",
+      "archived": "archive/legacy-training/examples/single_agent/scripts/train_single_agent.py.txt",
+      "reason": "独立旧配置/回调与共享 SmartGrid 内核不兼容",
+      "replacement": "examples/single_agent/scripts/train_smartgrid.py",
+      "sha256_lf": "0d05c0c472a64d390328e667607fd900fc13830f1421db580fdf1afd3f16fbe0"
+    },
+    {
+      "original": "examples/single_agent/scripts/train_with_enhanced_callback.py",
+      "archived": "archive/legacy-training/examples/single_agent/scripts/train_with_enhanced_callback.py.txt",
+      "reason": "独立旧配置/回调与共享 SmartGrid 内核不兼容",
+      "replacement": "examples/single_agent/scripts/train_smartgrid.py",
+      "sha256_lf": "250fe25a754d6519aa98a69dc6a38a81fb51033398c3b06802aad51b3b6d7bdb"
+    },
+    {
+      "original": "examples/multi_agent/scripts/train_dan_happo.py",
+      "archived": "archive/legacy-training/examples/multi_agent/scripts/train_dan_happo.py.txt",
+      "reason": "旧 argparse 命名空间与字典混用，独立 runner 启动不符合公共契约；保留算法研究实现",
+      "replacement": "scripts/train.py + configs/algos_cfgs；DAN 尚未支持公共启动",
+      "sha256_lf": "74857d09abd626ae1479159240e47fa33b6d713570d25b7688ed7ad8c2010be0"
+    },
+    {
+      "original": "configs/dan_happo_config.py",
+      "archived": "archive/legacy-training/configs/dan_happo_config.py.txt",
+      "reason": "旧 argparse 命名空间与字典混用，独立 runner 启动不符合公共契约；保留算法研究实现",
+      "replacement": "scripts/train.py + configs/algos_cfgs；DAN 尚未支持公共启动",
+      "sha256_lf": "b946b4fede97db68fb7b59df585ca506a44d1f2535cb4e1b4c012fa07b4aeafc"
+    },
+    {
+      "original": "examples/multi_agent/scripts/train_vvc.py",
+      "archived": "archive/legacy-training/examples/multi_agent/scripts/train_vvc.py.txt",
+      "reason": "仅封装环境默认名，统一入口可由实验配置选择环境",
+      "replacement": "scripts/train.py --config <experiment.yaml>",
+      "sha256_lf": "a53ff2ea3f675bca4111c88064e3cfc2338975ce0be080ce4cb157cd03eef16d"
+    },
+    {
+      "original": "examples/multi_agent/scripts/train_stackelberg.py",
+      "archived": "archive/legacy-training/examples/multi_agent/scripts/train_stackelberg.py.txt",
+      "reason": "仅封装环境默认名，统一入口可由实验配置选择环境",
+      "replacement": "scripts/train.py --config <experiment.yaml>",
+      "sha256_lf": "1ff07453a5dd4c5b052648e3f2da210e180791a5c962e71a520a1ab9eac0164b"
+    },
+    {
+      "original": "examples/multi_agent/scripts/train_dsr_aggregation.py",
+      "archived": "archive/legacy-training/examples/multi_agent/scripts/train_dsr_aggregation.py.txt",
+      "reason": "仅封装环境默认名，统一入口可由实验配置选择环境",
+      "replacement": "scripts/train.py --config <experiment.yaml>",
+      "sha256_lf": "5498498e3b0c577d6e29747bf6429f75d33b865bb0e4b5d71b9d9b6c8581a0eb"
+    },
+    {
+      "original": "examples/multi_agent/launchers/quick_train_vvc_pv.sh",
+      "archived": "archive/legacy-training/examples/multi_agent/launchers/quick_train_vvc_pv.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "27656fc1e2ed8de8bd2c06b21167a3a5c5c8f0dd480d035d95a1c460ccec8977"
+    },
+    {
+      "original": "examples/multi_agent/launchers/run_district_dispatch.sh",
+      "archived": "archive/legacy-training/examples/multi_agent/launchers/run_district_dispatch.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "eb4836e456b0106ca83595949734352dec74b20f2ad1ad53461ded7da21bd40d"
+    },
+    {
+      "original": "examples/multi_agent/launchers/run_dsr_aggregation.sh",
+      "archived": "archive/legacy-training/examples/multi_agent/launchers/run_dsr_aggregation.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "e03d8d28b2452b5710f54f6242b331d31edc937d906c5fca0640c6999020f8de"
+    },
+    {
+      "original": "examples/single_agent/launchers/test_ddpg.sh",
+      "archived": "archive/legacy-training/examples/single_agent/launchers/test_ddpg.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "5c1ba00e93d58bee6e3d3d8bdfb4b9bc3df0b0c16d08a4cef94a91ac9e276f25"
+    },
+    {
+      "original": "examples/single_agent/launchers/train_single.sh",
+      "archived": "archive/legacy-training/examples/single_agent/launchers/train_single.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "032eb9b4c23c0783899f4dc393377ea802aa7f8d7d1a646fa051a4317d4e1f52"
+    },
+    {
+      "original": "examples/single_agent/launchers/train_single_agent_vvc_pv.sh",
+      "archived": "archive/legacy-training/examples/single_agent/launchers/train_single_agent_vvc_pv.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "3f026fd1c979fb619967502d696921967e9dc17bb3e283ea3f6459df8b5b43cf"
+    },
+    {
+      "original": "examples/single_agent/launchers/train_single_pv_discrete.sh",
+      "archived": "archive/legacy-training/examples/single_agent/launchers/train_single_pv_discrete.sh.txt",
+      "reason": "维护第二套参数默认值，使用失效 CLI 或旧单智能体入口，不能保证失败退出状态",
+      "replacement": "scripts/train.py + 实验 YAML；Windows 可直接使用 PowerShell",
+      "sha256_lf": "792093d3eac9bf883ff65d1bea180d5a2245c4ff3a4f2df672fe8efce9f54f2e"
+    },
+    {
+      "original": "envs/smartgrid/single_agent/single_agent_config.py",
+      "archived": "archive/legacy-training/envs/smartgrid/single_agent/single_agent_config.py.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "fd2c7cc62cfd674f8284de01524ea8399bc3c83a711da8ca551d41d19a92df6f"
+    },
+    {
+      "original": "envs/smartgrid/single_agent/single_agent_training_config.py",
+      "archived": "archive/legacy-training/envs/smartgrid/single_agent/single_agent_training_config.py.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "8f48a8bacb5d226c38f3a260b825a0ebd2c3453807b579518b59730ef7636921"
+    },
+    {
+      "original": "envs/smartgrid/single_agent/single_agent_logger.py",
+      "archived": "archive/legacy-training/envs/smartgrid/single_agent/single_agent_logger.py.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "9b2e55fb91f4372e293d72730630e266a43a9505b711ec9c9fe89c1cdd33e832"
+    },
+    {
+      "original": "utils/single_agent_tools.py",
+      "archived": "archive/legacy-training/utils/single_agent_tools.py.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "30a4cf2483e860dbd286ccb52367474288e95097278c1c8ba475237513bacece"
+    },
+    {
+      "original": "utils/tensorboard_callback.py",
+      "archived": "archive/legacy-training/utils/tensorboard_callback.py.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "b0b6cfad374b318eb50ae7dfe8532a6c6baf789045aa3901fa84d255c0d0e92a"
+    },
+    {
+      "original": "configs/single_agent_cfgs/a2c.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/a2c.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "9a7c5486e2fc4d3d60fdd6e548c6b6247b0ba2781daae98708d7c72b9608acf4"
+    },
+    {
+      "original": "configs/single_agent_cfgs/ddpg.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/ddpg.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "3021bcc1127e049d02322ff86dcf021a65ed305cfcdbcc52c78036a60de3be48"
+    },
+    {
+      "original": "configs/single_agent_cfgs/dqn.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/dqn.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "8ef637c3ab57720373dd655e7ab1d2ef13d9630713bbd4cd3d92b1a6c3636a07"
+    },
+    {
+      "original": "configs/single_agent_cfgs/her.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/her.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "325de29de6d10d65993b210aa3d757d88f8cb89a601b7026f3b8857993b7f24a"
+    },
+    {
+      "original": "configs/single_agent_cfgs/ppo.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/ppo.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "f2a21006ca6bff7aed19f4a6b9a39fcf54565f33b3bcdf9e140a430cb31b985a"
+    },
+    {
+      "original": "configs/single_agent_cfgs/ppo_pv_discrete.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/ppo_pv_discrete.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "9c26d38ecff221473a7feaaeb6db72c5f1a55f450428cb7d47ae87624096c9ba"
+    },
+    {
+      "original": "configs/single_agent_cfgs/sac.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/sac.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "4689462f8dc07c38d845d56190e8c3dbc96e1a56e28672acf4a0c0d744b5d57d"
+    },
+    {
+      "original": "configs/single_agent_cfgs/td3.yaml",
+      "archived": "archive/legacy-training/configs/single_agent_cfgs/td3.yaml.txt",
+      "reason": "仅由已退役单智能体脚本和旧契约测试引用的独立配置/工具链",
+      "replacement": "SmartGridConfig + 公共 ConfigLoader + SB3 官方日志",
+      "sha256_lf": "c8479ba1ccf88cfb162d1bcf63dccb982f7ca230c1eae80b186860ca280dae95"
+    },
+    {
+      "original": "tests/envs/smartgrid/test_single_agent.py",
+      "archived": "archive/legacy-training/tests/envs/smartgrid/test_single_agent.py.txt",
+      "reason": "针对退役 SingleAgentConfig/Logger 与已移除动作方法的旧契约测试；新文件验证共享内核真实契约",
+      "replacement": "tests/envs/smartgrid/test_single_agent.py + tests/test_smartgrid_dataset_runtime.py",
+      "sha256_lf": "444b286a3b4becfed4c43c707797982257d91d3c34a535844fedfb5fb4326c3e"
+    },
+    {
+      "original": "configs/envs_cfgs/vvc_single.yaml",
+      "archived": "archive/legacy-training/configs/envs_cfgs/vvc_single.yaml.txt",
+      "sha256_lf": "9fdd73bdeb7ad2308b3830e3139d267acecebf7ab752aabded206bb17a94cd3a",
+      "reason": "旧单智能体环境字段无正式消费者，UI不再提供此环境",
+      "replacement": "SmartGrid公共配置和集中控制PPO入口"
+    }
+  ]
+}

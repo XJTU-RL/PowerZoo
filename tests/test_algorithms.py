@@ -28,26 +28,9 @@ class TestHAPPOAlgorithm:
 		from algorithms.actors.happo import HAPPO
 
 		# Create mock args
-		args = {
-			"hidden_sizes": [64, 64],
-			"gain": 0.01,
-			"initialization_method": "orthogonal_",
-			"use_policy_active_masks": True,
-			"use_naive_recurrent_policy": False,
-			"use_recurrent_policy": False,
-			"recurrent_n": 1,
-			"lr": 3e-4,
-			"opti_eps": 1e-5,
-			"weight_decay": 0,
-			"clip_param": 0.2,
-			"use_clipped_value_loss": True,
-			"entropy_coef": 0.01,
-			"use_max_grad_norm": True,
-			"max_grad_norm": 10.0,
-			"use_gae": True,
-			"gamma": 0.99,
-			"gae_lambda": 0.95,
-		}
+		from utils.config_pipeline import ConfigLoader
+		cfg = ConfigLoader().load(experiment='configs/experiments/vvc_13bus_smoke.yaml')
+		args = {**cfg.algo_args['train'], **cfg.algo_args['model'], **cfg.algo_args['algo']}
 
 		obs_space = Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
 		act_space = Discrete(5)
@@ -88,25 +71,9 @@ class TestVCritic:
 		"""Test VCritic instance creation."""
 		from algorithms.critics.v_critic import VCritic
 
-		args = {
-			"hidden_sizes": [64, 64],
-			"gain": 0.01,
-			"initialization_method": "orthogonal_",
-			"use_naive_recurrent_policy": False,
-			"use_recurrent_policy": False,
-			"recurrent_n": 1,
-			"lr": 3e-4,
-			"opti_eps": 1e-5,
-			"weight_decay": 0,
-			"use_clipped_value_loss": True,
-			"clip_param": 0.2,
-			"huber_delta": 10.0,
-			"use_huber_loss": False,
-			"use_popart": False,
-			"use_valuenorm": True,
-			"use_max_grad_norm": True,
-			"max_grad_norm": 10.0,
-		}
+		from utils.config_pipeline import ConfigLoader
+		cfg = ConfigLoader().load(experiment='configs/experiments/vvc_13bus_smoke.yaml')
+		args = {**cfg.algo_args['train'], **cfg.algo_args['model'], **cfg.algo_args['algo']}
 
 		cent_obs_space = Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
 

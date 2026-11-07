@@ -97,6 +97,7 @@ class SmartGridLogger(BaseLogger):
             self.algo_args["train"]["n_rollout_threads"]
         )
         self.done_episodes_rewards = []
+        self.train_episode_steps = np.zeros(self.algo_args["train"]["n_rollout_threads"], dtype=int)
         
         # 分离的奖励组成追踪
         self.train_episode_powerloss_reward = np.zeros(
@@ -236,10 +237,10 @@ class SmartGridLogger(BaseLogger):
         reward_env = np.mean(rewards, axis=1).flatten()
         
         # 解析各种奖励组成
-        powerloss_reward = self._extract_info_value(infos, 'power_loss_ratio', 0)
-        voltage_reward = self._extract_info_value(infos, 'vol_reward', 0)
-        ctrl_reward = self._extract_info_value(infos, 'ctrl_reward', 0)
-        pv_utilization_reward = self._extract_info_value(infos, 'pv_utilization_reward', 0)
+        powerloss_reward = self._extract_info_value(infos, 'powerloss_reward', 0)
+        voltage_reward = -self._extract_info_value(infos, 'cost_voltage', 0)
+        ctrl_reward = self._extract_info_value(infos, 'control_reward', 0)
+        pv_utilization_reward = self._extract_info_value(infos, 'pv_reward', 0)
         
         # 解析物理量
         power_loss_kw = self._extract_info_value(infos, 'power_loss_kw', 0)
@@ -273,9 +274,9 @@ class SmartGridLogger(BaseLogger):
         
         # 更新累计值
         self.train_episode_rewards += reward_env
+        self.train_episode_steps += 1
         
         # 处理奖励组成 - 确保正确的除法操作
-        episode_length = float(self.algo_args["train"]["episode_length"])
         n_threads = self.algo_args["train"]["n_rollout_threads"]
         
         # 确保所有值都是一维数组且长度正确
@@ -296,7 +297,7 @@ class SmartGridLogger(BaseLogger):
         ctrl_reward = ensure_correct_shape(ctrl_reward)
         pv_utilization_reward = ensure_correct_shape(pv_utilization_reward)
         
-        self.train_episode_powerloss_reward += powerloss_reward / episode_length
+        self.train_episode_powerloss_reward += powerloss_reward
         self.train_episode_voltage_reward += voltage_reward
         self.train_episode_ctrl_reward += ctrl_reward
         self.train_episode_pv_utilization_reward += pv_utilization_reward
@@ -347,9 +348,7 @@ class SmartGridLogger(BaseLogger):
         
         self.train_episode_voltage_violations += voltage_violations
         self.train_episode_voltage_violations_per_bus += voltage_violations_per_bus
-        # 修复：违规率不应该累加，应该记录最新的值或者计算平均值
-        # voltage_violation_rate 是当前步的违规率，不应该累加
-        self.train_episode_voltage_violation_rate = voltage_violation_rate  # 记录最新值而不是累加
+        self.train_episode_voltage_violation_rate += voltage_violation_rate
         
         # 更新CMDP追踪
         cost_voltage = ensure_correct_shape(cost_voltage)
@@ -358,13 +357,16 @@ class SmartGridLogger(BaseLogger):
         self.train_episode_lambda = lambda_value  # Lambda是瞬时值，不累加
         
         # 更新可视化管理器
-        if self.viz_manager and len(infos) > 0 and isinstance(infos[0], list) and len(infos[0]) > 0:
+        if self.viz_manager and len(infos) > 0:
             # 提取第一个环境的info用于可视化
-            viz_info = infos[0][0] if isinstance(infos[0][0], dict) else {}
+            item = infos[0]
+            while isinstance(item, (list, tuple, np.ndarray)) and len(item):
+                item = item[0]
+            viz_info = dict(item) if isinstance(item, dict) else {}
             
             # 添加更多可视化需要的信息
             viz_info.update({
-                'reward_main': reward_env[0] if len(reward_env) > 0 else 0,
+                'reward_total': float(reward_env[0]),
                 'powerloss_reward': powerloss_reward[0] if len(powerloss_reward) > 0 else 0,
                 'control_reward': ctrl_reward[0] if len(ctrl_reward) > 0 else 0,
                 'pv_reward': pv_utilization_reward[0] if len(pv_utilization_reward) > 0 else 0,
@@ -391,40 +393,17 @@ class SmartGridLogger(BaseLogger):
         Returns:
             提取的值数组
         """
-        try:
-            if not infos:
-                return np.array([default])
-            
-            # 根据infos的实际结构进行提取
-            values = []
-            for info_item in infos:
-                if isinstance(info_item, list) and len(info_item) > 0:
-                    # infos结构: [[{...}], [{...}], ...]
-                    info_dict = info_item[0]
-                    if isinstance(info_dict, dict):
-                        values.append(info_dict.get(key, default))
-                    else:
-                        values.append(default)
-                elif isinstance(info_item, dict):
-                    # infos结构: [{...}, {...}, ...]
-                    values.append(info_item.get(key, default))
-                else:
-                    values.append(default)
-            
-            if not values:
-                return np.array([default])
-                
-            # 转换为numpy数组并确保是数值类型
-            return np.array(values, dtype=np.float32)
-            
-        except Exception as e:
-            logger.error(f"提取信息 '{key}' 时出错: {e}")
-            return np.array([default], dtype=np.float32)
-    
+        values = []
+        for item in infos:
+            while isinstance(item, (list, tuple, np.ndarray)) and len(item):
+                item = item[0]  # 同一团队各智能体共享 info，每个环境只记录一次
+            values.append(item.get(key, default) if isinstance(item, dict) else default)
+        return np.asarray(values or [default], dtype=np.float32)
+
     def _calculate_power_loss_percentage(self):
         """计算功率损耗百分比
         
-        功率损耗百分比 = 功率损耗 / (电网总负荷 + PV总发电功率) * 100
+        功率损耗百分比 = 功率损耗 / 电网总负荷 * 100
         
         Returns:
             float: 功率损耗百分比
@@ -434,20 +413,14 @@ class SmartGridLogger(BaseLogger):
 
         avg_power_loss = np.mean(self.done_episodes_power_loss_kw)
         avg_total_load = abs(np.mean(self.done_episodes_total_load_kw))  # 电网总负荷（取绝对值）
-        avg_pv_generation = (
-            np.mean(self.done_episodes_pv_output_kw)
-            if self.done_episodes_pv_output_kw
-            else 0.0
-        )  # PV发电功率
-
-        total_input_power = avg_total_load + avg_pv_generation
+        total_input_power = avg_total_load
         if total_input_power <= 0:
             return 0.0
 
         power_loss_percentage = (avg_power_loss / total_input_power) * 100
 
-        # 限制在合理范围内（通常不会超过50%）
-        power_loss_percentage = min(power_loss_percentage, 50.0)
+        # 保留实际比例，不能用上界掩盖异常工况
+        power_loss_percentage = float(power_loss_percentage)
 
         return power_loss_percentage
     
@@ -474,8 +447,9 @@ class SmartGridLogger(BaseLogger):
         self.done_episodes_pv_utilization_reward.append(self.train_episode_pv_utilization_reward[thread_id])
         self.train_episode_pv_utilization_reward[thread_id] = 0
         
-        # 记录物理量 - 计算平均功率
-        episode_length = float(self.algo_args["train"]["episode_length"])
+        # 用实际完成的环境步数求平均，独立于训练器的采样长度。
+        episode_length = float(self.train_episode_steps[thread_id])
+        self.train_episode_steps[thread_id] = 0
         self.done_episodes_power_loss_kw.append(self.train_episode_power_loss_kw[thread_id] / episode_length)
         self.train_episode_power_loss_kw[thread_id] = 0
         
@@ -529,9 +503,9 @@ class SmartGridLogger(BaseLogger):
         self.train_episode_voltage_violations_per_bus[thread_id] = 0
         
         # 记录单步电压违规率
-        # 修复：违规率已经是比率了，不需要除以episode_length
+        # 所有时间步的违规率平均
         self.done_episodes_voltage_violation_rate.append(
-            self.train_episode_voltage_violation_rate[thread_id]
+            self.train_episode_voltage_violation_rate[thread_id] / episode_length
         )
         self.train_episode_voltage_violation_rate[thread_id] = 0
         
@@ -617,7 +591,7 @@ class SmartGridLogger(BaseLogger):
             # 功率损耗
             "power_loss_kw": safe_mean(self.done_episodes_power_loss_kw),
             "power_loss_kvar": safe_mean(self.done_episodes_power_loss_kvar),
-            # 修复：计算功率损耗百分比，应该考虑电网总负荷+PV总发电功率作为基准
+            # 以实际负荷有功为分母
             "power_loss_percentage": self._calculate_power_loss_percentage(),
             
             # 总功率
@@ -659,7 +633,7 @@ class SmartGridLogger(BaseLogger):
             电压违规率: {metrics['voltage_violation_rate']:.2%}
             CMDP电压成本: {metrics['cost_voltage']:.4f}
             Lagrangian Lambda: {metrics['lambda']:.4f}
-            PV利用率: {metrics['pv_utilization']:.2%}
+            PV出力/Pmpp: {metrics['pv_utilization']:.2%}
             电池平均SOC: {metrics['battery_avg_soc']:.2%}
             ================================================
         """)
@@ -841,10 +815,10 @@ class SmartGridLogger(BaseLogger):
         
         # 需要提取的指标及其默认值
         metric_keys = {
-            'powerloss': ('power_loss_ratio', 0),
-            'voltage': ('vol_reward', 0),
-            'ctrl': ('ctrl_reward', 0),
-            'pv_utilization': ('pv_utilization_reward', 0),
+            'powerloss': ('powerloss_reward', 0),
+            'voltage': ('cost_voltage', 0),
+            'ctrl': ('control_reward', 0),
+            'pv_utilization': ('pv_reward', 0),
             'power_loss_kw': ('power_loss_kw', 0),
             'power_loss_kvar': ('power_loss_kvar', 0),
             'total_power_kw': ('total_power_kw', 0),
@@ -864,6 +838,8 @@ class SmartGridLogger(BaseLogger):
         
         for metric_name, (info_key, default_value) in metric_keys.items():
             values = self._extract_info_value(eval_infos, info_key, default_value)
+            if metric_name == 'voltage':
+                values = -values
             values_env = np.array(values).reshape((-1, 1, 1))  # 确保形状正确
             metrics[metric_name] = values_env
             
@@ -885,13 +861,12 @@ class SmartGridLogger(BaseLogger):
         
         # 需要求平均的指标
         avg_metrics = ['powerloss', 'power_loss_kw', 'power_loss_kvar', 
-                      'total_power_kw', 'total_power_kvar', 'battery_soc',
+                      'total_power_kw', 'total_power_kvar', 'battery_soc', 'battery_charge', 'battery_discharge',
                       'pv_output_kw', 'pv_power_factor', 'pv_utilization_eval']
         
         # 需要求和的指标
         sum_metrics = ['voltage', 'ctrl', 'pv_utilization', 'capacitor_control',
-                      'regulator_control', 'battery_charge', 'battery_discharge',
-                      'voltage_violations']
+                      'regulator_control', 'voltage_violations']
         
         # 为新的电压质量指标增加到平均指标列表
         avg_metrics.extend(['voltage_violations_per_bus', 'voltage_violation_rate'])
@@ -919,6 +894,12 @@ class SmartGridLogger(BaseLogger):
             if hasattr(self, one_episode):
                 getattr(self, one_episode)[tid] = []
                 
+    def log_env(self, env_infos):
+        """写入同一个事件文件；避免 add_scalars 为长指标名重复创建目录。"""
+        for key, values in env_infos.items():
+            if len(values):
+                self.writer.add_scalar(key, float(np.mean(values)), self.total_num_steps)
+
     def eval_log(self, eval_episode):
         """记录评估信息"""
         # 合并所有线程的数据
@@ -967,7 +948,7 @@ class SmartGridLogger(BaseLogger):
             平均电压违规: {eval_voltage_violations:.1f}
             单步单bus电压违规: {eval_voltage_violations_per_bus:.3f}
             电压违规率: {eval_voltage_violation_rate:.2%}
-            平均PV利用率: {eval_pv_utilization:.2%}
+            平均PV出力/Pmpp: {eval_pv_utilization:.2%}
             ===================================================
         """)
         

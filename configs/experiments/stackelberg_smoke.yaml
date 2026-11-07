@@ -1,0 +1,4 @@
+run:
+  algo: sequential_ppo
+  env: stackelberg
+  exp_name: stackelberg_smoke

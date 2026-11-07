@@ -83,6 +83,8 @@ class TestOnPolicyActorBuffer:
 			"use_recurrent_policy": False,
 			"recurrent_n": 1,
 			"hidden_sizes": [64, 64],
+			"n_rollout_threads": 4,
+			"episode_length": 100,
 		}
 
 		obs_space = Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
@@ -92,13 +94,13 @@ class TestOnPolicyActorBuffer:
 			args=args,
 			obs_space=obs_space,
 			act_space=act_space,
-			n_rollout_threads=4,
-			episode_length=100,
 		)
 
 		assert buffer is not None
 		assert hasattr(buffer, "obs")
 		assert hasattr(buffer, "actions")
+		assert buffer.obs.shape == (101,4,10)
+		assert buffer.actions.shape == (100,4,1)
 
 
 @pytest.mark.unit

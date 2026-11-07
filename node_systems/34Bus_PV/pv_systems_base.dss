@@ -1,1 +1,2 @@
-pv_plans/aggressive.dss
+! 使用普通 DSS Redirect，兼容未启用符号链接的 Windows checkout。
+Redirect pv_plans/aggressive.dss

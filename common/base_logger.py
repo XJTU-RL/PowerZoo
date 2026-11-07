@@ -264,17 +264,17 @@ class BaseLogger:
         for agent_id in range(self.num_agents):
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
-                self.writer.add_scalars(agent_k, {agent_k: v}, self.total_num_steps)
+                self.writer.add_scalar(agent_k, v, self.total_num_steps)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
-            self.writer.add_scalars(critic_k, {critic_k: v}, self.total_num_steps)
+            self.writer.add_scalar(critic_k, v, self.total_num_steps)
 
     def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
-                self.writer.add_scalars(k, {k: np.mean(v)}, self.total_num_steps)
+                self.writer.add_scalar(k, np.mean(v), self.total_num_steps)
 
     def _log_detailed_progress(self, actor_train_infos, critic_train_info):
         """记录详细的训练进度信息到progress.txt和train_info.txt

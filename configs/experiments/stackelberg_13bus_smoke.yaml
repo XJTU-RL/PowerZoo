@@ -1,0 +1,4 @@
+run:
+  algo: sequential_ppo
+  env: stackelberg_13bus
+  exp_name: stackelberg_13bus_smoke

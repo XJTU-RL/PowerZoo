@@ -12,6 +12,8 @@ def init_device(args):
     Returns:
         device: (torch.device) device
     """
+    if args["cuda"] and not torch.cuda.is_available():
+        raise RuntimeError("配置要求 CUDA，但当前环境不可用；请修复 CUDA 或设置 device.cuda=false")
     if args["cuda"] and torch.cuda.is_available():
         print("choose to use gpu...")
         device = torch.device("cuda:0")

@@ -1,0 +1,42 @@
+env:
+  system_name: PricingSmall
+  dss_file: network.dss
+  max_episode_steps: 24
+  consumers:
+  - name: household
+    loads:
+    - household
+    discomfort_yuan_per_kwh: 1.0
+  - name: business
+    loads:
+    - business
+    discomfort_yuan_per_kwh: 1.5
+  wholesale_prices_yuan_per_kwh:
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.2
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.3
+  - 0.6
+  - 0.6
+  - 0.6
+  - 0.6
+  - 0.3
+  - 0.3
+  - 0.3
+  data:
+    step_seconds: 3600
+    episodes_per_split: 6
+    load_scale: 1.0

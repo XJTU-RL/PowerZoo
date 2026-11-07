@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "origin": "curated synthetic faults on the IEEE13-derived restoration extension; distinct load levels by split",
+  "units": {
+    "power": "kW",
+    "time": "s",
+    "load_multiplier": "ratio"
+  },
+  "step_seconds": 300,
+  "episodes": [
+    {
+      "id": "train_feeder_section",
+      "split": "train",
+      "unavailable": [
+        "Line.632670"
+      ],
+      "load_multiplier": 0.5
+    },
+    {
+      "id": "train_load_transformer",
+      "split": "train",
+      "unavailable": [
+        "Transformer.xfm1"
+      ],
+      "load_multiplier": 0.5
+    },
+    {
+      "id": "train_source_outage",
+      "split": "train",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 0.5
+    },
+    {
+      "id": "train_two_sections",
+      "split": "train",
+      "unavailable": [
+        "Line.632670",
+        "Line.692675"
+      ],
+      "load_multiplier": 0.5
+    },
+    {
+      "id": "validation_feeder_section",
+      "split": "validation",
+      "unavailable": [
+        "Line.632670"
+      ],
+      "load_multiplier": 0.55
+    },
+    {
+      "id": "validation_load_transformer",
+      "split": "validation",
+      "unavailable": [
+        "Transformer.xfm1"
+      ],
+      "load_multiplier": 0.55
+    },
+    {
+      "id": "validation_source_outage",
+      "split": "validation",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 0.55
+    },
+    {
+      "id": "validation_two_sections",
+      "split": "validation",
+      "unavailable": [
+        "Line.632670",
+        "Line.692675"
+      ],
+      "load_multiplier": 0.55
+    },
+    {
+      "id": "test_feeder_section",
+      "split": "test",
+      "unavailable": [
+        "Line.632670"
+      ],
+      "load_multiplier": 0.6
+    },
+    {
+      "id": "test_load_transformer",
+      "split": "test",
+      "unavailable": [
+        "Transformer.xfm1"
+      ],
+      "load_multiplier": 0.6
+    },
+    {
+      "id": "test_source_outage",
+      "split": "test",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 0.6
+    },
+    {
+      "id": "test_two_sections",
+      "split": "test",
+      "unavailable": [
+        "Line.632670",
+        "Line.692675"
+      ],
+      "load_multiplier": 0.6
+    }
+  ]
+}

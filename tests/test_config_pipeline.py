@@ -57,26 +57,26 @@ class TestDSRPipeline:
         algo_args, env_args = get_defaults_yaml_args('happo', 'dsr')
         from envs.dsr.core.config import DSRConfig
         config = DSRConfig.from_env_args(env_args)
-        assert config.system_name == '123Bus'
-        assert config.max_episode_steps == 15
+        assert config.system_name == 'RestorationSmall'
+        assert config.max_episode_steps == 12
 
     def test_env_args_has_system_name(self):
         _, env_args = get_defaults_yaml_args('happo', 'dsr')
-        assert env_args.get('system_name') == '123Bus'
+        assert env_args.get('system_name') == 'RestorationSmall'
 
 
 class TestStackelbergPipeline:
     """Stackelberg: stackelberg_13bus.yaml -> StackelbergConfig"""
 
     def test_yaml_to_config(self):
-        algo_args, env_args = get_defaults_yaml_args('happo', 'stackelberg_13bus')
+        algo_args, env_args = get_defaults_yaml_args('sequential_ppo', 'stackelberg_13bus')
         from envs.stackelberg.stackelberg_config import StackelbergConfig
         config = StackelbergConfig.from_env_args(env_args)
         assert config.system_name == '13Bus'
         assert config.max_episode_steps == 24
 
     def test_env_args_has_system_name(self):
-        _, env_args = get_defaults_yaml_args('happo', 'stackelberg_13bus')
+        _, env_args = get_defaults_yaml_args('sequential_ppo', 'stackelberg_13bus')
         assert env_args.get('system_name') == '13Bus'
 
 
@@ -113,7 +113,7 @@ class TestCrossEnvironmentConsistency:
             ('happo', 'smartgrid'),
             ('happo', 'vvc'),
             ('happo', 'dsr'),
-            ('happo', 'stackelberg_13bus'),
+            ('sequential_ppo', 'stackelberg_13bus'),
         ]
         for algo, env in env_pairs:
             _, env_args = get_defaults_yaml_args(algo, env)
@@ -124,8 +124,8 @@ class TestCrossEnvironmentConsistency:
         env_pairs = [
             ('happo', 'smartgrid', 360),
             ('happo', 'vvc', 24),
-            ('happo', 'dsr', 15),
-            ('happo', 'stackelberg_13bus', 24),
+            ('happo', 'dsr', 12),
+            ('sequential_ppo', 'stackelberg_13bus', 24),
         ]
         for algo, env, expected in env_pairs:
             _, env_args = get_defaults_yaml_args(algo, env)
