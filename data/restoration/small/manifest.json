@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "origin": "curated synthetic permanent faults on the hand-checkable restoration network",
+  "units": {
+    "power": "kW",
+    "time": "s",
+    "load_multiplier": "ratio"
+  },
+  "step_seconds": 300,
+  "episodes": [
+    {
+      "id": "train_fault_a",
+      "split": "train",
+      "unavailable": [
+        "Line.feed_a"
+      ],
+      "load_multiplier": 1.0
+    },
+    {
+      "id": "train_fault_b",
+      "split": "train",
+      "unavailable": [
+        "Line.feed_b"
+      ],
+      "load_multiplier": 1.0
+    },
+    {
+      "id": "train_source_outage",
+      "split": "train",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 1.0
+    },
+    {
+      "id": "train_two_faults",
+      "split": "train",
+      "unavailable": [
+        "Line.feed_a",
+        "Line.feed_b"
+      ],
+      "load_multiplier": 1.0
+    },
+    {
+      "id": "validation_fault_a",
+      "split": "validation",
+      "unavailable": [
+        "Line.feed_a"
+      ],
+      "load_multiplier": 0.9
+    },
+    {
+      "id": "validation_fault_b",
+      "split": "validation",
+      "unavailable": [
+        "Line.feed_b"
+      ],
+      "load_multiplier": 0.9
+    },
+    {
+      "id": "validation_source_outage",
+      "split": "validation",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 0.9
+    },
+    {
+      "id": "validation_two_faults",
+      "split": "validation",
+      "unavailable": [
+        "Line.feed_a",
+        "Line.feed_b"
+      ],
+      "load_multiplier": 0.9
+    },
+    {
+      "id": "test_fault_a",
+      "split": "test",
+      "unavailable": [
+        "Line.feed_a"
+      ],
+      "load_multiplier": 1.1
+    },
+    {
+      "id": "test_fault_b",
+      "split": "test",
+      "unavailable": [
+        "Line.feed_b"
+      ],
+      "load_multiplier": 1.1
+    },
+    {
+      "id": "test_source_outage",
+      "split": "test",
+      "unavailable": [
+        "Vsource.source"
+      ],
+      "load_multiplier": 1.1
+    },
+    {
+      "id": "test_two_faults",
+      "split": "test",
+      "unavailable": [
+        "Line.feed_a",
+        "Line.feed_b"
+      ],
+      "load_multiplier": 1.1
+    }
+  ]
+}

@@ -1,554 +1,552 @@
-# -*- coding: utf-8 -*-
-"""
-District Dispatch Core Environment
-区域调度核心环境逻辑
+"""同一交流网络上的区域DER协同调度；没有虚拟交换或第二份SOC。"""
 
-编排 circuit_adapter、districts、power_exchange、loadprofile、rewards，
-实现完整的 step/reset 周期。每个 step:
-1. 解析动作 → 台区设备指令 + 功率交换指令
-2. 应用设备控制 + 功率交换
-3. OpenDSS 潮流求解
-4. 读取结果 → 构建观测和奖励
-"""
+from hashlib import sha256
+import json
+from pathlib import Path
 
-import logging
-import os
-from typing import Any, Dict, List, Optional, Tuple
-
+import gymnasium as gym
 import numpy as np
-import yaml
 
-from envs.district_dispatch.constants import EPISODE, EXCHANGE, STORAGE
-from envs.district_dispatch.core.circuit_adapter import DistrictCircuitAdapter
-from envs.district_dispatch.core.config import (
-	DistrictDeviceConfig,
-	DistrictDispatchConfig,
-	TieLineConfig,
-)
-from envs.district_dispatch.core.district import (
-	District,
-	EVCharger,
-	PVUnit,
-	StorageUnit,
-)
-from envs.district_dispatch.core.loadprofile import DistrictLoadProfile
-from envs.district_dispatch.core.power_exchange import PowerExchangeManager
-from envs.district_dispatch.rewards.dispatch_reward import DistrictDispatchReward
-
-logger = logging.getLogger(__name__)
+from envs.district_dispatch.core.config import DistrictDispatchConfig
+from envs.district_dispatch.core.metering import region_meters
+from envs.powergrid.adapters import parse_actions
+from envs.powergrid.scenario import prepare_dataset, apply_operating_row
+from envs.powergrid.session import DSSSession
 
 
 class DistrictDispatchCore:
-	"""区域调度核心环境
-
-	管理多台区配电网的调度决策仿真。
-	每个台区作为一个 MARL agent，通过连续动作空间控制
-	PV 削减、储能充放电、EV 调制和台区间功率交换。
-
-	参数:
-		config: 环境配置
-		worker_idx: 并行 worker 索引
-	"""
-
-	def __init__(self, config: DistrictDispatchConfig, worker_idx: Optional[int] = None):
-		self.config = config
-		self.worker_idx = worker_idx
-		self.config.validate()
-
-		# 加载系统 YAML 定义
-		self.system_def = self._load_system_definition()
-
-		# 初始化 OpenDSS 电路适配器
-		dss_path = self._resolve_dss_path()
-		self.circuit = DistrictCircuitAdapter(dss_path, worker_idx)
-		self.circuit.compile()
-
-		# 初始化台区
-		self.districts: List[District] = self._build_districts()
-		self.n_agents = len(self.districts)
-
-		# 初始化功率交换管理器
-		self.exchange_manager = PowerExchangeManager(config)
-		self.exchange_manager.reset(self.circuit)
-
-		# 初始化负荷曲线
-		self.load_profile = DistrictLoadProfile(config, seed=config.seed)
-
-		# 初始化奖励函数
-		self.reward_fn = DistrictDispatchReward(config)
-
-		# 环境状态
-		self.current_step = 0
-		self.done = False
-		self.max_action_dim = config.get_max_action_dim()
-		self.max_obs_dim = config.get_max_obs_dim()
-		self.share_obs_dim = config.get_share_obs_dim()
-
-		# 首次潮流求解获取初始状态
-		self.circuit.solve()
-		self._update_all_district_states()
-
-		logger.info(
-			f"DistrictDispatchCore 初始化: {self.n_agents} agents, "
-			f"action_dim={self.max_action_dim}, obs_dim={self.max_obs_dim}, "
-			f"share_obs_dim={self.share_obs_dim}"
-		)
-
-	def _resolve_dss_path(self) -> str:
-		"""解析 DSS 文件的绝对路径"""
-		from utils.path_utils import get_system_folder
-		dss_folder = str(get_system_folder(self.config.system_name))
-		return os.path.join(dss_folder, self.config.dss_file)
-
-	def _load_system_definition(self) -> Dict[str, Any]:
-		"""加载系统 YAML 定义"""
-		from utils.path_utils import get_system_folder
-		sys_folder = str(get_system_folder(self.config.system_name))
-		yaml_path = os.path.join(
-			os.path.dirname(sys_folder.rstrip("/")),
-			"..",
-			"configs",
-			"systems",
-			f"{self.config.system_name}.yaml",
-		)
-		# 如果相对路径找不到，用 configs/systems 下的标准位置
-		if not os.path.exists(yaml_path):
-			project_root = os.path.dirname(
-				os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-			)
-			yaml_path = os.path.join(
-				project_root, "configs", "systems", f"{self.config.system_name}.yaml"
-			)
-
-		if os.path.exists(yaml_path):
-			with open(yaml_path, "r", encoding="utf-8") as f:
-				return yaml.safe_load(f)
-		else:
-			logger.warning(f"系统定义文件未找到: {yaml_path}，使用默认配置")
-			return {}
-
-	def _build_districts(self) -> List[District]:
-		"""根据系统定义和配置构建台区列表"""
-		districts = []
-		sys_districts = self.system_def.get("districts", {})
-
-		for d_id in range(self.config.n_districts):
-			zone_key = f"zone_{d_id}"
-			zone_def = sys_districts.get(zone_key, {})
-			dev_config = self.config.district_devices.get(d_id, DistrictDeviceConfig())
-
-			# 母线列表
-			buses = zone_def.get("buses", [f"bus_{d_id}_{i}" for i in range(5)])
-			buses = [str(b).lower() for b in buses]
-
-			# 边界母线
-			boundary = zone_def.get("boundary_buses", zone_def.get("boundary_bus", ""))
-			if isinstance(boundary, str):
-				boundary_buses = [boundary.lower()] if boundary else []
-			else:
-				boundary_buses = [str(b).lower() for b in boundary]
-
-			# DER 设备
-			devices_def = self.system_def.get("devices", {}).get(zone_key, {})
-			pv_units = self._build_pv_units(devices_def, dev_config)
-			storage_units = self._build_storage_units(devices_def, dev_config)
-			ev_chargers = self._build_ev_chargers(devices_def, dev_config)
-
-			district = District(
-				district_id=d_id,
-				name=zone_def.get("name", f"district_{d_id}"),
-				buses=buses,
-				boundary_buses=boundary_buses,
-				pv_units=pv_units,
-				storage_units=storage_units,
-				ev_chargers=ev_chargers,
-			)
-			districts.append(district)
-
-		return districts
-
-	def _build_pv_units(self, devices_def: Dict, dev_config: DistrictDeviceConfig) -> List[PVUnit]:
-		"""从 YAML 定义构建 PV 单元"""
-		pv_defs = devices_def.get("pv_systems", [])
-		units = []
-		for pv_def in pv_defs:
-			units.append(PVUnit(
-				name=pv_def["name"],
-				bus=str(pv_def["bus"]).lower(),
-				capacity_kw=pv_def.get("capacity_kw", dev_config.pv_capacity_kw),
-			))
-		return units
-
-	def _build_storage_units(self, devices_def: Dict, dev_config: DistrictDeviceConfig) -> List[StorageUnit]:
-		"""从 YAML 定义构建储能单元"""
-		storage_defs = devices_def.get("storage", [])
-		units = []
-		for s_def in storage_defs:
-			units.append(StorageUnit(
-				name=s_def["name"],
-				bus=str(s_def["bus"]).lower(),
-				capacity_kwh=s_def.get("capacity_kwh", dev_config.storage_capacity_kwh),
-				max_power_kw=s_def.get("max_power_kw", dev_config.storage_max_power_kw),
-				soc=self.config.soc_init,
-			))
-		return units
-
-	def _build_ev_chargers(self, devices_def: Dict, dev_config: DistrictDeviceConfig) -> List[EVCharger]:
-		"""从 YAML 定义构建 EV 充电桩"""
-		ev_defs = devices_def.get("ev_chargers", [])
-		chargers = []
-		for ev_def in ev_defs:
-			chargers.append(EVCharger(
-				name=ev_def["name"],
-				bus=str(ev_def["bus"]).lower(),
-				max_power_kw=ev_def.get("max_power_kw", dev_config.ev_max_power_kw),
-			))
-		return chargers
-
-	# ===== step / reset =====
-
-	def step(self, actions: np.ndarray) -> Tuple[
-		List[np.ndarray],		# per-agent obs
-		List[np.ndarray],		# per-agent share_obs
-		np.ndarray,				# rewards (n_agents, 1)
-		np.ndarray,				# dones (n_agents,)
-		List[Dict[str, Any]],	# infos
-	]:
-		"""执行一步仿真
-
-		参数:
-			actions: shape=(n_agents, max_action_dim), 归一化连续动作
-
-		返回:
-			(obs_list, share_obs_list, rewards, dones, infos)
-		"""
-		self.current_step += 1
-
-		# 1. 更新负荷曲线和时变量
-		step_data = self.load_profile.get_step_data(self.current_step - 1)
-		self._apply_load_profile(step_data)
-
-		# 2. 解析并执行动作
-		all_exchange_actions = {}
-		for d_id, district in enumerate(self.districts):
-			agent_action = actions[d_id] if d_id < len(actions) else np.zeros(self.max_action_dim)
-			# 解析动作切片
-			n_neighbors = len(self.config.get_neighbor_ids(d_id))
-			exchange_slice, pv_slice, storage_slice, ev_slice = self._parse_action(
-				agent_action, d_id, n_neighbors
-			)
-
-			# 设备控制
-			district.apply_controls(
-				self.circuit, pv_slice, storage_slice, ev_slice
-			)
-
-			# 功率交换
-			if n_neighbors > 0:
-				neighbor_ids = self.config.get_neighbor_ids(d_id)
-				exchange = self.exchange_manager.decode_agent_exchange_actions(
-					d_id, exchange_slice, neighbor_ids, self.config
-				)
-				all_exchange_actions.update(exchange)
-
-		# 3. 应用功率交换
-		if all_exchange_actions:
-			self.exchange_manager.apply_exchange(self.circuit, all_exchange_actions)
-
-		# 4. 潮流求解
-		converged = self.circuit.solve()
-
-		# 5. 读取结果更新状态
-		self._update_all_district_states()
-
-		# 6. 构建环境状态字典（供奖励函数使用）
-		env_state = self._build_env_state(step_data, converged)
-
-		# 7. 计算奖励
-		rewards_list, infos_list = self.reward_fn.compute_all_agents(env_state)
-
-		# 添加收敛信息到 infos
-		for info in infos_list:
-			info["converged"] = converged
-			info["step"] = self.current_step
-
-		# 8. 终止判断
-		self.done = (
-			self.current_step >= self.config.max_episode_steps
-			or not converged
-		)
-
-		# 9. 构建观测
-		obs_list = self._build_all_obs(step_data)
-		share_obs_list = self._build_all_share_obs(step_data, env_state)
-
-		# 格式化输出
-		rewards = np.array([[r] for r in rewards_list], dtype=np.float32)
-		dones = np.array([self.done] * self.n_agents, dtype=bool)
-
-		# 时间截断标记
-		if self.done and self.current_step >= self.config.max_episode_steps:
-			for info in infos_list:
-				info["TimeLimit.truncated"] = True
-				info["bad_transition"] = True
-
-		return obs_list, share_obs_list, rewards, dones, infos_list
-
-	def reset(self, seed: Optional[int] = None) -> Tuple[
-		List[np.ndarray],		# per-agent obs
-		List[np.ndarray],		# per-agent share_obs
-	]:
-		"""重置环境
-
-		参数:
-			seed: 可选随机种子
-
-		返回:
-			(obs_list, share_obs_list)
-		"""
-		self.current_step = 0
-		self.done = False
-
-		# 重置负荷曲线
-		self.load_profile.reset(seed=seed)
-
-		# 重新编译电路
-		self.circuit.reset()
-
-		# 重置功率交换（含虚拟元素初始化）
-		self.exchange_manager.reset(self.circuit)
-
-		# 重置所有台区
-		for district in self.districts:
-			district.reset(soc_init=self.config.soc_init)
-
-		# 初始潮流求解
-		self.circuit.solve()
-
-		# 更新初始状态
-		self._update_all_district_states()
-
-		# 构建初始观测
-		step_data = self.load_profile.get_step_data(0)
-		obs_list = self._build_all_obs(step_data)
-		env_state = self._build_env_state(step_data, converged=True)
-		share_obs_list = self._build_all_share_obs(step_data, env_state)
-
-		return obs_list, share_obs_list
-
-	# ===== 动作解析 =====
-
-	def _parse_action(
-		self,
-		action: np.ndarray,
-		district_id: int,
-		n_neighbors: int,
-	) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-		"""将统一动作向量拆分为各类控制指令
-
-		动作向量布局:
-		[exchange_p_0..n, exchange_q_0..n, pv_0..m, storage_0..k, ev_0..j, padding...]
-
-		参数:
-			action: shape=(max_action_dim,), 归一化 [-1, 1]
-			district_id: 台区ID
-			n_neighbors: 邻居数
-
-		返回:
-			(exchange_slice, pv_slice, storage_slice, ev_slice)
-		"""
-		dev = self.config.district_devices.get(district_id, DistrictDeviceConfig())
-		idx = 0
-
-		# 功率交换 (n_neighbors * 2: P + Q)
-		exchange_len = n_neighbors * 2
-		exchange_slice = action[idx:idx + exchange_len]
-		idx += exchange_len
-
-		# PV 削减率 — 动作空间 [-1, 1] → 削减率 [0, 1]
-		pv_len = dev.n_pv
-		pv_raw = action[idx:idx + pv_len]
-		pv_slice = (pv_raw + 1.0) / 2.0  # [-1,1] → [0,1]
-		idx += pv_len
-
-		# 储能控制 — 已经是 [-1, 1]
-		storage_len = dev.n_storage
-		storage_slice = action[idx:idx + storage_len]
-		idx += storage_len
-
-		# EV 调制 — 动作空间 [-1, 1] → 调制率 [0, 1]
-		ev_len = dev.n_ev_charger
-		ev_raw = action[idx:idx + ev_len]
-		ev_slice = (ev_raw + 1.0) / 2.0
-		idx += ev_len
-
-		# 填充未覆盖的部分为零向量
-		if len(exchange_slice) < exchange_len:
-			exchange_slice = np.zeros(exchange_len, dtype=np.float32)
-		if len(pv_slice) < pv_len:
-			pv_slice = np.zeros(pv_len, dtype=np.float32)
-		if len(storage_slice) < storage_len:
-			storage_slice = np.zeros(storage_len, dtype=np.float32)
-		if len(ev_slice) < ev_len:
-			ev_slice = np.zeros(ev_len, dtype=np.float32)
-
-		return exchange_slice, pv_slice, storage_slice, ev_slice
-
-	# ===== 负荷曲线应用 =====
-
-	def _apply_load_profile(self, step_data: Dict[str, float]) -> None:
-		"""将负荷曲线应用到各台区的 DER 设备
-
-		参数:
-			step_data: 当前步的负荷数据
-		"""
-		pv_ratio = step_data["pv_ratio"]
-		ev_ratio = step_data["ev_ratio"]
-
-		for district in self.districts:
-			# PV 可用出力 = 容量 × 日照比例
-			for pv in district.pv_units:
-				pv.available_power_kw = pv.capacity_kw * pv_ratio
-
-			# EV 基础负荷 = 最大功率 × EV负荷比例
-			for ev in district.ev_chargers:
-				ev.current_load_kw = ev.max_power_kw * ev_ratio
-
-	# ===== 状态更新 =====
-
-	def _update_all_district_states(self) -> None:
-		"""从电路读取更新所有台区状态"""
-		for district in self.districts:
-			district.update_state(self.circuit)
-			# 更新交换功率
-			ex_in, ex_out = self.exchange_manager.get_exchange_summary(district.district_id)
-			district.exchange_in_kw = ex_in
-			district.exchange_out_kw = ex_out
-
-	# ===== 环境状态构建 =====
-
-	def _build_env_state(self, step_data: Dict[str, float], converged: bool) -> Dict[str, Any]:
-		"""构建奖励函数所需的环境状态字典"""
-		loss_kw, loss_kvar = self.circuit.get_total_losses()
-		total_load_kw, total_load_kvar = self.circuit.get_total_load()
-
-		return {
-			"districts": self.districts,
-			"config": self.config,
-			"n_districts": self.config.n_districts,
-			"electricity_price": step_data["price"],
-			"dt_hours": EPISODE.STEP_INTERVAL_MIN / 60.0,
-			"total_loss_kw": loss_kw,
-			"total_load_kw": total_load_kw,
-			"exchange_records": self.exchange_manager.exchange_records,
-			"converged": converged,
-			"step": self.current_step,
-		}
-
-	# ===== 观测构建 =====
-
-	def _build_all_obs(self, step_data: Dict[str, float]) -> List[np.ndarray]:
-		"""构建所有台区的本地观测"""
-		obs_list = []
-		time_of_day = step_data["time_of_day"]
-		price_norm = self.load_profile.get_price_normalized(self.current_step)
-
-		for d_id, district in enumerate(self.districts):
-			# 邻居信息
-			neighbor_info = self._get_neighbor_info(d_id)
-
-			# 本地观测
-			obs = district.get_obs_vector(time_of_day, price_norm, neighbor_info)
-
-			# 零填充到统一维度
-			if len(obs) < self.max_obs_dim:
-				padded = np.zeros(self.max_obs_dim, dtype=np.float32)
-				padded[:len(obs)] = obs
-				obs = padded
-			elif len(obs) > self.max_obs_dim:
-				obs = obs[:self.max_obs_dim]
-
-			obs_list.append(obs)
-
-		return obs_list
-
-	def _build_all_share_obs(
-		self, step_data: Dict[str, float], env_state: Dict[str, Any]
-	) -> List[np.ndarray]:
-		"""构建全局共享观测 (centralized critic)
-
-		全局观测 = 所有台区本地观测拼接 + 系统级聚合 + 市场状态
-		"""
-		# 所有本地观测拼接
-		local_obs = self._build_all_obs(step_data)
-		all_local = np.concatenate(local_obs)
-
-		# 系统级聚合 (6维)
-		loss_kw = env_state["total_loss_kw"]
-		total_load = env_state["total_load_kw"]
-		total_gen_kw, _ = self.circuit.get_total_generation()
-
-		all_v = []
-		for d in self.districts:
-			for bus, v_list in d.voltages.items():
-				all_v.extend(v_list)
-		if len(all_v) == 0:
-			all_v = [1.0]
-		sys_v_min = float(np.min(all_v))
-		sys_v_max = float(np.max(all_v))
-		sys_v_mean = float(np.mean(all_v))
-
-		system_agg = np.array([
-			total_load / 1000.0,		# 归一化总负荷
-			total_gen_kw / 1000.0,		# 归一化总发电
-			loss_kw / max(total_load, 1.0),	# 网损率
-			sys_v_min,
-			sys_v_max,
-			sys_v_mean,
-		], dtype=np.float32)
-
-		# 市场状态 (2维)
-		market = np.array([
-			step_data["price"],
-			self.config.carbon_intensity,
-		], dtype=np.float32)
-
-		# 拼接
-		share_obs = np.concatenate([all_local, system_agg, market])
-
-		# 确保维度对齐
-		if len(share_obs) < self.share_obs_dim:
-			padded = np.zeros(self.share_obs_dim, dtype=np.float32)
-			padded[:len(share_obs)] = share_obs
-			share_obs = padded
-		elif len(share_obs) > self.share_obs_dim:
-			share_obs = share_obs[:self.share_obs_dim]
-
-		# 所有 agent 共享相同的全局观测
-		return [share_obs.copy() for _ in range(self.n_agents)]
-
-	def _get_neighbor_info(self, district_id: int) -> List[Dict[str, float]]:
-		"""获取邻居台区的信息（供本地观测使用）"""
-		neighbor_ids = self.config.get_neighbor_ids(district_id)
-		info_list = []
-		for nb_id in neighbor_ids:
-			if 0 <= nb_id < len(self.districts):
-				nb = self.districts[nb_id]
-				_, _, v_mean = nb.get_voltage_stats()
-				net_load = nb.get_net_load()
-				info_list.append({"v_mean": v_mean, "net_load": net_load})
-			else:
-				info_list.append({"v_mean": 1.0, "net_load": 0.0})
-		return info_list
-
-	# ===== 工具方法 =====
-
-	def seed(self, seed: int) -> None:
-		"""设置随机种子"""
-		np.random.seed(seed)
-		self.load_profile.reset(seed=seed)
-
-	def close(self) -> None:
-		"""关闭环境并释放资源"""
-		self.circuit.close()
-		logger.info("DistrictDispatchCore closed")
+    def __init__(self, config, project_root=None):
+        if not isinstance(config, DistrictDispatchConfig):
+            raise TypeError("District需要已校验的DistrictDispatchConfig")
+        self.config = config
+        self.horizon = config.max_episode_steps
+        self.dataset = prepare_dataset(config.data, self.horizon)
+        root = Path(project_root or Path(__file__).resolve().parents[3])
+        system = Path(config.dss_folder or f"node_systems/{config.system_name}")
+        if not system.is_absolute():
+            system = root / system
+        self.dss_folder_path, self.dss_file = str(system.resolve()), config.dss_file
+        svg = [
+            e for r in config.regions for e in r.controls if e.startswith("Generator.")
+        ]
+        self.circuit = DSSSession(
+            system, config.dss_file, config.overlays, config.data.step_seconds, svg
+        )
+        self._closed = False
+        try:
+            self._bind_regions()
+            self.agent_spaces = [
+                gym.spaces.Box(
+                    -1,
+                    1,
+                    (sum(self._dimension(e) for e in r.controls),),
+                    dtype=np.float32,
+                )
+                for r in config.regions
+            ]
+            self.action_space = gym.spaces.Tuple(self.agent_spaces)
+            self.seed(config.seed)
+            initial = self.reset(load_profile_idx=0)
+            self.observation_space = gym.spaces.Box(
+                -np.inf, np.inf, initial.shape, dtype=np.float32
+            )
+            self.local_observation_space = gym.spaces.Box(
+                -np.inf, np.inf, self.get_local_obs()[0].shape, dtype=np.float32
+            )
+        except Exception:
+            self.close()
+            raise
+
+    @staticmethod
+    def _dimension(element):
+        return 2 if element.startswith("PVSystem.") else 1
+
+    def _bind_regions(self):
+        supported = {
+            "line",
+            "transformer",
+            "load",
+            "vsource",
+            "isource",
+            "capacitor",
+            "pvsystem",
+            "storage",
+            "generator",
+            "regcontrol",
+            "capcontrol",
+            "monitor",
+            "energymeter",
+        }
+        unknown = [
+            e
+            for e in self.circuit.native.AllElementNames
+            if e.split(".", 1)[0].lower() not in supported
+        ]
+        if unknown:
+            raise ValueError(
+                f"区域首版尚未验收这些元件/自动控制器，不能静默忽略：{unknown}"
+            )
+        if any(len(states) != 1 for states in self.circuit.capacitors.values()):
+            raise ValueError("区域首版尚未验收多级电容状态，不能压成单个二状态")
+        regions = self.config.regions
+        if not regions:
+            raise ValueError("必须显式指定区域母线与控制设备")
+        self.owners, self.control_owners = {}, {}
+        for i, region in enumerate(regions):
+            for bus in region.buses:
+                if bus != bus.lower() or bus in self.owners:
+                    raise ValueError(f"区域母线重复或未规范为小写：{bus}")
+                self.owners[bus] = i
+            for element in region.controls:
+                if element in self.control_owners:
+                    raise ValueError(f"控制设备重复归属：{element}")
+                self.control_owners[element] = i
+        if set(self.owners) != set(self.circuit.bus_names):
+            raise ValueError(
+                f"区域必须恰好覆盖原生母线：{set(self.owners)^set(self.circuit.bus_names)}"
+            )
+        expected = set(
+            ["PVSystem." + n for n in self.circuit.pvs]
+            + ["Storage." + n for n in self.circuit.batteries]
+            + ["Generator." + n for n in self.circuit.svgs]
+        )
+        if set(self.control_owners) != expected:
+            raise ValueError(
+                f"区域控制必须恰好绑定全部PV/Storage及显式SVG：{set(self.control_owners)^expected}"
+            )
+        for element, region in self.control_owners.items():
+            bus = self.circuit.element_info(element)["buses"][0].split(".")[0].lower()
+            if self.owners[bus] != region:
+                raise ValueError(f"{element}不在其声明区域")
+        generators = {
+            e.lower()
+            for e in self.circuit.native.AllElementNames
+            if e.lower().startswith("generator.")
+        }
+        if generators != {("Generator." + n).lower() for n in self.circuit.svgs}:
+            raise ValueError("禁止虚拟交换或未建模发电机；Generator仅限显式SVG")
+        unknown = set(self.config.data.load_groups) - set(self.circuit.loads)
+        if unknown:
+            raise ValueError(f"负荷分组包含未知设备：{unknown}")
+        self.base_load_kw = sum(d.kw for d in self.circuit.loads.values())
+        if self.base_load_kw <= 0:
+            raise ValueError("需要正的原生负荷基准")
+        self.region_base_kw = np.zeros(len(regions))
+        for name, load in self.circuit.loads.items():
+            bus = (
+                self.circuit.element_info("Load." + name)["buses"][0]
+                .split(".")[0]
+                .lower()
+            )
+            self.region_base_kw[self.owners[bus]] += load.kw
+        self.region_base_kw = np.maximum(self.region_base_kw, 1.0)
+        self.neighbors = [set() for _ in regions]
+        for _, _, edge in self.circuit.topology.edges(data=True):
+            buses = self.circuit.element_info(edge["element"])["buses"]
+            owners = {self.owners[b.split(".")[0].lower()] for b in buses}
+            for owner in owners:
+                self.neighbors[owner].update(owners - {owner})
+        self.neighbors = [sorted(values) for values in self.neighbors]
+
+    def seed(self, seed):
+        self.rng = np.random.default_rng(seed)
+        self._next_episode = int(self.rng.integers(len(self.dataset.episodes)))
+        for i, space in enumerate(self.agent_spaces):
+            space.seed((seed + i) % 2**32)
+
+    def _apply_data(self, index):
+        self.current_row = row = self.profile[index]
+        apply_operating_row(
+            self.circuit, row, self.dataset, self.config.data.load_groups
+        )
+
+    def reset(self, load_profile_idx=None, *, seed=None, options=None):
+        if seed is not None:
+            self.seed(seed)
+        index = self._next_episode if load_profile_idx is None else load_profile_idx
+        if not 0 <= index < len(self.dataset.episodes):
+            raise ValueError("场景编号越界")
+        self._next_episode = (index + 1) % len(self.dataset.episodes)
+        self.entry, self.profile = self.dataset.episodes[index]
+        self.t, self.costs = 0, {}
+        self.control_changes = (0.0, 0.0)
+        self.normalized_actions = {}
+        self.circuit.reset(float(self.profile[0, 0]))
+        self._apply_data(0)
+        self.available_pv_kw = self.circuit.available_pv_power()
+        self.circuit.solve(native_controls=True)
+        self.initial_energy = self._energy()
+        self._observe()
+        return self.get_obs()
+
+    def _energy(self):
+        return {
+            name: float(self.circuit.read_property("Storage." + name, "kWhStored"))
+            for name in self.circuit.batteries
+        }
+
+    def step(self, action):
+        if self.t >= self.horizon:
+            raise RuntimeError("回合已结束，请reset")
+        parts = parse_actions(action, self.agent_spaces)
+        normalized = {}
+        for region, part in zip(self.config.regions, parts):
+            offset = 0
+            for element in region.controls:
+                size = self._dimension(element)
+                normalized[element] = part[offset : offset + size]
+                offset += size
+        before = self._energy()
+        self.normalized_actions = {
+            element: values.tolist() for element, values in normalized.items()
+        }
+        old_caps = {
+            n: self.circuit.capacitor_state(n)[0] for n in self.circuit.capacitors
+        }
+        old_taps = {n: self.circuit.regulator_tap(n) for n in self.circuit.regulators}
+        self.interval_start_s = float(self.profile[self.t, 0])
+        self.circuit.begin_interval(self.interval_start_s)
+        self._apply_data(self.t)
+        requests = {}
+        for element, values in normalized.items():
+            name = element.split(".", 1)[1]
+            value = float(values[0])
+            if element.startswith("Storage."):
+                requests[element] = {"kw": value * self.circuit.batteries[name].max_kw}
+            elif element.startswith("Generator."):
+                dev = self.circuit.svgs[name]
+                requests[element] = {
+                    "kvar": value * (dev.kvar_max if value >= 0 else dev.kvar_max_abs)
+                }
+        self.circuit.apply(requests)
+        self.available_pv_kw = self.circuit.available_pv_power()
+        requests = {}
+        for element, values in normalized.items():
+            if not element.startswith("PVSystem."):
+                continue
+            name = element.split(".", 1)[1]
+            pv = self.circuit.pvs[name]
+            kw = (float(values[0]) + 1) / 2 * self.available_pv_kw[name]
+            qcommand = float(values[1])
+            qlimit = min(
+                np.sqrt(max(0, pv.kva**2 - kw**2)),
+                pv.kvar_max if qcommand >= 0 else pv.kvar_max_abs,
+            )
+            requests[element] = {"kw": kw, "kvar": qcommand * qlimit}
+        self.circuit.apply(requests)
+        self.circuit.solve(native_controls=True)
+        self.circuit.finish_interval()
+        self.control_changes = (
+            sum(
+                abs(self.circuit.capacitor_state(n)[0] - old)
+                for n, old in old_caps.items()
+            ),
+            sum(
+                abs(self.circuit.regulator_tap(n) - old)
+                / (
+                    self.circuit.regulators[n].maxtap
+                    - self.circuit.regulators[n].mintap
+                )
+                * self.circuit.regulators[n].numtaps
+                for n, old in old_taps.items()
+            ),
+        )
+        self.t += 1
+        self._observe()
+        self.costs = self._costs(before)
+        reward = -sum(self.costs.values()) / self.config.costs.scale_yuan
+        if not np.isfinite(reward):
+            raise RuntimeError("调度成本或奖励非有限")
+        info = self._info()
+        info.update(
+            reward_total=float(reward),
+            total_cost_yuan=float(sum(self.costs.values())),
+            **self.costs,
+        )
+        return self.get_obs(), float(reward), self.t == self.horizon, info
+
+    def _observe(self):
+        self.physical_state = self.circuit.read_state()
+        self.meters, self.crossing_losses = region_meters(
+            self.circuit, self.physical_state, self.owners, len(self.config.regions)
+        )
+        self.injections = {
+            e.lower(): p for e, p in self.physical_state.injections.items()
+        }
+        self.obs = {
+            "bus_voltages": {
+                n: list(v.values()) for n, v in self.physical_state.voltages_pu.items()
+            },
+            "time": self.t,
+        }
+
+    def _costs(self, before):
+        cfg, state = self.config, self.physical_state
+        c, dt = cfg.costs, cfg.data.step_seconds / 3600
+        buy, sell = cfg.market.price_at(self.interval_start_s)
+        import_kwh = max(0, state.grid_import[0]) * dt
+        export_kwh = max(0, -state.grid_import[0]) * dt
+        phases = np.array(
+            [v for values in state.voltages_pu.values() for v in values.values()]
+        )
+        violation = np.maximum(cfg.voltage_min - phases, 0) + np.maximum(
+            phases - cfg.voltage_max, 0
+        )
+        loadings = [
+            b["loading_pu"]
+            for b in state.branches.values()
+            if b["loading_pu"] is not None
+        ]
+        energy = self._energy()
+        curtailed = (
+            sum(
+                max(0, available - self.injections["pvsystem." + name][0])
+                for name, available in self.available_pv_kw.items()
+            )
+            * dt
+        )
+        return {
+            "grid_bill_yuan": import_kwh * buy - export_kwh * sell,
+            "carbon_cost_yuan": import_kwh
+            * cfg.market.carbon_intensity_kg_kwh
+            * cfg.market.carbon_price_yuan_kg,
+            "battery_wear_cost_yuan": sum(abs(energy[n] - before[n]) for n in energy)
+            * c.battery_wear_yuan_kwh,
+            "curtailment_cost_yuan": curtailed * c.curtailment_yuan_kwh,
+            "voltage_cost_yuan": float(np.mean(violation**2))
+            * dt
+            * c.voltage_yuan_pu2_h,
+            "thermal_cost_yuan": (
+                float(np.mean(np.maximum(np.array(loadings) - 1, 0) ** 2))
+                * dt
+                * c.thermal_yuan_pu2_h
+                if loadings
+                else 0.0
+            ),
+            "terminal_energy_cost_yuan": (
+                sum(abs(energy[n] - self.initial_energy[n]) for n in energy)
+                * c.terminal_energy_yuan_kwh
+                if self.t == self.horizon
+                else 0.0
+            ),
+        }
+
+    def _local_fields(self, i):
+        region, meter = self.config.regions[i], self.meters[i]
+        voltages = [
+            v
+            for bus in region.buses
+            for v in self.physical_state.voltages_pu[bus].values()
+        ]
+        base = self.region_base_kw[i]
+        fields = {
+            "voltage_min_pu": min(voltages),
+            "voltage_mean_pu": float(np.mean(voltages)),
+            "voltage_max_pu": max(voltages),
+        }
+        for key in ("load", "net_import"):
+            fields.update(
+                {
+                    key + "_p_base": meter[key][0] / base,
+                    key + "_q_base": meter[key][1] / base,
+                }
+            )
+        for element in region.controls:
+            name = element.split(".", 1)[1]
+            p, q = self.injections[element.lower()]
+            if element.startswith("PVSystem."):
+                pv = self.circuit.pvs[name]
+                fields.update(
+                    {
+                        element + ".p_rated": p / pv.pmpp,
+                        element + ".q_rated": q / pv.kva,
+                        element
+                        + ".available_rated": self.available_pv_kw[name] / pv.pmpp,
+                    }
+                )
+            elif element.startswith("Storage."):
+                bat = self.circuit.batteries[name]
+                fields.update(
+                    {element + ".soc": bat.soc, element + ".p_rated": p / bat.max_kw}
+                )
+            else:
+                fields[element + ".q_rated"] = q / self.circuit.svgs[name].kva
+        if self.config.use_neighbor_obs:
+            for neighbor in self.neighbors[i]:
+                buses = self.config.regions[neighbor].buses
+                values = [
+                    v
+                    for b in buses
+                    for v in self.physical_state.voltages_pu[b].values()
+                ]
+                prefix = "neighbor." + self.config.regions[neighbor].name
+                fields[prefix + ".voltage_mean_pu"] = float(np.mean(values))
+                fields[prefix + ".net_import_base"] = (
+                    self.meters[neighbor]["net_import"][0]
+                    / self.region_base_kw[neighbor]
+                )
+        buy, sell = self.config.market.price_at(self.circuit.time_s)
+        fields.update(
+            buy_yuan_kwh=buy,
+            sell_yuan_kwh=sell,
+            time_sin=float(np.sin(2 * np.pi * self.circuit.time_s / 86400)),
+            time_cos=float(np.cos(2 * np.pi * self.circuit.time_s / 86400)),
+            episode_progress=self.t / self.horizon,
+        )
+        return fields
+
+    def get_local_obs(self):
+        fields = [self._local_fields(i) for i in range(len(self.config.regions))]
+        size = max(map(len, fields))
+        return [
+            np.pad(np.array(list(f.values()), dtype=np.float32), (0, size - len(f)))
+            for f in fields
+        ]
+
+    def _global_fields(self):
+        fields = {
+            f"bus.{bus}.phase{phase}.voltage_pu": value
+            for bus, phases in self.physical_state.voltages_pu.items()
+            for phase, value in phases.items()
+        }
+        fields.update(
+            {
+                "Capacitor." + n + ".state": self.circuit.capacitor_state(n)[0]
+                for n in self.circuit.capacitors
+            }
+        )
+        fields.update(
+            {
+                "RegControl." + n + ".tap_pu": self.circuit.regulator_tap(n)
+                for n in self.circuit.regulators
+            }
+        )
+        for i, region in enumerate(self.config.regions):
+            fields.update(
+                {
+                    region.name + "." + key: value
+                    for key, value in self._local_fields(i).items()
+                }
+            )
+        fields.update(
+            irradiance_kw_m2=self.current_row[4],
+            array_temperature_c_div100=self.current_row[5] / 100,
+        )
+        fields.update(
+            {
+                "load_multiplier." + str(i): value
+                for i, value in enumerate(self.current_row[1:4])
+            }
+        )
+        return fields
+
+    def get_obs(self):
+        values = np.array(list(self._global_fields().values()), dtype=np.float32)
+        if not np.isfinite(values).all():
+            raise RuntimeError("调度观测非有限")
+        return values
+
+    def _info(self):
+        state, cfg = self.physical_state, self.config
+        phases = [v for values in state.voltages_pu.values() for v in values.values()]
+        loadings = [
+            b["loading_pu"]
+            for b in state.branches.values()
+            if b["loading_pu"] is not None
+        ]
+        start = self.interval_start_s if self.t else float(self.profile[0, 0])
+        buy, sell = cfg.market.price_at(start)
+        return {
+            "step": self.t,
+            "time_s": state.time_s,
+            "step_seconds": cfg.data.step_seconds,
+            "interval_start_s": start,
+            "buy_price_yuan_kwh": buy,
+            "sell_price_yuan_kwh": sell,
+            "total_power_kw": state.grid_import[0],
+            "total_power_kvar": state.grid_import[1],
+            "total_load_kw": sum(m["load"][0] for m in self.meters),
+            "power_loss_kw": state.losses[0],
+            "pv_power_kw": sum(
+                p[0] for e, p in self.injections.items() if e.startswith("pvsystem.")
+            ),
+            "voltage_min_pu": min(phases),
+            "voltage_max_pu": max(phases),
+            "voltage_violation_count": sum(
+                v < cfg.voltage_min or v > cfg.voltage_max for v in phases
+            ),
+            "max_branch_loading_pu": max(loadings) if loadings else None,
+            "branch_overload_count": sum(v > 1 for v in loadings),
+            "unrated_branch_count": len(state.branches) - len(loadings),
+            "active_balance_error_kw": state.active_balance_error_kw,
+            "regions": {r.name: meter for r, meter in zip(cfg.regions, self.meters)},
+            "crossing_losses_kw_kvar": self.crossing_losses,
+            "storage_energy_kwh": self._energy(),
+            "storage_soc": state.storage_soc,
+            "scenario_id": self.entry["id"],
+            "scenario": self.entry["scenario"],
+            "dataset_sha256": self.dataset.sha256,
+            "physics_model_sha256": self.circuit.model_sha256,
+            "control_trace": {
+                k: v for k, v in self.circuit.trace.items() if not k.startswith("Load.")
+            },
+            "normalized_actions": self.normalized_actions,
+            "dss_converged": bool(self.circuit.native.Solution.Converged),
+            "capacitor_ctrl": self.control_changes[0],
+            "regulator_ctrl": self.control_changes[1],
+            "terminated": self.t == self.horizon,
+            "truncated": False,
+            "TimeLimit.truncated": False,
+        }
+
+    def get_physics_manifest(self):
+        schema = [
+            {
+                "region": r.name,
+                "controls": [
+                    {
+                        "element": e,
+                        "components": (
+                            ["available_command", "q_fraction"]
+                            if e.startswith("PVSystem.")
+                            else (
+                                ["p_fraction"]
+                                if e.startswith("Storage.")
+                                else ["q_fraction"]
+                            )
+                        ),
+                    }
+                    for e in r.controls
+                ],
+                "space": str(s),
+            }
+            for r, s in zip(self.config.regions, self.agent_spaces)
+        ]
+        local = [list(self._local_fields(i)) for i in range(len(self.config.regions))]
+        size = max(map(len, local))
+        observation = {
+            "critic": list(self._global_fields()),
+            "actors": [
+                names + [f"padding.{n}" for n in range(size - len(names))]
+                for names in local
+            ],
+            "regions": [
+                {"name": r.name, "buses": r.buses} for r in self.config.regions
+            ],
+        }
+        digest = lambda value: sha256(
+            json.dumps(value, sort_keys=True).encode()
+        ).hexdigest()
+        return {
+            **self.circuit.manifest(),
+            "task": type(self.config).__name__,
+            "action_schema": schema,
+            "action_schema_sha256": digest(schema),
+            "observation_schema": observation,
+            "observation_schema_sha256": digest(observation),
+        }
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            self.circuit.close()

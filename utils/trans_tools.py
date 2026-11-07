@@ -5,6 +5,7 @@ try:
     from gymnasium.spaces import Box, Discrete, Tuple
 except ImportError:
     from gym.spaces import Box, Discrete, Tuple
+from gym.spaces import Box as GymBox, Discrete as GymDiscrete, Tuple as GymTuple
 
 
 def _t2n(value):
@@ -67,7 +68,7 @@ class DecayThenFlatSchedule():
     pass
 
 def is_discrete(space):
-    if isinstance(space, Discrete) or "MultiDiscrete" in space.__class__.__name__:
+    if isinstance(space, (Discrete, GymDiscrete)) or "MultiDiscrete" in space.__class__.__name__:
         return True
     else:
         return False
@@ -93,14 +94,14 @@ def make_onehot(int_action, action_dim, seq_len=None):
         return np.stack(onehot_actions)
 
 def get_dim_from_space(space):
-    if isinstance(space, Box):
+    if isinstance(space, (Box, GymBox)):
         dim = space.shape[0]
-    elif isinstance(space, Discrete):
+    elif isinstance(space, (Discrete, GymDiscrete)):
         dim = space.n
-    elif isinstance(space, Tuple):
+    elif isinstance(space, (Tuple, GymTuple)):
         dim = sum([get_dim_from_space(sp) for sp in space])
     elif "MultiDiscrete" in space.__class__.__name__:
-        return (space.high - space.low) + 1
+        return np.asarray(space.nvec) if hasattr(space, "nvec") else (space.high - space.low) + 1
     elif isinstance(space, list):
         dim = space[0]
     else:

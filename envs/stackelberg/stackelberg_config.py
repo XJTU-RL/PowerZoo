@@ -1,98 +1,90 @@
-# -*- coding: utf-8 -*-
-"""Stackelberg 博弈环境配置 — 替代 _parse_config 手工拼装
+"""顺序定价任务的配置：功率/容量来自DSS，效用与价格单位为元。"""
 
-StackelbergConfig 是 Stackelberg 环境的唯一配置数据源。
-通过 from_env_args() 从 env_args dict 构建，修复了历史键名不匹配问题
-(num_steps vs max_episode_steps)，消除了 _parse_config 中的硬编码
-default_dss_files 映射和重复 YAML 读取。
-"""
-import dataclasses
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+import math
+from envs.powergrid.config import DataConfig
+
+
+@dataclass
+class ConsumerConfig:
+    name: str = ""
+    loads: list[str] = field(default_factory=list)
+    discomfort_yuan_per_kwh: float = 1.0
 
 
 @dataclass
 class StackelbergConfig:
-    """Stackelberg VVC 环境配置 — 唯一数据源
-
-    所有字段都有合理默认值，可通过 from_env_args() 从训练脚本的
-    env_args dict 覆盖。子配置 (tou_config 等) 保留为 dict 类型，
-    因为 StackelbergBaseEnv 尚未迁移到 typed config。
-    """
-
-    # 系统配置
-    system_name: str = '13Bus'
-    dss_file: str = 'IEEE13Nodeckt_daily.dss'
-    dss_folder: Optional[str] = None
+    system_name: str = "PricingSmall"
+    dss_folder: str | None = None
+    dss_file: str = "network.dss"
+    overlays: list[str] = field(default_factory=list)
     max_episode_steps: int = 24
-    seed: int = 123456
-
-    # 智能体配置
-    n_consumer_agents: int = 8
-
-    # 子配置 (dict 类型，结构灵活)
-    tou_config: Optional[dict] = None
-    tier_config: Optional[dict] = None
-    reward_weights: Optional[dict] = None
-    load_aggregation: Optional[dict] = None
-    async_config: Optional[dict] = None
-    monitoring_config: Optional[dict] = None
-    n1_security: Optional[dict] = None
-
-    # 运行时
-    worker_idx: Optional[int] = None
-    use_render: bool = False
-    use_load_noise: bool = False
-    scale: float = 1.0
-    exp_name: Optional[str] = None
+    seed: int = 12345
+    data: DataConfig = field(default_factory=lambda: DataConfig(step_seconds=3600))
+    consumers: list[ConsumerConfig] = field(default_factory=list)
+    retail_prices_yuan_per_kwh: list[float] = field(
+        default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0]
+    )
+    load_fractions: list[float] = field(default_factory=lambda: [0.6, 0.8, 1.0])
+    wholesale_prices_yuan_per_kwh: list[float] = field(
+        default_factory=lambda: [0.3] * 24
+    )
+    voltage_min: float = 0.95
+    voltage_max: float = 1.05
+    network_cost_yuan_per_hour: float = 100.0
 
     @classmethod
-    def from_env_args(cls, env_args: Dict[str, Any]) -> 'StackelbergConfig':
-        """从 env_args 构建配置
+    def from_env_args(cls, values):
+        from utils.config_validation import legacy_env_config
 
-        修复历史键名不匹配问题 (num_steps vs max_episode_steps)。
-        未知键会被安全忽略。
+        return legacy_env_config(cls, values)
 
-        Args:
-            env_args: 训练脚本传入的环境参数 dict
-
-        Returns:
-            填充完毕的 StackelbergConfig 实例
-        """
-        config = cls()
-
-        # 系统名：优先 system_name，回退到 env_name 去前缀
-        config.system_name = env_args.get(
-            'system_name',
-            env_args.get('env_name', 'stackelberg_13Bus').replace('stackelberg_', '')
-        )
-
-        # 统一键名 (修复 num_steps vs max_episode_steps)
-        config.max_episode_steps = env_args.get(
-            'max_episode_steps',
-            env_args.get('num_steps', config.max_episode_steps)
-        )
-
-        # DSS 文件
-        config.dss_file = env_args.get('dss_file', config.dss_file)
-        config.dss_folder = env_args.get('dss_folder', config.dss_folder)
-
-        # dict 子配置直传
-        dict_fields = [
-            'tou_config', 'tier_config', 'reward_weights',
-            'load_aggregation', 'async_config', 'monitoring_config', 'n1_security',
-        ]
-        for f in dict_fields:
-            if f in env_args and env_args[f] is not None:
-                setattr(config, f, env_args[f])
-
-        # 标量参数
-        scalar_fields = [
-            'n_consumer_agents', 'seed', 'use_render', 'use_load_noise',
-            'scale', 'worker_idx', 'exp_name',
-        ]
-        for f in scalar_fields:
-            if f in env_args and env_args[f] is not None:
-                setattr(config, f, env_args[f])
-
-        return config
+    def validate(self):
+        if self.data.irradiance_scale != 1.0:
+            raise ValueError(
+                "定价首版没有PV，data.irradiance_scale没有消费者；请使用默认值"
+            )
+        if not self.consumers or len({c.name for c in self.consumers}) != len(
+            self.consumers
+        ):
+            raise ValueError("consumers必须非空且名称唯一")
+        for c in self.consumers:
+            if (
+                not c.name
+                or not c.loads
+                or not math.isfinite(c.discomfort_yuan_per_kwh)
+                or c.discomfort_yuan_per_kwh <= 0
+            ):
+                raise ValueError(
+                    "消费者需要名称、真实Load清单和正的discomfort_yuan_per_kwh"
+                )
+        for name in ("retail_prices_yuan_per_kwh", "load_fractions"):
+            values = getattr(self, name)
+            if (
+                len(values) < 2
+                or values != sorted(set(values))
+                or not all(math.isfinite(v) for v in values)
+            ):
+                raise ValueError(f"{name}必须为递增、无重复的有限列表")
+        if (
+            min(self.retail_prices_yuan_per_kwh) < 0
+            or not 0 < min(self.load_fractions) <= max(self.load_fractions) == 1
+        ):
+            raise ValueError("零售价格不能为负，负荷比例必须在(0,1]且包含1")
+        if len(self.wholesale_prices_yuan_per_kwh) != 24 or any(
+            not math.isfinite(v) or v < 0 for v in self.wholesale_prices_yuan_per_kwh
+        ):
+            raise ValueError("wholesale_prices_yuan_per_kwh须为24个非负小时价格")
+        if (
+            not math.isfinite(self.network_cost_yuan_per_hour)
+            or self.network_cost_yuan_per_hour < 0
+        ):
+            raise ValueError("network_cost_yuan_per_hour须非负有限")
+        if (
+            self.max_episode_steps < 1
+            or self.max_episode_steps * self.data.step_seconds > 86400
+        ):
+            raise ValueError("回合必须在一天以内")
+        if not 0 < self.voltage_min < self.voltage_max < 2:
+            raise ValueError("无效电压范围")
+        return True

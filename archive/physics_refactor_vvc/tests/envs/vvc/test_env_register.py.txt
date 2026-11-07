@@ -1,0 +1,59 @@
+"""VVC 旧名称工厂必须复用公共配置，不维护第二份默认表。"""
+
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
+from utils.config_pipeline import ConfigLoader
+from utils.config_validation import build_dataclass
+from envs.vvc.vvc.vvc_config import VVCConfig
+from envs.vvc.vvc import env_register
+
+
+@pytest.mark.parametrize("system", ["13Bus", "34Bus", "123Bus"])
+def test_public_factory_reads_same_defaults_as_training(system):
+    loaded = ConfigLoader().load("happo", "vvc", system_ref=system)
+    typed = build_dataclass(VVCConfig, loaded.env_args)
+    info, folder = env_register.get_info_and_folder(system)
+    assert info == {**typed.to_env_info(), **typed.to_sys_info()}
+    assert (Path(folder) / system / info["dss_file"]).is_file()
+
+
+def test_old_variant_and_scaling_are_only_boundary_adaptations():
+    info, _ = env_register.get_info_and_folder("13Bus_cbat")
+    assert info["bat_act_num"] == float("inf")
+    base, _ = env_register.get_info_and_folder("13Bus_soc")
+    scaled, _ = env_register.get_info_and_folder("13Bus_soc_s2")
+    assert scaled["scale"] == 2
+    assert scaled["soc_w"] == base["soc_w"] * 4
+
+
+def test_factory_has_no_hidden_default_table(monkeypatch):
+    original = ConfigLoader.load
+
+    def changed(self, *args, **kwargs):
+        cfg = original(self, *args, **kwargs)
+        cfg.env_args["power_w"] = 123.5
+        return cfg
+
+    monkeypatch.setattr(ConfigLoader, "load", changed)
+    info, _ = env_register.get_info_and_folder("13Bus")
+    assert info["power_w"] == 123.5
+
+
+def test_worker_copy_and_cleanup_use_the_configured_model(tmp_path, monkeypatch):
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "Master.dss").write_text("redirect loadshape.dss\n", encoding="utf-8")
+    config = VVCConfig(dss_folder=str(model), dss_file="Master.dss")
+    consumer = Mock()
+    monkeypatch.setattr(env_register, "Env", consumer)
+    env_register.make_base_env(config, worker_idx=2)
+    assert (model / "Master_2.dss").read_text() == "redirect loadshape_2.dss\n"
+    assert consumer.call_args.args[1]["worker_idx"] == 2
+    (model / "loadshape_2.dss").write_text("test")
+    env_register.remove_parallel_dss(config, 2)
+    assert not (model / "Master_2.dss").exists()
+    assert not (model / "loadshape_2.dss").exists()
+    assert (model / "Master.dss").is_file()

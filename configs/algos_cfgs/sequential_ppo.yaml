@@ -1,0 +1,36 @@
+seed:
+  seed_specify: true
+  seed: 0
+device:
+  cuda: false
+  cuda_deterministic: true
+  torch_threads: 1
+train:
+  n_rollout_threads: 1
+  num_env_steps: 240
+  episode_length: 24
+  log_interval: 1
+  eval_interval: 5
+  save_interval: 5
+eval:
+  use_eval: true
+  n_eval_rollout_threads: 1
+  eval_episodes: 2
+render:
+  use_render: false
+model:
+  hidden_sizes:
+  - 32
+  - 32
+  lr: 0.0003
+algo:
+  ppo_epoch: 1
+  batch_size: 24
+  clip_param: 0.2
+  entropy_coef: 0.01
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  gamma: 0.99
+  gae_lambda: 0.95
+logger:
+  log_dir: ./results

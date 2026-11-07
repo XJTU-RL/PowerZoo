@@ -1,5 +1,7 @@
 # PowerZoo 统一配置架构重构 Design Spec
 
+> 历史设计（2026-03-16）：下文记录当时的配置重构提案及批准状态。当前解析链、字段和五类任务边界以 [配置说明](../configuration.md) 与 [物理实施记录](../physics-refactor-progress.md) 为准，不表示本文每项设计均已按原案落地。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:writing-plans to create an implementation plan from this spec, then use superpowers:executing-plans to implement it.
 
 **Date:** 2026-03-16

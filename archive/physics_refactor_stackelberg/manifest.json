@@ -1,0 +1,377 @@
+{
+  "revision": "9af37fbf",
+  "files": [
+    {
+      "original": "configs/envs_cfgs/stackelberg_123bus.yaml",
+      "archive": "archive/physics_refactor_stackelberg/configs/envs_cfgs/stackelberg_123bus.yaml",
+      "sha256": "31d79b4facc35176d969a0d3bb5a0ee60dd7a1b8589181e2fcf654d0d6ca9f61",
+      "disposition": "retired"
+    },
+    {
+      "original": "configs/envs_cfgs/stackelberg_13bus.yaml",
+      "archive": "archive/physics_refactor_stackelberg/configs/envs_cfgs/stackelberg_13bus.yaml",
+      "sha256": "4efc9350433aec707259bdadf6241d422f6c972960d0eb38285fb004d2c4667c",
+      "disposition": "replaced"
+    },
+    {
+      "original": "configs/envs_cfgs/stackelberg_34bus.yaml",
+      "archive": "archive/physics_refactor_stackelberg/configs/envs_cfgs/stackelberg_34bus.yaml",
+      "sha256": "099ea2c903124925637f5e95f9e34510b2b07e7cb00c49f4c550583b77f5bb96",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/README.md",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/README.md",
+      "sha256": "afe66436909ee2b96f319fc308de541a0751ac013c662e806c20346105597065",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/stackelberg/README_STACKELBERG.md",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/README_STACKELBERG.md",
+      "sha256": "0dc28a2661b1e56eed69d788c05a40e83f59e19618e66a89b176ca0a9b37ef89",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/STRUCTURE.md",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/STRUCTURE.md",
+      "sha256": "adab38f94df05a794cf3882c294035211718082b28815eefa8be470f4908f4e8",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/__init__.py",
+      "sha256": "dfc396b39b22c0efa0770152ed6d837408ac637930d687c4e54b503c0b0d84a5",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/stackelberg/render/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/__init__.py",
+      "sha256": "357913968dec6de08a1e708f39b92aa6a26612a682e4e586f99b8e996480e8ab",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/assets/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/assets/__init__.py",
+      "sha256": "8b084a9f378124b2b1a51563bf3c22444eb7ff33692017da28b2136ae56987ed",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/assets/bus_coordinates.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/assets/bus_coordinates.py",
+      "sha256": "5779bcf5813bca2c9128414734ab9d48a62c9fb4f3e3c692cb69ba69143808d0",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/__init__.py",
+      "sha256": "ab6e374710dc0bdd64781c44005468b78591eba636186792dce91f1e4ac79b37",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/bus_data_extractor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/bus_data_extractor.py",
+      "sha256": "b756bb8c036575786aeaaefa805c61b34dd299d80ace4333d86fdffa3a9d5fd0",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/circuit_data_extractor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/circuit_data_extractor.py",
+      "sha256": "7df7688f2d84349048093fea792c2900f89ad3fb859c87f85621b3e1bc256257",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/device_data_extractor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/device_data_extractor.py",
+      "sha256": "0935784ccba2b8bf1b53703d15d1e8e747d814b9ad940c09ec07739e160b67c1",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/line_data_extractor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/line_data_extractor.py",
+      "sha256": "4d40d4288014533761cec912e3fd43178915923949e4e626ea656cb092c76095",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/market_data_extractor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/market_data_extractor.py",
+      "sha256": "9056cabffda57a135c53385cb0222ed49aad3865b351787d88db33cc5772ab98",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/data/snapshot_assembler.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/data/snapshot_assembler.py",
+      "sha256": "39522932dfbd66b6efc9a68b8bafa10b6c5784de6d329a2ddeb5a128ed484e0f",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/engine/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/engine/__init__.py",
+      "sha256": "78d26c042581a1af4592906b7b1acf6b91340c3ffbbc631c20a7e337178aec82",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/engine/episode_runner.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/engine/episode_runner.py",
+      "sha256": "3ca0629213a6bbdf204989376e098cc997ad5c0cea0cdf23ea347f7081c7b9db",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/engine/manual_override.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/engine/manual_override.py",
+      "sha256": "da4555544c3a0744f1ced72b29063febc75b7212642c9b51a17817f5919340e3",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/engine/stress_test_runner.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/engine/stress_test_runner.py",
+      "sha256": "210ffe7a7fd6ab95fa865d36f76590e51620d51c26d17e71c5c3694232e9708d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/export/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/export/__init__.py",
+      "sha256": "31a9018ef463ee0fb0146a7f8bec9710aa0efd70bcaf4659fcb0f706c4d54648",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/export/csv_exporter.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/export/csv_exporter.py",
+      "sha256": "61d5aa3cd4b66922c863095628a701bdf94ad3f2b3d7f8435e3d88444ac80206",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/export/report_generator.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/export/report_generator.py",
+      "sha256": "17fbfb9440fe394003d8868ccb5d0d983beb7c49cf7c1d241f884956eff12150",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/render_app.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/render_app.py",
+      "sha256": "7da153575c25286d62ec51fb37567c4d516fb927d9f827d7ca9b09409e2f4286",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/__init__.py",
+      "sha256": "48c2389ebbf32cae3b5786053c31180447e0f9db2cd6b63fd21bee713cbe851e",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_analytics.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_analytics.py",
+      "sha256": "6ac4f3d456ce5b74a50f5ac2a3baebcdbf9f64dbd6b18924e4e7bfc8b3422c5d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_comparison.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_comparison.py",
+      "sha256": "e30531b2dec67d4987a4b690d658f567ad18f7425e1eb4c43770987144527133",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_export.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_export.py",
+      "sha256": "ff57abf35c0b6ef411fabc40e2848cfdfdcb356b87c954ac3b14e9a945b7cf04",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_live_inference.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_live_inference.py",
+      "sha256": "913cd61fb3de7481c21dee3ceb151db83069dcc139606e058bba7e30edfb6a7d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_model_data.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_model_data.py",
+      "sha256": "96f759fc2b4f050d796ff4ef7b74ca7e887ed5527af4821625bf26875ee767b3",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_playback.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_playback.py",
+      "sha256": "38ff2ffe2c30ef37f8b64ee396392befcd4fd051deef9f1fc8e492de4267b417",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_stress_test.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_stress_test.py",
+      "sha256": "93f8f1b14e026676443a8f921b437222bbc6b20da0a3df1cb0b66a14e4cace64",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/tabs/tab_training.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/tabs/tab_training.py",
+      "sha256": "56b2480696d187eac47e3a4df40b7cb858a76761ead203256d041fb254860211",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/__init__.py",
+      "sha256": "7902003acff97d66a998eb89e1f5831acdea400b67da8c63eba8967771bfa9c2",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/mpl/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/mpl/__init__.py",
+      "sha256": "f81608c7efdaad86b5d567c058d7f8a2b3680b4bfae3d8631f4db9e1624e69c2",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/mpl/episode_animation.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/mpl/episode_animation.py",
+      "sha256": "4ecffec2a144a374916d81c72f7e52710edffad4e6e35bdd35d525b2a498fe7c",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/mpl/static_report_plots.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/mpl/static_report_plots.py",
+      "sha256": "b490ee502835f144a2cd6932e1a6bf088332de8f01203a39bdf055b5bbb4fc8d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/mpl/topology_animator.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/mpl/topology_animator.py",
+      "sha256": "f52b995f918029edc1e1600972519b191f3f89aa46dd877e940d65a09bc134ca",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/__init__.py",
+      "sha256": "4c52578c89d9ce9f063934e39f9c81f354347e27519a23ede3be7885d205081a",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/device_schedule_chart.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/device_schedule_chart.py",
+      "sha256": "282691289900aa33ac53e4f84878bafe77ce5c5c02390a52102f9124af4c7b16",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/leader_follower_chart.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/leader_follower_chart.py",
+      "sha256": "1952b2eb6094f4c6b827cdd18708872b0baaede8bca0275a33b8bc0b76e31413",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/price_signal_chart.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/price_signal_chart.py",
+      "sha256": "5a9b9dcfb07f53502cd183eff98947e26eb59c1bdffed29bc8ae67df17d67d20",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/reward_breakdown.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/reward_breakdown.py",
+      "sha256": "ff19b94344ab5c0988a7b87ed7aad81fd2e80c56d0facbe89c262f9df82ee50d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/topology_graph.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/topology_graph.py",
+      "sha256": "ee42bc39d719bc7f080821aeef5dfb4231b12d07d493f91e93ba4490a8a55cbe",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/voltage_heatmap.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/voltage_heatmap.py",
+      "sha256": "133080cefc8f3ad14241df30700a259ccfc09d89a81eae7b095a14affc154b4c",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/render/viz/plotly/voltage_profile.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/render/viz/plotly/voltage_profile.py",
+      "sha256": "ab56c17f5cde15033cd7a8d3e6103039c1a316b23404ad9ddece99a55550832a",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_config.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_config.py",
+      "sha256": "8d2d17cf9f541534a1aab4daf189c31b5b9869eb3a0187be5747ca49ee622be2",
+      "disposition": "replaced"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/__init__.py",
+      "sha256": "8055abcfae6515dce35e2075ab87852422a25c34427446cd71ba67ee2edee228",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/async_wrapper.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/async_wrapper.py",
+      "sha256": "618a65c4863f7316ed143ac215d24067f4b89bb147c92590a553ead73ba4a036",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/circuit_adapter.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/circuit_adapter.py",
+      "sha256": "b4892769a5efcf605bbba4f0d3315810c56588dbbcbf342ae49b046b1eb667b2",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/env_factory.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/env_factory.py",
+      "sha256": "170ccb1bb56ee812c4e605d6a813ca26d5c86ab3e4453f638029ca786725f544",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/load_aggregator.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/load_aggregator.py",
+      "sha256": "b26a80a046cbff7c403600db9bc4de4001ce9dc3fb1ef9a5e1654def5b4e15c4",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/stackelberg_base_env.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/stackelberg_base_env.py",
+      "sha256": "8962713e445e17df78e609325904c681eb823a7ddeb8ef6cfb119a29718ad587",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_game/stackelberg_monitor.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_game/stackelberg_monitor.py",
+      "sha256": "775ebeac2665985178c2f87e9ad650e8f586dbebc028242ece405fe4ff96bf5d",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_logger.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_logger.py",
+      "sha256": "0b9031fcf4f1576ee52d4753751d262283a124d715e261ec7c86831dc0d23cb1",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/stackelberg/stackelberg_vvc_env.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/stackelberg/stackelberg_vvc_env.py",
+      "sha256": "674d96bd8aff136c2e442ef76a8e32c5be4d0aa0e8a42126b8268c28327ba78b",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/vvc/vvc/circuit.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/vvc/vvc/circuit.py",
+      "sha256": "8d05c82c9023c78ca97338aba36be6cfbf8d52b9c2bf63d5bd57bf3f7b53223b",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/legacy_vvc/__init__.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/legacy_vvc/__init__.py",
+      "sha256": "c8c1cdd25c453fb6c71bdb07661dbd9b3663d5b30e6e6106239dc09cc509debb",
+      "disposition": "retired"
+    },
+    {
+      "original": "envs/legacy_vvc/loadprofile.py",
+      "archive": "archive/physics_refactor_stackelberg/envs/legacy_vvc/loadprofile.py",
+      "sha256": "764d9bf31339c656b0386fe6cb889e82cf11d17084b8e177f512ab39f63fb59c",
+      "disposition": "retired"
+    },
+    {
+      "original": "tests/test_envs.py",
+      "archive": "archive/physics_refactor_stackelberg/tests/test_envs.py",
+      "sha256": "4d874aaff89b44739c1657928ac6b67e3d23e52a77c2e540927016074e05ff2a",
+      "disposition": "replaced"
+    },
+    {
+      "original": "configs/experiments/stackelberg_13bus_smoke.yaml",
+      "archive": "archive/physics_refactor_stackelberg/configs/experiments/stackelberg_13bus_smoke.yaml",
+      "sha256": "1357b7e04f080ef53de64162cbd8e8532cd304ea725c6bdce860569f05613c61",
+      "disposition": "replaced"
+    }
+  ]
+}

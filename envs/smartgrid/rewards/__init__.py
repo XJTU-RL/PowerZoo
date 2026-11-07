@@ -1,29 +1,20 @@
-"""
-VVC CMDP奖励系统包
+"""SmartGrid CMDP 奖励计算、拉格朗日更新与可视化。
 
-提供约束马尔可夫决策过程（CMDP）的奖励计算、拉格朗日更新、权重标定和可视化功能
+旧权重标定工具使用占位控制差异和随机策略，已退役；本包不再导出标定接口。
 """
 
 from envs.smartgrid.rewards.vvc_reward import VVCReward
 from envs.smartgrid.rewards.lagrangian import (
-	LagrangianUpdater, 
-	MultiConstraintLagrangian
-)
-from envs.smartgrid.rewards.calibration import (
-	RewardCalibrator,
-	quick_calibrate,
-	load_calibration
+    LagrangianUpdater,
+    MultiConstraintLagrangian,
 )
 from envs.smartgrid.rewards.visualize import RewardVisualizer
 
 __all__ = [
-	'VVCReward',
-	'LagrangianUpdater',
-	'MultiConstraintLagrangian',
-	'RewardCalibrator',
-	'quick_calibrate',
-	'load_calibration',
-	'RewardVisualizer'
+    "VVCReward",
+    "LagrangianUpdater",
+    "MultiConstraintLagrangian",
+    "RewardVisualizer",
 ]
 
-__version__ = '2.0.0'  # CMDP版本
+__version__ = "2.0.0"  # CMDP 版本

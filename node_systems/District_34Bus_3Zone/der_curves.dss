@@ -1,0 +1,3 @@
+! Native PV efficiency and temperature curves, separated from retired load shapes.
+New XYCurve.pv_eff npts=4 xarray=(0.1, 0.2, 1.0, 1.2) yarray=(0.86, 0.90, 0.98, 0.99)
+New XYCurve.pv_ptc npts=4 xarray=(0, 25, 75, 100) yarray=(1.2, 1.0, 0.8, 0.6)

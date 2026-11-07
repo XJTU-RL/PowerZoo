@@ -1,5 +1,7 @@
 # PowerZoo 统一配置架构 Implementation Plan
 
+> 历史实施计划（2026-03-16）：保留原始步骤及复选框，不作为当前待执行任务。现行配置实现与受支持入口见 [配置说明](../configuration.md) 和 [训练入口说明](../training-entrypoints.md)；本文不用于确认完成状态。
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Unify PowerZoo's 4 parallel config loading systems into a single pipeline: YAML → unified_config_loader → typed Config dataclass → environment constructor.

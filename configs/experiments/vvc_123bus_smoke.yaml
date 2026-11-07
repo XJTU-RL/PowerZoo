@@ -1,0 +1,6 @@
+run: {algo: happo, env: vvc, exp_name: vvc_123bus_smoke}
+training_ref: smoke
+system_ref: 123Bus
+env:
+  max_episode_steps: 24
+  data: {step_seconds: 3600, noise: 0.0}

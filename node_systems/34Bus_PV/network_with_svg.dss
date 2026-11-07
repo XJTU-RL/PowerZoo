@@ -1,0 +1,5 @@
+! SVG静态基准：理想零有功损耗、三相PQ等效；公共执行层按实测相电流限幅。
+! 原生额定100kVA，Q范围±100kvar，额定电流由100kVA/24.9kV派生。
+! 不代表开关暂态、PLL、直流母线或硬件保护模型。
+Redirect network.dss
+New Generator.svg834 bus1=834.1.2.3 phases=3 conn=wye kV=24.9 kVA=100 kW=0 kvar=0 maxkvar=100 minkvar=-100 Model=1 Vminpu=0.01 Vmaxpu=2 status=fixed
