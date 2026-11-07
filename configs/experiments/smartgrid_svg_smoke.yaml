@@ -1,0 +1,6 @@
+run: {algo: happo, env: smartgrid, exp_name: smartgrid_svg_smoke}
+training_ref: smoke
+env:
+  dss_file: network_with_svg.dss
+  svg_elements: [Generator.svg834]
+  max_episode_steps: 24

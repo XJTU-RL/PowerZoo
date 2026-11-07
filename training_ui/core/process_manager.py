@@ -2,7 +2,7 @@
 
 Provides a singleton ``process_manager`` that can start, stop, and monitor
 training subprocesses.  Each task is launched via
-``python examples/multi_agent/scripts/train.py`` with the generated config,
+``python scripts/train.py`` with the generated config,
 and its stdout/stderr are redirected to a per-task log file.
 """
 
@@ -66,7 +66,7 @@ class ProcessManager:
 
 		Command template::
 
-			python examples/multi_agent/scripts/train.py \\
+			python scripts/train.py \\
 				--algo {algo} --env {env} --exp_name {exp_name} \\
 				--load_config {config_path}
 
@@ -88,7 +88,7 @@ class ProcessManager:
 		LOG_DIR.mkdir(parents=True, exist_ok=True)
 		log_file = LOG_DIR / f"task_{task_id}.log"
 
-		train_script = PROJECT_ROOT / "examples" / "multi_agent" / "scripts" / "train.py"
+		train_script = PROJECT_ROOT / "scripts" / "train.py"
 		cmd = [
 			sys.executable,
 			str(train_script),

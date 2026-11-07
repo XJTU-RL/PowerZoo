@@ -1,5 +1,4 @@
 algorithm_name: "mqmix"  # 算法名称
-seed: 1  # 随机种子
 cuda: true  # 是否使用 CUDA
 cuda_deterministic: true  # 是否使用 CUDA 的确定性模式
 n_training_threads: 4  # 训练线程数

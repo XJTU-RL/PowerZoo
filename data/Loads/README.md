@@ -1,5 +1,19 @@
 # Load Data Analysis and Processing Tools
 
+## 数据与生成物约定
+
+本目录保留数据处理脚本；批量图片、插值报告与时序分析结果不再提交。
+负荷原始曲线沿用 `node_systems/` 中各算例自包含的 CSV，不再在这里复制一份。
+从仓库根目录生成分钟数据和分析结果：
+
+```bash
+python data/Loads/unified_load_interpolator.py --input-dir node_systems/34Bus/loadshape/data_without_noise --output-dir data/Loads/minute_level
+python data/Loads/run_temporal_analysis.py --data-file minute_level/LoadShape1_minute_level.csv --output-dir temporal_analysis
+```
+
+上述输出目录已忽略。下文目录树中的分钟 CSV 和图表是运行后的输出，并非仓库自带文件。
+使用其他算例时显式指定 `--input-dir`；默认 `data/Loads` 不包含负荷输入。
+
 This directory contains comprehensive tools for analyzing and processing load data, including interpolation, temporal trend analysis, and batch processing capabilities.
 
 **🎯 All tools are now self-contained within the `data/Loads/` directory - no external dependencies on utils or examples folders.**

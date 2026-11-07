@@ -1,155 +1,54 @@
-# DSR (Distribution System Restoration) Environment Configuration
-# 配电网恢复环境配置
-# 系统配置通过 system_ref 引用，DSR 特有参数在此配置
-
-# ===== 系统引用 =====
-system_ref: 123Bus
-
-# ===== 基础配置 =====
-env_name: "dsr"
-scenario_name: "ieee123_restoration"
-seed_specify: true
-seed: 123456
-
-# ===== DSR 系统覆盖 (覆盖 123Bus 系统默认值) =====
-# 123Bus 系统默认使用 IEEE123Master_daily.dss (含 loadshape)
-# DSR 使用无 loadshape 的基础版本
-dss_file: "IEEE123Master.dss"
-max_episode_steps: 15
-
-# ===== DSR 设备配置 =====
-n_dg: 7          # 柴油发电机数量 (黑启动电源)
-n_pv: 9          # 光伏数量
-n_switch: 20     # 开关数量
-n_load_levels: 3 # 负荷优先级等级
-
-# 聚合智能体配置
-use_load_aggregation: true
-n_load_agents: null
-load_aggregation_method: "zone"
-
-# 物理约束
-v_min: 0.95
-v_max: 1.05
-max_load_per_step: 500.0
-
-# 奖励权重
-reward_restore: 20.0
-reward_voltage: 1.0
-reward_overload: 1.0
-reward_done: -5.0
-
-# 故障配置
-fault_scenarios: 5
-min_faults: 3
-max_faults: 5
-
-# 高级特性
-use_action_mask: true
-use_dynamic_network: true
-use_render: false
-record_node: true
-
-# PowerZoo 集成配置
-load_noise: false
-scale: 1.0
-
-# 过载检测
-overload_threshold: 1.0
-use_emergency_rating: false
-log_overload_details: false
-
-# 动作空间配置
-pv_power_levels: 11
-load_action_levels: 2
-pv_max_power: 150.0
-
-# 观测空间配置
-obs_reserved_dim: 10
-default_voltage: 1.0
-
-# 设备重置配置
-line_disconnect_prob: 0.7
-max_faultable_lines: 50
-
-# 负荷优先级配置
-priority_weights:
-  1: 3.0
-  2: 2.0
-  3: 1.0
-max_priority_level: 3
-
-# 日志记录
-log_interval_episodes: 10
-success_threshold: 0.9
-restoration_threshold: 0.95
-recent_episodes_window: 10
-ieee123_load_count: 85
-
-# 监控配置
-monitoring:
-  detailed_logging: true
-  log_frequency: 10
-  visualization: true
-  anomaly_detection: true
-  save_snapshots: true
-  metrics_aggregation: "mean"
-  visualization_interval: 50
-  save_final_report: true
-
-# ===== 训练参数 =====
-train_interval_episode: 1
-eval_interval: 25
-use_eval: true
-n_eval_rollout_threads: 1
-n_rollout_threads: 3
-num_mini_batch: 1
-episode_length: 15
-num_env_steps: 10000000
-
-# ===== 算法通用参数 =====
-runner: "OnPolicyHARunner"
-share_policy: false
-use_centralized_V: true
-use_obs_instead_of_state: false
-
-# ===== 网络参数 =====
-hidden_size: 128
-layer_N: 2
-use_ReLU: true
-use_feature_normalization: true
-use_orthogonal: true
-gain: 0.01
-
-# ===== 训练参数 =====
-lr: 5e-4
-critic_lr: 5e-4
-opti_eps: 1e-5
-weight_decay: 0
-
-# ===== PPO 参数 =====
-ppo_epoch: 5
-use_clipped_value_loss: true
-clip_param: 0.2
-entropy_coef: 0.01
-value_loss_coef: 1
-use_max_grad_norm: true
-max_grad_norm: 10.0
-use_gae: true
-gamma: 0.99
-gae_lambda: 0.95
-use_proper_time_limits: false
-use_huber_loss: true
-use_value_active_masks: true
-use_policy_active_masks: true
-huber_delta: 10.0
-
-# ===== 保存和日志 =====
-save_interval: 25
-use_linear_lr_decay: false
-use_wandb: false
-use_render: false
-render_episodes: 5
-use_tensorboard: true
-tensorboard_log_dir: "./results/tensorboard"
-model_dir: null
+env:
+  max_episode_steps: 12
+  control_groups:
+  - name: switching
+    controls:
+    - Line.feed_a
+    - Line.feed_b
+    - Line.tie
+  - name: critical
+    controls:
+    - Load.critical
+  - name: ordinary
+    controls:
+    - Load.ordinary
+  priorities:
+    Load.critical: 3.0
+train:
+  n_rollout_threads: 1
+  num_env_steps: 10000000
+  episode_length: 24
+  eval_interval: 25
+  save_interval: 25
+  use_linear_lr_decay: false
+  model_dir: null
+eval:
+  use_eval: true
+  n_eval_rollout_threads: 1
+model:
+  lr: 5e-4
+  critic_lr: 5e-4
+  opti_eps: 1e-5
+  weight_decay: 0
+  gain: 0.01
+  use_feature_normalization: true
+  hidden_sizes:
+  - 128
+  - 128
+  data_chunk_length: 12
+algo:
+  ppo_epoch: 5
+  clip_param: 0.2
+  entropy_coef: 0.01
+  value_loss_coef: 1
+  use_clipped_value_loss: true
+  use_max_grad_norm: true
+  max_grad_norm: 10.0
+  use_gae: true
+  gamma: 0.99
+  gae_lambda: 0.95
+  use_huber_loss: true
+  huber_delta: 10.0
+  use_policy_active_masks: true
+  actor_num_mini_batch: 1
+  critic_num_mini_batch: 1

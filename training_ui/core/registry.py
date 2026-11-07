@@ -10,27 +10,27 @@ from dataclasses import dataclass, field
 
 @dataclass
 class AlgoMeta:
-	"""Metadata for a single MARL algorithm."""
+    """Metadata for a single MARL algorithm."""
 
-	name: str              # e.g. "happo"
-	display_name: str      # e.g. "HAPPO"
-	family: str            # "on_policy_ha" | "on_policy_ma" | "off_policy_ha" | "off_policy_ma" | "qmix"
-	config_file: str       # e.g. "happo.yaml"
-	description: str
-	compatible_envs: list[str] = field(default_factory=list)  # empty = all envs
+    name: str  # e.g. "happo"
+    display_name: str  # e.g. "HAPPO"
+    family: str  # "on_policy_ha" | "on_policy_ma" | "off_policy_ha" | "off_policy_ma" | "qmix"
+    config_file: str  # e.g. "happo.yaml"
+    description: str
+    compatible_envs: list[str] = field(default_factory=list)  # empty = all envs
 
 
 @dataclass
 class EnvMeta:
-	"""Metadata for a single training environment."""
+    """Metadata for a single training environment."""
 
-	name: str              # e.g. "vvc"
-	display_name: str
-	config_file: str       # e.g. "vvc.yaml"
-	description: str
-	default_agents: int
-	default_system_ref: str = ""
-	available_systems: list[str] = field(default_factory=list)
+    name: str  # e.g. "vvc"
+    display_name: str
+    config_file: str  # e.g. "vvc.yaml"
+    description: str
+    default_agents: int
+    default_system_ref: str = ""
+    available_systems: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -38,118 +38,126 @@ class EnvMeta:
 # ---------------------------------------------------------------------------
 
 ALGO_REGISTRY: dict[str, AlgoMeta] = {
-	# --- On-Policy HA Series (Heterogeneous-Agent, sequential update) ---
-	"happo": AlgoMeta(
-		name="happo",
-		display_name="HAPPO",
-		family="on_policy_ha",
-		config_file="happo.yaml",
-		description="Heterogeneous-Agent Proximal Policy Optimization",
-	),
-	"hatrpo": AlgoMeta(
-		name="hatrpo",
-		display_name="HATRPO",
-		family="on_policy_ha",
-		config_file="hatrpo.yaml",
-		description="Heterogeneous-Agent Trust Region Policy Optimization",
-	),
-	"haa2c": AlgoMeta(
-		name="haa2c",
-		display_name="HAA2C",
-		family="on_policy_ha",
-		config_file="haa2c.yaml",
-		description="Heterogeneous-Agent Advantage Actor-Critic",
-	),
-	"shom": AlgoMeta(
-		name="shom",
-		display_name="SHOM",
-		family="on_policy_ha",
-		config_file="shom.yaml",
-		description="Shared Hierarchical On-policy MARL",
-	),
-	"dan_happo": AlgoMeta(
-		name="dan_happo",
-		display_name="DAN-HAPPO",
-		family="on_policy_ha",
-		config_file="dan_happo.yaml",
-		description="Dynamic Attention Network HAPPO",
-	),
-	# --- On-Policy MA Series (Multi-Agent, synchronous update) ---
-	"mappo": AlgoMeta(
-		name="mappo",
-		display_name="MAPPO",
-		family="on_policy_ma",
-		config_file="mappo.yaml",
-		description="Multi-Agent Proximal Policy Optimization",
-	),
-	"sn_mappo": AlgoMeta(
-		name="sn_mappo",
-		display_name="SN-MAPPO",
-		family="on_policy_ma",
-		config_file="sn_mappo.yaml",
-		description="Stackelberg Network MAPPO",
-	),
-	# --- Off-Policy HA Series ---
-	"haddpg": AlgoMeta(
-		name="haddpg",
-		display_name="HADDPG",
-		family="off_policy_ha",
-		config_file="haddpg.yaml",
-		description="Heterogeneous-Agent Deep Deterministic Policy Gradient",
-	),
-	"hatd3": AlgoMeta(
-		name="hatd3",
-		display_name="HATD3",
-		family="off_policy_ha",
-		config_file="hatd3.yaml",
-		description="Heterogeneous-Agent Twin Delayed DDPG",
-	),
-	"hasac": AlgoMeta(
-		name="hasac",
-		display_name="HASAC",
-		family="off_policy_ha",
-		config_file="hasac.yaml",
-		description="Heterogeneous-Agent Soft Actor-Critic",
-	),
-	"had3qn": AlgoMeta(
-		name="had3qn",
-		display_name="HAD3QN",
-		family="off_policy_ha",
-		config_file="had3qn.yaml",
-		description="Heterogeneous-Agent Dueling Double DQN",
-	),
-	# --- Off-Policy MA Series ---
-	"maddpg": AlgoMeta(
-		name="maddpg",
-		display_name="MADDPG",
-		family="off_policy_ma",
-		config_file="maddpg.yaml",
-		description="Multi-Agent Deep Deterministic Policy Gradient",
-	),
-	"matd3": AlgoMeta(
-		name="matd3",
-		display_name="MATD3",
-		family="off_policy_ma",
-		config_file="matd3.yaml",
-		description="Multi-Agent Twin Delayed DDPG",
-	),
-	# --- QMix ---
-	"qmix": AlgoMeta(
-		name="qmix",
-		display_name="QMIX",
-		family="qmix",
-		config_file="qmix.yaml",
-		description="QMIX Value Decomposition",
-	),
-	# --- Two-Time-Scale ---
-	"2ts_vvc": AlgoMeta(
-		name="2ts_vvc",
-		display_name="2TS-VVC",
-		family="two_time_scale",
-		config_file="2ts_vvc.yaml",
-		description="Two-Time-Scale VVC (Slow SACD + Fast DDPG)",
-		compatible_envs=["vvc", "vvc_single"],
-	),
+    "sequential_ppo": AlgoMeta(
+        name="sequential_ppo",
+        display_name="Sequential independent PPO",
+        family="sequential",
+        config_file="sequential_ppo.yaml",
+        description="阶段采样、逐主体SB3 PPO，不保证均衡收敛",
+        compatible_envs=["stackelberg", "stackelberg_13bus"],
+    ),
+    # --- On-Policy HA Series (Heterogeneous-Agent, sequential update) ---
+    "happo": AlgoMeta(
+        name="happo",
+        display_name="HAPPO",
+        family="on_policy_ha",
+        config_file="happo.yaml",
+        description="Heterogeneous-Agent Proximal Policy Optimization",
+    ),
+    "hatrpo": AlgoMeta(
+        name="hatrpo",
+        display_name="HATRPO",
+        family="on_policy_ha",
+        config_file="hatrpo.yaml",
+        description="Heterogeneous-Agent Trust Region Policy Optimization",
+    ),
+    "haa2c": AlgoMeta(
+        name="haa2c",
+        display_name="HAA2C",
+        family="on_policy_ha",
+        config_file="haa2c.yaml",
+        description="Heterogeneous-Agent Advantage Actor-Critic",
+    ),
+    "shom": AlgoMeta(
+        name="shom",
+        display_name="SHOM",
+        family="on_policy_ha",
+        config_file="shom.yaml",
+        description="Shared Hierarchical On-policy MARL",
+    ),
+    "dan_happo": AlgoMeta(
+        name="dan_happo",
+        display_name="DAN-HAPPO",
+        family="on_policy_ha",
+        config_file="dan_happo.yaml",
+        description="Dynamic Attention Network HAPPO",
+    ),
+    # --- On-Policy MA Series (Multi-Agent, synchronous update) ---
+    "mappo": AlgoMeta(
+        name="mappo",
+        display_name="MAPPO",
+        family="on_policy_ma",
+        config_file="mappo.yaml",
+        description="Multi-Agent Proximal Policy Optimization",
+    ),
+    "sn_mappo": AlgoMeta(
+        name="sn_mappo",
+        display_name="SN-MAPPO",
+        family="on_policy_ma",
+        config_file="sn_mappo.yaml",
+        description="Stackelberg Network MAPPO",
+    ),
+    # --- Off-Policy HA Series ---
+    "haddpg": AlgoMeta(
+        name="haddpg",
+        display_name="HADDPG",
+        family="off_policy_ha",
+        config_file="haddpg.yaml",
+        description="Heterogeneous-Agent Deep Deterministic Policy Gradient",
+    ),
+    "hatd3": AlgoMeta(
+        name="hatd3",
+        display_name="HATD3",
+        family="off_policy_ha",
+        config_file="hatd3.yaml",
+        description="Heterogeneous-Agent Twin Delayed DDPG",
+    ),
+    "hasac": AlgoMeta(
+        name="hasac",
+        display_name="HASAC",
+        family="off_policy_ha",
+        config_file="hasac.yaml",
+        description="Heterogeneous-Agent Soft Actor-Critic",
+    ),
+    "had3qn": AlgoMeta(
+        name="had3qn",
+        display_name="HAD3QN",
+        family="off_policy_ha",
+        config_file="had3qn.yaml",
+        description="Heterogeneous-Agent Dueling Double DQN",
+    ),
+    # --- Off-Policy MA Series ---
+    "maddpg": AlgoMeta(
+        name="maddpg",
+        display_name="MADDPG",
+        family="off_policy_ma",
+        config_file="maddpg.yaml",
+        description="Multi-Agent Deep Deterministic Policy Gradient",
+    ),
+    "matd3": AlgoMeta(
+        name="matd3",
+        display_name="MATD3",
+        family="off_policy_ma",
+        config_file="matd3.yaml",
+        description="Multi-Agent Twin Delayed DDPG",
+    ),
+    # --- QMix ---
+    "qmix": AlgoMeta(
+        name="qmix",
+        display_name="QMIX",
+        family="qmix",
+        config_file="qmix.yaml",
+        description="QMIX Value Decomposition",
+    ),
+    # --- Two-Time-Scale ---
+    "2ts_vvc": AlgoMeta(
+        name="2ts_vvc",
+        display_name="2TS-VVC",
+        family="two_time_scale",
+        config_file="2ts_vvc.yaml",
+        description="Two-Time-Scale VVC (Slow SACD + Fast DDPG)",
+        compatible_envs=["vvc"],
+    ),
 }
 
 
@@ -158,12 +166,13 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
 # ---------------------------------------------------------------------------
 
 ALGO_FAMILIES: dict[str, list[str]] = {
-	"On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "dan_happo"],
-	"On-Policy MA": ["mappo", "sn_mappo"],
-	"Off-Policy HA": ["haddpg", "hatd3", "hasac", "had3qn"],
-	"Off-Policy MA": ["maddpg", "matd3"],
-	"QMix": ["qmix"],
-	"Two-Time-Scale": ["2ts_vvc"],
+    "Sequential": ["sequential_ppo"],
+    "On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "dan_happo"],
+    "On-Policy MA": ["mappo", "sn_mappo"],
+    "Off-Policy HA": ["haddpg", "hatd3", "hasac", "had3qn"],
+    "Off-Policy MA": ["maddpg", "matd3"],
+    "QMix": ["qmix"],
+    "Two-Time-Scale": ["2ts_vvc"],
 }
 
 
@@ -172,99 +181,88 @@ ALGO_FAMILIES: dict[str, list[str]] = {
 # ---------------------------------------------------------------------------
 
 ENV_REGISTRY: dict[str, EnvMeta] = {
-	"vvc": EnvMeta(
-		name="vvc",
-		display_name="VVC (Volt-VAR Control)",
-		config_file="vvc.yaml",
-		description="Volt-VAR control environment based on OpenDSS simulation",
-		default_agents=6,
-		default_system_ref="13Bus",
-		available_systems=["13Bus", "34Bus", "34Bus_PV", "123Bus"],
-	),
-	"vvc_single": EnvMeta(
-		name="vvc_single",
-		display_name="VVC Single-Agent",
-		config_file="vvc_single.yaml",
-		description="Single-agent VVC environment for baseline comparison",
-		default_agents=1,
-		default_system_ref="13Bus",
-		available_systems=["13Bus", "34Bus", "123Bus"],
-	),
-	"smartgrid": EnvMeta(
-		name="smartgrid",
-		display_name="SmartGrid",
-		config_file="smartgrid.yaml",
-		description="Modular smart grid simulation environment",
-		default_agents=12,
-		default_system_ref="34Bus_PV_Aggressive",
-		available_systems=[
-			"13Bus", "34Bus", "34Bus_PV", "34Bus_PV_Aggressive",
-			"34Bus_PV_Conservative", "34Bus_PV_Optimized", "123Bus", "8500Node",
-		],
-	),
-	"district_dispatch": EnvMeta(
-		name="district_dispatch",
-		display_name="District Dispatch",
-		config_file="district_dispatch.yaml",
-		description="Multi-zone coordinated dispatch environment (34Bus 3-Zone)",
-		default_agents=3,
-		default_system_ref="District_34Bus_3Zone",
-		available_systems=["District_34Bus_3Zone"],
-	),
-	"stackelberg_13bus": EnvMeta(
-		name="stackelberg_13bus",
-		display_name="Stackelberg 13-Bus",
-		config_file="stackelberg_13bus.yaml",
-		description="13-bus Stackelberg leader-follower game environment",
-		default_agents=9,
-		default_system_ref="13Bus",
-		available_systems=["13Bus"],
-	),
-	"stackelberg_34bus": EnvMeta(
-		name="stackelberg_34bus",
-		display_name="Stackelberg 34-Bus",
-		config_file="stackelberg_34bus.yaml",
-		description="34-bus Stackelberg leader-follower game environment",
-		default_agents=11,
-		default_system_ref="34Bus",
-		available_systems=["34Bus"],
-	),
-	"stackelberg_123bus": EnvMeta(
-		name="stackelberg_123bus",
-		display_name="Stackelberg 123-Bus",
-		config_file="stackelberg_123bus.yaml",
-		description="123-bus large-scale Stackelberg game environment",
-		default_agents=123,
-		default_system_ref="123Bus",
-		available_systems=["123Bus"],
-	),
-	"dsr": EnvMeta(
-		name="dsr",
-		display_name="DSR (Distribution Restoration)",
-		config_file="dsr.yaml",
-		description="Distribution service restoration environment",
-		default_agents=10,
-		default_system_ref="123Bus",
-		available_systems=["123Bus", "8500Node"],
-	),
-	"dsr_13bus": EnvMeta(
-		name="dsr_13bus",
-		display_name="DSR 13-Bus",
-		config_file="dsr_13bus.yaml",
-		description="13-bus distribution service restoration environment",
-		default_agents=8,
-		default_system_ref="13Bus",
-		available_systems=["13Bus"],
-	),
-	"dsr_8500node": EnvMeta(
-		name="dsr_8500node",
-		display_name="DSR 8500-Node",
-		config_file="dsr_8500node.yaml",
-		description="8500-node large-scale distribution restoration environment",
-		default_agents=50,
-		default_system_ref="8500Node",
-		available_systems=["8500Node"],
-	),
+    "vvc": EnvMeta(
+        name="vvc",
+        display_name="VVC (Volt-VAR Control)",
+        config_file="vvc.yaml",
+        description="Volt-VAR control environment based on OpenDSS simulation",
+        default_agents=6,
+        default_system_ref="13Bus",
+        available_systems=["13Bus", "34Bus", "34Bus_PV", "123Bus"],
+    ),
+    "smartgrid": EnvMeta(
+        name="smartgrid",
+        display_name="SmartGrid",
+        config_file="smartgrid.yaml",
+        description="Modular smart grid simulation environment",
+        default_agents=19,
+        default_system_ref="34Bus_PV",
+        available_systems=["34Bus_PV"],
+    ),
+    "district_dispatch": EnvMeta(
+        name="district_dispatch",
+        display_name="District Dispatch",
+        config_file="district_dispatch.yaml",
+        description="Multi-zone coordinated dispatch environment (34Bus 3-Zone)",
+        default_agents=3,
+        default_system_ref="District_34Bus_3Zone",
+        available_systems=["District_34Bus_3Zone"],
+    ),
+    "stackelberg_13bus": EnvMeta(
+        name="stackelberg_13bus",
+        display_name="Stackelberg 13-Bus",
+        config_file="stackelberg_13bus.yaml",
+        description="13-bus Stackelberg leader-follower game environment",
+        default_agents=3,
+    ),
+    "stackelberg": EnvMeta(
+        name="stackelberg",
+        display_name="Pricing Small",
+        config_file="stackelberg.yaml",
+        description="本轮价格先于真实负荷响应的独立收益任务",
+        default_agents=3,
+    ),
+    "dsr": EnvMeta(
+        name="dsr",
+        display_name="DSR Small",
+        config_file="dsr.yaml",
+        description="真实源连接小网络恢复",
+        default_agents=3,
+    ),
+    "dsr_13bus": EnvMeta(
+        name="dsr_13bus",
+        display_name="DSR IEEE13",
+        config_file="dsr_13bus.yaml",
+        description="IEEE13派生网络的真实分段/备用路径恢复",
+        default_agents=3,
+    ),
+}
+
+
+def _public_algorithms():
+    """UI展示清单服从公共配置契约，避免提供不能由其子进程入口启动的研究配置。"""
+    from pathlib import Path
+    from utils.config_pipeline import ALGORITHM_SECTIONS, read_yaml
+    from utils.config_validation import ConfigError
+
+    root = Path(__file__).resolve().parents[2]
+    supported = {}
+    for name, meta in ALGO_REGISTRY.items():
+        try:
+            config = read_yaml(root / "configs/algos_cfgs" / meta.config_file)
+        except (ConfigError, FileNotFoundError):
+            # 历史研究配置的重复键/缺失文件不能作为当前UI的可启动选项。
+            continue
+        if all(isinstance(config.get(section), dict) for section in ALGORITHM_SECTIONS):
+            supported[name] = meta
+    return supported
+
+
+ALGO_REGISTRY = _public_algorithms()
+ALGO_FAMILIES = {
+    group: [name for name in names if name in ALGO_REGISTRY]
+    for group, names in ALGO_FAMILIES.items()
+    if any(name in ALGO_REGISTRY for name in names)
 }
 
 
@@ -272,45 +270,46 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
 # Helper Functions
 # ---------------------------------------------------------------------------
 
+
 def get_algos_for_family(family: str) -> list[AlgoMeta]:
-	"""Get all algorithm metadata objects belonging to a display family.
+    """Get all algorithm metadata objects belonging to a display family.
 
-	Args:
-		family: Display family name, e.g. "On-Policy HA".
+    Args:
+            family: Display family name, e.g. "On-Policy HA".
 
-	Returns:
-		List of AlgoMeta for that family, or empty list if not found.
-	"""
-	names = ALGO_FAMILIES.get(family, [])
-	return [ALGO_REGISTRY[n] for n in names if n in ALGO_REGISTRY]
+    Returns:
+            List of AlgoMeta for that family, or empty list if not found.
+    """
+    names = ALGO_FAMILIES.get(family, [])
+    return [ALGO_REGISTRY[n] for n in names if n in ALGO_REGISTRY]
 
 
 def get_algo(name: str) -> AlgoMeta | None:
-	"""Lookup a single algorithm by internal name."""
-	return ALGO_REGISTRY.get(name)
+    """Lookup a single algorithm by internal name."""
+    return ALGO_REGISTRY.get(name)
 
 
 def get_env(name: str) -> EnvMeta | None:
-	"""Lookup a single environment by internal name."""
-	return ENV_REGISTRY.get(name)
+    """Lookup a single environment by internal name."""
+    return ENV_REGISTRY.get(name)
 
 
 def get_family_choices() -> list[str]:
-	"""Return the list of algorithm family display names."""
-	return list(ALGO_FAMILIES.keys())
+    """Return the list of algorithm family display names."""
+    return list(ALGO_FAMILIES.keys())
 
 
 def get_algo_choices(family: str) -> list[str]:
-	"""Return algorithm display names for a given family.
+    """Return algorithm display names for a given family.
 
-	Args:
-		family: Display family name, e.g. "On-Policy HA".
+    Args:
+            family: Display family name, e.g. "On-Policy HA".
 
-	Returns:
-		List of display_name strings, e.g. ["HAPPO", "HATRPO", ...].
-	"""
-	return [
-		ALGO_REGISTRY[n].display_name
-		for n in ALGO_FAMILIES.get(family, [])
-		if n in ALGO_REGISTRY
-	]
+    Returns:
+            List of display_name strings, e.g. ["HAPPO", "HATRPO", ...].
+    """
+    return [
+        ALGO_REGISTRY[n].display_name
+        for n in ALGO_FAMILIES.get(family, [])
+        if n in ALGO_REGISTRY
+    ]

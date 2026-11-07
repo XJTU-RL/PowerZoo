@@ -1,0 +1,23 @@
+system_ref: 13Bus
+env:
+  system_name: 13Bus
+  dss_file: IEEE13bus_battery_adaptive.dss
+  max_episode_steps: 24
+  n_consumer_agents: 8
+  ess_config:
+    initial_soc: 0.5
+    max_power: 0.5
+    capacity: 2.0
+    eta_c: 0.95
+    eta_o: 0.95
+    retention_factor: 0.999
+  monitoring_config:
+    enable: true
+    log_dir: logs/stackelberg_13bus
+    save_interval: 100
+    plot_interval: 50
+    track_convergence: true
+    track_nash_gap: true
+  async_config:
+    partial_observability: false
+    observation_noise: 0.0

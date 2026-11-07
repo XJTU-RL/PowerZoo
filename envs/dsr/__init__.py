@@ -1,16 +1,18 @@
-# -*- coding: utf-8 -*-
-"""
-DSR (Distribution System Restoration) Environment
-配电网恢复多智能体强化学习环境
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-基于OpenDSS的配电网恢复环境，支持：
-- 多智能体协同恢复
-- 故障场景生成
-- 动态智能体网络
-- 电压约束优化
-"""
+from importlib import import_module
 
-from envs.dsr.dsr_env import DSREnv
-from envs.dsr.core.config import DSRConfig
+_EXPORTS = {
+    "DSREnv": ("envs.dsr.dsr_env", "DSREnv"),
+    "DSRConfig": ("envs.dsr.core.config", "DSRConfig"),
+}
+__all__ = list(_EXPORTS)
 
-__all__ = ['DSREnv', 'DSRConfig']
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value

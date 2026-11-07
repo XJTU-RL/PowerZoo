@@ -89,16 +89,16 @@ class TestRunnerRegistry:
 
 
 @pytest.mark.unit
-class TestTwoTimescaleRunner:
+class TestTwoTSRunner:
 	"""Test two-timescale VVC runner."""
 
 	def test_two_ts_runner_import(self):
-		"""Test TwoTimescaleRunner import."""
+		"""Test TwoTSRunner import."""
 		try:
-			from runners.two_ts_runner import TwoTimescaleRunner
-			assert TwoTimescaleRunner is not None
+			from runners.two_ts_runner import TwoTSRunner
+			assert TwoTSRunner is not None
 		except ImportError as e:
-			pytest.fail(f"Failed to import TwoTimescaleRunner: {e}")
+			pytest.fail(f"Failed to import TwoTSRunner: {e}")
 
 
 @pytest.mark.unit
@@ -108,7 +108,7 @@ class TestQmixRunner:
 	def test_qmix_runner_import(self):
 		"""Test QMixRunner import."""
 		try:
-			from runners.Qmix_runner import QMixRunner
+			from runners.Qmix_runner import QMIXRunner as QMixRunner
 			assert QMixRunner is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import QMixRunner: {e}")
@@ -116,7 +116,7 @@ class TestQmixRunner:
 	def test_qmix_base_runner_import(self):
 		"""Test QMixBaseRunner import."""
 		try:
-			from runners.Qmix_base_runner import QMixBaseRunner
+			from runners.Qmix_base_runner import MlpRunner as QMixBaseRunner
 			assert QMixBaseRunner is not None
 		except ImportError as e:
 			pytest.fail(f"Failed to import QMixBaseRunner: {e}")

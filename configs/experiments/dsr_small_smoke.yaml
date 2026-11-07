@@ -1,0 +1,2 @@
+run: {algo: happo, env: dsr, exp_name: restoration_small_smoke}
+training_ref: smoke
