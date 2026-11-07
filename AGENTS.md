@@ -6,7 +6,8 @@
 - 今后新增、修改或发布的项目内容统一以 PowerZoo 和任务本身为主。清除涉及内容中编码智能体的品牌标识、署名、生成声明和工具专属标记，包括代码、注释、测试、文档、配置、界面、素材和发布说明。
 - 分支名、提交信息、Issue、PR、审查评论及自动化工作流使用项目和任务术语。发布前检查生成或复制的内容，移除随工具带入的徽章、水印、链接、签名和归属元数据。
 - 开始任务前检查 `git status`、`git worktree list` 和已有分支，优先继续对应任务的 worktree。
-- 不覆盖用户修改，不自动合并或推送。`fea/vvc` 是独立研发分支，不合并进 `main`。
+- 不覆盖用户修改。改动完成、验证通过并提交后，可直接推送任务分支。创建 PR 或合并仍需明确授权。
+- `fea/vvc` 是独立研发分支，不合并进 `main`。
 - Windows 使用 `environment.windows.yml` 或 `scripts/setup_windows.ps1`。依赖版本以
   `requirements.txt` 为准；Windows 完整约束记录在 `constraints/windows-py310.txt`。
 - 改动安装、路径、OpenDSS 接口或多进程时，运行 `python -m pip check` 和
