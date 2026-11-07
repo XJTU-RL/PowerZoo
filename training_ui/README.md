@@ -1,22 +1,30 @@
-# PowerZoo 训练界面
+# PowerZoo 训练工作台
 
-当前环境配置页直接编辑 YAML，并通过公共 `ConfigLoader` 进行预览、校验和启动。
-不再维护另一套按叶子名拼装参数的表单。环境页右侧展示完整生效参数，输入完整路径可查看来源。
-切换环境预设会重新载入其差异配置；算法默认值由解析器读取，不复制到 UI schema。
+从仓库根目录安装可选界面依赖并启动：
 
-安装可选界面依赖后，从当前 worktree 根目录启动：
-
-```powershell
-conda activate powerzoo-win
+```bash
 python -m pip install -e ".[viz]"
 python -m training_ui
 ```
 
-依赖可选安装不属于 Windows 核心运行基线。当前验证覆盖配置 builder 与 CLI 的最终参数一致性；
-尚未在本机进行 Gradio 浏览器交互验收。安装说明以根目录 requirements-viz.txt 为准。
+浏览器打开 `http://127.0.0.1:7860`。默认仅监听本机，可用 `--port` 更换端口。
 
-界面保存的是可重放的完整 YAML 和来源文件，训练子进程仍使用 examples/multi_agent/scripts/train.py。
-来源字段不会混入环境参数。监控和模型浏览页面保留原实现，需要分别验证其研究任务日志格式。
+## 配置、启动与查看产物
 
-具体参数、优先级、真实能力边界见 [配置指南](../docs/configuration.md) 与
-[参数流代码审计](../docs/configuration-audit.md)。
+1. 选择环境、算法和实验名称。左侧 YAML 只填写需要覆盖的配置，右侧预览完整生效配置。
+2. 点击「校验并预览」，也可按完整路径查询参数来源。点击「保存配置并训练」后，工作台将配置快照保存到 `training_ui/.cache/`，并调用公共入口 `scripts/train.py`。
+3. 在「训练监控」查看当前服务会话中的任务状态、配置路径与日志。在「模型管理」扫描默认 `results/` 目录，选择实验查看配置和检查点。
+
+首次验证可选择 VVC、`happo` 和环境预设 `vvc`，将左侧 YAML 改为：
+
+```yaml
+system_ref: 13Bus
+training_ref: smoke
+train:
+  num_env_steps: 24
+  eval_interval: 1
+```
+
+该配置在 CPU 上运行一个 24 步采样回合，并保存一次更新后的模型。训练使用仓库的 IEEE13 电路和可复现的合成运行场景，适合检查链路。
+
+参数含义、优先级和适用范围见[配置指南](../docs/configuration.md)及[参数流代码审计](../docs/configuration-audit.md)。

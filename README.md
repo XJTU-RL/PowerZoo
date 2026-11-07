@@ -124,7 +124,7 @@ python scripts/check_runtime.py --train
 python -m pip install -e ".[dev]"
 ```
 
-可选训练界面、环境渲染页面需要 `python -m pip install -e ".[viz]"`。
+可选的[本地训练工作台](training_ui/README.md)和环境渲染页面需要 `python -m pip install -e ".[viz]"`。
 当前以源码仓库的 editable 安装为开发方式；DSS 模型、配置和数据仍位于仓库目录，
 普通 wheel 不作为独立分发这些数据的安装方式。
 

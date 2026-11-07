@@ -2,7 +2,7 @@
 
 Provides a singleton ``process_manager`` that can start, stop, and monitor
 training subprocesses.  Each task is launched via
-``python scripts/train.py`` with the generated config,
+``python -u scripts/train.py`` with the generated config,
 and its stdout/stderr are redirected to a per-task log file.
 """
 
@@ -12,7 +12,8 @@ import subprocess
 import sys
 import time
 import uuid
-from dataclasses import dataclass, field
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -66,7 +67,7 @@ class ProcessManager:
 
 		Command template::
 
-			python scripts/train.py \\
+			python -u scripts/train.py \\
 				--algo {algo} --env {env} --exp_name {exp_name} \\
 				--load_config {config_path}
 
@@ -91,6 +92,7 @@ class ProcessManager:
 		train_script = PROJECT_ROOT / "scripts" / "train.py"
 		cmd = [
 			sys.executable,
+			"-u",
 			str(train_script),
 			"--algo", algo,
 			"--env", env,
@@ -98,19 +100,23 @@ class ProcessManager:
 			"--load_config", config_path,
 		]
 
-		# Build environment with PYTHONPATH pointing at project root
-		env_vars = {**os.environ, "PYTHONPATH": str(PROJECT_ROOT)}
+		# Match the UTF-8 decoder used by the log viewer on every platform.
+		env_vars = {
+			**os.environ,
+			"PYTHONPATH": str(PROJECT_ROOT),
+			"PYTHONIOENCODING": "utf-8",
+		}
 
 		try:
-			log_fh = open(log_file, "w", encoding="utf-8")
-			proc = subprocess.Popen(
-				cmd,
-				stdout=log_fh,
-				stderr=subprocess.STDOUT,
-				cwd=str(PROJECT_ROOT),
-				env=env_vars,
-				start_new_session=True,  # isolate from parent signals
-			)
+			with open(log_file, "w", encoding="utf-8") as log_fh:
+				proc = subprocess.Popen(
+					cmd,
+					stdout=log_fh,
+					stderr=subprocess.STDOUT,
+					cwd=str(PROJECT_ROOT),
+					env=env_vars,
+					start_new_session=sys.platform != "win32",
+				)
 		except Exception as exc:
 			raise RuntimeError(f"Failed to start training process: {exc}") from exc
 
@@ -127,22 +133,22 @@ class ProcessManager:
 			log_file=str(log_file),
 		)
 
-		self._tasks[task_id] = task
 		self._processes[task_id] = proc
+		self._tasks[task_id] = task
 		return task_id
 
 	def stop(self, task_id: str) -> bool:
 		"""Stop a running task gracefully.
 
-		Sends SIGTERM first, waits up to 5 seconds, then sends SIGKILL
-		if the process is still alive.
+		On POSIX, sends SIGTERM then SIGKILL if needed. On Windows,
+		uses taskkill to stop the training process and its workers.
 
 		Args:
 			task_id: Task identifier.
 
 		Returns:
 			True if the task was stopped (or was already finished),
-			False if task_id is unknown.
+			False if task_id is unknown or the process could not be stopped.
 		"""
 		if task_id not in self._tasks:
 			return False
@@ -153,26 +159,42 @@ class ProcessManager:
 			self._refresh_status(task_id)
 			return True
 
-		# Graceful termination
-		try:
-			os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-		except (ProcessLookupError, PermissionError):
-			pass
-
-		# Wait up to 5 seconds
-		deadline = time.monotonic() + 5.0
-		while time.monotonic() < deadline:
-			if proc.poll() is not None:
-				break
-			time.sleep(0.2)
-
-		# Force kill if still alive
-		if proc.poll() is None:
+		if sys.platform == "win32":
 			try:
-				os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+				subprocess.run(
+					["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+					check=True,
+					timeout=10,
+					stdout=subprocess.DEVNULL,
+					stderr=subprocess.DEVNULL,
+				)
 				proc.wait(timeout=3)
-			except (ProcessLookupError, PermissionError, subprocess.TimeoutExpired):
+			except (OSError, subprocess.SubprocessError):
+				return False
+		else:
+			# Graceful termination
+			try:
+				os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+			except (ProcessLookupError, PermissionError):
 				pass
+
+			# Wait up to 5 seconds
+			deadline = time.monotonic() + 5.0
+			while time.monotonic() < deadline:
+				if proc.poll() is not None:
+					break
+				time.sleep(0.2)
+
+			# Force kill if still alive
+			if proc.poll() is None:
+				try:
+					os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+					proc.wait(timeout=3)
+				except (ProcessLookupError, PermissionError, subprocess.TimeoutExpired):
+					pass
+
+		if proc.poll() is None:
+			return False
 
 		task = self._tasks[task_id]
 		task.status = "stopped"
@@ -218,7 +240,7 @@ class ProcessManager:
 			Log content string, or an empty string if unavailable.
 		"""
 		task = self._tasks.get(task_id)
-		if task is None or not task.log_file:
+		if task is None or not task.log_file or lines <= 0:
 			return ""
 
 		log_path = Path(task.log_file)
@@ -227,8 +249,7 @@ class ProcessManager:
 
 		try:
 			with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-				all_lines = f.readlines()
-			return "".join(all_lines[-lines:])
+				return "".join(deque(f, maxlen=lines))
 		except OSError:
 			return ""
 
