@@ -2,7 +2,9 @@
 
 - 使用中文沟通。新增 Python 代码使用 4 个空格缩进，支持 Python 3.10。
 - `main` 保持稳定；所有代码、配置和文档修改在独立 worktree 的任务分支完成。
-- 分支使用 `codex/<topic>`，worktree 放在本仓库 `.Codex/worktrees/<分支名将 / 替换为 ->`，并忽略该目录。
+- 分支按任务命名，例如 `feat/<topic>`、`fix/<topic>` 或 `docs/<topic>`。按本机工作区约定放置 worktree，并忽略其目录。
+- 今后新增、修改或发布的项目内容统一以 PowerZoo 和任务本身为主。清除涉及内容中编码智能体的品牌标识、署名、生成声明和工具专属标记，包括代码、注释、测试、文档、配置、界面、素材和发布说明。
+- 分支名、提交信息、Issue、PR、审查评论及自动化工作流使用项目和任务术语。发布前检查生成或复制的内容，移除随工具带入的徽章、水印、链接、签名和归属元数据。
 - 开始任务前检查 `git status`、`git worktree list` 和已有分支，优先继续对应任务的 worktree。
 - 不覆盖用户修改，不自动合并或推送。`fea/vvc` 是独立研发分支，不合并进 `main`。
 - Windows 使用 `environment.windows.yml` 或 `scripts/setup_windows.ps1`。依赖版本以
