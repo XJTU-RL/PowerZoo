@@ -1,0 +1,4 @@
+! 原 pv_data.dss 中的物理曲线，与时序 LoadShape/TShape 分开。
+! 温度单位 degC，效率为无量纲倍率；运行时不覆盖这些模型参数。
+New XYCurve.MyPvsT npts=4 xarray=[0 25 75 100] yarray=[1.2 1.0 0.8 0.6]
+New XYCurve.MyEff npts=4 xarray=[0.1 0.2 1.0 1.2] yarray=[0.86 0.9 0.98 0.99]

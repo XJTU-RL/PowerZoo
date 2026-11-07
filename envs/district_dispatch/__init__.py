@@ -1,9 +1,20 @@
-# -*- coding: utf-8 -*-
-"""
-District Dispatch Environment
-区域电网台区间调度决策环境
-"""
+"""公共 API 按需导入，配置预览不加载训练或 OpenDSS 运行时。"""
 
-from envs.district_dispatch.district_dispatch_env import DistrictDispatchEnv
+from importlib import import_module
 
-__all__ = ["DistrictDispatchEnv"]
+_EXPORTS = {
+    "DistrictDispatchEnv": (
+        "envs.district_dispatch.district_dispatch_env",
+        "DistrictDispatchEnv",
+    )
+}
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(module, __name__), symbol)
+    globals()[name] = value
+    return value

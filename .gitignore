@@ -428,6 +428,24 @@ newplot/
 data/PV/*.csv
 data/PV/*.png
 data/Load/*.png
+# Data preparation outputs: regenerate from retained inputs and scripts.
+data/PV/csv/
+data/PV/daily_data/
+data/PV/hourly_segments/
+data/PV/daily_segments/
+data/PV/batch_visualizations/
+data/PV/batch_visualization_results/
+data/PV/visualization_results/
+data/PV/generated_temperature/temperature_method*.csv
+data/PV/generated_temperature/temperature_comparison.png
+data/Loads/day_level/images/
+data/Loads/minute_level/*.csv
+data/Loads/minute_level/Loadshape*/
+data/Loads/minute_level/analysis_results/
+data/Loads/minute_level/interpolation_report.txt
+data/Loads/minute_level/comprehensive_interpolation_report.txt
+data/Loads/minute_level/interpolation_comparison_*.png
+data/Loads/temporal_analysis/
 node_systems/*.csv
 !node_systems/**/LoadShape1.csv
 !node_systems/**/LoadShape2.csv
@@ -451,6 +469,7 @@ node_systems/**/IEEE13Nodeckt_daily_*.dss
 node_systems/**/IEEE123Master_daily_*.dss
 !node_systems/**/IEEE123Master_daily.dss
 node_systems/**/IEEE123Loads_*.dss
+!node_systems/123Bus/IEEE123Loads_static.dss
 !node_systems/**/IEEE123Loads.dss
 node_systems/**/IEEE123Loads_daily_*.dss
 !node_systems/**/IEEE123Loads_daily.dss
@@ -459,3 +478,10 @@ logs/
 
 # YoYo AI version control directory
 .yoyo/
+
+# Episode 负荷切片由 LoadProfile 生成，原始 LoadShape CSV 保持可追踪。
+node_systems/**/loadshape/data_without_noise/[0-9][0-9][0-9]/
+node_systems/**/loadshape/data_with_gaussian_noise/[0-9][0-9][0-9]/
+
+# Shared task worktrees
+.Codex/worktrees/

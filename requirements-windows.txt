@@ -1,0 +1,4 @@
+# Reproducible Windows x64 / Python 3.10 development environment.
+-r requirements.txt
+-r requirements-dev.txt
+-c constraints/windows-py310.txt

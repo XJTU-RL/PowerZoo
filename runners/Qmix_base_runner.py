@@ -25,7 +25,6 @@
 - 工作流程：初始化环境和策略，进行数据收集和训练，定期保存模型、记录日志和评估性能。
 """
 import os
-#import wandb
 import numpy as np
 from itertools import chain
 from tensorboardX import SummaryWriter
@@ -487,6 +486,8 @@ class MlpRunner(object):
                 suffix_k = k if suffix is None else suffix + k 
                 print(suffix_k + " is " + str(v))
                 if self.use_wandb:
+                    import wandb
+
                     wandb.log({suffix_k: v}, step=self.total_env_steps)
                 else:
                     self.writer.add_scalars(suffix_k, {suffix_k: v}, self.total_env_steps)
@@ -500,6 +501,8 @@ class MlpRunner(object):
         for k, v in train_info.items():
             policy_k = str(policy_id) + '/' + k
             if self.use_wandb:
+                import wandb
+
                 wandb.log({policy_k: v}, step=self.total_env_steps)
             else:
                 self.writer.add_scalars(policy_k, {policy_k: v}, self.total_env_steps)

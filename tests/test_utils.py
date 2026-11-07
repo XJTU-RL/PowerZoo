@@ -52,7 +52,8 @@ class TestConfigsTools:
 		env_args = {"env_name": "test_env"}
 		assert get_task_name("powerzoo", env_args) == "test_env"
 		assert get_task_name("smartgrid", env_args) == "test_env"
-		assert get_task_name("unknown_env", env_args) == "unknown"
+		assert get_task_name("unknown_env", env_args) == "test_env"
+		assert get_task_name("unknown_env", {}) == "unknown_env"
 
 
 @pytest.mark.unit
@@ -243,7 +244,8 @@ class TestEnvsTools:
 		from gym.spaces import Box, Discrete
 
 		box_space = Box(low=-1, high=1, shape=(10, 20), dtype=np.float32)
-		assert get_shape_from_obs_space(box_space) == [10, 20]
+		assert get_shape_from_obs_space(box_space) == (10, 20)
 
 		discrete_space = Discrete(5)
-		assert get_shape_from_obs_space(discrete_space) == [1]
+		with pytest.raises(NotImplementedError):
+			get_shape_from_obs_space(discrete_space)

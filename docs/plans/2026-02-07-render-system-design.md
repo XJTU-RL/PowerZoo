@@ -1,5 +1,7 @@
 # District Dispatch Render System - Detailed Design
 
+> 历史设计（2026-02-07）：本文描述旧区域调度渲染界面。旧 GUI 已归档，当前正式回放与未迁移范围见 [区域回放说明](../../envs/district_dispatch/render/README.md) 和 [区域调度记录](../district-physics.md)；不要按本文目录创建现行入口。
+
 ## Architecture Overview
 
 Gradio Web + Matplotlib animation hybrid. 8 Tabs, dual rendering engine (Plotly interactive + Matplotlib export).

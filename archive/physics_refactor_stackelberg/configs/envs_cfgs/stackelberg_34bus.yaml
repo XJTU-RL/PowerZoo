@@ -1,0 +1,26 @@
+system_ref: 34Bus
+env:
+  system_name: 34Bus
+  dss_file: ieee34Mod1.dss
+  max_episode_steps: 24
+  n_consumer_agents: 10
+  ess_config:
+    initial_soc: 0.5
+    max_power: 1.0
+    capacity: 4.0
+    eta_c: 0.95
+    eta_o: 0.95
+    retention_factor: 0.999
+  monitoring_config:
+    enable: true
+    log_dir: logs/stackelberg_34bus
+    save_interval: 100
+    plot_interval: 50
+    track_convergence: true
+    track_nash_gap: true
+  async_config:
+    partial_observability: false
+    observation_noise: 0.0
+  load_aggregation:
+    method: zone
+    use_electrical_distance: true

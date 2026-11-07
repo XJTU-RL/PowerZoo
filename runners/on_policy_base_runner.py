@@ -9,12 +9,16 @@
 """Base runner for on-policy algorithms."""
 import os
 import time
+import json
+from pathlib import Path
 import numpy as np
 import torch
 import setproctitle
 from typing import Tuple
 from common.valuenorm import ValueNorm
-from common.buffers.heterogeneous_on_policy_actor_buffer import HeterogeneousOnPolicyActorBuffer
+from common.buffers.heterogeneous_on_policy_actor_buffer import (
+    HeterogeneousOnPolicyActorBuffer,
+)
 from common.buffers.on_policy_actor_buffer import OnPolicyActorBuffer
 from common.buffers.on_policy_critic_buffer_ep import OnPolicyCriticBufferEP
 from common.buffers.on_policy_critic_buffer_fp import OnPolicyCriticBufferFP
@@ -27,17 +31,19 @@ from utils.envs_tools import (
     make_render_env,
     set_seed,
     get_num_agents,
-    #get_agents_orders,
+    # get_agents_orders,
     get_ordered_agents_pairs,
     get_agents_bus,
 )
 from utils.models_tools import init_device
-from utils.configs_tools import init_dir, save_config,save_render
+from utils.configs_tools import init_dir, save_config, save_render
 from envs import LOGGER_REGISTRY
 import multiprocessing as mp
+
 # 避免多进程报错，因为自动调参也会使用多线程
 if mp.get_start_method(allow_none=True) is None:
-    mp.set_start_method('spawn')
+    mp.set_start_method("spawn")
+
 
 class OnPolicyBaseRunner:
     """同策略算法的基础运行器。"""
@@ -57,10 +63,12 @@ class OnPolicyBaseRunner:
         # 获取模型参数
         if args["algo"] == "sn_mappo":
             # sn_mappo算法有不同的模型参数结构
-            self.hidden_sizes = algo_args.get("leader_policy", {}).get("actor_hidden_sizes", [256, 128, 64])
+            self.hidden_sizes = algo_args.get("leader_policy", {}).get(
+                "actor_hidden_sizes", [256, 128, 64]
+            )
             self.rnn_hidden_size = self.hidden_sizes[-1]
             # recurrent_n 可能在 sn_mappo 中不存在，需要提供一个默认值或从特定配置中获取
-            self.recurrent_n = algo_args.get("recurrent_n", 1) # 假设默认值为1
+            self.recurrent_n = algo_args.get("recurrent_n", 1)  # 假设默认值为1
         else:
             self.hidden_sizes = algo_args["model"]["hidden_sizes"]
             self.rnn_hidden_size = self.hidden_sizes[-1]
@@ -88,7 +96,9 @@ class OnPolicyBaseRunner:
         set_seed(algo_args["seed"])
         # 初始化设备
         self.device = init_device(algo_args["device"])
-        if not self.algo_args["render"]["use_render"]:  # train, not render 如果不进行渲染,则进行训练
+        if not self.algo_args["render"][
+            "use_render"
+        ]:  # train, not render 如果不进行渲染,则进行训练
             self.run_dir, self.log_dir, self.save_dir, self.writer = init_dir(
                 args["env"],
                 env_args,
@@ -101,9 +111,11 @@ class OnPolicyBaseRunner:
         # set the title of the process 制定进程名称,方便监视训练过程
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
-        )   
+        )
         # set the config of env 设置环境参数
-        if self.algo_args["render"]["use_render"]:  # make envs for rendering 使用环境进行渲染而非训练
+        if self.algo_args["render"][
+            "use_render"
+        ]:  # make envs for rendering 使用环境进行渲染而非训练
             (
                 self.envs,
                 self.manual_render,
@@ -112,7 +124,7 @@ class OnPolicyBaseRunner:
                 self.env_num,
             ) = make_render_env(args["env"], algo_args["seed"]["seed"], env_args)
         else:  # make envs for training and evaluation
-            print(algo_args["train"]["n_rollout_threads"],env_args)
+            print(algo_args["train"]["n_rollout_threads"], env_args)
             self.envs = make_train_env(
                 args["env"],
                 algo_args["seed"]["seed"],
@@ -130,23 +142,37 @@ class OnPolicyBaseRunner:
                 else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
+        self.physics_manifest = (
+            self.envs.get_physics_manifest()
+            if hasattr(self.envs, "get_physics_manifest")
+            else None
+        )
+        if self.physics_manifest is not None and not algo_args["render"]["use_render"]:
+            (Path(self.run_dir) / "physics.manifest.json").write_text(
+                json.dumps(
+                    self.physics_manifest, ensure_ascii=False, indent=2, allow_nan=False
+                ),
+                encoding="utf-8",
+            )
         if args["env"] in ("vvc", "powerzoo", "smartgrid") and args["algo"] == "shom":
             if self.useS:
-                self.get_ordered_agents_pairs=get_ordered_agents_pairs(args["env"], env_args, self.envs)
-                self.get_agents_bus=get_agents_bus(args["env"], env_args, self.envs)
+                self.get_ordered_agents_pairs = get_ordered_agents_pairs(
+                    args["env"], env_args, self.envs
+                )
+                self.get_agents_bus = get_agents_bus(args["env"], env_args, self.envs)
         else:
             self.get_ordered_agents_pairs = None
             self.get_agents_bus = None
-        
-        # actor 
+
+        # actor
         # 如果 share_param 为 true,代表处理同质 agent
         if self.share_param:
             self.actor = []
             # 使用第一个agent的观测空间作为全部的观测空间,并且只需要一个 agent 作为 actor
             agent = ALGO_REGISTRY[args["algo"]](
                 {**algo_args["model"], **algo_args["algo"]},
-                self.envs.observation_space[0], 
-                self.envs.action_space[0], 
+                self.envs.observation_space[0],
+                self.envs.action_space[0],
                 device=self.device,
             )
             self.actor.append(agent)
@@ -162,11 +188,11 @@ class OnPolicyBaseRunner:
                 self.actor.append(self.actor[0])
         else:
             self.actor = []
-            # 异质 agent 使用每一个 agent 代入算法,创建每个 agent 的算法实例 
+            # 异质 agent 使用每一个 agent 代入算法,创建每个 agent 的算法实例
             for agent_id in range(self.num_agents):
                 agent = ALGO_REGISTRY[args["algo"]](
                     {**algo_args["model"], **algo_args["algo"]},
-                    self.envs.observation_space[agent_id], 
+                    self.envs.observation_space[agent_id],
                     self.envs.action_space[agent_id],
                     device=self.device,
                 )
@@ -182,7 +208,7 @@ class OnPolicyBaseRunner:
                     if self.envs.action_space[agent_id] != base_action_space:
                         is_heterogeneous_env = True
                         break
-            
+
             self.actor_buffer = []
             for agent_id in range(self.num_agents):
                 if is_heterogeneous_env:
@@ -200,10 +226,10 @@ class OnPolicyBaseRunner:
                         self.envs.action_space[agent_id],
                     )
                 self.actor_buffer.append(ac_bu)
-            
+
             # 初始化时确定buffer类型，避免运行时检测开销
             self._is_heterogeneous = is_heterogeneous_env
-            
+
             # 打印环境类型信息以便调试
             if is_heterogeneous_env:
                 print(f"检测到异构环境: {args['env']}")
@@ -213,7 +239,7 @@ class OnPolicyBaseRunner:
             else:
                 print(f"检测到同质环境: {args['env']}")
                 print(f"共享动作空间: {self.envs.action_space[0]}")
-            
+
             share_observation_space = self.envs.share_observation_space[0]
 
             # 评论家使用的目标状态值函数
@@ -229,10 +255,10 @@ class OnPolicyBaseRunner:
                     {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
                     share_observation_space,
                 )
-                #使用 feature pruned特征剪裁的方法对全局状态值进行观测,特征剪裁的特定于智能体的全局状态
+                # 使用 feature pruned特征剪裁的方法对全局状态值进行观测,特征剪裁的特定于智能体的全局状态
             elif self.state_type == "FP":
                 # FP stands for Feature Pruned, as phrased by MAPPO paper.
-                # In FP, the global states for all agents are different, 
+                # In FP, the global states for all agents are different,
                 # and thus needs the dimension of the number of agents.
                 # 对于异质智能体,因为每个智能体的全局状态是不同的,所以需要智能体数量这个维度
                 self.critic_buffer = OnPolicyCriticBufferFP(
@@ -254,14 +280,13 @@ class OnPolicyBaseRunner:
             )
         # 使用前面已经确定的buffer类型
         self.is_heterogeneous = self._is_heterogeneous
-        
+
         if self.algo_args["train"]["model_dir"] is not None:  # restore model
             self.restore()
 
         # 添加详细的初始化日志记录
-        if not self.algo_args["render"]["use_render"] and hasattr(self, 'logger'):
+        if not self.algo_args["render"]["use_render"] and hasattr(self, "logger"):
             self._log_initialization_summary()
-        
 
     def run(self):
         """Run the training (or rendering) pipeline."""
@@ -334,7 +359,9 @@ class OnPolicyBaseRunner:
                     rnn_states_critic,
                 )
                 self.logger.per_step(data)  # logger callback at each step
-                self.insert(data)  # insert data into buffer,此处的insert是actorbuffer的insert
+                self.insert(
+                    data
+                )  # insert data into buffer,此处的insert是actorbuffer的insert
 
             # 计算返回和更新网络
             self.compute()
@@ -357,19 +384,24 @@ class OnPolicyBaseRunner:
                     self.prep_rollout()
                     self.eval()
                 self.save()
-            
+
             # 更频繁的模型保存（每save_interval个episode保存一次）
             save_interval = self.algo_args["train"].get("save_interval", 10)
             if episode % save_interval == 0 and episode > 0:
                 self.save(episode=episode)
-                print(f"Episode {episode}: 检查点已保存到 {self.save_dir}/checkpoint_episode_{episode}")
-                
+                print(
+                    f"Episode {episode}: 检查点已保存到 {self.save_dir}/checkpoint_episode_{episode}"
+                )
+
             # 检查是否是最佳模型
-            if hasattr(self.logger, 'done_episodes_rewards') and len(self.logger.done_episodes_rewards) > 0:
+            if (
+                hasattr(self.logger, "done_episodes_rewards")
+                and len(self.logger.done_episodes_rewards) > 0
+            ):
                 current_avg_reward = np.mean(self.logger.done_episodes_rewards)
-                if not hasattr(self, 'best_reward'):
-                    self.best_reward = float('-inf')
-                    
+                if not hasattr(self, "best_reward"):
+                    self.best_reward = float("-inf")
+
                 if current_avg_reward > self.best_reward:
                     self.best_reward = current_avg_reward
                     self.save(episode=episode, is_best=True)
@@ -395,14 +427,17 @@ class OnPolicyBaseRunner:
             #         :, agent_id
             #     ].copy()
             # 处理available_actions（兼容新版单智能体buffer）
-            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
+            if (
+                hasattr(self.actor_buffer[agent_id], "available_actions")
+                and self.actor_buffer[agent_id].available_actions is not None
+            ):
                 # 提取当前智能体的可用动作
                 agent_available_actions = []
                 for env_idx in range(len(available_actions)):
                     agent_available_actions.append(available_actions[env_idx][agent_id])
-                self.actor_buffer[agent_id].available_actions[0] = np.array(agent_available_actions)
-
-
+                self.actor_buffer[agent_id].available_actions[0] = np.array(
+                    agent_available_actions
+                )
 
         # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
         if self.state_type == "EP":
@@ -410,7 +445,7 @@ class OnPolicyBaseRunner:
         # 如果状态类型为FP，则将share_obs复制到critic_buffer的share_obs中
         elif self.state_type == "FP":
             self.critic_buffer.share_obs[0] = share_obs.copy()
-        
+
         # 可选：验证异构buffer的available_actions维度（调试时启用）
         # if self.is_heterogeneous:
         #     for agent_id in range(self.num_agents):
@@ -419,16 +454,18 @@ class OnPolicyBaseRunner:
         #             self.actor_buffer[agent_id].debug_available_actions_info()
 
     @torch.no_grad()
-    def collect(self, step: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def collect(
+        self, step: int
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """高效数据收集：智能检测异构/同构处理策略
-        
+
         使用初始化时确定的buffer类型，避免每次运行时检测的性能开销。
-        
+
         Args:
             step: 当前episode中的步骤
         Returns:
             tuple: (values, actions, action_log_probs, rnn_states, rnn_states_critic)
-                - values: critic价值估计 
+                - values: critic价值估计
                 - actions: 智能体动作
                 - action_log_probs: 动作对数概率
                 - rnn_states: actor RNN状态
@@ -439,76 +476,91 @@ class OnPolicyBaseRunner:
         """
         # 输入验证
         if not 0 <= step < self.algo_args["train"]["episode_length"]:
-            raise ValueError(f"Invalid step {step}, must be in range [0, {self.algo_args['train']['episode_length']})")
-        
-        if not hasattr(self, 'is_heterogeneous'):
+            raise ValueError(
+                f"Invalid step {step}, must be in range [0, {self.algo_args['train']['episode_length']})"
+            )
+
+        if not hasattr(self, "is_heterogeneous"):
             raise RuntimeError("Buffer type not initialized. Call warmup() first.")
-            
+
         try:
             if self.is_heterogeneous:
                 return self._collect_heterogeneous(step)
             else:
                 return self._collect_homogeneous(step)
         except Exception as e:
-            raise RuntimeError(f"Data collection failed at step {step}: {str(e)}") from e
-    
+            raise RuntimeError(
+                f"Data collection failed at step {step}: {str(e)}"
+            ) from e
+
     @torch.no_grad()
-    def _collect_heterogeneous(self, step: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _collect_heterogeneous(
+        self, step: int
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """优化的真异构智能体数据收集方法
-        
+
         修复版本：支持真正的异构动作空间，正确保留每个智能体的完整动作维度。
         解决PV智能体2维动作被截断为1维的问题。
-        
+
         Args:
             step: 当前episode步骤
         Returns:
             tuple: 与collect方法相同的返回格式
         """
         n_threads = self.algo_args["train"]["n_rollout_threads"]
-        
+
         # 动态计算真实的最大动作维度
         max_action_dim = 1  # 最小默认值
-        
+
         # 正确获取每个智能体的实际动作维度
         agent_action_dims = []
         for agent_id in range(self.num_agents):
             # 直接从环境动作空间获取准确信息
             action_space = self.envs.action_space[agent_id]
-            
-            if hasattr(action_space, 'shape') and len(action_space.shape) > 0:
+
+            if hasattr(action_space, "shape") and len(action_space.shape) > 0:
                 # Box空间（连续动作）
                 agent_dim = action_space.shape[0]
-            elif hasattr(action_space, 'n'):
+            elif hasattr(action_space, "n"):
                 # Discrete空间
                 agent_dim = 1
             else:
                 # 尝试从buffer获取
-                if hasattr(self.actor_buffer[agent_id], 'action_dim'):
+                if hasattr(self.actor_buffer[agent_id], "action_dim"):
                     agent_dim = self.actor_buffer[agent_id].action_dim
-                elif hasattr(self.actor_buffer[agent_id], 'action_shape'):
-                    agent_dim = self.actor_buffer[agent_id].action_shape[0] if self.actor_buffer[agent_id].action_shape else 1
+                elif hasattr(self.actor_buffer[agent_id], "action_shape"):
+                    agent_dim = (
+                        self.actor_buffer[agent_id].action_shape[0]
+                        if self.actor_buffer[agent_id].action_shape
+                        else 1
+                    )
                 else:
                     agent_dim = 1  # 默认
-            
+
             agent_action_dims.append(agent_dim)
             max_action_dim = max(max_action_dim, agent_dim)
-        
+
         # 使用实际计算出的最大维度进行预分配
-        actions = np.zeros((n_threads, self.num_agents, max_action_dim), dtype=np.float32)
+        actions = np.zeros(
+            (n_threads, self.num_agents, max_action_dim), dtype=np.float32
+        )
         # action_log_probs 是标量，不是向量！每个动作只有一个对数概率值
         action_log_probs = np.zeros((n_threads, self.num_agents, 1), dtype=np.float32)
         rnn_states = np.zeros(
-            (n_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), 
-            dtype=np.float32
+            (n_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size),
+            dtype=np.float32,
         )
-        
+
         # 流式处理每个智能体的数据，保持完整动作维度
         for agent_id in range(self.num_agents):
             # 获取智能体可用动作（兼容新版单智能体buffer）
             available_actions = None
-            if hasattr(self.actor_buffer[agent_id], 'available_actions') and self.actor_buffer[agent_id].available_actions is not None:
+            if (
+                hasattr(self.actor_buffer[agent_id], "available_actions")
+                and self.actor_buffer[agent_id].available_actions is not None
+            ):
                 available_actions = self.actor_buffer[agent_id].available_actions[step]
-            
+
             # 调用actor获取动作
             action, action_log_prob, rnn_state = self.actor[agent_id].get_actions(
                 self.actor_buffer[agent_id].obs[step],
@@ -516,11 +568,11 @@ class OnPolicyBaseRunner:
                 self.actor_buffer[agent_id].masks[step],
                 available_actions,
             )
-            
+
             # 转换张量为numpy数组
             action_np = _t2n(action)
             log_prob_np = _t2n(action_log_prob)
-            
+
             # 调试输出：检查PV智能体的动作维度（仅在问题调试时启用）
             if agent_id >= 9 and step == 0 and False:  # 默认关闭调试输出
                 print(f"[DEBUG] Agent {agent_id} (PV):")
@@ -529,85 +581,104 @@ class OnPolicyBaseRunner:
                 print(f"  - expected dim: {agent_action_dims[agent_id]}")
                 print(f"  - action values: {action_np.flatten()}")
             rnn_state_np = _t2n(rnn_state)
-            
+
             # 智能维度适配：确保正确的形状而不截断
             if action_np.ndim == 1:
                 action_np = action_np.reshape(-1, 1)
             if log_prob_np.ndim == 1:
                 log_prob_np = log_prob_np.reshape(-1, 1)
-            
+
             # 获取当前智能体的实际动作维度
             current_agent_action_dim = agent_action_dims[agent_id]
-            
+
             # 改进的维度兼容性处理：确保多维动作完整保留
             if action_np.shape[-1] != current_agent_action_dim:
                 if step == 0:  # 仅在第一步记录警告，避免日志泛滥
-                    print(f"注意：智能体{agent_id}动作维度 {action_np.shape[-1]} != 期望维度 {current_agent_action_dim}")
-                
+                    print(
+                        f"注意：智能体{agent_id}动作维度 {action_np.shape[-1]} != 期望维度 {current_agent_action_dim}"
+                    )
+
                 # 如果网络输出维度小于期望，说明网络配置问题
                 if action_np.shape[-1] < current_agent_action_dim:
-                    print(f"错误：智能体{agent_id}网络输出维度不足，期望{current_agent_action_dim}，实际{action_np.shape[-1]}")
+                    print(
+                        f"错误：智能体{agent_id}网络输出维度不足，期望{current_agent_action_dim}，实际{action_np.shape[-1]}"
+                    )
                     # 用零填充不足的维度（临时解决方案）
-                    padding = np.zeros((action_np.shape[0], current_agent_action_dim - action_np.shape[-1]))
+                    padding = np.zeros(
+                        (
+                            action_np.shape[0],
+                            current_agent_action_dim - action_np.shape[-1],
+                        )
+                    )
                     action_np = np.concatenate([action_np, padding], axis=1)
                     if step == 0:
                         print(f"  已用零填充至{action_np.shape[-1]}维，请检查网络配置")
-                
+
                 # 如果网络输出维度大于期望，仅在确实需要时才截断
                 elif action_np.shape[-1] > current_agent_action_dim:
                     if step == 0:
-                        print(f"  截断多余维度：{action_np.shape[-1]} -> {current_agent_action_dim}")
+                        print(
+                            f"  截断多余维度：{action_np.shape[-1]} -> {current_agent_action_dim}"
+                        )
                     action_np = action_np[:, :current_agent_action_dim]
-            
+
             # 动态分配动作存储空间，确保不丢失信息
             actual_action_dim = action_np.shape[-1]
             if actual_action_dim > max_action_dim:
                 # 扩展actions数组以容纳更大的动作维度
                 old_actions = actions
-                actions = np.zeros((n_threads, self.num_agents, actual_action_dim), dtype=np.float32)
+                actions = np.zeros(
+                    (n_threads, self.num_agents, actual_action_dim), dtype=np.float32
+                )
                 actions[:, :, :max_action_dim] = old_actions
                 max_action_dim = actual_action_dim
                 if step == 0:
                     print(f"动态扩展动作数组至维度 {max_action_dim}")
-            
+
             # 填充完整的动作数据
             actions[:, agent_id, :actual_action_dim] = action_np
             # action_log_probs 应该是 (n_threads, 1) 形状
             action_log_probs[:, agent_id, :] = log_prob_np.reshape(-1, 1)
             rnn_states[:, agent_id] = rnn_state_np
-        
+
         # 优化的调试输出：仅显示关键信息
         if step == 0:  # 仅在第一步输出，避免日志过多
             print(f"\n=== 异构环境动作空间信息 ===")
             print(f"智能体数量: {self.num_agents}")
-            print(f"动作维度分布: {dict(zip(range(self.num_agents), agent_action_dims))}")
+            print(
+                f"动作维度分布: {dict(zip(range(self.num_agents), agent_action_dims))}"
+            )
             print(f"最终actions数组形状: {actions.shape}")
-            
+
             # 检查PV智能体（通常在后面的agent id）
             pv_agents = [i for i in range(self.num_agents) if agent_action_dims[i] > 1]
             if pv_agents:
-                print(f"检测到多维动作智能体 (PV系统): {pv_agents}")
+                print(f"检测到多维动作智能体: {pv_agents}")
                 for pv_id in pv_agents[:3]:  # 仅显示前3个以避免输出过多
-                    pv_actions = actions[0, pv_id, :agent_action_dims[pv_id]]
-                    print(f"  PV智能体 {pv_id}: 动作={pv_actions} (维度={len(pv_actions)})")
-            
+                    pv_actions = actions[0, pv_id, : agent_action_dims[pv_id]]
+                    print(
+                        f"  智能体 {pv_id}: 动作={pv_actions} (维度={len(pv_actions)})"
+                    )
+
             print("=" * 35)
-        
+
         return (
-            self._collect_critic_values(step), 
-            actions, 
-            action_log_probs, 
-            rnn_states, 
-            self._collect_critic_states(step)
+            self._collect_critic_values(step),
+            actions,
+            action_log_probs,
+            rnn_states,
+            self._collect_critic_states(step),
         )
-    
+
     @torch.no_grad()
-    def _collect_homogeneous(self, step: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _collect_homogeneous(
+        self, step: int
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """优化的同构智能体数据收集方法
-        
+
         采用预分配和批量转置策略，提升同构场景下的性能。
         所有智能体使用相同的动作空间和网络结构。
-        
+
         Args:
             step: 当前episode步骤
         Returns:
@@ -616,37 +687,39 @@ class OnPolicyBaseRunner:
         # 预分配收集列表，避免动态append
         # 同构智能体的动作维度应该一致，可以直接使用列表
         action_collector = [None] * self.num_agents
-        action_log_prob_collector = [None] * self.num_agents  
+        action_log_prob_collector = [None] * self.num_agents
         rnn_state_collector = [None] * self.num_agents
-        
+
         # 批量收集数据
         for agent_id in range(self.num_agents):
             action, action_log_prob, rnn_state = self.actor[agent_id].get_actions(
                 self.actor_buffer[agent_id].obs[step],
-                self.actor_buffer[agent_id].rnn_states[step], 
+                self.actor_buffer[agent_id].rnn_states[step],
                 self.actor_buffer[agent_id].masks[step],
-                self.actor_buffer[agent_id].available_actions[step]
-                if self.actor_buffer[agent_id].available_actions is not None
-                else None,
+                (
+                    self.actor_buffer[agent_id].available_actions[step]
+                    if self.actor_buffer[agent_id].available_actions is not None
+                    else None
+                ),
             )
             # 直接存储转换后的结果，避免二次转换
             action_collector[agent_id] = _t2n(action)
             action_log_prob_collector[agent_id] = _t2n(action_log_prob)
             rnn_state_collector[agent_id] = _t2n(rnn_state)
-        
+
         # np.stack(..., axis=1) 已经产生正确的 (n_threads, n_agents, dim) shape
         actions = np.stack(action_collector, axis=1)
         action_log_probs = np.stack(action_log_prob_collector, axis=1)
         rnn_states = np.stack(rnn_state_collector, axis=1)
-        
+
         return (
-            self._collect_critic_values(step), 
-            actions, 
-            action_log_probs, 
-            rnn_states, 
-            self._collect_critic_states(step)
+            self._collect_critic_values(step),
+            actions,
+            action_log_probs,
+            rnn_states,
+            self._collect_critic_states(step),
         )
-    
+
     def _collect_critic_values(self, step):
         """收集Critic值"""
 
@@ -666,7 +739,7 @@ class OnPolicyBaseRunner:
             return np.array(
                 np.split(_t2n(value), self.algo_args["train"]["n_rollout_threads"])
             )
-    
+
     def _collect_critic_states(self, step):
         """收集Critic RNN状态"""
         if self.state_type == "EP":
@@ -704,17 +777,25 @@ class OnPolicyBaseRunner:
             rnn_states_critic,  # EP: (n_threads, dim), FP: (n_threads, n_agents, dim)
         ) = data
 
+        if self.state_type == "EP" and not np.allclose(
+            rewards, rewards[:, :1], rtol=1e-6, atol=1e-7
+        ):
+            raise ValueError(
+                "EP只支持共享团队奖励；各智能体奖励不一致，不能只保存第一个奖励。"
+                "局部奖励或一般和博弈需要明确的逐主体价值和采样契约。"
+            )
+
         dones_env = np.all(dones, axis=1)  # if all agents are done, then env is done
-        rnn_states[
-            dones_env == True
-        ] = np.zeros(  # if env is done, then reset rnn_state to all zero
-            (
-                (dones_env == True).sum(),
-                self.num_agents,
-                self.recurrent_n,
-                self.rnn_hidden_size,
-            ),
-            dtype=np.float32,
+        rnn_states[dones_env == True] = (
+            np.zeros(  # if env is done, then reset rnn_state to all zero
+                (
+                    (dones_env == True).sum(),
+                    self.num_agents,
+                    self.recurrent_n,
+                    self.rnn_hidden_size,
+                ),
+                dtype=np.float32,
+            )
         )
 
         # If env is done, then reset rnn_state_critic to all zero
@@ -749,22 +830,28 @@ class OnPolicyBaseRunner:
             (self.algo_args["train"]["n_rollout_threads"], self.num_agents, 1),
             dtype=np.float32,
         )
-        #print("check the dones signal of the day: ",dones) #TODO:检查一天是否完成。
-        active_masks[dones == True] = np.zeros(#如果只有一个智能体done了，说明现在这个智能体挂了，所以active_masks被设置为0
-            ((dones == True).sum(), 1), dtype=np.float32
+        # print("check the dones signal of the day: ",dones) #TODO:检查一天是否完成。
+        active_masks[dones == True] = (
+            np.zeros(  # 如果只有一个智能体done了，说明现在这个智能体挂了，所以active_masks被设置为0
+                ((dones == True).sum(), 1), dtype=np.float32
+            )
         )
-        active_masks[dones_env == True] = np.ones(#如果所有智能体都挂了，说明现在这个环境挂了，所以active_masks被设置为1
-            ((dones_env == True).sum(), self.num_agents, 1), dtype=np.float32
+        active_masks[dones_env == True] = (
+            np.ones(  # 如果所有智能体都挂了，说明现在这个环境挂了，所以active_masks被设置为1
+                ((dones_env == True).sum(), self.num_agents, 1), dtype=np.float32
+            )
         )
 
         # bad_masks use 0 to denote truncation and 1 to denote termination
         if self.state_type == "EP":
             bad_masks = np.array(
                 [
-                    [0.0]
-                    if "bad_transition" in info[0].keys()
-                    and info[0]["bad_transition"] == True
-                    else [1.0]
+                    (
+                        [0.0]
+                        if "bad_transition" in info[0].keys()
+                        and info[0]["bad_transition"] == True
+                        else [1.0]
+                    )
                     for info in infos
                 ]
             )
@@ -772,10 +859,12 @@ class OnPolicyBaseRunner:
             bad_masks = np.array(
                 [
                     [
-                        [0.0]
-                        if "bad_transition" in info[agent_id].keys()
-                        and info[agent_id]["bad_transition"] == True
-                        else [1.0]
+                        (
+                            [0.0]
+                            if "bad_transition" in info[agent_id].keys()
+                            and info[agent_id]["bad_transition"] == True
+                            else [1.0]
+                        )
                         for agent_id in range(self.num_agents)
                     ]
                     for info in infos
@@ -791,7 +880,7 @@ class OnPolicyBaseRunner:
                 agent_available_actions = np.array(agent_available_actions)
             else:
                 agent_available_actions = None
-                
+
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
                 rnn_states[:, agent_id],
@@ -802,15 +891,15 @@ class OnPolicyBaseRunner:
                 agent_available_actions,
             )
         # 创建一个空列表用于存储所有 'S' 对应的值
-        #TODO:设置S矩阵的筛选条件
+        # TODO:设置S矩阵的筛选条件
         S_values = []
 
         # 遍历列表中的每个元素
         for item in infos:
-        # 检查当前元素是否包含键 'S'
-            if 'S' in item[0]:
-            # 如果包含，将 'S' 对应的值添加到 S_values 列表中
-                S_values.append(item[0]['S'])
+            # 检查当前元素是否包含键 'S'
+            if "S" in item[0]:
+                # 如果包含，将 'S' 对应的值添加到 S_values 列表中
+                S_values.append(item[0]["S"])
         if self.state_type == "EP":
             self.critic_buffer.insert(
                 share_obs[:, 0],
@@ -821,7 +910,7 @@ class OnPolicyBaseRunner:
                 bad_masks,
                 S_values,
             )
-        #TODO：设置S矩阵的筛选条件
+        # TODO：设置S矩阵的筛选条件
         elif self.state_type == "FP":
             self.critic_buffer.insert(
                 share_obs, rnn_states_critic, values, rewards, masks, bad_masks
@@ -864,23 +953,25 @@ class OnPolicyBaseRunner:
             self.actor_buffer[agent_id].after_update()
         self.critic_buffer.after_update()
 
-    def _process_heterogeneous_eval_actions(self, eval_actions_collector, squeeze_single_dim=False):
+    def _process_heterogeneous_eval_actions(
+        self, eval_actions_collector, squeeze_single_dim=False
+    ):
         """处理异构动作空间的评估动作收集
-        
+
         Args:
             eval_actions_collector: 收集的动作列表，每个元素形状为 (n_threads, action_dim)
             squeeze_single_dim: 是否压缩单维度动作，用于兼容之前的transpose(1, 0)操作
-        
+
         Returns:
             np.ndarray: 处理后的动作数组，形状为 (n_threads, n_agents, max_action_dim) 或 (n_threads, n_agents)
         """
         if not eval_actions_collector:
             raise ValueError("eval_actions_collector 不能为空")
-        
+
         # 检查是否为异构动作空间
         action_shapes = [actions.shape for actions in eval_actions_collector]
         action_dims = [shape[1] if len(shape) > 1 else 1 for shape in action_shapes]
-        
+
         if len(set(action_dims)) == 1:
             # 同构动作空间，使用原始方法
             if squeeze_single_dim and action_dims[0] == 1:
@@ -889,25 +980,24 @@ class OnPolicyBaseRunner:
                 return actions_array.squeeze(-1)
             else:
                 return np.array(eval_actions_collector).transpose(1, 0, 2)
-        
+
         # 异构动作空间处理
         max_action_dim = max(action_dims)
         n_threads = eval_actions_collector[0].shape[0]
         n_agents = len(eval_actions_collector)
-        
+
         # 手动构建统一维度的动作数组
         eval_actions = np.zeros((n_threads, n_agents, max_action_dim), dtype=np.float32)
-        
+
         for agent_id, actions in enumerate(eval_actions_collector):
             current_dim = actions.shape[1]
             eval_actions[:, agent_id, :current_dim] = actions
             # 剩余维度自动为0 (零填充)
-        
-        
+
         # 如果请求压缩单维度且所有动作都是单维，返回压缩后的形状
         if squeeze_single_dim and max_action_dim == 1:
             return eval_actions.squeeze(-1)
-        
+
         return eval_actions
 
     @torch.no_grad()
@@ -933,19 +1023,21 @@ class OnPolicyBaseRunner:
         )
 
         while True:
-            #print("eval_available_actions: eval_available_actions) 
+            # print("eval_available_actions: eval_available_actions)
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
                 # 提取当前智能体的可用动作
                 # 异构动作空间：离散智能体有掩码列表，连续智能体返回None
                 agent_available_actions = None
                 if eval_available_actions[0] is not None:
-                    per_env = [eval_available_actions[env_idx][agent_id]
-                               for env_idx in range(len(eval_available_actions))]
+                    per_env = [
+                        eval_available_actions[env_idx][agent_id]
+                        for env_idx in range(len(eval_available_actions))
+                    ]
                     # 只有当该智能体在所有环境中都有可用动作时才转为数组
                     if per_env[0] is not None:
                         agent_available_actions = np.array(per_env, dtype=np.float32)
-                    
+
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
@@ -956,7 +1048,9 @@ class OnPolicyBaseRunner:
                 eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                 eval_actions_collector.append(_t2n(eval_actions))
 
-            eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector)
+            eval_actions = self._process_heterogeneous_eval_actions(
+                eval_actions_collector
+            )
 
             (
                 eval_obs,
@@ -980,16 +1074,16 @@ class OnPolicyBaseRunner:
 
             eval_dones_env = np.all(eval_dones, axis=1)
 
-            eval_rnn_states[
-                eval_dones_env == True
-            ] = np.zeros(  # if env is done, then reset rnn_state to all zero
-                (
-                    (eval_dones_env == True).sum(),
-                    self.num_agents,
-                    self.recurrent_n,
-                    self.rnn_hidden_size,
-                ),
-                dtype=np.float32,
+            eval_rnn_states[eval_dones_env == True] = (
+                np.zeros(  # if env is done, then reset rnn_state to all zero
+                    (
+                        (eval_dones_env == True).sum(),
+                        self.num_agents,
+                        self.recurrent_n,
+                        self.rnn_hidden_size,
+                    ),
+                    dtype=np.float32,
+                )
             )
 
             eval_masks = np.ones(
@@ -1047,14 +1141,18 @@ class OnPolicyBaseRunner:
                             eval_obs[:, agent_id],
                             eval_rnn_states[:, agent_id],
                             eval_masks[:, agent_id],
-                            eval_available_actions[:, agent_id]
-                            if eval_available_actions is not None
-                            else None,
+                            (
+                                eval_available_actions[:, agent_id]
+                                if eval_available_actions is not None
+                                else None
+                            ),
                             deterministic=True,
                         )
                         eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                         eval_actions_collector.append(_t2n(eval_actions))
-                    eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector)
+                    eval_actions = self._process_heterogeneous_eval_actions(
+                        eval_actions_collector
+                    )
                     (
                         eval_obs,
                         _,
@@ -1095,33 +1193,32 @@ class OnPolicyBaseRunner:
                     (self.env_num, self.num_agents, 1), dtype=np.float32
                 )
                 rewards = 0
-                k=0
-                item_arrays=[]
+                k = 0
+                item_arrays = []
                 while True:
                     eval_actions_collector = []
-                    saved_data={}             
+                    saved_data = {}
                     for agent_id in range(self.num_agents):
-                        
-                        test2=eval_available_actions[agent_id].copy()
+
+                        test2 = eval_available_actions[agent_id].copy()
                         test3 = np.array(test2, dtype=np.float32)
-   
+
                         eval_actions, temp_rnn_state = self.actor[agent_id].act(
                             eval_obs[agent_id],
-                            eval_rnn_states[:,agent_id],
-                            eval_masks[:,agent_id],
-                            
+                            eval_rnn_states[:, agent_id],
+                            eval_masks[:, agent_id],
                             # eval_available_actions[agent_id]  #TODO:render_eval_available_actions[:, agent_id]多环境并行
                             # if eval_available_actions[0] is not None
                             # else None,
-                            test3
-                            if test3 is not None
-                            else None,
+                            test3 if test3 is not None else None,
                             deterministic=True,
                         )
-                        eval_rnn_states[:,agent_id] = _t2n(temp_rnn_state)
+                        eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                         eval_actions_collector.append(_t2n(eval_actions))
                     # 使用统一的异构动作处理函数，并压缩单维度以兼容原有逻辑
-                    eval_actions = self._process_heterogeneous_eval_actions(eval_actions_collector, squeeze_single_dim=True)
+                    eval_actions = self._process_heterogeneous_eval_actions(
+                        eval_actions_collector, squeeze_single_dim=True
+                    )
                     (
                         eval_obs,
                         _,
@@ -1130,16 +1227,16 @@ class OnPolicyBaseRunner:
                         eval_info,
                         eval_available_actions,
                     ) = self.envs.step(eval_actions)
-                    saved_data={
+                    saved_data = {
                         "bus_voltages": eval_info[0]["bus_voltages"],
                         "agent_bus": eval_info[0]["agents_bus"],
                         "powerloss": eval_info[0]["powerloss"],
-                        "time":k
+                        "time": k,
                     }
-                    item_array=list(saved_data.items())
+                    item_array = list(saved_data.items())
                     item_arrays.append(item_array)
                     rewards += eval_rewards[0][0]
-                    k=k+1
+                    k = k + 1
                     if self.manual_render:
                         self.envs.render()
                     if self.manual_delay:
@@ -1147,7 +1244,7 @@ class OnPolicyBaseRunner:
                     if eval_dones[0]:
                         print(f"total reward of this episode: {rewards}")
                         break
-                save_render(item_arrays,self.algo_args["train"]["model_dir"])
+                save_render(item_arrays, self.algo_args["train"]["model_dir"])
 
     def prep_rollout(self):
         """Prepare for rollout."""
@@ -1163,7 +1260,7 @@ class OnPolicyBaseRunner:
 
     def save(self, episode=None, is_best=False):
         """Save model parameters.
-        
+
         Args:
             episode: 当前的episode数，用于创建检查点
             is_best: 是否是最佳模型
@@ -1171,12 +1268,14 @@ class OnPolicyBaseRunner:
         # 创建保存路径
         if episode is not None:
             # 创建检查点目录
-            checkpoint_dir = os.path.join(self.save_dir, f"checkpoint_episode_{episode}")
+            checkpoint_dir = os.path.join(
+                self.save_dir, f"checkpoint_episode_{episode}"
+            )
             os.makedirs(checkpoint_dir, exist_ok=True)
             save_path = checkpoint_dir
         else:
             save_path = self.save_dir
-            
+
         # 保存actor模型
         for agent_id in range(self.num_agents):
             policy_actor = self.actor[agent_id].actor
@@ -1184,61 +1283,66 @@ class OnPolicyBaseRunner:
                 policy_actor.state_dict(),
                 os.path.join(save_path, f"actor_agent{agent_id}.pt"),
             )
-            
+
         # 保存critic模型
         policy_critic = self.critic.critic
         torch.save(
-            policy_critic.state_dict(), 
-            os.path.join(save_path, "critic_agent.pt")
+            policy_critic.state_dict(), os.path.join(save_path, "critic_agent.pt")
         )
-        
+
         # 保存value normalizer
         if self.value_normalizer is not None:
             torch.save(
                 self.value_normalizer.state_dict(),
                 os.path.join(save_path, "value_normalizer.pt"),
             )
-            
+
         # 保存训练状态信息
         training_state = {
-            'episode': episode if episode is not None else 0,
-            'total_num_steps': getattr(self, 'total_num_steps', 0),
-            'best_reward': getattr(self, 'best_reward', float('-inf')),
+            "episode": episode if episode is not None else 0,
+            "total_num_steps": getattr(self, "total_num_steps", 0),
+            "best_reward": getattr(self, "best_reward", float("-inf")),
         }
-        torch.save(
-            training_state,
-            os.path.join(save_path, "training_state.pt")
-        )
-        
+        torch.save(training_state, os.path.join(save_path, "training_state.pt"))
+
         # 如果是最佳模型，额外保存一份
         if is_best:
             best_dir = os.path.join(self.save_dir, "best_model")
             os.makedirs(best_dir, exist_ok=True)
-            
+
             # 复制所有模型文件到best_model目录
             import shutil
+
             for agent_id in range(self.num_agents):
                 shutil.copy2(
                     os.path.join(save_path, f"actor_agent{agent_id}.pt"),
-                    os.path.join(best_dir, f"actor_agent{agent_id}.pt")
+                    os.path.join(best_dir, f"actor_agent{agent_id}.pt"),
                 )
             shutil.copy2(
                 os.path.join(save_path, "critic_agent.pt"),
-                os.path.join(best_dir, "critic_agent.pt")
+                os.path.join(best_dir, "critic_agent.pt"),
             )
             if self.value_normalizer is not None:
                 shutil.copy2(
                     os.path.join(save_path, "value_normalizer.pt"),
-                    os.path.join(best_dir, "value_normalizer.pt")
+                    os.path.join(best_dir, "value_normalizer.pt"),
                 )
             shutil.copy2(
                 os.path.join(save_path, "training_state.pt"),
-                os.path.join(best_dir, "training_state.pt")
+                os.path.join(best_dir, "training_state.pt"),
             )
-            
-            print(f"新的最佳模型已保存！Episode: {episode}, Reward: {self.best_reward:.4f}")
+
+            print(
+                f"新的最佳模型已保存！Episode: {episode}, Reward: {self.best_reward:.4f}"
+            )
 
     def restore(self):
+        from utils.physics_manifest import validate_checkpoint
+
+        validate_checkpoint(
+            self.algo_args["train"]["model_dir"],
+            getattr(self, "physics_manifest", None),
+        )
         """恢复模型参数。"""
         # 遍历每个agent
         for agent_id in range(self.num_agents):
@@ -1274,22 +1378,27 @@ class OnPolicyBaseRunner:
             if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
             self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
+            # 清除全局诊断引用，避免下次训练重新打开已关闭的日志文件。
+            from utils import happo_diagnostics
+
+            if happo_diagnostics.get_diagnostics().writer is self.writer:
+                happo_diagnostics.set_writer(None)
             self.writer.close()
             self.logger.close()
 
     def get_result(self):
         """获得训练结果。"""
         return self.logger.get_result()
-    
+
     def _log_initialization_summary(self):
         """记录runner初始化的详细信息"""
         # 构建初始化信息字符串
         init_info = []
-        
-        init_info.append("="*80)
+
+        init_info.append("=" * 80)
         init_info.append("OnPolicyBaseRunner 初始化完成 - 详细配置信息")
-        init_info.append("="*80)
-        
+        init_info.append("=" * 80)
+
         # 基础配置信息
         init_info.append("【基础配置】")
         init_info.append(f"  算法: {self.args['algo']}")
@@ -1297,28 +1406,32 @@ class OnPolicyBaseRunner:
         init_info.append(f"  实验名称: {self.args['exp_name']}")
         init_info.append(f"  随机种子: {self.algo_args['seed']['seed']}")
         init_info.append(f"  设备: {self.device}")
-        init_info.append(f"  进程标题: {self.args['algo']}-{self.args['env']}-{self.args['exp_name']}")
-        
+        init_info.append(
+            f"  进程标题: {self.args['algo']}-{self.args['env']}-{self.args['exp_name']}"
+        )
+
         # 环境配置信息
         init_info.append("\n【环境配置】")
         init_info.append(f"  智能体数量: {self.num_agents}")
         init_info.append(f"  状态类型: {self.state_type}")
-        init_info.append(f"  环境类型: {'异构环境' if self.is_heterogeneous else '同质环境'}")
-        
-        if hasattr(self, 'envs') and hasattr(self.envs, 'observation_space'):
+        init_info.append(
+            f"  环境类型: {'异构环境' if self.is_heterogeneous else '同质环境'}"
+        )
+
+        if hasattr(self, "envs") and hasattr(self.envs, "observation_space"):
             init_info.append(f"  观测空间维度:")
             for i in range(min(3, self.num_agents)):
                 init_info.append(f"    Agent {i}: {self.envs.observation_space[i]}")
             if self.num_agents > 3:
                 init_info.append(f"    ... (共 {self.num_agents} 个智能体)")
-                
-        if hasattr(self, 'envs') and hasattr(self.envs, 'action_space'):
+
+        if hasattr(self, "envs") and hasattr(self.envs, "action_space"):
             init_info.append(f"  动作空间:")
             for i in range(min(3, self.num_agents)):
                 init_info.append(f"    Agent {i}: {self.envs.action_space[i]}")
             if self.num_agents > 3:
                 init_info.append(f"    ... (共 {self.num_agents} 个智能体)")
-        
+
         # 算法配置信息
         init_info.append("\n【算法配置】")
         init_info.append(f"  参数共享: {self.share_param}")
@@ -1326,74 +1439,99 @@ class OnPolicyBaseRunner:
         init_info.append(f"  隐藏层大小: {self.hidden_sizes}")
         init_info.append(f"  RNN隐藏层大小: {self.rnn_hidden_size}")
         init_info.append(f"  循环层数: {self.recurrent_n}")
-        
+
         # SHOM算法特定配置
         if self.args["algo"] == "shom":
             init_info.append(f"  有序更新: {self.ordered}")
             init_info.append(f"  使用敏感性矩阵: {self.useS}")
             init_info.append(f"  从大到小排序: {self.big2small}")
-            if hasattr(self, 'get_ordered_agents_pairs') and self.get_ordered_agents_pairs is not None:
+            if (
+                hasattr(self, "get_ordered_agents_pairs")
+                and self.get_ordered_agents_pairs is not None
+            ):
                 init_info.append(f"  智能体配对映射: 已加载")
-            if hasattr(self, 'get_agents_bus') and self.get_agents_bus is not None:
+            if hasattr(self, "get_agents_bus") and self.get_agents_bus is not None:
                 init_info.append(f"  智能体总线映射: 已加载")
-        
+
         # 训练配置信息
         init_info.append("\n【训练配置】")
-        init_info.append(f"  训练模式: {'渲染' if self.algo_args['render']['use_render'] else '训练'}")
-        
-        if not self.algo_args['render']['use_render']:
-            init_info.append(f"  训练线程数: {self.algo_args['train']['n_rollout_threads']}")
+        init_info.append(
+            f"  训练模式: {'渲染' if self.algo_args['render']['use_render'] else '训练'}"
+        )
+
+        if not self.algo_args["render"]["use_render"]:
+            init_info.append(
+                f"  训练线程数: {self.algo_args['train']['n_rollout_threads']}"
+            )
             init_info.append(f"  环境步数: {self.algo_args['train']['num_env_steps']}")
-            init_info.append(f"  Episode长度: {self.algo_args['train']['episode_length']}")
+            init_info.append(
+                f"  Episode长度: {self.algo_args['train']['episode_length']}"
+            )
             init_info.append(f"  日志间隔: {self.algo_args['train']['log_interval']}")
             init_info.append(f"  评估间隔: {self.algo_args['train']['eval_interval']}")
-            init_info.append(f"  使用值标准化: {self.algo_args['train']['use_valuenorm']}")
-            init_info.append(f"  使用线性学习率衰减: {self.algo_args['train']['use_linear_lr_decay']}")
-            
-            if self.algo_args['eval']['use_eval']:
-                init_info.append(f"  评估线程数: {self.algo_args['eval']['n_eval_rollout_threads']}")
-                init_info.append(f"  评估Episode数: {self.algo_args['eval']['eval_episodes']}")
-        
+            init_info.append(
+                f"  使用值标准化: {self.algo_args['train']['use_valuenorm']}"
+            )
+            init_info.append(
+                f"  使用线性学习率衰减: {self.algo_args['train']['use_linear_lr_decay']}"
+            )
+
+            if self.algo_args["eval"]["use_eval"]:
+                init_info.append(
+                    f"  评估线程数: {self.algo_args['eval']['n_eval_rollout_threads']}"
+                )
+                init_info.append(
+                    f"  评估Episode数: {self.algo_args['eval']['eval_episodes']}"
+                )
+
         # 模型配置信息
         init_info.append("\n【模型配置】")
         init_info.append(f"  Actor网络数量: {len(self.actor)}")
-        init_info.append(f"  Critic网络: {'已创建' if hasattr(self, 'critic') else '未创建'}")
-        init_info.append(f"  值标准化器: {'已启用' if self.value_normalizer is not None else '未启用'}")
-        
+        init_info.append(
+            f"  Critic网络: {'已创建' if hasattr(self, 'critic') else '未创建'}"
+        )
+        init_info.append(
+            f"  值标准化器: {'已启用' if self.value_normalizer is not None else '未启用'}"
+        )
+
         # Buffer配置信息
-        if hasattr(self, 'actor_buffer'):
+        if hasattr(self, "actor_buffer"):
             init_info.append(f"  Actor Buffer数量: {len(self.actor_buffer)}")
-            init_info.append(f"  Buffer类型: {'异构' if self.is_heterogeneous else '同构'}")
-            
-        if hasattr(self, 'critic_buffer'):
-            init_info.append(f"  Critic Buffer类型: {type(self.critic_buffer).__name__}")
-        
+            init_info.append(
+                f"  Buffer类型: {'异构' if self.is_heterogeneous else '同构'}"
+            )
+
+        if hasattr(self, "critic_buffer"):
+            init_info.append(
+                f"  Critic Buffer类型: {type(self.critic_buffer).__name__}"
+            )
+
         # 目录信息
-        if hasattr(self, 'run_dir'):
+        if hasattr(self, "run_dir"):
             init_info.append("\n【输出目录】")
             init_info.append(f"  运行目录: {self.run_dir}")
             init_info.append(f"  日志目录: {self.log_dir}")
             init_info.append(f"  保存目录: {self.save_dir}")
-        
+
         # 模型恢复信息
         if self.algo_args["train"]["model_dir"] is not None:
             init_info.append("\n【模型恢复】")
             init_info.append(f"  模型目录: {self.algo_args['train']['model_dir']}")
             init_info.append(f"  状态: 已恢复预训练模型")
-        
-        init_info.append("="*80)
-        
+
+        init_info.append("=" * 80)
+
         # 将初始化信息连接成字符串
-        init_info_str = '\n'.join(init_info)
-        
+        init_info_str = "\n".join(init_info)
+
         # 1. 打印到控制台（与原来的logger.info效果相同）
         print(init_info_str)
-        
+
         # 2. 写入到PowerZoo logger的训练信息文件
-        if hasattr(self.logger, 'log_training_info'):
-            self.logger.log_training_info.write(init_info_str + '\n\n')
+        if hasattr(self.logger, "log_training_info"):
+            self.logger.log_training_info.write(init_info_str + "\n\n")
             self.logger.log_training_info.flush()
-        
+
         # 3. 写入到TensorBoard（如果有writter）
-        if hasattr(self.logger, 'writer') and self.logger.writer:
+        if hasattr(self.logger, "writer") and self.logger.writer:
             self.logger.writer.add_text("initialization/summary", init_info_str)

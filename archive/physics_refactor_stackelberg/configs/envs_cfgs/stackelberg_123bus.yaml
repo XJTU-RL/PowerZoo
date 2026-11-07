@@ -1,0 +1,31 @@
+system_ref: 123Bus
+env:
+  system_name: 123Bus
+  dss_file: IEEE123Master.dss
+  max_episode_steps: 24
+  n_consumer_agents: 20
+  ess_config:
+    initial_soc: 0.5
+    max_power: 2.0
+    capacity: 10.0
+    eta_c: 0.95
+    eta_o: 0.95
+    retention_factor: 0.999
+  monitoring_config:
+    enable: true
+    log_dir: logs/stackelberg_123bus
+    save_interval: 100
+    plot_interval: 50
+    track_convergence: true
+    track_nash_gap: true
+  async_config:
+    partial_observability: false
+    observation_noise: 0.0
+  load_aggregation:
+    method: priority
+    use_electrical_distance: true
+    priority_weights:
+      residential: 1.0
+      commercial: 2.0
+      industrial: 3.0
+      critical: 10.0
