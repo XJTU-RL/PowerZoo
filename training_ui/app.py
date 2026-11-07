@@ -7,6 +7,7 @@ import gradio as gr
 from training_ui.i18n import t
 from training_ui.tabs.district_dispatch_tab import DistrictDispatchTab
 from training_ui.tabs.dsr_tab import DSRTab
+from training_ui.tabs.environment_tab import build_environment_tab
 from training_ui.tabs.models_tab import build_models_tab
 from training_ui.tabs.monitor_tab import build_monitor_tab
 from training_ui.tabs.smartgrid_tab import SmartGridTab
@@ -47,5 +48,6 @@ def create_app() -> gr.Blocks:
             DistrictDispatchTab().build()
             build_monitor_tab()
             build_models_tab()
+            build_environment_tab()
 
     return app

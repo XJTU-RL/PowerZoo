@@ -24,6 +24,15 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 LOG_DIR = PROJECT_ROOT / "training_ui" / ".cache" / "logs"
 
 
+def subprocess_environment() -> dict[str, str]:
+    """Use the checkout's modules and UTF-8 diagnostics on every platform."""
+    return {
+        **os.environ,
+        "PYTHONPATH": str(PROJECT_ROOT),
+        "PYTHONIOENCODING": "utf-8",
+    }
+
+
 @dataclass
 class TaskInfo:
 	"""Runtime metadata for a single training task."""
@@ -100,13 +109,6 @@ class ProcessManager:
 			"--load_config", config_path,
 		]
 
-		# Match the UTF-8 decoder used by the log viewer on every platform.
-		env_vars = {
-			**os.environ,
-			"PYTHONPATH": str(PROJECT_ROOT),
-			"PYTHONIOENCODING": "utf-8",
-		}
-
 		try:
 			with open(log_file, "w", encoding="utf-8") as log_fh:
 				proc = subprocess.Popen(
@@ -114,7 +116,7 @@ class ProcessManager:
 					stdout=log_fh,
 					stderr=subprocess.STDOUT,
 					cwd=str(PROJECT_ROOT),
-					env=env_vars,
+					env=subprocess_environment(),
 					start_new_session=sys.platform != "win32",
 				)
 		except Exception as exc:

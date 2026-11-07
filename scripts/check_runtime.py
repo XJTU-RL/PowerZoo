@@ -1,7 +1,9 @@
 """Validate native DSS, a real VVC rollout, Windows spawn, and optional training.
 
 Run from the repository root with ``python scripts/check_runtime.py --train``.
-Checks use a temporary copy of the checked-in IEEE13 model and load profiles.
+Use ``--preflight`` for import, tensor and DSS checks only.
+Rollout and training checks use a temporary copy of the checked-in IEEE13 model
+and load profiles.
 They never replace research inputs with generated synthetic profiles.
 """
 
@@ -18,6 +20,15 @@ import tempfile
 os.environ.setdefault("MPLBACKEND", "Agg")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+RUNTIME_IMPORTS = (
+    "dss",
+    "opendssdirect",
+    "gym",
+    "gymnasium",
+    "stable_baselines3",
+    "runners",
+)
 
 
 def check_native_dss():
@@ -57,6 +68,47 @@ def check_torch(require_cuda):
         if value[0, 0].item() != 16:
             raise RuntimeError(f"Tensor operation failed on {device}")
     return {"torch": torch.__version__, "devices": devices, "cuda": torch.version.cuda}
+
+
+def check_preflight(require_cuda):
+    """Report all baseline import errors and run the independent native probes."""
+    failed = set()
+
+    def report(label, check):
+        try:
+            details = check()
+        except Exception as exc:
+            failed.add(label)
+            problem = "缺少模块 " if isinstance(exc, ModuleNotFoundError) else ""
+            print(f"[失败] {label}  {problem}{type(exc).__name__}: {exc}")
+        else:
+            print(f"[通过] {label}" + (f"  {details}" if details else ""))
+
+    def dss_details():
+        info = check_native_dss()
+        engine = "\n    ".join(info["dss_version"].strip().splitlines())
+        return f"OpenDSSDirect.py {info['direct_version']}\n    {engine}"
+
+    print(f"Python  {sys.executable}（{sys.version.split()[0]}）")
+    print(f"工作目录  {Path.cwd()}\n")
+    for module in RUNTIME_IMPORTS:
+        report(
+            module,
+            lambda name=module: getattr(importlib.import_module(name), "__version__", ""),
+        )
+
+    def torch_details():
+        info = check_torch(require_cuda)
+        devices = ", ".join(device.upper() for device in info["devices"])
+        cuda_status = "可用" if "cuda" in info["devices"] else "不可用"
+        return f"{info['torch']}  实测设备 {devices}  CUDA {cuda_status}（构建 {info['cuda'] or '无'}）"
+
+    report("PyTorch 张量运算", torch_details)
+    if failed.intersection(("dss", "opendssdirect")):
+        print("[略过] OpenDSS 原生求解  请先修复 DSS API 导入")
+    else:
+        report("OpenDSS 原生求解", dss_details)
+    return not failed
 
 
 def check_vvc(system_path, workers):
@@ -116,22 +168,21 @@ def check_training(system_path, output_path, cuda=False):
 def main():
     """Report checks as JSON and return a nonzero exit code on any failure."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--train", action="store_true", help="also perform a HAPPO update"
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--train", action="store_true", help="also perform a HAPPO update")
+    mode.add_argument(
+        "--preflight",
+        action="store_true",
+        help="check imports, tensor operations and DSS without starting VVC workers",
     )
     parser.add_argument(
         "--require-cuda", action="store_true", help="fail if CUDA is unavailable"
     )
     args = parser.parse_args()
+    if args.preflight:
+        sys.exit(0 if check_preflight(args.require_cuda) else 1)
     results = {"python": sys.version, "executable": sys.executable, "checks": {}}
-    for module in (
-        "dss",
-        "opendssdirect",
-        "gym",
-        "gymnasium",
-        "stable_baselines3",
-        "runners",
-    ):
+    for module in RUNTIME_IMPORTS:
         importlib.import_module(module)
     results["checks"]["torch"] = check_torch(args.require_cuda)
     results["checks"]["native_dss"] = check_native_dss()
