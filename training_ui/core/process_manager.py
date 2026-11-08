@@ -35,18 +35,19 @@ def subprocess_environment() -> dict[str, str]:
 
 @dataclass
 class TaskInfo:
-	"""Runtime metadata for a single training task."""
+    """Runtime metadata for a single training task."""
 
-	task_id: str
-	algo: str
-	env: str
-	exp_name: str
-	config_path: str
-	status: str  # "running" | "completed" | "failed" | "stopped"
-	pid: int | None = None
-	start_time: str = ""
-	end_time: str = ""
-	log_file: str = ""
+    task_id: str
+    algo: str
+    env: str
+    exp_name: str
+    config_path: str
+    status: str  # "running" | "completed" | "failed" | "stopped"
+    pid: int | None = None
+    start_time: str = ""
+    end_time: str = ""
+    log_file: str = ""
+    system_name: str = ""
 
 
 class ProcessManager:
@@ -71,6 +72,8 @@ class ProcessManager:
 		env: str,
 		exp_name: str,
 		config_path: str,
+		*,
+		system_name: str = "",
 	) -> str:
 		"""Launch a new training subprocess.
 
@@ -85,6 +88,7 @@ class ProcessManager:
 			env: Environment name.
 			exp_name: Experiment name.
 			config_path: Absolute path to the generated YAML config file.
+			system_name: Network name from the resolved environment configuration.
 
 		Returns:
 			task_id (first 8 hex chars of a uuid4).
@@ -133,6 +137,7 @@ class ProcessManager:
 			pid=proc.pid,
 			start_time=now,
 			log_file=str(log_file),
+			system_name=system_name,
 		)
 
 		self._processes[task_id] = proc

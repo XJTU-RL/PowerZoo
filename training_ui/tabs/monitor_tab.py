@@ -39,6 +39,7 @@ def build_monitor_tab() -> gr.Tab:
                 t("col_task_id"),
                 t("col_algorithm"),
                 t("col_environment"),
+                "网络",
                 t("col_experiment"),
                 t("col_status"),
                 t("col_start_time"),
@@ -58,6 +59,7 @@ def build_monitor_tab() -> gr.Tab:
                     "task_id": task.task_id,
                     "algorithm": task.algo,
                     "environment": task.env,
+                    "system_name": task.system_name,
                     "experiment": task.exp_name,
                     "status": task.status,
                     "pid": task.pid,
@@ -84,7 +86,8 @@ def build_monitor_tab() -> gr.Tab:
                 start = datetime.fromisoformat(task.start_time)
                 end = datetime.fromisoformat(task.end_time) if task.end_time else datetime.now()
                 rows.append([
-                    task.task_id, task.algo, task.env, task.exp_name, task.status,
+                    task.task_id, task.algo, task.env, task.system_name or "—",
+                    task.exp_name, task.status,
                     task.start_time, str(end - start).split(".")[0],
                 ])
 

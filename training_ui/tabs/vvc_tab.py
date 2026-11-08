@@ -6,3 +6,4 @@ from training_ui.tabs.base_tab import BaseEnvironmentTab
 class VVCTab(BaseEnvironmentTab):
     env_name = "vvc"
     tab_label = "VVC"
+    show_feeder_selection = True

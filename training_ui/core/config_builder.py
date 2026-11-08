@@ -22,7 +22,10 @@ def resolve_config(algo, env, exp_name, ui_overrides=None):
 
 
 def build_config(algo, env, exp_name, ui_overrides):
-    config = resolve_config(algo, env, exp_name, ui_overrides)
+    return save_config(resolve_config(algo, env, exp_name, ui_overrides))
+
+
+def save_config(config):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     path = CACHE_DIR / f"task_{uuid.uuid4().hex[:12]}.yaml"
     config.save(path)

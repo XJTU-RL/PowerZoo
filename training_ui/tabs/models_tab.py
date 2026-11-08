@@ -18,16 +18,20 @@ def build_models_tab() -> gr.Tab:
             env_filter = gr.Dropdown(
                 label=t("label_env_filter"), choices=[("全部", "")], value="", scale=2
             )
+            system_filter = gr.Dropdown(
+                label="网络筛选", choices=[("全部", "")], value="", scale=2
+            )
             algo_filter = gr.Dropdown(
                 label=t("label_algo_filter"), choices=[("全部", "")], value="", scale=2
             )
             scan_btn = gr.Button(t("btn_scan_results"), variant="primary", scale=1)
 
+        scanned_state = gr.State([])
         records_state = gr.State([])
         models_table = gr.Dataframe(
             headers=[
                 t("col_env"),
-                t("col_system"),
+                "网络",
                 t("col_algorithm"),
                 t("col_experiment"),
                 t("col_run_id"),
@@ -55,21 +59,30 @@ def build_models_tab() -> gr.Tab:
                 record.run_id, len(record.checkpoints),
             ]
 
-        def refresh(env, algo):
-            records = scan_models()
-            env_choices = sorted({record.env for record in records})
-            algo_choices = sorted({record.algo for record in records})
-            env = env if env in env_choices else ""
-            algo = algo if algo in algo_choices else ""
-            filtered = filter_models(records, env=env, algo=algo)
+        def apply_filters(records, env, system, algo):
+            filtered = filter_models(records, env=env, system=system, algo=algo)
             return (
-                gr.update(choices=[("全部", ""), *env_choices], value=env),
-                gr.update(choices=[("全部", ""), *algo_choices], value=algo),
                 [row(record) for record in filtered],
                 filtered,
                 gr.update(choices=[], value=None),
                 "",
                 "",
+            )
+
+        def refresh(env, system, algo):
+            records = scan_models()
+            env_choices = sorted({record.env for record in records})
+            system_choices = sorted({record.system for record in records if record.system})
+            algo_choices = sorted({record.algo for record in records})
+            env = env if env in env_choices else ""
+            system = system if system in system_choices else ""
+            algo = algo if algo in algo_choices else ""
+            return (
+                gr.update(choices=[("全部", ""), *env_choices], value=env),
+                gr.update(choices=[("全部", ""), *system_choices], value=system),
+                gr.update(choices=[("全部", ""), *algo_choices], value=algo),
+                records,
+                *apply_filters(records, env, system, algo),
             )
 
         def select_record(records, event: gr.SelectData):
@@ -94,14 +107,15 @@ def build_models_tab() -> gr.Tab:
                 config_to_yaml_str(record.config) if record.config else "",
             )
 
-        inputs = [env_filter, algo_filter]
-        outputs = [
-            *inputs, models_table, records_state, checkpoint_dropdown, model_path_box,
-            model_config,
+        filters = [env_filter, system_filter, algo_filter]
+        result_outputs = [
+            models_table, records_state, checkpoint_dropdown, model_path_box, model_config,
         ]
-        scan_btn.click(refresh, inputs=inputs, outputs=outputs)
-        env_filter.input(refresh, inputs=inputs, outputs=outputs)
-        algo_filter.input(refresh, inputs=inputs, outputs=outputs)
+        scan_btn.click(refresh, inputs=filters, outputs=[*filters, scanned_state, *result_outputs])
+        for component in filters:
+            component.input(
+                apply_filters, inputs=[scanned_state, *filters], outputs=result_outputs
+            )
         models_table.select(
             select_record,
             inputs=records_state,

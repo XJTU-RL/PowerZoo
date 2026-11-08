@@ -103,12 +103,16 @@ def filter_models(
     records: list[ModelRecord],
     env: str | None = None,
     algo: str | None = None,
+    *,
+    system: str | None = None,
 ) -> list[ModelRecord]:
     """Filter model records while preserving the discovery order."""
     return [
         record
         for record in records
-        if (not env or record.env == env) and (not algo or record.algo == algo)
+        if (not env or record.env == env)
+        and (not algo or record.algo == algo)
+        and (not system or record.system == system)
     ]
 
 
