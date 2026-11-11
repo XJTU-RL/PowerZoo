@@ -1,0 +1,12 @@
+# LFC 13Bus × OHASAC 快速链路实验（exp1 口径的无光照 13 节点算例）。
+# 需 MATLAB/Simulink（R2024a~R2025b 含 Simscape Electrical）+ OpenDSS；
+# 完整 15k 论文口径见 configs/algos_cfgs/ohasac.yaml 默认值。
+run:
+  algo: ohasac
+  env: lfc
+  exp_name: lfc13bus_ohasac_quickstart
+training_ref: lfc_smoke
+env:
+  system: 13Bus
+  dss_file: IEEE13Nodeckt_duty.dss
+  max_episode_steps: 30

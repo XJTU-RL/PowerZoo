@@ -17,6 +17,7 @@ def test_package_registry_is_the_single_spec_mapping():
         "dsr",
         "district_dispatch",
         "stackelberg",
+        "lfc",
     }
     assert ENV_REGISTRY["stackelberg"].interaction == "sequential"
 
