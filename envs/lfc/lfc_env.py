@@ -75,7 +75,7 @@ class LFCEnv:
         self.env_name = info["env_name"]
 
         # 空间契约（与论文 LFC_HAEnv 一致：观测广播、动作逐设备拆分）
-        self.share_observation_space = [self.env.observation_space]
+        self.share_observation_space = [self.env.observation_space] * self.n_agents
         self.observation_space = [self.env.observation_space] * self.n_agents
         self.action_space = self._agent_action_spaces()
         self.discrete = self.env.action_space.__class__.__name__ != "Box"
@@ -95,18 +95,20 @@ class LFCEnv:
             info["bad_transition"] = True
         rewards = np.full((self.n_agents, 1), float(rew), dtype=np.float32)
         dones = np.full((self.n_agents,), bool(done), dtype=bool)
+        # PowerZoo 契约：share_obs 亦为 per-agent 列表（物理重构后的
+        # _validate_shapes 强校验要求；DeviceMARLAdapter 同款广播）
         return (
             [obs] * self.n_agents,
-            obs,
+            [obs.copy() for _ in range(self.n_agents)],
             rewards,
             dones,
-            [info],
+            [info] * self.n_agents,
             None,
         )
 
     def reset(self):
         obs = self.env.reset()
-        return [obs] * self.n_agents, obs, None
+        return [obs] * self.n_agents, [obs.copy() for _ in range(self.n_agents)], None
 
     # ------------------------------------------------------------------ #
     # 辅助（论文 LFC_HAEnv 同款语义）                                      #
@@ -144,10 +146,21 @@ def _make_workspace(source_dir):
     return workspace
 
 def _restore_matlab_lib_path():
-    """把 MATLAB 的 bin/glnxa64 前置回 LD_LIBRARY_PATH（防 cv2 等对其的重写）。"""
+    """为 MATLAB 引擎净化进程环境（供主/子进程在 spawn 前调用）。
+
+    cv2 被任何链拉入时会：
+    1. 重写 LD_LIBRARY_PATH 指向自己的 lib64（毒害库解析）；
+    2. 设置 QT_QPA_PLATFORM_PLUGIN_PATH / QT_QPA_FONTDIR 指向自带 Qt——
+       MATLAB 本体是 Qt 应用，worker 内引擎起的 MATLAB 会加载这些错误
+       插件而崩溃（python 侧表现为 load_system 抛 std::exception）。
+    故：LD 复原 + 剥离 QT_*/SDL_* 污染项，使 spawn 的 worker 干净继承。
+    """
     import os
     import shutil
 
+    for key in list(os.environ):
+        if key.startswith(("QT_QPA", "SDL_")):
+            del os.environ[key]
     matlab_bin = shutil.which("matlab")
     if not matlab_bin:
         return  # 引擎启动时自会报缺 MATLAB
@@ -155,6 +168,10 @@ def _restore_matlab_lib_path():
     if not os.path.isdir(glnxa64):
         return
     current = os.environ.get("LD_LIBRARY_PATH", "")
-    if glnxa64 in current.split(os.pathsep):
-        return
-    os.environ["LD_LIBRARY_PATH"] = glnxa64 + (os.pathsep + current if current else "")
+    parts = [p for p in current.split(os.pathsep) if p]
+    if glnxa64 not in parts:
+        os.environ["LD_LIBRARY_PATH"] = glnxa64 + (os.pathsep + current if current else "")
+    elif parts and parts[0] != glnxa64:
+        # 已含但被 cv2 路径压前——重排，glnxa64 置首
+        parts.remove(glnxa64)
+        os.environ["LD_LIBRARY_PATH"] = os.pathsep.join([glnxa64] + parts)

@@ -131,9 +131,12 @@ class OffPolicyBaseRunner:
         for agent_id in range(self.num_agents):
             self.action_spaces[agent_id].seed(algo_args["seed"]["seed"] + agent_id + 1)
 
-        print("share_observation_space shape: ", self.envs.share_observation_space.shape)
-        print("observation_space shape: ", self.envs.observation_space.shape)
-        print("action_space shape: ", self.envs.action_space.shape)
+        # 空间形态兼容打印：HARL 约定为 per-agent 列表（本文件下方 [0] 索引
+        # 亦按列表消费），此处原 .shape 写法对列表必挂——hasac 路径此前从未
+        # 跑通（"已注册未验收"），属未验证代码的显性 bug
+        print("share_observation_space: ", self.envs.share_observation_space)
+        print("observation_space: ", self.envs.observation_space)
+        print("action_space: ", self.envs.action_space)
 
         if self.share_param:
             self.actor = []

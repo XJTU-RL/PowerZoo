@@ -32,6 +32,8 @@ class OHASACRunner(OffPolicyHARunner):
         super().__init__(args, algo_args, env_args)
         algo_cfg = self.algo_args["algo"]
         self.use_order_net = algo_cfg.get("use_order_net", False)
+        # PowerZoo 基类未缓存 batch_size（论文版有），次序网络构造需要它
+        self.batch_size = algo_cfg["batch_size"]
         if self.use_order_net:
             self.order_obs_index = algo_cfg.get("order_obs_index", 9)
             self.order_num_steps = algo_cfg.get("order_num_steps", 9)
