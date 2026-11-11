@@ -7,14 +7,14 @@ dss_folder_path: ~
 dss_file: IEEE13Nodeckt_duty.dss
 max_episode_steps: 30
 
-reward_parameters:
-  f1: 7.5    # 电网频率偏差（比例项）
-  f2: 0      # 电网频率越限
-  f3: 0.1    # 均衡光伏出力
-  f4: 0.2    # 储能均衡出力
-  f5: 0.15   # 储能充放电诱导
-  f6: 0.1    # 储能放电惩罚
-  f7: 0.1    # 储能与光伏出力平滑
+# 奖励权重（论文 f1~f7）
+f1: 7.5    # 电网频率偏差（比例项）
+f2: 0      # 电网频率越限
+f3: 0.1    # 均衡光伏出力
+f4: 0.2    # 储能均衡出力
+f5: 0.15   # 储能充放电诱导
+f6: 0.1    # 储能放电惩罚
+f7: 0.1    # 储能与光伏出力平滑
 
 long_term_load_disturbance: False
 use_irrad: False

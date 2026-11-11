@@ -717,22 +717,14 @@ class LFCEnv(gym.Env):
         return self.state
         
     def render(self, mode='human'):
+        """返回整回合 (t, f) 频率序列。
+
+        原实现在 TkAgg 后端弹窗显示；服务化/无头场景（PowerZoo 渲染导出
+        CSV、对拍管线）只需数据，故默认仅返回，plot 落图交由调用方。
+        """
         t = np.array(self.eng.workspace['out_t']).reshape(-1)
         f = np.array(self.eng.workspace['out_f_load1']).reshape(-1)
-        
-        #loadt=np.array(self.eng.workspace['load_ob1t']).reshape(-1)/1000
-        
-        matplotlib.use('TkAgg')
-        # plt.subplot(2, 1, 1)
-        fig = plt.figure(figsize=(30, 60))
-        plt.plot(t, f, 'or-')
-        
-        # plt.subplot(2, 1, 2)
-        #plt.plot(t, loadt, 'or-')
-        #plt.savefig('/home/yushixuan/HARL/results/lfc/good_result/no_control_0.45_plot'+'/plot_sample=5.png')
-        
-        plt.show()
-        return t,f
+        return t, f
     
     def seed(self, seed):
         self.ActionSpace.seed(seed)

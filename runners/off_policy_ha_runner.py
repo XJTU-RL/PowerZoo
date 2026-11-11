@@ -49,7 +49,7 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
         ) = data
         # train critic
         self.critic.turn_on_grad()
-        if self.args["algo"] == "hasac":
+        if self.args["algo"] in ("hasac", "ohasac"):
             next_actions = []
             next_logp_actions = []
             for agent_id in range(self.num_agents):
@@ -96,7 +96,7 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
         sp_valid_transition = torch.tensor(sp_valid_transition, device=self.device)
         if self.total_it % self.policy_freq == 0:
             # train actors
-            if self.args["algo"] == "hasac":
+            if self.args["algo"] in ("hasac", "ohasac"):
                 actions = []
                 logp_actions = []
                 with torch.no_grad():
@@ -113,10 +113,7 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
                         logp_actions.append(logp_action)
                 # actions shape: (n_agents, batch_size, dim)
                 # logp_actions shape: (n_agents, batch_size, 1)
-                if self.fixed_order:
-                    agent_order = list(range(self.num_agents))
-                else:
-                    agent_order = list(np.random.permutation(self.num_agents))
+                agent_order = self._agent_order(sp_share_obs, sp_next_share_obs)
                 for agent_id in agent_order:
                     self.actor[agent_id].turn_on_grad()
                     # train this agent
@@ -262,3 +259,13 @@ class OffPolicyHARunner(OffPolicyBaseRunner):
                 for agent_id in range(self.num_agents):
                     self.actor[agent_id].soft_update()
             self.critic.soft_update()
+
+    def _agent_order(self, share_obs=None, next_share_obs=None):
+        """actor 更新次序决策钩子：默认 fixed/随机（原语义）。
+
+        OHASAC 覆写此方法：由次序网络按频差动态决定（升序），并顺带
+        填充次序网络缓冲。入参共享观测仅供覆写方消费。
+        """
+        if self.fixed_order:
+            return list(range(self.num_agents))
+        return list(np.random.permutation(self.num_agents))

@@ -14,14 +14,14 @@
 ``*_eval`` Simulink 模型与 ``<stem>_eval.dss``，worker 号取 4+rank。
 """
 
-import copy
+import os
 import shutil
 import tempfile
 
 import numpy as np
 from gymnasium.spaces import Box
 
-_PKG_DIR = __import__("os").path.dirname(__import__("os").path.abspath(__file__))
+_PKG_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class LFCEnv:
@@ -55,15 +55,14 @@ class LFCEnv:
         else:
             worker_idx = rank if rank is not None else config.worker_idx
 
-        # P0-7 工作区隔离：源目录只读，生成物全部落在临时副本目录
-        source_dir = config.dss_folder_path or _PKG_DIR_for_system(config.system)
-        info["dss_folder_path"] = _make_workspace(source_dir)
+        # P0-7 工作区隔离：源目录只读，生成物全部落在临时副本目录；
+        # 生命周期由本实例管理（close/析构时清理）
+        source_dir = config.dss_folder_path or _system_dir(config.system)
+        self._workspace = _make_workspace(source_dir)
+        info["dss_folder_path"] = self._workspace
 
         from envs.lfc.IEEE9BusSystem.LFC_gym import LFCEnv as CoreLFCEnv
 
-        # cv2（OpenCV）被任何链拉入时会重写 LD_LIBRARY_PATH 指向自己的 lib64，
-        # 抹掉 MATLAB 的库路径 → 引擎 spawn 的 MATLAB 用错库（std::exception）。
-        # 引擎启动前显式复原：matlab 根目录从 PATH 探测。
         _restore_matlab_lib_path()
 
         self.env = CoreLFCEnv(info, worker_idx)
@@ -123,14 +122,32 @@ class LFCEnv:
 
     def close(self):
         self.env.close()
+        self._cleanup_workspace()
 
     def seed(self, seed):
         self.env.seed(seed)
 
+    def _cleanup_workspace(self):
+        """删除临时工作区。DSS CAPI 编译会把进程 cwd 劫持进电路目录，
+        删除前必须先切走，否则 cwd 悬空。"""
+        if getattr(self, "_workspace", None) and os.path.isdir(self._workspace):
+            safe_cwd = _PKG_DIR if os.path.isdir(_PKG_DIR) else tempfile.gettempdir()
+            try:
+                if os.path.samefile(os.getcwd(), self._workspace):
+                    os.chdir(safe_cwd)
+            except OSError:
+                os.chdir(safe_cwd)
+            shutil.rmtree(self._workspace, ignore_errors=True)
+            self._workspace = None
 
-def _PKG_DIR_for_system(system):
-    import os
+    def __del__(self):
+        try:
+            self._cleanup_workspace()
+        except Exception:  # noqa: BLE001 - 析构期不抛错
+            pass
 
+
+def _system_dir(system):
     path = os.path.join(_PKG_DIR, "IEEE9BusSystem", "systems", system)
     if not os.path.isdir(path):
         raise FileNotFoundError(f"LFC 算例目录不存在：{path}")
@@ -139,11 +156,10 @@ def _PKG_DIR_for_system(system):
 
 def _make_workspace(source_dir):
     """复制算例源目录到临时工作区（对齐 PowerZoo DSSSession 的只读源哲学）。"""
-    import os
-
     workspace = tempfile.mkdtemp(prefix=f"lfc_{os.path.basename(source_dir)}_")
     shutil.copytree(source_dir, workspace, dirs_exist_ok=True)
     return workspace
+
 
 def _restore_matlab_lib_path():
     """为 MATLAB 引擎净化进程环境（供主/子进程在 spawn 前调用）。
@@ -155,9 +171,6 @@ def _restore_matlab_lib_path():
        插件而崩溃（python 侧表现为 load_system 抛 std::exception）。
     故：LD 复原 + 剥离 QT_*/SDL_* 污染项，使 spawn 的 worker 干净继承。
     """
-    import os
-    import shutil
-
     for key in list(os.environ):
         if key.startswith(("QT_QPA", "SDL_")):
             del os.environ[key]

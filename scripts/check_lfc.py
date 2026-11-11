@@ -170,25 +170,6 @@ def check_matlab():
     )
 
 
-def _check_matlab_direct():
-    from envs.lfc.lfc_config import LFCConfig
-    from envs.lfc.lfc_env import LFCEnv
-
-    cfg = LFCConfig(system="13Bus", dss_file="IEEE13Nodeckt_duty.dss", max_episode_steps=6)
-    env = LFCEnv(cfg, rank=0)
-    import numpy as np
-
-    obs, share, avail = env.reset()
-    actions = np.array([[0.5]] * env.pv_num + [[0.0]] * env.bat_num)
-    o, s, r, d, i, a = env.step(actions)
-    env.close()
-    assert len(obs) == env.n_agents and len(r) == env.n_agents
-    ok(
-        "matlab",
-        f"联合仿真构造+reset+step OK：{env.n_agents} 智能体（{env.pv_num} PV + {env.bat_num} BESS），"
-        f"reward={float(r[0][0]):.4f}",
-    )
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

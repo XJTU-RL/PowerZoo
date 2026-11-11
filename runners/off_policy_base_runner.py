@@ -620,6 +620,7 @@ class OffPolicyBaseRunner:
                     "eval_average_episode_length", eval_avg_len, step
                 )
                 break
+        return eval_avg_rew  # 子类（如 OHASAC 的次序网络）按需消费
 
     @torch.no_grad()
     def render(self):

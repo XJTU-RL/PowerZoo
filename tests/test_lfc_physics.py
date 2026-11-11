@@ -66,20 +66,22 @@ def test_lfc_config_contract():
         "system": "13Bus",
         "dss_file": "IEEE13Nodeckt_duty.dss",
         "max_episode_steps": 30,
-        "reward_parameters": {f"f{i}": 0.1 for i in range(1, 8)},
+        "f1": 7.5,
         "seed": 1,
         "worker_idx": 0,
     }
     cfg = build_dataclass(LFCConfig, values)
     assert cfg.system == "13Bus"
     assert cfg.evaluation is False
+    assert cfg.reward_parameters["f1"] == 7.5
+    assert set(cfg.reward_parameters) == {f"f{i}" for i in range(1, 8)}
 
     with pytest.raises(Exception):
         build_dataclass(LFCConfig, {"system": "13Bus", "未知字段": 1})
     with pytest.raises(ValueError):
         LFCConfig(system="999Bus")
     with pytest.raises(ValueError):
-        LFCConfig(reward_parameters={"f1": 1.0})  # 缺 f2~f7
+        LFCConfig(f1=-1.0)  # 奖励权重须非负有限
 
 
 def test_ohasac_algorithm_registry():
@@ -114,6 +116,7 @@ def test_lfc_env_yaml_matches_config():
     env_cfg = yaml.safe_load(open("configs/envs_cfgs/lfc.yaml", encoding="utf-8"))
     cfg = build_dataclass(LFCConfig, dict(env_cfg, seed=1, worker_idx=0))
     assert cfg.system == "13Bus"
+    assert cfg.f1 == 7.5
     assert set(cfg.reward_parameters) == {f"f{i}" for i in range(1, 8)}
 
 
@@ -157,11 +160,13 @@ def test_matlab_import_is_lazy():
     """无 MATLAB 的环境可 import 内核模块（构造时才报缺失）。"""
     import importlib
 
-    mod = importlib.import_module("envs.lfc.IEEE9BusSystem.LFC_gym")
-    importlib.reload(mod)  # 再次导入不应触发 matlab 引擎加载
     import sys
 
-    assert "matlab.engine" not in sys.modules or True  # 不因导入本包而强制加载
+    before = "matlab.engine" in sys.modules
+    mod = importlib.import_module("envs.lfc.IEEE9BusSystem.LFC_gym")
+    importlib.reload(mod)
+    # 导入/重导入不得引入 matlab.engine（惰性导入契约）
+    assert before or "matlab.engine" not in sys.modules
 
 
 # ---------------------------------------------------------------- #
