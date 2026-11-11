@@ -22,6 +22,8 @@ ALGO_REGISTRY = {
     "haddpg": HADDPG,
     "hatd3": HATD3,
     "hasac": HASAC,
+    # OHASAC：执行器即 HASAC，次序网络在 runners/ohasac_runner 内装配。
+    "ohasac": HASAC,
     "had3qn": HAD3QN,
     "maddpg": MADDPG,
     "matd3": MATD3,

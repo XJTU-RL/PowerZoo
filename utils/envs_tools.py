@@ -78,6 +78,13 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
         env_args = copy.deepcopy(env_args)
         if evaluation:
             env_args["data"]["split"] = "validation"
+    elif family == "lfc":
+        # LFC 无数据集切分；评估语义（*_eval 模型与 DSS、worker 号 4+rank）
+        # 由包装器按 evaluation 标志实现（论文 make_eval_env 的 ranks=4 语义）。
+        import copy
+
+        env_args = copy.deepcopy(env_args)
+        env_args["evaluation"] = evaluation
 
     def get_env_fn(rank):
         def init_env():
@@ -142,6 +149,8 @@ def get_num_agents(env, env_args, envs):
     elif env.startswith("stackelberg"):
         return envs.n_agents
     elif env.startswith("district_dispatch"):
+        return envs.n_agents
+    elif env == "lfc":
         return envs.n_agents
 
 

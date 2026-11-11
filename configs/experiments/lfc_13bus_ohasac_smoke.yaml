@@ -1,0 +1,29 @@
+# LFC 13Bus × OHASAC 冒烟实验（exp1 口径的无光照 13 节点算例）。
+# 说明：完整 15k 论文口径见 configs/algos_cfgs/ohasac.yaml 默认值；
+# 本冒烟配置只为快速验证端到端链路（需 MATLAB/Simulink + OpenDSS）。
+run:
+  algo: ohasac
+  env: lfc
+  exp_name: lfc13bus_ohasac_smoke
+env:
+  system: 13Bus
+  dss_file: IEEE13Nodeckt_duty.dss
+  max_episode_steps: 30
+algo:
+  num_env_steps: 180
+  warmup_steps: 100
+  train_interval: 10
+  eval_interval: 30
+  n_rollout_threads: 1
+  batch_size: 32
+  buffer_size: 3600
+  use_order_net: True
+train:
+  num_env_steps: 180
+  warmup_steps: 100
+  train_interval: 10
+  eval_interval: 30
+  n_rollout_threads: 1
+eval:
+  n_eval_rollout_threads: 1
+  eval_episodes: 1

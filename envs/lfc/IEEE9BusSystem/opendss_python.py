@@ -1,0 +1,1044 @@
+import dss as opendss
+import sys
+import networkx as nx
+import numpy as np
+import os
+import pandas as pd
+import math
+from pathlib import Path
+from envs.lfc.IEEE9BusSystem.loadprofile import LoadProfile
+
+class circuit():
+    def __init__(self, dss_file, 
+                 batt_file='Battery.csv', #这一部分其实已经在opendss电路中定义好辽，为什么此处还需要单独的battery文件？
+                 RBP_act_num=(33,np.inf,0.0), #调压器动作数量默认是33
+                 dss_act=False):
+        
+        self.dss = opendss.DSS # the dss simulator object
+        self.dss_file = dss_file # path to the dss file for the whole circuit
+        self.dss_act = dss_act # whether to use OpenDSS controllers defined in the circuit file
+
+        self.batt_file = os.path.join( Path(self.dss_file).parent, batt_file)
+        if not os.path.exists(self.batt_file): self.batt_file = ''
+        
+        self.topology = nx.Graph()
+        self.edge_obj = dict() # map from frozenset({bus1, bus2}) to the (active) object on the edge
+        self.dup_edges = dict() # map from duplicate edge (if any) to the objects on the edge
+        self.edge_weight = dict() # map from edge to Ymatrix. Ymatrix is symmetric/tall if the number of phases is equal/different 
+        self.bus_phase = dict() # map from bus name to the number of phases.
+        self.bus_obj = dict() # map from bus name to the objects(load,capacitor,batteries) on the bus
+        
+        # circuit element
+        self.lines = dict()
+        self.transformers = dict()
+        self.regulators = dict()
+        self.loads = dict()
+        self.capacitors = dict()
+        self.batteries = dict()
+        
+        self.pvs = dict()
+        self.winds = dict()
+
+        # regulator and battery action dim
+        self.reg_act_num, self.bat_act_num,self.pv_act_num = RBP_act_num
+        
+        # initialization
+        self.initialize()
+      
+    
+    def set_regulator_parameters(self, tap=1.1, mintap=0.9, maxtap=1.1):
+        '''
+        Set all regulator parameters to the same predefined values
+        设置抽头参数,只在初始化时调用
+        Arguments:
+           tap: tap value in between mintap and maxtap
+           maxtap: max tap value
+           mintap: min tap value
+        
+        Returns: None
+        '''
+        # run this after Text.Command = "compile" and before ActiveCircuit.Solution.Solve()
+        
+        ## numtaps: number of tap values between mintap and maxtap.
+        ##          reg_act_num = numtaps + 1
+        numtaps = self.reg_act_num - 1
+        fea = [mintap, maxtap, numtaps]
+        transet = set()
+        for regname in self.regulators.keys():
+            self.regulators[regname].tap_feature = fea.copy()
+            self.regulators[regname].tap = tap
+            transet.add(regname[10:])
+        
+        dssTrans = self.dss.ActiveCircuit.Transformers
+        if dssTrans.First == 0: return # no such kind of object
+        while True:
+            if dssTrans.Name in transet:
+                dssTrans.Tap = tap
+                dssTrans.MinTap = mintap
+                dssTrans.MaxTap = maxtap 
+                dssTrans.NumTaps = numtaps
+            if dssTrans.Next==0: break
+    
+                
+    def compile(self, disable = False):#compile the dss file意思是编译opendss的
+        '''
+        Compile the main dss file
+
+        Arguments:
+            disable: disable sources and loads during solve.
+                        This is used when computing the admittance matrix (Ymat)
+
+        Returns: None
+        '''
+        self.dss.Text.Command = "compile " + self.dss_file
+        self.dss.Text.Command = "Set Maxiterations=50"
+        self.dss.Text.Command = "Set Maxcontroliter=100"
+        
+        if disable:
+            self.dss.Text.Command = 'vsource.source.enabled=no'
+            self.dss.Text.Command = 'batchedit load..* enabled=no'
+        else:
+            self.dss.Text.Command = 'vsource.source.enabled=yes'
+            self.dss.Text.Command = 'batchedit load..* enabled=yes' 
+        
+        if not self.dss_act:
+            self.dss.Text.Command = "Set ControlMode = off"
+        
+    def reset(self):#初始化opendss的电路，包括抽头、电容以及电池
+        self.compile() # this include resetting regulators in dss
+                       # capacitors in dss and batteries in dss
+        # reset regulator, capacitors and batteries in objects
+        #self.set_regulator_parameters()#设置抽头初始参数
+        self.set_all_capacitor_statuses([1]*len(self.capacitors), change_dss=False)#set 电容初始状态（全为1），为什么不change dss文件呢？这样的话电容的值不就传不进电路吗
+        for bat in self.batteries.keys():#set 储能电池状态
+            self.batteries[bat].reset()
+        #self.dss.ActiveCircuit.Solution.Solve()
+        self.set_all_pvs_before_solve([0.45]*len(self.pvs), change_dss=True)#set 光伏电池初始状态，%pmpp=100
+        self.dss.ActiveCircuit.Solution.SolveNoControl()
+        
+            
+    def initialize(self, noWei=True):#在init函数中调用
+        '''
+        Compile and generate all data members.
+
+        Arguments:
+            noWei: don't compute the admittance matrix (Ymat), stored as self.edge_weight
+
+        Returns: None
+        '''
+
+        if not noWei:
+            self.compile(disable = True)
+            self.__cal_edgeWei_busPhase(noWei=noWei)
+            self.compile(disable = False)
+        else:
+            self.compile(disable = False)
+            self.__cal_edgeWei_busPhase(noWei=noWei)
+
+        # nodes
+        self._gen_load_cap_obj()#生成电容和负载对象
+        if self.batt_file != '':
+            self._gen_bat_obj()#生成电池对象，实际上，我还是要区分储能、光伏以及风电
+        # edges
+        #regulators, valid_trans2edge, line2edge = self._get_edge_name()
+        #self._gen_reg_obj(regulators)#生成调压器对象
+        #self._gen_trans_obj(valid_trans2edge)#生成变压器对象
+        #self._gen_line_obj(line2edge)#生成线路对象
+        #self.set_regulator_parameters()#设置调压器参数
+        
+        #在这里获取电路的所有对象
+        # nodes
+        #求解初始状态
+        #self.dss.ActiveCircuit.Solution.Solve()
+        self.dss.ActiveCircuit.Solution.SolveNoControl()#do select 求解初始状态
+    
+    def __cal_edgeWei_busPhase(self, noWei=True):
+        '''
+        Calculate edge weights (admittance matrix, Ymat) and number of phases on each bus
+
+        Arguments:
+            noWei: don't compute edge weights
+
+        Returns: None
+        '''
+        # sort y nodes in alphabetical order
+        YNodeOrder = np.array(self.dss.Circuits.YNodeOrder)
+        order = np.argsort(YNodeOrder)
+        YNodeOrder = YNodeOrder[order]
+        
+        # find the range and bus phase
+        bus_range = dict()
+        for i, node_name in enumerate(YNodeOrder):
+            bus_name = node_name.split('.', 1)[0].lower()
+            if bus_name not in bus_range:
+                bus_range[bus_name] = [i,i+1]
+            else:
+                bus_range[bus_name][1] = i+1
+
+        for bus_name in bus_range.keys():
+            self.dss.Circuits.SetActiveBus(bus_name)
+            self.bus_phase[bus_name] = [str(i) for i in self.dss.Circuits.Buses.Nodes]
+        #self.bus_phase = {bus:r[1]-r[0] for bus, r in bus_range.items()}
+        
+        if noWei: return
+        bus_length = len(YNodeOrder)
+        Y = self.dss.Circuits.SystemY
+        Y = Y.reshape((bus_length, 2*bus_length))
+        Y = Y[:, ::2] + 1j*Y[:, 1::2]
+        Y = Y[order,:][:,order]
+            
+        # extract the submatrix of edge weight from Y
+        for edge in self.edge_obj.keys():
+            bus1, bus2 = tuple(edge)
+            range1, range2 = bus_range[bus1], bus_range[bus2]
+            nphase1, nphase2 = range1[1]-range1[0], range2[1]-range2[0]
+            
+            if nphase1 == nphase2:
+                # symmetric matrix if same number of phases
+                self.edge_weight[edge] = Y[range1[0]:range1[1], range2[0]:range2[1]]
+            else:
+                # store as a tall matrix
+                if nphase1<nphase2:
+                    self.edge_weight[edge] = Y[range2[0]:range2[1], range1[0]:range1[1]]
+                else:
+                    self.edge_weight[edge] = Y[range1[0]:range1[1], range2[0]:range2[1]]
+                    
+    def set_all_pvs_before_solve(self, nkws, change_dss=True):
+        '''
+        Set the states of all batteries
+        ( Run this function before each solve() )
+
+        Arguments:
+            nkws_or_states: array of nkws or states
+                 nkw: continuous battery's normalized discharge power in [-1, 1]
+                 state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        
+        Returns:
+            the absolute change of states in integers
+        '''
+        
+        assert len(nkws)>0 and len(nkws) == len(self.pvs), 'inconsistent states'
+        if self.pv_act_num == np.inf:
+            nkws = np.array(nkws, dtype=np.float32)
+            
+        # set battery object
+        pv2kwkvar = dict()
+        for i, pv in enumerate(self.pvs.keys()):
+            pv = self.pvs[pv]
+            kw = pv.state_projection(nkws[i]) # projection
+            kvar = kw / pv.pf
+            #pv2kwkvar[pv.name[9:]] = (nkws[i], kvar) # remove the header 'Pvsystems.'
+            pv2kwkvar[pv.name[9:]] = (nkws[i], kvar) # remove the header 'Pvsystems.'
+       
+        ## change kw in dss
+        if change_dss:
+            dsspv = self.dss.ActiveCircuit.PVSystems
+            if dsspv.First == 0: return # no such kind of object
+            while True:
+                if dsspv.Name in pv2kwkvar:
+                    pctPmpp, kvar = pv2kwkvar[dsspv.Name]
+                    #dsspv.kvar = kvar#此处并没有对无功进行控制，采用了恒定功率因数控制方式，固定功率因数为0.9
+                    pvname='PVsystem.' + dsspv.Name
+                    self.dss.ActiveCircuit.SetActiveElement('PVsystem.' + dsspv.Name)
+                    self.dss.ActiveCircuit.ActiveCktElement.Properties("%Pmpp").Val=pctPmpp*100#至此，有能力通过控制pmpp控制光伏的有功输出，并未对无功进行控制
+                if dsspv.Next==0: break
+                
+    def get_all_pvs_irrad_after_solve(self):
+        dsspv = self.dss.ActiveCircuit.PVSystems
+        if dsspv.First == 0: return # no such kind of object
+        while True:
+            myIrradNow = dsspv.IrradianceNow
+
+            if dsspv.Next==0: break
+        for pv in self.pvs.keys():
+            #self.pvs[pv].max_output=myIrradNow*self.pvs[pv].pmpp*self.pvs[pv].irradiance #输出的最大值是不是不应该乘以pmpp呢，这样计算出来的是当前pmpp输出的最大值，而不是光伏能力输出的最大值
+            self.pvs[pv].max_output=myIrradNow*self.pvs[pv].pmpp*self.pvs[pv].irradiance #输出的最大值是不是不应该乘以pmpp呢
+           
+        return myIrradNow
+    
+    
+                
+    def set_all_batteries_before_solve(self, nkws_or_states, change_dss=True):
+        '''
+        Set the states of all batteries
+        ( Run this function before each solve() )
+
+        Arguments:
+            nkws_or_states: array of nkws or states
+                 nkw: continuous battery's normalized discharge power in [-1, 1]
+                 state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        
+        Returns:
+            the absolute change of states in integers
+        '''
+        
+        assert len(nkws_or_states)>0 and len(nkws_or_states) == len(self.batteries), 'inconsistent states'
+        if self.bat_act_num == np.inf:
+            nkws_or_states = np.array(nkws_or_states, dtype=np.float32)
+        else:
+            nkws_or_states = np.array(nkws_or_states, dtype=int)
+
+        # set battery object
+        bat2kwkvar = dict()
+        for i, bat in enumerate(self.batteries.keys()):
+            batt = self.batteries[bat]
+            kw = batt.state_projection(nkws_or_states[i]) # projection
+            kvar = kw / batt.pf
+            bat2kwkvar[batt.name[8:]] = (kw, kvar) # remove the header 'Battery.'
+       
+        ## change kw in dss
+        if change_dss:
+            dssGen = self.dss.ActiveCircuit.Generators
+            if dssGen.First == 0: return # no such kind of object
+            while True:
+                if dssGen.Name in bat2kwkvar:
+                    kw, kvar = bat2kwkvar[dssGen.Name]
+                    dssGen.kW = kw
+                    dssGen.kvar = kvar
+                if dssGen.Next==0: break
+        
+        ## run solve() afterward
+        
+    def set_all_batteries_after_solve(self):
+        '''
+        Update the kwh and the soc based on the actual power shown in the dss object.
+        ( Run this function after each solve() )
+
+        Arguments: None
+        Returns: soc error and discharge error
+        '''
+        soc_errs, discharge_errs = np.zeros(len(self.batteries)), np.zeros(len(self.batteries))
+        for i, bat in enumerate(self.batteries):
+            batt = self.batteries[bat]
+            batt.kwh += batt.actual_power() * batt.duration
+            # enforce capacity constraint and round to integer
+            batt.kwh = round( max(0.0, min(batt.max_kwh, batt.kwh) ) )
+            batt.soc = batt.kwh / batt.max_kwh
+            soc_errs[i] = abs(batt.soc - batt.initial_soc)
+           
+            if self.bat_act_num == np.inf:
+                discharge_errs[i] = max(0.0, batt.kw)/batt.max_kw
+            else:
+                discharge_errs[i] = max(0.0, batt.avail_kw[batt.state])/batt.max_kw
+        return soc_errs, discharge_errs
+
+    def set_all_regulator_tappings(self, tapnums, change_dss=True):
+        '''
+        Set tap values of all regulators
+
+        Arguments:
+            tapnums: array of integers in [0, numtaps]
+        
+        Returns: 
+            the absolute change of tapnums
+        '''
+        assert len(tapnums)>0 and len(tapnums) == len(self.regulators), 'inconsistent tapnums'
+        mintap, maxtap, numtaps = self.regulators[next(iter(self.regulators))].tap_feature
+        step = (maxtap - mintap) / numtaps
+        tapnums = np.maximum(0, np.minimum(numtaps, np.array(tapnums, dtype=int) ) )
+        taps = tapnums*step + mintap
+
+        # set regulator objects
+        diff = np.zeros(len(taps))
+        trans2tap = dict()
+        for i, reg in enumerate(self.regulators.keys()):
+            regu = self.regulators[reg]
+            diff[i] = abs((regu.tap - taps[i])/step)
+            regu.tap = taps[i]
+            # remove 'Regulator.' from the head of the name
+            trans2tap[reg[10:]] = (taps[i], tapnums[i]) 
+
+        # set dss
+        if change_dss:
+            dssTrans = self.dss.ActiveCircuit.Transformers
+            if dssTrans.First == 0: return # no such kind of object
+            while True:
+                if dssTrans.Name in trans2tap:
+                    tap, tapnum = trans2tap[dssTrans.Name]
+                    dssTrans.NumTaps = tapnum
+                    dssTrans.Tap = tap
+                if dssTrans.Next==0: break 
+        return diff
+    
+    def set_all_capacitor_statuses(self, statuses, change_dss=True):
+        '''
+        Set statuses of all capacitors
+
+        Arguments:
+            statuses: array of 0-1 integers
+        
+        Returns:
+            the absolute change of statuses
+        '''
+        assert len(statuses)>0 and len(statuses)==len(self.capacitors), 'inconsistent statuses'
+        statuses = np.array(statuses, dtype=int)
+
+        # set capacitor objects
+        diff = np.zeros(len(statuses))
+        cap2st = dict()
+        for i, cap in enumerate(self.capacitors.keys()):
+            capa = self.capacitors[cap]
+            diff[i] = abs(capa.status - statuses[i])#使用之前的状态和之后的状态做差，用来形成控制误差。
+            capa.status = statuses[i]
+            cap2st[capa.name[10:]] = statuses[i]
+        
+        # set dss object
+        if change_dss:
+            dssCap = self.dss.ActiveCircuit.Capacitors
+            if dssCap.First == 0: return # no such object 
+            while True:
+                if dssCap.Name in cap2st:
+                    dssCap.States = [cap2st[dssCap.Name]]#使用字典的形式转化电容器的状态
+                if dssCap.Next==0: break
+        return diff              
+    def _get_edge_name(self):
+        '''
+        Compute the object names on all edges.
+
+        Arguments: None
+
+        Returns: 
+            regulators [dict]: map from edge to all transformers and regcontrols of a regulator.
+            valid_trans2edge [dict]: map from non-regulator transformers to edge
+            line2edge [dict]: map from line to edge
+        '''
+        def get_edge(type_name, ignore_duplicate = False):
+            self.dss.ActiveCircuit.SetActiveElement(type_name)
+            buses = self.dss.ActiveCircuit.ActiveElement.BusNames
+
+            # transformer may have >2 buses
+            if type_name.startswith('Transformer'):
+                assert len(buses) in [2,3], type_name + ' has invalid number of terminals'
+            else:
+                assert len(buses) == 2, type_name + ' has more than two terminals'
+
+            if len(buses)==2:
+                bus1, bus2 = map(lambda x: x.lower().split('.'), buses)
+                bus1, bus2 = bus1[0], bus2[0]
+                edge = frozenset({bus1,bus2})
+            else:
+                bus1, bus2, bus3 = map(lambda x: x.lower().split('.'), buses)
+                bus1, bus2, bus3 = bus1[0], bus2[0], bus3[0]
+                edge = frozenset({bus1,bus2,bus3})
+            
+            if ignore_duplicate:
+                return edge, False
+            else:
+                return edge, (edge in self.edge_obj)
+            
+        # deal with RegControls as an exception first        
+        regulators = set() # names of transformers acting as a regulator
+        dssReg = self.dss.ActiveCircuit.RegControls
+        if dssReg.First == 0: return # no such kind of object
+        while True:
+            #reg_name = dssReg.Name
+            trans_name = dssReg.Transformer
+            regulators.add(trans_name)
+            if dssReg.Next==0: break
+        
+        # run for line and transformer
+        valid_trans2edge= dict()
+        line2edge = dict()
+        for type in ['Transformer','Line']:
+            if type == 'Line':
+                names = self.dss.ActiveCircuit.Lines.AllNames
+            elif type == 'Transformer':
+                names = self.dss.ActiveCircuit.Transformers.AllNames
+          
+            for name in names:
+                # ignore regulators since they have been processed
+                if type == 'Transformer' and name in regulators: continue
+                type_name = type + '.' + name
+                edge, has_dup = get_edge(type_name)
+                
+                # handle duplicate
+                if not has_dup:
+                    self.edge_obj[edge] = type_name
+                else:
+                    if type =='Line': # allow jump circuit
+                        dup_name = self.edge_obj[edge]
+                        #assert not dup_name.startswith('Line'), 'Duplicated lines: {} {}'.format(dup_name, type_name)
+                        self.edge_obj[edge] = type_name
+                 
+                    if edge not in self.dup_edges:
+                        self.dup_edges[edge] = [dup_name, type_name]
+                    else:
+                        self.dup_edges[edge].append(type_name)
+                
+                if type == 'Transformer':
+                    valid_trans2edge[name] = edge
+                else:
+                    line2edge[name] = edge
+        return regulators, valid_trans2edge, line2edge
+    
+    def _gen_reg_obj(self, regulators):
+        '''
+        Generate all regulator objects:
+
+        Arguments: 
+            regulators (set): names of regulators acting as a regulator
+
+        Returns: None
+        '''
+        if len(regulators)==0: return
+        dssTrans = self.dss.ActiveCircuit.Transformers
+        if dssTrans.First == 0: return # no such kind of object
+        while True:
+            name = dssTrans.Name
+            if name in regulators:
+                tap = [dssTrans.Tap, dssTrans.MinTap, dssTrans.MaxTap, dssTrans.NumTaps]
+                fea = [dssTrans.Xhl, dssTrans.R]
+                for wdg in range(1, 1+dssTrans.NumWindings):
+                    dssTrans.Wdg = wdg
+                    fea = fea + [dssTrans.kV, dssTrans.kVA]
+                if dssTrans.NumWindings==3:
+                    fea = fea + [dssTrans.Xht, dssTrans.Xlt]
+                
+                # get the correct bus order
+                self.dss.ActiveCircuit.SetActiveElement('Transformer.'+name)
+                buses = self.dss.ActiveCircuit.ActiveElement.BusNames
+
+                self.add_regulators('Regulator.'+name, buses, fea, tap)
+            if dssTrans.Next==0: break
+                
+    def _gen_trans_obj(self, valid_trans2edge):
+        '''
+        Generate all transformer objects:
+
+        Arguments: 
+            valid_trans2edge [dict]: one of the returned objects of self._get_edge_name()
+
+        Returns: None
+        '''
+        dssTrans = self.dss.ActiveCircuit.Transformers
+        if dssTrans.First == 0: return # no such kind of object
+        while True:
+            name = dssTrans.Name
+            if name in valid_trans2edge:
+                #tap = [dssTrans.Tap, dssTrans.MinTap, dssTrans.MaxTap, dssTrans.NumTaps]
+                fea = [dssTrans.Xhl, dssTrans.R]
+                for wdg in range(1, 1+dssTrans.NumWindings):
+                    dssTrans.Wdg = wdg
+                    fea = fea + [dssTrans.kV, dssTrans.kVA]
+                if dssTrans.NumWindings==3:
+                    fea = fea + [dssTrans.Xht, dssTrans.Xlt]
+                
+                # get the correct bus order
+                self.dss.ActiveCircuit.SetActiveElement('Transformer.'+name)
+                buses = self.dss.ActiveCircuit.ActiveElement.BusNames
+
+                self.add_transformers('Transformer.'+name, buses, fea)
+            if dssTrans.Next==0: break
+    
+    def _gen_line_obj(self, line2edge):
+        '''
+        Generate all line objects:
+
+        Arguments: 
+            line2edge [dict]: one of the returned objects of self._get_edge_name()
+
+        Returns: None
+        '''
+        dssLine = self.dss.ActiveCircuit.Lines
+        if dssLine.First == 0: return # no such kind of object
+        while True:
+            name = dssLine.Name
+            assert name in line2edge, 'missing line for Line.{}'.format(name)
+            self.dss.ActiveCircuit.SetActiveElement('Line.'+name)
+            buses = self.dss.ActiveCircuit.ActiveElement.BusNames
+            mats = [ dssLine.Rmatrix, dssLine.Xmatrix, dssLine.Cmatrix ]
+            self.add_lines('Line.' + name, buses, mats)
+            if dssLine.Next==0: break
+    
+    
+    def _gen_load_cap_obj(self):#修改这个
+        '''
+        Generate all load and capacitor objects
+
+        Arguments: None
+
+        Returns: None
+        '''
+        for type in ['Load','Capacitor','PVSystem']:
+            if type == 'Load':
+                dssObj = self.dss.ActiveCircuit.Loads
+            elif type == 'Capacitor':
+                dssObj = self.dss.ActiveCircuit.Capacitors
+            elif type == 'PVSystem':
+                dssObj = self.dss.ActiveCircuit.PVSystems
+            if dssObj.First == 0: break # no such kind of object
+            while True:
+                objname = self.dss.ActiveCircuit.CktElements.Name
+                BusNames = self.dss.ActiveCircuit.CktElements.BusNames[0].split('.')
+                bus = BusNames[0]
+                if len(BusNames)>1:
+                    phases = BusNames[1:]
+                else: 
+                # if not specifying the phases, use all phases at the bus
+                    phases = self.bus_phase[bus]
+                
+                if type == 'Load':
+                    fea = [dssObj.kV, dssObj.kW, dssObj.kvar]
+                    self.add_loads(objname, bus, phases, fea)
+                elif type == 'Capacitor':
+                    fea = [dssObj.States[0], dssObj.kV, dssObj.kvar]
+                    self.add_capacitors(objname, bus, phases, fea)
+                elif type == 'PVSystem':
+                    fea = [dssObj.PF, dssObj.IrradianceNow, dssObj.Irradiance, dssObj.Name, dssObj.Pmpp, dssObj.kW,dssObj.kvar,dssObj.kVArated]
+                    self.add_pvsystems(objname, bus, phases, fea)
+                if dssObj.Next ==0: break
+    def _gen_bat_obj(self):
+        '''
+        Generate all battery objects defined in self.batt_file
+
+        Arguments: None
+
+        Returns: None
+        '''
+        batt = pd.read_csv(self.batt_file, sep=',', header = 0)
+        batt = batt.set_index('name')
+        batts = {name:feature for name, feature in batt.iterrows()}
+        
+        dssGen = self.dss.ActiveCircuit.Generators#这里得到的是所有的发电机对象
+        if dssGen.First == 0: return # no such kind of object
+        while True:#我算是研究透了，下面的程序是由cpu执行的，不断的轮询dssnext的值，读到合适的就存下来，直到读完
+            name = dssGen.Name
+            if name in batts:#name是单个值，如batt1，这里只是找了发电机对象中的batt,dssgen name到底是如何变化的，这个函数得重写一下，不然老丢储能装置，应该先遍历dssGen.ALLname，再从all name中找name，就是看得如何把相位和节点拿出来
+                feature = batts[name]
+                dssGen.kW = 0.0 # initialize in disconnected mode
+                dssGen.PF = feature.pf
+                dssGen.kvar = feature.max_kw / feature.pf
+                
+                BusNames = self.dss.ActiveCircuit.CktElements.BusNames[0].split('.')
+                bus = BusNames[0]
+                if len(BusNames)>1:
+                    phases = BusNames[1:]
+                else: 
+                # if not specifying the phases, use all phases at the bus
+                    phases = self.bus_phase[bus]
+                self.add_batteries('Battery.'+name, bus, phases, feature)
+            if dssGen.Next==0: break
+            
+    def add_lines(self, linename, buses, mats):
+        self.lines[linename] = Line(linename, buses, mats)
+    
+    def add_transformers(self, transname, buses, feature):
+        self.transformers[transname] = Transformer(transname, buses, feature)
+
+    def add_regulators(self, regname, buses, feature, tap):
+        self.regulators[regname] = Regulator(self.dss, regname, buses, feature, tap)        
+            
+    def add_capacitors(self, capname, bus, phases, feature):
+        self.capacitors[capname] = Capacitor(self.dss, capname, bus, phases, feature)
+        if bus not in self.bus_obj:
+            self.bus_obj[bus] = [capname]
+        else:
+            self.bus_obj[bus].append(capname)
+            
+    def add_loads(self, loadname, bus, phases, feature):
+        self.loads[loadname] = Load(loadname, bus, phases, feature)
+        if bus not in self.bus_obj:
+            self.bus_obj[bus] = [loadname]
+        else:
+            self.bus_obj[bus].append(loadname)
+        
+    def add_pvsystems(self, pvname, bus, phases, feature):
+        self.pvs[pvname] = PVSystem(self.dss, pvname, bus, phases, feature)
+        if bus not in self.bus_obj:
+            self.bus_obj[bus] = [pvname]
+        else:
+            self.bus_obj[bus].append(pvname)
+
+    def add_batteries(self, batname, bus, phases, feature):
+        self.batteries[batname] = Battery(self.dss, batname, bus, phases, feature, \
+                                          bat_act_num = self.bat_act_num)
+        if bus not in self.bus_obj:
+            self.bus_obj[bus] = [batname]
+        else:
+            self.bus_obj[bus].append(batname)
+
+
+############# Edge Objects #############
+class Edge():
+    def __init__(self, name, bus1, bus2):
+        self.name = name
+        self.bus1 = bus1
+        self.bus2 = bus2
+    
+    def __repr__(self):
+        return f"Edge {self.name} at ({self.bus1}, {self.bus2}),"
+
+class Line(Edge):
+    def __init__(self, name, buses, mats):
+        bus1, bus2 = map(lambda x: x.lower().split('.'), buses)
+        self.phase1,self.phase2 = map(lambda b: b[1:] if len(b)>1 else ['1','2','3'], [bus1, bus2])
+        bus1, bus2 = bus1[0], bus2[0]
+        super().__init__(name, bus1, bus2)
+        
+        # The matrices are symmetric if both buses are of the same number of phases; 
+        # Otherwise, the matrices are represented as a tall matrix.
+        self.rmat = mats[0] # resistance matrix
+        self.xmat = mats[1] # reactance matrix
+        self.cmat = mats[2] # capacitance matrix
+
+
+class Transformer(Edge):
+     def __init__(self, name, buses, feature):
+        if len(buses)==2:
+            bus1, bus2 = map(lambda x: x.lower().split('.'), buses)
+            phase1, phase2 = map(lambda b: b[1:] if len(b)>1 else ['1','2','3'], [bus1, bus2])
+            bus1, bus2 = bus1[0], bus2[0]
+        else:
+            bus1, bus2, bus3 = map(lambda x: x.lower().split('.'), buses)
+            phase1, phase2, phase3 = map(lambda b: b[1:] if len(b)>1 else ['1','2','3'], \
+                                         [bus1, bus2, bus3])
+            bus1, bus2, bus3 = bus1[0], bus2[0], bus3[0]
+            self.bus3 = bus3
+            self.phase3 = phase3
+        super().__init__(name, bus1, bus2)
+        self.phase1 = phase1
+        self.phase2 = phase2
+
+        # 2 windings: [xhl, r, kv_wdg1, kva_wdg1, kv_wdg2, kva_wdg2]
+        # 3 windings: [xhl, r, kv_wdg1, kva_wdg1, kv_wdg2, kva_wdg2, kv_wdg3, kva_wdg3, xht, xlt]
+        self.trans_feature = feature 
+    
+class Regulator(Edge):
+     def __init__(self, dss, name, buses, feature, tapfea):
+        assert len(buses)==2, 'invalid number of buses for ' + name
+        bus1, bus2 = map(lambda x: x.lower().split('.'), buses)
+        phase1, phase2 = map(lambda b: b[1:] if len(b)>1 else ['1','2','3'], [bus1, bus2])
+        bus1, bus2 = bus1[0], bus2[0]
+        super().__init__(name, bus1, bus2)
+        self.phase1 = phase1
+        self.phase2 = phase2
+
+        self.trans_feature = feature     # [xhl, r, kv_wdg1, kva_wdg1, kv_wdg2, kva_wdg2]
+        self.dss = dss                   # the circuit's dss simulator object
+        self.tap = tapfea[0]             # tap value
+        self.tap_feature = tapfea[1:]    # [mintap, maxtap, numtaps]
+        
+     def __repr__(self):
+        return f"Edge {self.name} at ({self.bus1}, {self.bus2}),phases:({self.phase1},{self.phase2})"#TODO：S矩阵修改3
+
+
+############# Node Objects #############
+class Node():
+    def __init__(self, name, bus1, phases):
+        self.name = name
+        self.bus1 = bus1
+        self.phases = phases  # names of the active phases; e.g., ['1','2','3']
+    
+    def __repr__(self):
+        return f"Node {self.name} at {self.bus1}"
+
+class Load(Node):
+    def __init__(self, loadname, bus1, phases, feature):
+        super().__init__(loadname, bus1, phases)
+        self.feature = feature # [kV, kW, kvar]
+
+class Capacitor(Node):
+    def __init__(self, dss, capname, bus1, phases, feature):
+        super().__init__(capname, bus1, phases)
+        self.dss = dss             # the circuit's dss simulator object
+        self.status = feature[0]   # close: 1,  open: 0
+        self.feature = feature[1:] # [kV, kvar]
+        self.bus=bus1
+        self.phases=phases
+
+    def __repr__(self):
+        return f'Capacitor status: {self.status!r},\
+               Voltage at Bus: {self.bus1!r}, {self.dss.ActiveCircuit.Buses[self.bus1].puVmagAngle},\
+               phases:{self.phases!r}'#TODO:S矩阵修改2
+    
+    def set_status(self, status):
+        '''
+        Set the status of this capacitor
+
+        Arguments:
+            status: the status to be set
+        
+        Returns:
+            the absolute change of status in integer
+        '''
+        diff = abs(self.status - status) # record state difference
+        dssCap = self.dss.ActiveCircuit.Capacitors
+        if dssCap.First == 0: return # no such object 
+        while True:
+            if self.name.endswith(dssCap.Name):
+                self.status = status
+                dssCap.States = [self.status]
+                break
+            if dssCap.Next==0: break
+        return diff
+        # should re-solve self.dss later
+
+class PVSystem(Node):#可以先建立一个最简单的光伏系统,opendss中的一切元件的一切属性都可以被获取，可以通过一种特定的方式
+    '''
+    此处用以获得光伏系统的参数，包括有功、无功、当前的辐照度(光伏的随机性)，光伏设备所在的节点，以及光伏设备最大的有功输出量
+    '''
+    def __init__(self, dss, pvname, bus1, phases, feature, pv_act_num=np.inf, pct_pmpp_range=(0.2, 0.75)):
+        super().__init__(pvname, bus1, phases)
+        self.dss = dss             # the circuit's dss simulator object
+        self.pf = feature[0]  # 功率因数
+        self.kW = feature[5]  # 实际功率 (kW)
+        #to calculate the max active power for the pv system
+        self.pmpp = feature[4]  # 最大功率点 (kW)
+        self.kvar = feature[6]  # 无功功率 (kvar)
+        self.irradiance = feature[2]  # 最大辐照度
+        #here the max active power is calculated
+        #self.pdc=self.pmpp*self.irradianceNow#实际可以发出的最大功率
+        self.pv_act_num=pv_act_num#控制光伏有功输出大小的量
+        self.pctpmpp = 1
+        # P0-14：有功投影区间显式化——原硬编码 max(0.2, min(0.75, nkw))，
+        # 与 LFC_gym 动作空间声明 [0.05, 0.8] 不一致（声明域更宽，超出部分被静默截断）。
+        # 默认保持论文实际行为 (0.2, 0.75)。
+        self.pct_pmpp_range = pct_pmpp_range
+        self.max_output=100
+
+
+
+        self.bus=bus1
+        self.phases=phases
+
+    def __repr__(self):
+        return f'PV kW: {self.kW!r},\
+               irradiance: {self.irradiance!r},\
+               phases:{self.phases!r}'#TODO:S矩阵修改2
+               
+    def state_projection(self, nkw):
+        '''
+        Project to the valid state#把光伏输出限制在可靠的区间范围内。
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]正值是放电，负值是充电
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        Returns:
+            the valid discharge kw
+        '''
+        if self.pv_act_num == np.inf:#倾向于少放少充，把储能电池的充电放电功率限制在一个可靠的区间内。
+            kw = max(self.pct_pmpp_range[0], min(self.pct_pmpp_range[1], nkw)) * self.pmpp  # P0-14：投影区间参数化
+            return kw
+
+    def step_before_solve(self, nkw):#单独的设置并没有在powergym中调用，powergym都是整体调用的
+        '''
+        Set the state of this battery在每一次solve之前,设置储能电池的值,类似地,可以在此设置光伏、风力发电机
+        ( Run this function before each solve() )
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        
+        Returns: None
+        '''
+        
+        kw = self.state_projection(nkw)
+
+        ## change kw in dss
+        diff = abs(self.kw - kw) # record state difference
+        dsspv = self.dss.ActiveCircuit.PVSystems
+        if dsspv.First == 0: return # no such object 
+        while True:
+            if self.name.endswith(dsspv.Name):
+                dsspv.kW = kw
+                dsspv.kvar = (kw / self.pf)*math.sqrt(1 - self.pf ** 2)
+                break
+            if dsspv.Next==0: break
+        return diff
+        
+        ## run solve() afterward
+        
+
+
+
+class Battery(Node):#储能电池类，参数真多！
+    def __init__(self, dss, batname, bus1, phases, feature, bat_act_num=np.inf):
+        super().__init__(batname, bus1, phases)
+        self.dss = dss                     # the circuit's dss simulator object
+        self.max_kw = feature.max_kw       # maximum power magnitude
+        self.pf = feature.pf               # power factor
+        self.max_kwh = feature.max_kwh     # capacity
+        self.kwh = feature.initial_kwh     # current charge
+        self.soc = self.kwh / self.max_kwh # state of charge
+        self.initial_soc = self.soc
+        self.duration = self.dss.ActiveCircuit.Solution.StepSize/3600.0 # time step in hour
+        if self.duration <1e-5: self.duration=1.0#最小时间间隔为1s
+        
+        # battery states
+        self.bat_act_num = bat_act_num
+        if bat_act_num == np.inf:
+            ## continuous discharge state
+            self.kw = 0.0
+        else:
+            ## finite discharge state
+            ## current kw = avail_kw[state]
+            ## kw > 0 means discharging
+            mode_num = bat_act_num // 2#打在中间档位16
+            diff = self.max_kw / mode_num#diff就是最大功率除以中间档位得到的数值，这是为了得到正负的最小动作档位
+            ## avail_kw: a discrete range from -max_kw to max_kw
+            self.avail_kw = [n*diff for n in range(-mode_num, mode_num+1)]
+            self.state = len(self.avail_kw)//2  # initialize as disconnected mode，这里得到的是当前的中间档位的位置
+         
+    def __repr__(self):
+        return f'Battery Available kW: {self.avail_kw!r}, \
+        Status: {self.state!r}, kWh: {self.kwh!r}, SOC: {self.soc!r}, \
+        Actual kW: {-self.actual_power()!r}, Voltage at Bus: {self.bus1!r},phases:{self.phases!r}'#TODO:S矩阵修改1
+    
+   
+    def state_projection(self, nkw_or_state):
+        '''
+        Project to the valid state#限制在可靠的区间范围内把储能电池的输出
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]正值是放电，负值是充电
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        Returns:
+            the valid discharge kw
+        '''
+        if self.bat_act_num == np.inf:#倾向于少放少充，把储能电池的充电放电功率限制在一个可靠的区间内。
+            kw = max( -1.0, min( 1.0, nkw_or_state) )*self.max_kw#此处就是把储能的输出控制在[-1,1]
+            if kw > 0:#如果是放电的情况，取平均值和当前计算值的小值，这样做的好处是，可以把一次的操作分到整个一小时的时间尺度上去，
+                kw = min( self.kwh/self.duration, kw)#
+            else:#如果是充电（kw是幅值），取大值就是更接近于0的哪个值，即少充，
+                kw = max( (self.kwh - self.max_kwh)/self.duration, kw)
+            self.kw = kw
+            return kw
+        else:
+            state = max( 0, min(len(self.avail_kw)-1, nkw_or_state))
+            mid = len(self.avail_kw)//2
+            if state > mid: # discharging
+                allowed_kw = self.kwh/self.duration # max kw
+                if self.avail_kw[state] > allowed_kw:
+                    state = int(state - np.ceil((self.avail_kw[state]-allowed_kw)/ \
+                               (self.avail_kw[1]-self.avail_kw[0])-1e-8) )
+            elif state < mid: # charging
+                allowed_kw = (self.kwh - self.max_kwh)/self.duration # min kw
+                if self.avail_kw[state] < allowed_kw:
+                    state = int(state + np.ceil((allowed_kw-self.avail_kw[state])/ \
+                               (self.avail_kw[1]-self.avail_kw[0])-1e-8) )
+            self.state = state
+            return self.avail_kw[state]
+
+    def step_before_solve(self, nkw_or_state):#单独的设置并没有在powergym中调用，powergym都是整体调用的
+        '''
+        Set the state of this battery在每一次solve之前，设置储能电池的值，类似地，可以在此设置光伏、风力发电机
+        ( Run this function before each solve() )
+
+        Arguments:
+            nkw_or_state: nkw: continuous battery's normalized discharge power in [-1, 1]
+                          state: discrete battery's discharge state in [0, len(avail_kw)-1]
+        
+        Returns: None
+        '''
+        
+        kw = self.state_projection(nkw_or_state)
+
+        ## change kw in dss
+        name = self.name[8:] # remove the header 'Battery.'，全名称是Battery.batt1，self.name[8:] 表示从 self.name 的第 9 个字符开始，一直到字符串的结尾
+        dssGen = self.dss.ActiveCircuit.Generators#这里是设置了所有的发电机的，如果有两个以上发电机，这个值应该如何处理？这个值是一个类似于列表对象的量
+        if dssGen.First == 0: return # no such kind of object
+        while True:#使用了恒功率因数控制模式,并非是实用恒功率控制模式，而是是得每次无功的输出占大多数
+            if dssGen.Name == name:          
+                dssGen.kW = kw
+                dssGen.kvar = kw / self.pf
+                break
+            if dssGen.Next==0: break
+        
+        ## run solve() afterward
+        
+    def step_after_solve(self):
+        '''
+        Update the kwh and the soc based on the actual power shown in the dss object.
+        ( Run this function after each solve() )
+
+        Arguments: None
+        Returns: soc error and discharge error
+        '''
+        self.kwh += self.actual_power() * self.duration
+        # enforce capacity constraint and round to integer
+        self.kwh = round( max(0.0, min(self.max_kwh, self.kwh) ) )
+        self.soc = self.kwh / self.max_kwh
+        soc_err = abs(self.soc - self.initial_soc)
+        
+        if self.bat_act_num == np.inf:
+            discharge_err = max(0.0, self.kw)/self.max_kw
+        else:
+            discharge_err = max(0.0, self.avail_kw[self.state])/self.max_kw
+        return soc_err, discharge_err
+
+    def actual_power(self):
+        ## get the actual power computed by dss in [-kw, -kvar]
+        ## in dss, the minus means power generation
+        ## so actual_power < 0 means discharging
+        name = 'Generator.' + self.name[8:]
+        return self.dss.ActiveCircuit.CktElements(name).TotalPowers[0]
+    
+    def reset(self):
+        ## reset the charge
+        self.soc = self.initial_soc
+        self.kwh = self.soc * self.max_kwh
+
+        ## reset to zero discharge mode
+        if self.bat_act_num == np.inf:
+            self.kw = 0.0
+        else:
+            self.state = len(self.avail_kw)//2
+
+
+def main():
+    # 创建一个DSS对象
+    dss_folder_path = 'E:\LFC\HARL_LFC\harl\envs\LFC\IEEE9BusSystem\systems\\34Bus'
+    dss_file='ieee34Mod1_duty_copy.dss'
+    load_profile = LoadProfile(\
+                 30,
+                 dss_folder_path,
+                 dss_file,
+                 worker_idx = None)
+
+    num_profiles = load_profile.gen_loadprofile()
+    # choose a dummy load profile for the initialization of the circuit
+    load_profile.choose_loadprofile(0)#在这里得到loadprofile的路径
+    ieee13bus_duty=circuit(os.path.join(dss_folder_path, dss_file))
+    ieee13bus_duty.reset()
+    pv_names = list(ieee13bus_duty.pvs.keys())
+    lst = np.array([0.1] * len(pv_names))
+    
+    pvs_ob=[]
+    pvs_actual_power=[]
+        
+    pvs_max_ob=[]
+    
+    for i in range(30):
+        #nkw=[1,1,1,1,1,1,1]
+        
+        lst=lst+0.1
+        
+        pvdiff = ieee13bus_duty.set_all_pvs_before_solve(lst)#此处设置了光伏有功输出的动作
+        ieee13bus_duty.dss.ActiveCircuit.Solution.Solve()
+        pv_names = list(ieee13bus_duty.pvs.keys())
+        ieee13bus_duty.get_all_pvs_irrad_after_solve()
+        for name in pv_names:
+            pv_ob=ieee13bus_duty.dss.ActiveCircuit.CktElements(name).TotalPowers[0]
+            #pv_act_reward=abs(pv_ob/(-self.circuit.pvs[name].max_output)-0.5)
+            #pvs_reward.append(pv_act_reward)
+            #pvs_ob.append(pv_ob/10000)#单位为10mw
+            pvs_ob.append(pv_ob/ieee13bus_duty.pvs[name].max_output)#目前是和最大输出的比值
+            pvs_max_ob.append(-ieee13bus_duty.pvs[name].max_output/100000)#单位为100mw
+            
+            pvs_actual_power.append(pv_ob/10000)#单位为10mw
+        # pvpower671=ieee13bus_duty.dss.ActiveCircuit.CktElements('PVSystem.PV671').TotalPowers[0]
+        # print("pvpower671",pvpower671)
+        # pvpower671q=ieee13bus_duty.dss.ActiveCircuit.CktElements('PVSystem.PV671').TotalPowers[1]
+        # print("pvpower671q",pvpower671q)
+        # pvpower6452=ieee13bus_duty.dss.ActiveCircuit.CktElements('PVSystem.PV6452').TotalPowers[0]
+        # print("pvpower6452",pvpower6452)
+        # pvpower692=ieee13bus_duty.dss.ActiveCircuit.CktElements('PVSystem.PV692').TotalPowers[0]
+        # print("pvpower692",pvpower692)
+        # pvpower6113=ieee13bus_duty.dss.ActiveCircuit.CktElements('PVSystem.PV6113').TotalPowers[0]
+        # print("pvpower6113",pvpower6113)
+        #Vsource_power=ieee13bus_duty.dss.ActiveCircuit.CktElements('Transformer.sub').TotalPowers
+        Vsource1_power=ieee13bus_duty.dss.ActiveCircuit.CktElements('Vsource.SOURCE').TotalPowers
+        print("vsource_POWERS", Vsource1_power)
+        pvs_ob=[]
+if __name__ == "__main__":
+    main()

@@ -48,6 +48,11 @@ ENVIRONMENTS = {
         "envs.district_dispatch.district_dispatch_env",
         "DistrictDispatchEnv",
     ),
+    # OHASAC 论文算例：OpenDSS 配电网 + Simulink 输电网联合仿真。
+    # 进程隔离为硬需求（每 worker 独立 MATLAB 引擎与 DSS 会话）。
+    "lfc": EnvironmentSpec(
+        "envs.lfc.lfc_config", "LFCConfig", "envs.lfc.lfc_env", "LFCEnv"
+    ),
 }
 
 # 保留配置模块的历史导出；它是注册表投影，不是第二份独立清单。
