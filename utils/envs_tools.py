@@ -106,7 +106,14 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
 
     isolate = env_name != "lag" and environment_spec(env_name).isolate_process
     wrapper = ShareDummyVecEnv if n_threads == 1 and not isolate else ShareSubprocVecEnv
-    return wrapper([get_env_fn(rank) for rank in range(n_threads)])
+    kwargs = {}
+    if family == "lfc" and wrapper is ShareSubprocVecEnv:
+        # LFC 的 worker 内起 MATLAB 引擎：必须 spawn（fork 继承父进程旧 gym
+        # 的 C 库映射会毒害 matlabengine IPC）；其他家族保持默认进程方式不变
+        import multiprocessing as mp
+
+        kwargs["process_context"] = mp.get_context("spawn")
+    return wrapper([get_env_fn(rank) for rank in range(n_threads)], **kwargs)
 
 
 def make_train_env(env_name, seed, n_threads, env_args):

@@ -266,7 +266,7 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
 
 
 class ShareSubprocVecEnv(ShareVecEnv):
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns, spaces=None, process_context=None):
         """
         envs: list of gym environments to run in subprocesses
         """
@@ -279,8 +279,12 @@ class ShareSubprocVecEnv(ShareVecEnv):
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
 
         # 创建 process list
+        # process_context=None 保持默认（fork）；LFC 等依赖 matlabengine 的环境
+        # 必须 spawn——fork 会继承父进程已加载的旧 gym C 库映射，
+        # 毒害 matlabengine 的共享内存 IPC（load_system 抛 std::exception）
+        worker_process_cls = (process_context or multiprocessing).Process
         self.ps = [
-            Process(
+            worker_process_cls(
                 target=shareworker,
                 args=(work_remote, remote, CloudpickleWrapper(env_fn)),
             )
