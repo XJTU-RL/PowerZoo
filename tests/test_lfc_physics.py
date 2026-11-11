@@ -124,8 +124,14 @@ def test_lfc_env_yaml_matches_config():
 def test_system_sources_clean(system):
     files = set(os.listdir(os.path.join(SYSTEMS, system)))
     for f in files:
-        assert not f.endswith(("_0.dss", "_1.dss", "_2.dss", "_4.dss", "_copy.dss")), f
-        assert not f.startswith(("loadshape", "irrad_up_down")) or os.path.isdir(
+        # irrad_up_down*.dss 是随包初始模板工件（首轮 choose_irrad_profile 前的编译依赖）
+        assert not (
+            f.endswith(("_0.dss", "_1.dss", "_2.dss", "_4.dss", "_copy.dss"))
+            and not f.startswith("irrad_up_down")
+        ), f
+        # irrad_up_down*.dss 是随包的初始模板工件：LFC_gym 在首轮
+        # choose_irrad_profile 之前就要编译电路，需要它们存在（论文仓库同款依赖）
+        assert not f.startswith("loadshape") or os.path.isdir(
             os.path.join(SYSTEMS, system, f)
         ), f"生成物混入源目录: {f}"
         assert not f.endswith((".dbl", ".DSV")) or f.endswith(".csv"), f
@@ -189,6 +195,8 @@ def test_loadprofile_generation_in_workspace():
         lp.choose_irrad_profile("Irrad_constant")
         assert os.path.exists(os.path.join(ws, "loadshape_0.dss"))
     finally:
+        # DSS CAPI 会劫持进程 cwd 进电路目录，删除工作区前先切回仓库根
+        os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shutil.rmtree(ws, ignore_errors=True)
 
 
@@ -210,4 +218,5 @@ def test_circuit_native_solve_13bus():
         c.dss.ActiveCircuit.Solution.Solve()
         assert bool(c.dss.ActiveCircuit.Solution.Converged)
     finally:
+        os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         shutil.rmtree(ws, ignore_errors=True)

@@ -131,20 +131,12 @@ class LFCEnv(gym.Env):
         self.sample_probability=0
         self.loadp=np.array([self.load1p,self.load2p,self.load3p])
         
-        current_script_path = os.path.abspath(__file__)
-
-        # 获取脚本文件所在的目录
-        current_script_dir = os.path.dirname(current_script_path)
-
-        # 将当前工作目录更改为脚本文件所在的目录
-        os.chdir(current_script_dir)
-
-        # 打印当前工作目录以验证
-        print("Current working directory:", os.getcwd())
-        
         import matlab.engine  # 惰性导入：无 MATLAB 的环境（CI）可正常 import 本模块
 
         self.eng = matlab.engine.start_matlab()
+        # P0-10：原实现在此 os.chdir 进程目录后启动引擎；改为引擎侧 cd，
+        # 模型按名加载行为不变，进程工作目录不再被污染。
+        self.eng.cd(_SCRIPT_DIR, nargout=0)
         
         # P0-5：worker→Simulink 模型名映射显式化（原 elif 链缺 else，非法 rank 直接 NameError）
         # rank 0/4（4=评估 worker）用基础模型名；1/2 用 _1/_2 副本；其它 rank 直接报错

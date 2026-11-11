@@ -61,6 +61,11 @@ class LFCEnv:
 
         from envs.lfc.IEEE9BusSystem.LFC_gym import LFCEnv as CoreLFCEnv
 
+        # cv2（OpenCV）被任何链拉入时会重写 LD_LIBRARY_PATH 指向自己的 lib64，
+        # 抹掉 MATLAB 的库路径 → 引擎 spawn 的 MATLAB 用错库（std::exception）。
+        # 引擎启动前显式复原：matlab 根目录从 PATH 探测。
+        _restore_matlab_lib_path()
+
         self.env = CoreLFCEnv(info, worker_idx)
 
         self.pv_num = self.env.pv_num
@@ -137,3 +142,19 @@ def _make_workspace(source_dir):
     workspace = tempfile.mkdtemp(prefix=f"lfc_{os.path.basename(source_dir)}_")
     shutil.copytree(source_dir, workspace, dirs_exist_ok=True)
     return workspace
+
+def _restore_matlab_lib_path():
+    """把 MATLAB 的 bin/glnxa64 前置回 LD_LIBRARY_PATH（防 cv2 等对其的重写）。"""
+    import os
+    import shutil
+
+    matlab_bin = shutil.which("matlab")
+    if not matlab_bin:
+        return  # 引擎启动时自会报缺 MATLAB
+    glnxa64 = os.path.join(os.path.dirname(os.path.dirname(matlab_bin)), "bin", "glnxa64")
+    if not os.path.isdir(glnxa64):
+        return
+    current = os.environ.get("LD_LIBRARY_PATH", "")
+    if glnxa64 in current.split(os.pathsep):
+        return
+    os.environ["LD_LIBRARY_PATH"] = glnxa64 + (os.pathsep + current if current else "")

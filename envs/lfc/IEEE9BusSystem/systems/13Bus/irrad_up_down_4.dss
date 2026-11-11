@@ -1,0 +1,1 @@
+New Loadshape.MyIrrad npts=30 sinterval=1 mult=(file=./loadshape\Irrad_down.csv)
