@@ -51,7 +51,11 @@ class OHASACRunner(OffPolicyHARunner):
                 self.num_agents,
                 num_steps=algo_cfg.get("order_num_steps", 9),
                 learning_rate=algo_cfg.get("order_lr", 3e-4),
-                writer=self.writer if hasattr(self.writer, "add_scalar") else None,
+                writer=(
+                    getattr(self, "writer", None)
+                    if hasattr(getattr(self, "writer", None), "add_scalar")
+                    else None
+                ),
                 device=self.device,
             ).to(self.device)
             self.order_optimizer = optim.Adam(
@@ -68,6 +72,28 @@ class OHASACRunner(OffPolicyHARunner):
             self.order_values = torch.zeros(horizon).to(self.device)
             self.order_step = 0
         self._init_component_buffers()
+
+    # ------------------------------------------------------------------ #
+    # 检查点：次序网络与优化器随模型一并保存/恢复（基类只管 actor/critic）   #
+    # ------------------------------------------------------------------ #
+    def save(self):
+        super().save()
+        if self.use_order_net:
+            torch.save(
+                {
+                    "order_net": self.order_net.state_dict(),
+                    "order_optimizer": self.order_optimizer.state_dict(),
+                },
+                os.path.join(self.save_dir, "order_net.pt"),
+            )
+
+    def restore(self):
+        super().restore()
+        order_ckpt = os.path.join(self.algo_args["train"]["model_dir"], "order_net.pt")
+        if self.use_order_net and os.path.exists(order_ckpt):
+            state = torch.load(order_ckpt, map_location=self.device)
+            self.order_net.load_state_dict(state["order_net"])
+            self.order_optimizer.load_state_dict(state["order_optimizer"])
 
     # ------------------------------------------------------------------ #
     # 次序决策钩子（基类 train 的 hasac 分支调用）                          #
@@ -191,10 +217,15 @@ class OHASACRunner(OffPolicyHARunner):
         while True:
             actions = []
             for agent_id, obs in enumerate(obs_list):
-                action, _ = self.actor[agent_id].get_actions(
+                out = self.actor[agent_id].get_actions(
                     np.asarray(obs)[None], stochastic=False
                 )
-                actions.append(np.asarray(action).reshape(1))
+                # HASAC.get_actions 非 lstm 路径返回单张量（lstm 路径为
+                # (action, rnn_states) 元组）；渲染回放需 CPU 转移兼容 CUDA
+                action = out[0] if isinstance(out, tuple) else out
+                actions.append(
+                    np.asarray(action.detach().cpu()).reshape(1)
+                )
             actions = np.stack(actions)
             obs_list, _, step_rewards, step_dones, infos, _ = env.step(actions)
             info0 = infos[0]

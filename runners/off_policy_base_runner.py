@@ -518,7 +518,7 @@ class OffPolicyBaseRunner:
         Returns:
             actions: (np.ndarray) agent actions, shape is (n_threads, n_agents, dim)
         """
-        if self.args["algo"] == "hasac":
+        if self.args["algo"] in ("hasac", "ohasac"):
             actions = []
             for agent_id in range(self.num_agents):
                 if (
