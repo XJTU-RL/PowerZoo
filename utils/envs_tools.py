@@ -69,7 +69,7 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
         raise ValueError("并行环境数必须 >= 1")
     from utils.config_validation import environment_family
 
-    family = environment_family(env_name) if env_name != "lag" else env_name
+    family = environment_family(env_name)
     if family == "stackelberg":
         raise ValueError("顺序任务不能使用同步MARL worker；请用sequential_ppo")
     if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
@@ -91,12 +91,6 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
             actual_seed = (
                 seed * 50000 + rank * 10000 if evaluation else seed + rank * 1000
             ) % 2**32
-            if env_name == "lag":
-                from envs.other_envs.lag.lag_env import LAGEnv
-
-                env = LAGEnv(env_args)
-                env.seed(actual_seed)
-                return env
             return make_power_env(env_name, env_args, rank, actual_seed)
 
         return init_env
@@ -104,7 +98,7 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
     # 使用全局 DSS 引擎的环境，即使只有一个 worker，也隔离训练与评估进程。
     from utils.environment_registry import environment_spec
 
-    isolate = env_name != "lag" and environment_spec(env_name).isolate_process
+    isolate = environment_spec(env_name).isolate_process
     wrapper = ShareDummyVecEnv if n_threads == 1 and not isolate else ShareSubprocVecEnv
     if family == "lfc":
         # 主进程侧净化环境（LD 复原 + 剥离 cv2 设置的 QT_*/SDL_*）：MATLAB 是
@@ -131,10 +125,6 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
 
 
 def make_train_env(env_name, seed, n_threads, env_args):
-    if env_name == "dexhands":
-        from envs.other_envs.dexhands.dexhands_env import DexHandsEnv
-
-        return DexHandsEnv({"n_threads": n_threads, **env_args})
     return _vector_env(env_name, seed, n_threads, env_args)
 
 
@@ -173,6 +163,8 @@ def get_num_agents(env, env_args, envs):
         return envs.n_agents
     elif env == "lfc":
         return envs.n_agents
+    else:
+        raise NotImplementedError(f"未知环境 {env!r}；请在 ENVIRONMENTS 注册")
 
 
 # def get_agents_orders(env, env_args, envs):

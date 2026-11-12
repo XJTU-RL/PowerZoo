@@ -342,6 +342,7 @@ def legacy_env_config(cls, values):
         "DSRConfig": "dsr",
         "StackelbergConfig": "stackelberg",
         "DistrictDispatchConfig": "district_dispatch",
-    }
+        "LFCConfig": "lfc",
+}
     normalized = normalize_env(values, families[cls.__name__])
     return build_dataclass(cls, normalized)

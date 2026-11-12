@@ -254,3 +254,5 @@ VVC、SmartGrid、District共享powergrid的DataConfig/ScenarioDataset、唯一�
 VVC的data.step_seconds默认3600，SmartGrid默认60；环境时长与算法采样长度仍分别设置。
 旧VVC的scale/load_noise/显示/灵敏度标志已退役，使用实际data.load_scale/data.noise，详见[VVC记录](vvc-physics.md)。
 系统文件只定义模型路径、动作分辨率、约束和基准权重；不再接受无消费者的display/source_bus设置。
+<!-- LFC 补充 -->
+- `lfc`：OHASAC 论文算例（OpenDSS+Simulink 联合仿真）；env 专用字段 f1~f7 奖励权重、system（13Bus/34Bus）、dss_file；MATLAB R2024a~R2025b 依赖边界与快速链路实验见 `configs/experiments/lfc_13bus_ohasac_quickstart.yaml` 与 docs/development.md 的 LFC 节。

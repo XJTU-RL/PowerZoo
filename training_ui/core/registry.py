@@ -1,6 +1,6 @@
 """Algorithm and environment metadata registry for PowerZoo Training UI.
 
-Provides structured metadata for all 16 MARL algorithms and 11 power system
+Provides structured metadata for the MARL algorithms and power system
 environments, organized by algorithm family. Used by UI components for
 populating dropdowns, validation, and config generation.
 """
@@ -34,7 +34,7 @@ class EnvMeta:
 
 
 # ---------------------------------------------------------------------------
-# Algorithm Registry (16 algorithms)
+# Algorithm Registry
 # ---------------------------------------------------------------------------
 
 ALGO_REGISTRY: dict[str, AlgoMeta] = {
@@ -119,6 +119,14 @@ ALGO_REGISTRY: dict[str, AlgoMeta] = {
         config_file="hasac.yaml",
         description="Heterogeneous-Agent Soft Actor-Critic",
     ),
+    "ohasac": AlgoMeta(
+        name="ohasac",
+        display_name="OHASAC",
+        family="off_policy_ha",
+        config_file="ohasac.yaml",
+        description="Order-based HASAC（次序网络按频差决定更新次序）；"
+        "需 MATLAB/Simulink + OpenDSS 联合仿真",
+    ),
     "had3qn": AlgoMeta(
         name="had3qn",
         display_name="HAD3QN",
@@ -169,7 +177,7 @@ ALGO_FAMILIES: dict[str, list[str]] = {
     "Sequential": ["sequential_ppo"],
     "On-Policy HA": ["happo", "hatrpo", "haa2c", "shom", "dan_happo"],
     "On-Policy MA": ["mappo", "sn_mappo"],
-    "Off-Policy HA": ["haddpg", "hatd3", "hasac", "had3qn"],
+    "Off-Policy HA": ["haddpg", "hatd3", "hasac", "ohasac", "had3qn"],
     "Off-Policy MA": ["maddpg", "matd3"],
     "QMix": ["qmix"],
     "Two-Time-Scale": ["2ts_vvc"],
@@ -177,7 +185,7 @@ ALGO_FAMILIES: dict[str, list[str]] = {
 
 
 # ---------------------------------------------------------------------------
-# Environment Registry (11 environments)
+# Environment Registry
 # ---------------------------------------------------------------------------
 
 ENV_REGISTRY: dict[str, EnvMeta] = {
@@ -235,6 +243,15 @@ ENV_REGISTRY: dict[str, EnvMeta] = {
         config_file="dsr_13bus.yaml",
         description="IEEE13派生网络的真实分段/备用路径恢复",
         default_agents=3,
+    ),
+    "lfc": EnvMeta(
+        name="lfc",
+        display_name="LFC (OHASAC)",
+        config_file="lfc.yaml",
+        description="负荷频率控制：OpenDSS 配电网 + Simulink 输电网联合仿真"
+        "（13Bus 10 智能体 / 34Bus 20 智能体；需本机 MATLAB R2024a~R2025b）",
+        default_agents=10,
+        available_systems=["13Bus", "34Bus"],
     ),
 }
 
