@@ -1,0 +1,15 @@
+# IEEE 9500-Node（不平衡负荷版）冒烟实验：观测投影 + 场景按名配置示范。
+# 全量观测 9943 维；邻域 k=2 投影后约 1500 维（可控设备母线 ∪ 源母线，2 跳拓扑邻域）。
+run:
+  algo: happo
+  env: vvc
+  exp_name: vvc_9500node_smoke
+training_ref: smoke
+system_ref: 9500Node
+env:
+  max_episode_steps: 24
+  observation_neighborhood: 2
+  data:
+    step_seconds: 3600
+    noise: 0.0
+    scenario_names: [sunny, load_imbalance]

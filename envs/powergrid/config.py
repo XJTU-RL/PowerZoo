@@ -19,6 +19,7 @@ class DataConfig:
     irradiance_scale: float = 1.0
     noise: float = 0.025
     load_groups: dict[str, str] = field(default_factory=dict)
+    scenario_names: list[str] | None = None  # 读取期按 manifest 场景名过滤；不改变生成
 
     def __post_init__(self):
         if self.source not in ("synthetic", "files"):
@@ -42,13 +43,20 @@ class DataConfig:
         if not 0 <= self.seed < 2**32 or not 1 <= self.step_seconds <= 3600:
             raise ValueError("无效数据种子或 step_seconds（1..3600）")
         if self.episodes_per_split < 6:
-            raise ValueError("episodes_per_split 至少为6，覆盖六类场景")
+            raise ValueError("episodes_per_split 至少为6；默认12可轮转覆盖全部八类场景")
         if not (0 < self.load_scale <= 3 and 0 < self.irradiance_scale <= 1.5):
             raise ValueError("数据倍率超出合成器支持范围")
         if not 0 <= self.noise <= 0.2:
             raise ValueError("data.noise 必须在 [0, 0.2]")
         if any(g not in GROUPS for g in self.load_groups.values()):
             raise ValueError(f"load_groups 的值必须属于 {GROUPS}")
+        if self.scenario_names is not None and (
+            not isinstance(self.scenario_names, list)
+            or not self.scenario_names
+            or any(not isinstance(s, str) or not s.strip() for s in self.scenario_names)
+            or len(set(self.scenario_names)) != len(self.scenario_names)
+        ):
+            raise ValueError("scenario_names 必须是非空、不重复的场景名列表")
 
 
 def validate_observation_projection(buses, neighborhood):
