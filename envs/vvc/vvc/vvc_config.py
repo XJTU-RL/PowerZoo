@@ -19,6 +19,8 @@ class VVCConfig:
     voltage_min: float = 0.95
     voltage_max: float = 1.05
     state_type: str = "EP"
+    # 潮流算法：snapshot=Newton 单步（默认）；direct=前推回代（单相辐射网络更鲁棒）。
+    solve_algorithm: str = "snapshot"
     # 关键母线观测投影：显式名单或设备邻域二选一；None 保持全母线展开。
     observation_buses: list[str] | None = None
     observation_neighborhood: int | None = None

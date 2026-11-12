@@ -26,7 +26,12 @@ class DeviceControlEnv(gym.Env):
         if not system.is_absolute():
             system = Path(folder_path) / system
         self.circuit = DSSSession(
-            system, cfg.dss_file, overlays, cfg.data.step_seconds, svg_elements
+            system,
+            cfg.dss_file,
+            overlays,
+            cfg.data.step_seconds,
+            svg_elements,
+            getattr(cfg, "solve_algorithm", "snapshot"),
         )
         if self.circuit.native.Generators.Count and any(
             n.lower().startswith("batt")

@@ -7,6 +7,8 @@ system:
   name: 9500Node
   dss_folder: node_systems/9500-Node
   dss_file: network_unbal.dss
+  # 铭牌负荷与随机分接组合下 Newton 停滞，改用前推回代保证训练收敛鲁棒性。
+  solve_algorithm: direct
 episode:
   max_steps: 24
 devices:

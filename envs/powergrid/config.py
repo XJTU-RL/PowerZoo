@@ -85,6 +85,8 @@ def validate_operation(config):
         config.data = DataConfig(**config.data)
     if config.state_type != "EP":
         raise ValueError("同步运行控制基准只支持EP共享全状态观测")
+    if getattr(config, "solve_algorithm", "snapshot") not in ("snapshot", "direct"):
+        raise ValueError("solve_algorithm 必须是 snapshot（Newton）或 direct（前推回代）")
     n = config.reg_act_num
     if not math.isfinite(n) or n < 2 or int(n) != n:
         raise ValueError("reg_act_num必须为>=2的整数")

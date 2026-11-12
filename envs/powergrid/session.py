@@ -18,11 +18,20 @@ from envs.powergrid.state import GridState
 
 class DSSSession:
     def __init__(
-        self, model_folder, master, overlays=(), step_seconds=60, svg_elements=()
+        self,
+        model_folder,
+        master,
+        overlays=(),
+        step_seconds=60,
+        svg_elements=(),
+        solve_algorithm="snapshot",
     ):
         if not math.isfinite(step_seconds) or step_seconds <= 0:
             raise ValueError("step_seconds必须为正有限值")
+        if solve_algorithm not in ("snapshot", "direct"):
+            raise ValueError("solve_algorithm 必须是 snapshot 或 direct")
         self.step_seconds = float(step_seconds)
+        self.solve_algorithm = solve_algorithm
         self._closed, self._pending, self._solved, self._failed = (
             False,
             False,
@@ -90,7 +99,7 @@ class DSSSession:
         self.command(f'compile "{self._input_path(self.master)}"')
         for overlay in self.overlays:
             self.command(f'redirect "{self._input_path(overlay)}"')
-        self.command("Set mode=snapshot controlmode=off")
+        self.command(f"Set mode={self.solve_algorithm} controlmode=off")
         self.command("CalcVoltageBases")
         self.command(
             f"Set stepsize={self.step_seconds:.12g} number=1 maxiterations=100 tolerance=1e-8"
@@ -199,7 +208,12 @@ class DSSSession:
         try:
             self.native.Solution.ControlMode = 0 if native_controls else -1
             for _ in range(12):
-                self.native.Solution.SolveSnap()
+                # snapshot 用 Newton 单步求解；direct（前推回代）对单相辐射网络
+                # 的随机分接/电容组合更鲁棒（9500 在重载或极端 tap 下 Newton 停滞）。
+                if self.solve_algorithm == "direct":
+                    self.native.Solution.Solve()
+                else:
+                    self.native.Solution.SolveSnap()
                 if not self.native.Solution.Converged:
                     raise RuntimeError(f"DSS在{self.time_s}s未收敛")
                 if native_controls and not self.native.Solution.ControlActionsDone:
