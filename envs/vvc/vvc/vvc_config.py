@@ -19,6 +19,9 @@ class VVCConfig:
     voltage_min: float = 0.95
     voltage_max: float = 1.05
     state_type: str = "EP"
+    # 关键母线观测投影：显式名单或设备邻域二选一；None 保持全母线展开。
+    observation_buses: list[str] | None = None
+    observation_neighborhood: int | None = None
     power_w: float = 10.0
     cap_w: float = 0.0303
     reg_w: float = 0.0303

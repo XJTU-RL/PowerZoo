@@ -51,6 +51,27 @@ class DataConfig:
             raise ValueError(f"load_groups 的值必须属于 {GROUPS}")
 
 
+def validate_observation_projection(buses, neighborhood):
+    """关键母线观测投影的配置校验；两任务（VVC/SmartGrid）共用。"""
+    if buses is not None and neighborhood is not None:
+        raise ValueError(
+            "observation_buses 与 observation_neighborhood 互斥，只能选择一种投影方式"
+        )
+    if neighborhood is not None and (
+        not isinstance(neighborhood, int)
+        or isinstance(neighborhood, bool)
+        or not 1 <= neighborhood <= 4
+    ):
+        raise ValueError("observation_neighborhood 必须是 1..4 的整数跳数")
+    if buses is not None:
+        if not isinstance(buses, list) or not buses:
+            raise ValueError("observation_buses 必须是非空母线名列表")
+        if any(
+            not isinstance(b, str) or not b.strip() for b in buses
+        ) or len(set(b.lower() for b in buses)) != len(buses):
+            raise ValueError("observation_buses 含空名或重复项（大小写不敏感）")
+
+
 def validate_operation(config):
     if isinstance(config.data, dict):
         config.data = DataConfig(**config.data)
@@ -69,3 +90,7 @@ def validate_operation(config):
         raise ValueError("回合长度必须为正，合成场景不能超过一天")
     if not 0 < config.voltage_min < config.voltage_max < 2:
         raise ValueError("电压约束必须满足0<min<max<2")
+    validate_observation_projection(
+        getattr(config, "observation_buses", None),
+        getattr(config, "observation_neighborhood", None),
+    )
