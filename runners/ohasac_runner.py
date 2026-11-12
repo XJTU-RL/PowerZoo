@@ -42,6 +42,11 @@ class OHASACRunner(OffPolicyHARunner):
         super().__init__(args, algo_args, env_args)
         algo_cfg = self.algo_args["algo"]
         self.use_order_net = algo_cfg.get("use_order_net", False)
+        if self.use_order_net and not algo_args["eval"]["use_eval"]:
+            raise ValueError(
+                "ohasac 启用次序网络时必须开启评估（eval.use_eval=true）——"
+                "次序网络的 PPO 更新与分量指标落盘均挂在评估分支（论文原语义）"
+            )
         # PowerZoo 基类未缓存 batch_size（论文版有），次序网络构造需要它
         self.batch_size = algo_cfg["batch_size"]
         if self.use_order_net:

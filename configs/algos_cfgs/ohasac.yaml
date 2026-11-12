@@ -105,6 +105,9 @@ algo:
   order_obs_index: 9
   # 输入特征缩放（论文实现为差分后 *10）
   order_obs_scale: 10
+  # 耦合关系：次序网络缓冲长度=train.eval_interval；论文时序（train_interval=10 ×
+  # update_per_train=1）恰好填满缓冲且 OrderAgent 只消费前 order_num_steps=9 条。
+  # 调大 eval_interval 会导致多出的样本静默丢弃，调小则零填充参与更新。
 logger:
   # logging directory
   log_dir: "./results"
