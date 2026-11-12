@@ -104,3 +104,18 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 
 当前复现命令和边界分别见[SmartGrid实施记录](physics-refactor-progress.md)、[VVC](vvc-physics.md)、
 [区域调度](district-physics.md)、[恢复](dsr-physics.md)、[顺序定价](pricing-physics.md)。
+
+## LFC（OHASAC 论文算例）开发约定
+
+- 环境家族 `lfc`（`envs/lfc/`）：OpenDSS 配电网 + MATLAB/Simulink 输电网联合仿真，
+  忠实移植自 OHASAC 论文实现；算例 `13Bus`（10 智能体）/ `34Bus`（20 智能体）。
+- **MATLAB 依赖边界**：联合仿真层需本机 MATLAB R2024a~R2025b（含 Simscape
+  Electrical / Specialized Power Systems）+ `matlabengine` 对应版本 + DISPLAY
+  （Xvfb 即可）。无 MATLAB 的环境（CI）可正常 import 做配置与数据校验，物理
+  联合仿真验收经 `python scripts/check_lfc.py --matlab` 分层执行。
+- **环境防御**（worker 起引擎前的净化，见 `envs/lfc/lfc_env.py`）：
+  LD_LIBRARY_PATH 复原 + 剥离 cv2 注入的 QT_*/SDL_*；LFC worker 强制 spawn。
+- 数据只读：worker 构造时复制 `systems/<Bus>` 到临时工作区，生成物不落源目录。
+- 算法 `ohasac`（`runners/ohasac_runner.py`）：HASAC + 次序网络（OrderAgent，
+  `algorithms/actors/order_agent.py`），次序决策经基类 `_agent_order` 钩子注入；
+  次序缓冲与 `train.eval_interval` 的耦合关系见 `configs/algos_cfgs/ohasac.yaml`。

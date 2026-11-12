@@ -1,6 +1,6 @@
 # PowerZoo
 
-[**打开交互展示**](https://xjtu-rl.github.io/PowerZoo/)：探索13节点馈线拓扑，回放54个可追溯的OpenDSS稳态工况，并了解五类研究任务。[展示数据与复现说明](docs/showcase/data/README.md)。
+[**打开交互展示**](https://xjtu-rl.github.io/PowerZoo/)：探索13节点馈线拓扑，回放54个可追溯的OpenDSS稳态工况，并了解六类研究任务。[展示数据与复现说明](docs/showcase/data/README.md)。
 
 [![PowerZoo交互算例展示](docs/showcase/assets/overview.png)](https://xjtu-rl.github.io/PowerZoo/)
 
@@ -22,7 +22,7 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 相关实现，并不代表安装后自动具备独立的大语言模型服务。
 同步算法实现登记在`runners/__init__.py`；登记不等于经过正式适配和训练验收。
 当前运行/恢复任务验收HAPPO与集中PPO，定价任务使用公共入口分派的`sequential_ppo`。
-MAPPO、SHOM、MADDPG、HASAC、QMix等其余组合仍需单独验证，不能据旧SN-MAPPO名称推定顺序博弈正确。
+MAPPO、SHOM、MADDPG、HASAC、OHASAC（MATLAB 联合仿真正在 15k 论文口径复现中）、QMix等其余组合仍需单独验证，不能据旧SN-MAPPO名称推定顺序博弈正确。
 
 配置遵循“共享入口、环境专用字段、实验只写差异”。同一环境的设置与推荐训练节可放在
 同一个 YAML，仅对真正重复使用的内容提取引用；未知或未实现参数直接报错。
@@ -98,7 +98,7 @@ Conda 配置启用 `PYTHONUTF8=1`，避免 Windows 默认编码影响中文注�
 
 实际代码使用：
 
-- 五类正式环境均通过`envs/powergrid/session.py`使用`dss.DSS.NewContext()`；
+- vvc/smartgrid/dsr/stackelberg/district 五类正式环境均通过`envs/powergrid/session.py`使用`dss.DSS.NewContext()`（lfc 为忠实论文内核，用全局 DSS 引擎 + 进程隔离，见 development.md 的 LFC 节）；
 - `scripts/check_runtime.py`同时验证DSS-Python与OpenDSSDirect原生绑定；旧全局物理核心已归档。
 
 因此环境同时安装 `dss-python==0.15.7`、其原生后端 `dss-python-backend==0.14.5`，
@@ -166,7 +166,7 @@ python scripts/check_smartgrid.py --train --require-cuda
 python examples/single_agent/scripts/train_smartgrid.py --steps 240
 ```
 
-五类环境共用 `scripts/train.py` 和各自实验 YAML；目前正式训练验收为VVC、SmartGrid、District、DSR，
+六类环境共用 `scripts/train.py` 和各自实验 YAML；目前正式训练验收为VVC、SmartGrid、District、DSR，
 使用各自的 `check_vvc/check_smartgrid/check_district/check_dsr.py` 运行完整专项检查。
 Stackelberg旧实现会在正式训练前拒绝。结构与历史清理清单见[入口整理说明](docs/training-entrypoints.md)。
 
