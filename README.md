@@ -16,6 +16,7 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 | `dsr / dsr_13bus` | `envs/dsr/` | 小网络/IEEE13派生有源恢复；真实开关、故障、供电计量及HAPPO/PPO验收 |
 | `stackelberg / stackelberg_13bus` | `envs/stackelberg/` | 真实价格先于负荷响应、逐主体结算；顺序独立PPO短训练验收 |
 | `district_dispatch` | `envs/district_dispatch/` | 真实区域DER协同调度，原生计量与成本；HAPPO/PPO短训练验收 |
+| `lfc` | `envs/lfc/` | OHASAC 论文算例：OpenDSS 配电网 + Simulink 9 机输电网联合仿真的负荷频率控制（13/34Bus）；ohasac（HASAC+次序网络）忠实移植，结构验收通过（`scripts/check_lfc.py`），MATLAB 联合仿真与 15k 论文口径复现进行中 |
 
 `powerzoo` 是 `vvc` 的历史别名。历史文档中的 PowerZoo_LLM 通常指 SmartGrid
 相关实现，并不代表安装后自动具备独立的大语言模型服务。

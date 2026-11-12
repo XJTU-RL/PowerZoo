@@ -1,0 +1,12 @@
+# LFC 13Bus × OHASAC 论文完整口径（exp1：无光照 13 节点，15k 步）。
+# 训练超参全部取 configs/algos_cfgs/ohasac.yaml 默认值（论文 hasac.yaml 口径）。
+# 需 MATLAB/Simulink（R2024a~R2025b 含 Simscape Electrical）+ OpenDSS；
+# 3 训练 worker + 1 评估引擎共 4 个 MATLAB 会话。
+run:
+  algo: ohasac
+  env: lfc
+  exp_name: lfc13bus_ohasac_full
+env:
+  system: 13Bus
+  dss_file: IEEE13Nodeckt_duty.dss
+  max_episode_steps: 30

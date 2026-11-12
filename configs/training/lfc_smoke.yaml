@@ -1,0 +1,11 @@
+# LFC 链路冒烟训练档（CPU/GPU 皆可，需 MATLAB）。
+# 论文完整口径 = configs/algos_cfgs/ohasac.yaml 默认值（15k 步、3 线程）。
+seed: {seed_specify: true, seed: 1}
+train:
+  n_rollout_threads: 1
+  num_env_steps: 180
+  warmup_steps: 100
+  train_interval: 10
+  eval_interval: 30
+algo: {batch_size: 32, buffer_size: 3600}
+eval: {use_eval: true, n_eval_rollout_threads: 1, eval_episodes: 1}

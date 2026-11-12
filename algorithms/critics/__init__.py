@@ -33,6 +33,8 @@ CRITIC_REGISTRY = {
     "haddpg": ContinuousQCritic,
     "hatd3": TwinContinuousQCritic,
     "hasac": SoftTwinContinuousQCritic,
+    # OHASAC 与 HASAC 共用 SoftTwinContinuousQCritic（次序网络在 runner 侧）。
+    "ohasac": SoftTwinContinuousQCritic,
     "had3qn": DiscreteQCritic,
     "maddpg": ContinuousQCritic,
     "matd3": TwinContinuousQCritic,

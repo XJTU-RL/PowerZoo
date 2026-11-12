@@ -39,6 +39,12 @@ class HASAC(OffPolicyBase):
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr)
         self.turn_off_grad()
 
+    def soft_update(self):
+        """HASAC 无目标执行器（squashed 随机策略，论文实现即如此）——
+        基类 soft_update 假设存在 target_actor 会在调用处崩溃，此处按论文
+        语义显式置为空操作。"""
+
+
     def get_actions(self, obs, available_actions=None, stochastic=True):
         """Get actions for observations.
         Args:

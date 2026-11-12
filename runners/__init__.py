@@ -15,6 +15,7 @@ from runners.on_policy_ha_runner import OnPolicyHARunner
 from runners.on_policy_ma_runner import OnPolicyMARunner
 from runners.off_policy_ha_runner import OffPolicyHARunner
 from runners.off_policy_ma_runner import OffPolicyMARunner
+from runners.ohasac_runner import OHASACRunner
 from runners.Qmix_runner import QMIXRunner
 from runners.two_ts_runner import TwoTSRunner
 
@@ -25,6 +26,7 @@ RUNNER_REGISTRY = {
     "haddpg": OffPolicyHARunner,
     "hatd3": OffPolicyHARunner,
     "hasac": OffPolicyHARunner,
+    "ohasac": OHASACRunner,
     "had3qn": OffPolicyHARunner,
     "maddpg": OffPolicyMARunner,
     "matd3": OffPolicyMARunner,

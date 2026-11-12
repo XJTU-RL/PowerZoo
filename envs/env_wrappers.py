@@ -4,6 +4,7 @@ Modified from OpenAI Baselines code to work with multi-agent envs
 
 import numpy as np
 import torch
+import multiprocessing
 from multiprocessing import Process, Pipe
 from abc import ABC, abstractmethod
 import copy
@@ -265,6 +266,11 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             raise NotImplementedError
 
 
+# 进程上下文注入点（见 ShareSubprocVecEnv 内注释；由 utils/envs_tools 的
+# lfc 分支在构造前临时设置为 spawn，其余家族保持默认 fork）
+PROCESS_CONTEXT = None
+
+
 class ShareSubprocVecEnv(ShareVecEnv):
     def __init__(self, env_fns, spaces=None):
         """
@@ -279,8 +285,12 @@ class ShareSubprocVecEnv(ShareVecEnv):
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
 
         # 创建 process list
+        # PROCESS_CONTEXT（模块级注入点，默认 None=fork）：LFC 等依赖
+        # matlabengine 的环境必须 spawn——fork 会继承父进程已加载的旧 gym
+        # C 库映射，毒害 matlabengine 的共享内存 IPC（load_system 抛 std::exception）
+        worker_process_cls = (PROCESS_CONTEXT or multiprocessing).Process
         self.ps = [
-            Process(
+            worker_process_cls(
                 target=shareworker,
                 args=(work_remote, remote, CloudpickleWrapper(env_fn)),
             )

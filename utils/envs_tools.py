@@ -78,6 +78,13 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
         env_args = copy.deepcopy(env_args)
         if evaluation:
             env_args["data"]["split"] = "validation"
+    elif family == "lfc":
+        # LFC 无数据集切分；评估语义（*_eval 模型与 DSS、worker 号 4+rank）
+        # 由包装器按 evaluation 标志实现（论文 make_eval_env 的 ranks=4 语义）。
+        import copy
+
+        env_args = copy.deepcopy(env_args)
+        env_args["evaluation"] = evaluation
 
     def get_env_fn(rank):
         def init_env():
@@ -99,6 +106,27 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
 
     isolate = env_name != "lag" and environment_spec(env_name).isolate_process
     wrapper = ShareDummyVecEnv if n_threads == 1 and not isolate else ShareSubprocVecEnv
+    if family == "lfc":
+        # 主进程侧净化环境（LD 复原 + 剥离 cv2 设置的 QT_*/SDL_*）：MATLAB 是
+        # Qt 应用，worker 内引擎起的 MATLAB 加载 cv2 的 Qt 插件即崩溃
+        # （load_system 抛 std::exception）；spawn worker 必须继承净化后环境
+        from envs.lfc.lfc_env import _restore_matlab_lib_path
+
+        _restore_matlab_lib_path()
+        if wrapper is ShareSubprocVecEnv:
+            # LFC 的 worker 内起 MATLAB 引擎：必须 spawn（fork 继承父进程
+            # 已加载的旧 gym C 库映射会毒害 matlabengine IPC）；其余家族不变。
+            # 经模块级注入点传递（构造器签名被治理测试钉死，不走 kwargs）
+            import multiprocessing as mp
+
+            import envs.env_wrappers as _ew
+
+            _prev = _ew.PROCESS_CONTEXT
+            _ew.PROCESS_CONTEXT = mp.get_context("spawn")
+            try:
+                return wrapper([get_env_fn(rank) for rank in range(n_threads)])
+            finally:
+                _ew.PROCESS_CONTEXT = _prev
     return wrapper([get_env_fn(rank) for rank in range(n_threads)])
 
 
@@ -142,6 +170,8 @@ def get_num_agents(env, env_args, envs):
     elif env.startswith("stackelberg"):
         return envs.n_agents
     elif env.startswith("district_dispatch"):
+        return envs.n_agents
+    elif env == "lfc":
         return envs.n_agents
 
 

@@ -1,0 +1,113 @@
+# OHASAC（Order-based HASAC）算法配置。
+# 超参照论文实现（papers/ohasac/code 的 hasac.yaml）的 LFC 实验口径；
+# 论文的 order_net 节按 PowerZoo 八节契约并入 algo 节（order_ 前缀）。
+seed:
+  # whether to use the specified seed
+  seed_specify: True
+  # seed
+  seed: 1
+device:
+  # whether to use CUDA
+  cuda: True
+  # whether to set CUDA deterministic
+  cuda_deterministic: True
+  # arg to torch.set_num_threads
+  torch_threads: 4
+train:
+  # number of parallel environments for training data collection
+  n_rollout_threads: 3
+  # number of total steps（论文 15k 检查点；smoke 实验可覆盖）
+  num_env_steps: 15000
+  # 模型保存间隔（每多少个episode保存一次模型）
+  save_interval: 10
+  # number of warmup steps
+  warmup_steps: 450
+  # number of steps per train
+  train_interval: 10
+  # ratio of training iterations to train_interval
+  update_per_train: 1
+  # logging interval (currently unused)
+  log_interval: ~
+  # evaluation interval（次序网络的缓冲长度与训练周期也由它决定——论文口径 30）
+  eval_interval: 30
+  # whether to use ValueNorm
+  use_valuenorm: True
+  # whether to use linear learning rate decay
+  use_linear_lr_decay: False
+  # whether to consider the case of truncation when an episode is done
+  use_proper_time_limits: True
+  # if set, load models from this directory; otherwise, randomly initialise the models
+  model_dir: ~
+eval:
+  # whether to use evaluation（次序网络的训练挂在评估分支，启用次序网络时必须为 True）
+  use_eval: True
+  # number of parallel environments for evaluation
+  n_eval_rollout_threads: 1
+  # number of episodes per evaluation
+  eval_episodes: 2
+render:
+  # whether to use render
+  use_render: False
+  # number of episodes to render
+  render_episodes: 1
+model:
+  # hidden sizes for mlp module in the network
+  hidden_sizes: [128, 128]
+  # activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  activation_func: relu
+  # whether to use feature normalization
+  use_feature_normalization: True
+  # final activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  final_activation_func: tanh
+  # initialization method for network parameters
+  initialization_method: orthogonal_
+  # gain of the output layer of the network
+  gain: 0.01
+  # actor learning rate
+  lr: 0.0005
+  # critic learning rate
+  critic_lr: 0.0005
+algo:
+  # whether to auto-tune temperature
+  auto_alpha: False
+  # temperature parameter
+  alpha: 0.001
+  # alpha learning rate
+  alpha_lr: 0.0003
+  # discount factor
+  gamma: 0.99
+  # off-policy buffer size
+  buffer_size: 9000
+  # training batch size
+  batch_size: 128
+  # coefficient for target model soft update
+  polyak: 0.005
+  # the number of steps to look ahead
+  n_step: 20
+  # whether to use huber loss
+  use_huber_loss: True
+  # whether to use policy active masks
+  use_policy_active_masks: True
+  # huber delta
+  huber_delta: 10.0
+  # whether to share parameter among actors
+  share_param: False
+  # whether to use a fixed optimisation order
+  fixed_order: False
+  # ---- 次序网络（OHASAC 核心，论文 order_net 节） ----
+  # 是否启用次序网络（False 且 fixed_order False 时退化为随机序 HASAC）
+  use_order_net: True
+  # 每次次序网络更新消费的时间步数（论文 off-policy 侧为 9）
+  order_num_steps: 9
+  # 次序网络学习率
+  order_lr: 0.0003
+  # 输入特征在共享观测中的索引（gsp 频率偏差维度，见 lfc 环境观测布局）
+  order_obs_index: 9
+  # 输入特征缩放（论文实现为差分后 *10）
+  order_obs_scale: 10
+  # 耦合关系：次序网络缓冲长度=train.eval_interval；论文时序（train_interval=10 ×
+  # update_per_train=1）恰好填满缓冲且 OrderAgent 只消费前 order_num_steps=9 条。
+  # 调大 eval_interval 会导致多出的样本静默丢弃，调小则零填充参与更新。
+logger:
+  # logging directory
+  log_dir: "./results"

@@ -12,6 +12,7 @@ def __getattr__(name):
     from envs.smartgrid.logging.smartgrid_logger import SmartGridLogger
     from envs.dsr.dsr_logger import DSRLogger
     from envs.district_dispatch.district_dispatch_logger import DistrictDispatchLogger
+    from envs.lfc.lfc_logger import LFCLogger
 
     registry = {
         "vvc": VVCLogger,
@@ -19,6 +20,7 @@ def __getattr__(name):
         "smartgrid": SmartGridLogger,
         "dsr": DSRLogger,
         "district_dispatch": DistrictDispatchLogger,
+        "lfc": LFCLogger,
     }
     globals()[name] = registry
     return registry
