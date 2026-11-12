@@ -1,14 +1,13 @@
 # 仅保留有运行消费者的设置；设备数量和原生额定值以DSS模型为准。
+# network.dss 为静态快照主文件：负荷时序由场景管线驱动，无 loadshape/占位电池依赖。
 system:
   name: 8500Node
   dss_folder: node_systems/8500-Node
-  dss_file: Master_daily.dss
+  dss_file: network.dss
 episode:
   max_steps: 24
 devices:
   regulators:
-    action_num: 33
-  batteries:
     action_num: 33
 constraints:
   voltage_min: 0.95
