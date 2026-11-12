@@ -1,0 +1,25 @@
+# 仅保留有运行消费者的设置；设备数量和原生额定值以DSS模型为准。
+# network_unbal.dss 为静态快照主文件（不平衡负荷版，官方 basecase）：
+# 2550 个单相 120V 负荷 + 178 个 PVSystem + 2 台原生 Storage + 12 个 RegControl。
+# 178 个 PV 建议训练时保持不可控（vvc 家族默认不控 PV；smartgrid 需显式关 pv_control），
+# 大规模观测建议搭配 observation_neighborhood 投影（见 envs 配置）。
+system:
+  name: 9500Node
+  dss_folder: node_systems/9500-Node
+  dss_file: network_unbal.dss
+episode:
+  max_steps: 24
+devices:
+  regulators:
+    action_num: 33
+  batteries:
+    action_num: 33
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 6.0606
