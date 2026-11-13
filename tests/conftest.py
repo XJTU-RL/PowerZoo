@@ -203,6 +203,10 @@ def pytest_configure(config):
 		"markers", "requires_opendss: Requires OpenDSS installation"
 	)
 	config.addinivalue_line(
+		"markers",
+		"requires_external_case: Requires downloaded external case data",
+	)
+	config.addinivalue_line(
 		"markers", "requires_gpu: Requires GPU/CUDA"
 	)
 
