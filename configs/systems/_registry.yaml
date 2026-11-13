@@ -16,6 +16,7 @@ base_systems:
   - 9500Node
   - 9500Node_bal
   - UKMVLV_HVUG
+  - SMARTDS_P4UDT4
 
 # PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
@@ -74,6 +75,13 @@ metadata:
     typical_episode_length: 24
     external_case: uk_mvlv_hv_ug
     fetch_command: "python scripts/download_external_case.py --case uk_mvlv_hv_ug"
+
+  SMARTDS_P4UDT4:
+    description: "NREL SMART-DS v1.0 SFO/P4U p4udt4 feeder (4kV, 71 buses, 6 PV with native InvControl), 15-min timeseries"
+    node_count: 156
+    typical_episode_length: 96
+    external_case: smart_ds_sfo_p4udt4
+    fetch_command: "python scripts/download_external_case.py --case smart_ds_sfo_p4udt4"
 
   District_34Bus_3Zone:
     description: "IEEE 34-bus partitioned into 3 dispatch zones with DERs"
