@@ -47,8 +47,19 @@ class DeviceMARLAdapter:
         self.env, self.config, self.rank = env, env.config, rank
         self.action_space = env.agent_spaces
         self.n_agents = len(self.action_space)
-        self.observation_space = [env.observation_space] * self.n_agents
-        self.share_observation_space = self.observation_space
+        # CTDE：local 模式下 actor 观测=每智能体局部向量（异维按类型分组），
+        # 集中 critic 的共享状态保持全网 wrap_obs；global=旧行为（同源复制）。
+        self.observation_mode = getattr(env, "observation_mode", "global")
+        if self.observation_mode == "local":
+            self.observation_space = [
+                gym.spaces.Box(
+                    -np.inf, np.inf, (env.local_observation_dim(i),), dtype=np.float32
+                )
+                for i in range(self.n_agents)
+            ]
+        else:
+            self.observation_space = [env.observation_space] * self.n_agents
+        self.share_observation_space = [env.observation_space] * self.n_agents
         self.ordered_agents_pairs = None
         self.agents_bus = None
 
@@ -66,6 +77,8 @@ class DeviceMARLAdapter:
         return self.env.get_physics_manifest()
 
     def _observations(self, obs):
+        if self.observation_mode == "local":
+            return [self.env.agent_local_observation(i) for i in range(self.n_agents)]
         return [obs.copy() for _ in self.action_space]
 
     def _shared_observations(self, obs):

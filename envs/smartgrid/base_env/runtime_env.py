@@ -37,6 +37,8 @@ class Env(DeviceControlEnv):
             pv_control_mode=cfg.pv_control_mode,
             pv_control_devices=cfg.pv_control_devices,
             pv_action_mode=cfg.pv_action_mode,
+            light_state_read=cfg.light_state_read,
+            observation_mode=cfg.observation_mode,
         )
 
     def _init_task(self):

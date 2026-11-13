@@ -25,6 +25,13 @@ class VVCConfig:
     # 关键母线观测投影：显式名单或设备邻域二选一；None 保持全母线展开。
     observation_buses: list[str] | None = None
     observation_neighborhood: int | None = None
+    # 精简状态读取（大规模推荐；观测逐位等价，info 支路统计/平衡校验为 None）
+    light_state_read: bool = False
+    # 局部 actor 观测（CTDE）：global=旧行为；local=自身母线/状态/k 跳邻域摘要，
+    # 集中 critic 状态保持全网观测。local 模式下 observation_buses/neighborhood
+    # 投影仍作用于 critic 状态。
+    observation_mode: str = "global"
+    local_observation_neighborhood: int = 1
     power_w: float = 10.0
     cap_w: float = 0.0303
     reg_w: float = 0.0303

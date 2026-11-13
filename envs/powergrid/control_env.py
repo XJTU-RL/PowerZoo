@@ -3,6 +3,7 @@
 from pathlib import Path
 from hashlib import sha256
 import json
+import math
 import numpy as np
 import gymnasium as gym
 from envs.powergrid.session import DSSSession
@@ -22,6 +23,8 @@ class DeviceControlEnv(gym.Env):
         pv_control_mode="legacy",
         pv_control_devices=None,
         pv_action_mode="pq",
+        light_state_read=False,
+        observation_mode="global",
     ):
         self.config = cfg = config
         self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
@@ -61,6 +64,17 @@ class DeviceControlEnv(gym.Env):
                 "regulator.action_num 的间隔必须对齐 DSS NumTaps 的实际档位"
             )
         self.pv_control_enabled = pv_control_enabled
+        # 精简状态读取（默认关）：训练步用批量电压+设备类注入，省略全网
+        # 支路明细与负荷类注入（info 的支路统计与平衡校验为 None）；完整
+        # 读取用于快照/评估。两种模式的观测量逐位一致（测试锁定）。
+        self._light_state_read = bool(light_state_read)
+        # 局部 actor 观测模式（CTDE）：global=actor 与 critic 同用全网 wrap_obs
+        # （旧行为）；local=actor 用 agent_local_observation（自身母线/状态/
+        # k 跳邻域摘要），critic 状态保持全网 wrap_obs 不变。
+        if observation_mode not in ("global", "local"):
+            self.circuit.close()
+            raise ValueError(f"未知观测模式：{observation_mode}")
+        self.observation_mode = observation_mode
         # PV 控制权三态（SMART-DS 引入；legacy 逐字节保持旧布尔路径）：
         # - legacy：pv_control_enabled 布尔语义，全部 PV 全量探测（探测写入
         #   %Pmpp=100 kvar=0 且保持——既有训练路径依赖此行为）。
@@ -241,6 +255,165 @@ class DeviceControlEnv(gym.Env):
             float(below.mean()),
             float(above.mean()),
         ]
+
+    # ------------------------------------------------------------------
+    # 局部 actor 观测（CTDE）：每智能体只见自身母线/自身状态/k 跳邻域摘要；
+    # 全网 wrap_obs 保留为集中 critic 的共享状态。信息边界由构造源限定，
+    # 测试锁定"屏蔽邻域外电压不改局部观测"。
+    # ------------------------------------------------------------------
+
+    def _agent_devices(self):
+        """动作空间构造序的 (设备类, 设备名) 列表；与 agent_spaces 对齐。"""
+        return (
+            [("capacitor", name) for name in self.cap_names]
+            + [("regcontrol", name) for name in self.reg_names]
+            + [("storage", name) for name in self.bat_names]
+            + [("pvsystem", name) for name in self.pv_control_list]
+            + [("generator", name) for name in self.svg_names]
+        )
+
+    def _local_neighborhoods(self):
+        """每智能体的 k 跳邻域母线集合（拓扑静态，惰性构建一次）。"""
+        cache = getattr(self, "_local_views", None)
+        if cache is not None:
+            return cache
+        hops = int(getattr(self.config, "local_observation_neighborhood", 1))
+        views = []
+        for kind, name in self._agent_devices():
+            element = (
+                "transformer." + self.circuit.regulators[name].transformer
+                if kind == "regcontrol"
+                else kind + "." + name
+            )
+            conn = self.circuit._connections.get(element.lower())
+            seed = (
+                conn["buses"][0].split(".")[0].lower()
+                if conn and conn["buses"]
+                else None
+            )
+            reached, frontier = set(), set()
+            if seed:
+                frontier = {seed} & set(self.topology)
+                reached = {seed} | frontier
+            for _ in range(hops):
+                nxt = set()
+                for bus in frontier:
+                    nxt |= set(self.topology[bus])
+                nxt -= reached
+                reached |= nxt
+                frontier = nxt
+                if not frontier:
+                    break
+            views.append((seed, reached))
+        self._local_views = views
+        return views
+
+    def _device_bus(self, kind, name):
+        element = (
+            "transformer." + self.circuit.regulators[name].transformer
+            if kind == "regcontrol"
+            else kind + "." + name
+        )
+        conn = self.circuit._connections.get(element.lower())
+        if conn and conn["buses"]:
+            return conn["buses"][0].split(".")[0].lower()
+        return None
+
+    def agent_local_observation(self, index):
+        """第 index 个智能体的局部观测（float32 定长向量；组内同型同维）。
+
+        组成（按序）：自身母线相电压（pad 到 3）+ 邻域电压 5 元组
+        （min/max/mean/低越限比/高越限比）+ 日内时间 sin/cos + 回合进度
+        + 设备自身特征（按类型，见 local_observation_schema）。
+        """
+        kind, name = self._agent_devices()[index]
+        seed, neighborhood = self._local_neighborhoods()[index]
+        voltages = self.physical_state.voltages_pu
+        own = [voltages.get(seed, {}).get(phase, 0.0) for phase in (1, 2, 3)]
+        values = np.concatenate(
+            [
+                np.asarray(list(voltages.get(bus, {}).values()))
+                for bus in sorted(neighborhood)
+                if voltages.get(bus)
+            ]
+            or [np.zeros(0)]
+        )
+        if not values.size:
+            values = np.zeros(1)
+        low, high = self.config.voltage_min, self.config.voltage_max
+        summary = [
+            float(values.min()),
+            float(values.max()),
+            float(values.mean()),
+            float((values < low).mean()),
+            float((values > high).mean()),
+        ]
+        hour = (self.circuit.time_s / 3600.0) % 24.0
+        clock = [math.sin(2 * math.pi * hour / 24), math.cos(2 * math.pi * hour / 24)]
+        progress = [self.t / max(self.horizon, 1)]
+        if kind == "capacitor":
+            device = [float(self.obs["cap_statuses"][name])]
+        elif kind == "regcontrol":
+            device = [
+                float(self.obs["reg_statuses"][name]),
+            ]
+        elif kind == "storage":
+            soc, power = self.obs["bat_statuses"][name]
+            device = [float(soc), float(power)]
+        elif kind == "pvsystem":
+            pv = self.circuit.pvs[name]
+            p, q = self.obs["pv_statuses"][name]
+            available = self.available_pv_kw.get(name, 0.0)
+            kw = available * pv.fraction
+            device = [
+                float(p),
+                float(q),
+                float(available / pv.pmpp),
+                float(min(pv.kvar_max, math.sqrt(max(0.0, pv.kva**2 - kw**2))) / pv.kva),
+                float(min(pv.kvar_max_abs, math.sqrt(max(0.0, pv.kva**2 - kw**2))) / pv.kva),
+                float(pv.fraction),
+                float(pv.q_fraction),
+            ]
+        else:  # generator(SVG)
+            p, q = self.obs["svg_statuses"][name]
+            device = [float(p), float(q)]
+        vector = np.asarray(own + summary + clock + progress + device, dtype=np.float32)
+        if not np.isfinite(vector).all():
+            raise RuntimeError(f"智能体{index}局部观测出现非有限值")
+        return vector
+
+    def local_observation_dim(self, index):
+        spec = {
+            "capacitor": 12,
+            "regcontrol": 12,
+            "storage": 13,
+            "pvsystem": 18,
+            "generator": 13,
+        }
+        return spec[self._agent_devices()[index][0]]
+
+    def local_observation_schema(self):
+        """逐智能体的局部观测语义清单（进入 manifest 与 checkpoint 绑定）。"""
+        schema = []
+        for index, (kind, name) in enumerate(self._agent_devices()):
+            schema.append(
+                {
+                    "agent": index,
+                    "element": f"{kind}.{name}",
+                    "dim": self.local_observation_dim(index),
+                    "fields": [
+                        "own_bus_voltage_pu[3]",
+                        "neighborhood.v_min/v_max/v_mean/v_low_ratio/v_high_ratio",
+                        "time_sin/cos",
+                        "episode_progress",
+                        "device_state",
+                    ],
+                    "neighborhood_hops": int(
+                        getattr(self.config, "local_observation_neighborhood", 1)
+                    ),
+                }
+            )
+        return schema
 
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -423,7 +596,7 @@ class DeviceControlEnv(gym.Env):
         return values
 
     def _observe(self):
-        self.physical_state = self.circuit.read_state()
+        self.physical_state = self.circuit.read_state(light=self._light_state_read)
         powers = {n.lower(): v for n, v in self.physical_state.injections.items()}
         self.obs = {
             "bus_voltages": {
@@ -548,6 +721,12 @@ class DeviceControlEnv(gym.Env):
         return {
             **self.circuit.manifest(),
             "task": type(self.config).__name__,
+            "observation_mode": self.observation_mode,
+            "local_observation_schema": (
+                self.local_observation_schema()
+                if self.observation_mode == "local"
+                else None
+            ),
             "pv_control": {
                 "mode": self.pv_control_mode,
                 "action_mode": self.pv_action_mode,
@@ -585,15 +764,16 @@ class DeviceControlEnv(gym.Env):
         pv_kw = sum(p[0] for p in pv_powers)
         rated = sum(pv.pmpp for pv in self.circuit.pvs.values())
         storage = [-self.circuit.powers("Storage." + n)[0] for n in self.bat_names]
+        branches = self.physical_state.branches or {}
         loadings = [
             b["loading_pu"]
-            for b in self.physical_state.branches.values()
+            for b in branches.values()
             if b["loading_pu"] is not None
         ]
         return {
             "max_branch_loading_pu": max(loadings) if loadings else None,
             "branch_overload_count": sum(x > 1 for x in loadings),
-            "unrated_branch_count": len(self.physical_state.branches) - len(loadings),
+            "unrated_branch_count": len(branches) - len(loadings),
             "step_seconds": self.circuit.step_seconds,
             "dataset_sha256": self.dataset.sha256,
             "physics_model_sha256": self.circuit.model_sha256,

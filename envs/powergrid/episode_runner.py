@@ -126,6 +126,8 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         )
 
     def _actor_observations(self, env, obs):
+        if getattr(env, "observation_mode", "global") == "local":
+            return [env.agent_local_observation(i) for i in range(len(env.agent_spaces))]
         return [obs.copy() for _ in env.agent_spaces]
 
     def _take_snapshot(

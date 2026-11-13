@@ -57,6 +57,14 @@ class SmartGridConfig:
     pv_control_mode: str = "legacy"
     pv_control_devices: Optional[list[str]] = None
     pv_action_mode: str = "pq"  # pq=有功分数+无功；q_only=仅无功（需连续）
+    # 精简状态读取（大规模训练推荐）：观测逐位等价（测试锁定），info 的
+    # 支路统计与全网平衡校验为 None，完整轨迹/评估走完整读取。
+    light_state_read: bool = False
+    # 局部 actor 观测（CTDE）：global=旧行为；local=自身母线/状态/k 跳邻域摘要，
+    # 集中 critic 状态保持全网观测。local 模式下 observation_buses/neighborhood
+    # 投影仍作用于 critic 状态。
+    observation_mode: str = "global"
+    local_observation_neighborhood: int = 1
     svg_elements: list[str] = field(default_factory=list)
     pv_plan: Optional[str] = None
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
