@@ -61,6 +61,13 @@ class Env(DeviceControlEnv):
         if seed is not None and self.lagrangian_updater:
             self.lagrangian_updater.reset(self.config.lambda_init)
 
+    def _on_divergence(self):
+        # 发散提前终止也要结算 CMDP：崩溃步按约束完全破坏（cost=1.0）计入，
+        # 沿用自然终止的均值口径更新乘子——频繁失败的策略不能冻结乘子学习。
+        if self.lagrangian_updater:
+            self.episode_costs.append(1.0)
+            self.lagrangian_updater.update(float(np.mean(self.episode_costs)))
+
     def _task_observation(self):
         return (
             [self.lagrangian_updater.lmbda]

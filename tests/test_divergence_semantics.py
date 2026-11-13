@@ -88,3 +88,42 @@ def test_divergence_penalty_validation():
             "vvc",
             values={"env": {"divergence_penalty": -1.0}},
         )
+
+
+def test_smartgrid_divergence_settles_lagrangian_multiplier():
+    """发散提前终止也要结算 CMDP 乘子：崩溃步 cost=1.0 计入均值更新。"""
+    from envs.smartgrid.base_env.env_config import SmartGridConfig
+
+    cfg = ConfigLoader().load("happo", "smartgrid")
+    env = make_power_env("smartgrid", cfg.env_args, 0, 0)
+    try:
+        core = env.env
+        assert core.lagrangian_updater is not None
+        before = core.lagrangian_updater.lmbda
+        core.episode_costs = [0.05, 0.08]  # 此前有效步的真实约束成本
+        core._on_divergence()
+        after = core.lagrangian_updater.lmbda
+        assert core.episode_costs[-1] == 1.0
+        assert after > before, "崩溃成本应推动乘子上升而非冻结"
+    finally:
+        env.close()
+
+
+def test_episode_runner_marks_failed_snapshot_without_physics_read():
+    """回放快照在物理失败步返回显式失败标记，不触碰失败会话的物理读取。"""
+    from envs.powergrid.episode_runner import DeviceEpisodeRunner
+
+    class _Minimal(DeviceEpisodeRunner):
+        def _make_core(self):  # pragma: no cover - 不触达
+            raise AssertionError("失败快照不应触碰环境")
+
+    runner = _Minimal(config=None, inference_engine=None, collect_snapshots=True)
+    snapshot = runner._take_snapshot(
+        step=3,
+        actions=None,
+        rewards=np.array([[[-42.0]]]),
+        infos=[{"physical_failure": True, "failure_reason": "DSS在10800.0s未收敛"}],
+    )
+    assert snapshot["physical_failure"] is True
+    assert "未收敛" in snapshot["failure_reason"]
+    assert snapshot["step"] == 3 and snapshot["buses"] == {}

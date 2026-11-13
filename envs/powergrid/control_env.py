@@ -252,6 +252,7 @@ class DeviceControlEnv(gym.Env):
         逃避损耗惩罚。观测冻结为上一步值（失败会话不能读取状态），下一次
         reset 经 circuit.reset 自动恢复（既有失败后须 reset 契约不变）。
         """
+        self._on_divergence()
         self.t += 1
         reward = -float(self.divergence_penalty)
         info = {
@@ -595,6 +596,9 @@ class DeviceControlEnv(gym.Env):
 
     def _init_task(self):
         pass
+
+    def _on_divergence(self):
+        """物理失败结算钩子：任务层在提前终止前结算回合级状态（默认无）。"""
 
     def _reset_task(self, seed):
         pass
