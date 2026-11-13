@@ -7,6 +7,7 @@ import json
 import math
 import shutil
 import tempfile
+import time
 
 import dss
 import networkx as nx
@@ -49,38 +50,59 @@ class DSSSession:
             False,
             False,
         )
-        self._temporary = tempfile.TemporaryDirectory(prefix="powerzoo-grid-")
-        self.folder = Path(self._temporary.name).resolve()
-        self.source = Path(model_folder).resolve()
-        self.master, self.overlays = master, tuple(overlays)
-        self.svg_elements = tuple(svg_elements)
-        if len(set(self.svg_elements)) != len(self.svg_elements):
-            raise ValueError("SVG元件绑定不能重复")
-        self.trace = {}
-        self._measurement_valid = False
+        # 分段耗时（毫秒，累计；reset 重建基线，供基准脚本与性能诊断使用）。
+        self.timings = {}
         try:
-            shutil.copytree(
-                self.source,
-                self.folder,
-                dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns("logs", "__pycache__", "*.lock"),
-            )
-            self.input_files = {
-                p.relative_to(self.folder)
-                .as_posix(): sha256(p.read_bytes())
-                .hexdigest()
-                for p in sorted(self.folder.rglob("*"))
-                if p.is_file()
-            }
-            self.model_sha256 = sha256(
-                json.dumps(self.input_files, sort_keys=True).encode()
-            ).hexdigest()
-            self.dss = dss.DSS.NewContext()
-            self.dss.AllowChangeDir = False
+            with self._timed("init.copy"):
+                self._temporary = tempfile.TemporaryDirectory(prefix="powerzoo-grid-")
+                self.folder = Path(self._temporary.name).resolve()
+                self.source = Path(model_folder).resolve()
+                shutil.copytree(
+                    self.source,
+                    self.folder,
+                    dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("logs", "__pycache__", "*.lock"),
+                )
+            with self._timed("init.sha256"):
+                self.input_files = {
+                    p.relative_to(self.folder)
+                    .as_posix(): sha256(p.read_bytes())
+                    .hexdigest()
+                    for p in sorted(self.folder.rglob("*"))
+                    if p.is_file()
+                }
+                self.model_sha256 = sha256(
+                    json.dumps(self.input_files, sort_keys=True).encode()
+                ).hexdigest()
+            self.master, self.overlays = master, tuple(overlays)
+            self.svg_elements = tuple(svg_elements)
+            if len(set(self.svg_elements)) != len(self.svg_elements):
+                raise ValueError("SVG元件绑定不能重复")
+            self.trace = {}
+            self._measurement_valid = False
+            with self._timed("init.context"):
+                self.dss = dss.DSS.NewContext()
+                self.dss.AllowChangeDir = False
             self.reset()
         except Exception:
             self.close()
             raise
+
+    def _timed(self, key):
+        """累计分段耗时（毫秒）；不改变被测行为。"""
+        from contextlib import contextmanager
+
+        @contextmanager
+        def span():
+            started = time.perf_counter()
+            try:
+                yield
+            finally:
+                self.timings[key] = self.timings.get(key, 0.0) + (
+                    (time.perf_counter() - started) * 1000
+                )
+
+        return span()
 
     def _input_path(self, relative):
         path = (self.folder / relative).resolve()
@@ -107,10 +129,11 @@ class DSSSession:
         self._pending, self._solved, self._failed = False, False, False
         self.trace = {}
         self.dss.ClearAll()
-        self.command(f'compile "{self._input_path(self.master)}"')
-        for overlay in self.overlays:
-            self.command(f'redirect "{self._input_path(overlay)}"')
-        self.command("Set mode=snapshot controlmode=off")
+        with self._timed("reset.compile"):
+            self.command(f'compile "{self._input_path(self.master)}"')
+            for overlay in self.overlays:
+                self.command(f'redirect "{self._input_path(overlay)}"')
+            self.command("Set mode=snapshot controlmode=off")
         # 训练求解固定 Newton 快照：恒功率负荷（Model=1）语义正确。
         # 前推回代（solve mode=direct）把恒功率负荷按导纳处理，会改变负荷
         # 物理响应，只允许出现在模型文件的 compile 期初始化序列中。
@@ -129,42 +152,91 @@ class DSSSession:
                 "唯一真值写入，二者叠加会重复计负荷。请在模型中复位该设置。"
             )
         self.native.Solution.dblHour = seconds / 3600
+        # 结构缓存：同一会话的模型文件在生命周期内不变（临时目录只读副本），
+        # 连接清单/相别映射/拓扑与设备铭牌跨 reset 确定性相同；首次构建后
+        # 复用，避免大规模模型（数万元件）每回合重复扫描。Storage 的 SOC
+        # 等运行态每次 reset 后仍从引擎重读（discover 重建设备对象）。
+        cached = getattr(self, "_structure_cache", None)
+        if cached is not None and cached["sha"] == self.model_sha256:
+            with self._timed("reset.cache_hit"):
+                self._connections = cached["connections"]
+                self.bus_phase_nodes = cached["bus_phase_nodes"]
+                self.topology = cached["topology"]
+                self.loads, self.capacitors, self.regulators = (
+                    cached["loads"], cached["capacitors"], cached["regulators"]
+                )
+                self.batteries, self.pvs, self.svg_elements = (
+                    cached["batteries"], cached["pvs"], cached["svg_elements"]
+                )
+                self.bus_names = cached["bus_names"]
+                # discover 的编译期副作用与运行态字段在缓存命中时必须重放：
+                # 每次 compile 后引擎回到模型初始状态（DispMode/status/SOC），
+                # 而缓存的设备对象可能带着上回合的运行态残留。
+                for name in self.batteries:
+                    self.command(f"Edit Storage.{name} DispMode=external")
+                    self.batteries[name].soc = (
+                        float(self.read_property("Storage." + name, "%stored")) / 100
+                    )
+                for dev in self.pvs.values():
+                    dev.fraction, dev.q_fraction = 1.0, 0.0
+                for element in self.svg_elements:
+                    self.command(f"Edit {element} status=fixed")
+            return
         # Enabled变化会重建全局NodeRef；停用元件的NodeOrder不能再作为相别权威。
         self._connections = {}
-        for element in self.native.AllElementNames:
-            self.require_element(element)
-            obj = self.native.ActiveCktElement
-            if obj.NumTerminals:
-                # 停用元件（如外部算例禁用的中压集中负荷）不在引擎节点序表中，
-                # 改用与 NodeOrder 对拍全等的推导，避免加载合法模型即报错。
-                nodes = (
-                    list(map(int, obj.NodeOrder))
-                    if obj.Enabled
-                    else _derived_node_order(obj)
-                )
-                self._connections[element.lower()] = {
-                    "buses": list(obj.BusNames),
-                    "nodes": nodes,
-                    "phases": int(obj.NumPhases),
-                    "conductors": int(obj.NumConductors),
-                    "terminals": int(obj.NumTerminals),
-                }
+        with self._timed("reset.connections"):
+            for element in self.native.AllElementNames:
+                self.require_element(element)
+                obj = self.native.ActiveCktElement
+                if obj.NumTerminals:
+                    # 停用元件（如外部算例禁用的中压集中负荷）不在引擎节点序表中，
+                    # 改用与 NodeOrder 对拍全等的推导，避免加载合法模型即报错。
+                    nodes = (
+                        list(map(int, obj.NodeOrder))
+                        if obj.Enabled
+                        else _derived_node_order(obj)
+                    )
+                    self._connections[element.lower()] = {
+                        "buses": list(obj.BusNames),
+                        "nodes": nodes,
+                        "phases": int(obj.NumPhases),
+                        "conductors": int(obj.NumConductors),
+                        "terminals": int(obj.NumTerminals),
+                    }
         self.bus_phase_nodes = {name: [] for name in self.native.AllBusNames}
         for node in self.native.AllNodeNames:
             bus, _, phase = node.rpartition(".")
             if phase in ("1", "2", "3"):
                 self.bus_phase_nodes[bus.lower()].append(int(phase))
-        discover(self)
-        self.topology = nx.MultiGraph()
-        for element in sorted(self.native.AllElementNames):
-            if element.lower().startswith(("line.", "transformer.")):
-                self.require_element(element)
-                buses = [
-                    b.split(".")[0].lower()
-                    for b in self.native.ActiveCktElement.BusNames
-                ]
-                for bus in buses[1:]:
-                    self.topology.add_edge(buses[0], bus, key=element, element=element)
+        with self._timed("reset.discover"):
+            discover(self)
+        with self._timed("reset.topology"):
+            self.topology = nx.MultiGraph()
+            for element in sorted(self.native.AllElementNames):
+                if element.lower().startswith(("line.", "transformer.")):
+                    self.require_element(element)
+                    buses = [
+                        b.split(".")[0].lower()
+                        for b in self.native.ActiveCktElement.BusNames
+                    ]
+                    for bus in buses[1:]:
+                        self.topology.add_edge(
+                            buses[0], bus, key=element, element=element
+                        )
+        self.bus_names = sorted(self.native.AllBusNames)
+        self._structure_cache = {
+            "sha": self.model_sha256,
+            "connections": self._connections,
+            "bus_phase_nodes": self.bus_phase_nodes,
+            "topology": self.topology,
+            "loads": self.loads,
+            "capacitors": self.capacitors,
+            "regulators": self.regulators,
+            "batteries": self.batteries,
+            "pvs": self.pvs,
+            "svg_elements": self.svg_elements,
+            "bus_names": self.bus_names,
+        }
 
     def require_element(self, element):
         if self.native.SetActiveElement(element) < 0:
@@ -194,15 +266,16 @@ class DSSSession:
         return float(self.native.Solution.dblHour * 3600)
 
     def apply(self, requests):
-        commands, trace = prepare(self, requests)
-        try:
-            for command in commands:
-                self.command(command)
-        except Exception:
-            self._failed = True
-            raise
-        self.trace.update(trace)
-        return trace
+        with self._timed("step.apply"):
+            commands, trace = prepare(self, requests)
+            try:
+                for command in commands:
+                    self.command(command)
+            except Exception:
+                self._failed = True
+                raise
+            self.trace.update(trace)
+            return trace
 
     def set_pv_conditions(self, irradiance, temperature, mapping=None):
         """写入 PV 辐照度/温度；mapping 逐 PV 覆盖且只写 mapping 内设备。
@@ -237,6 +310,11 @@ class DSSSession:
             )
 
     def available_pv_power(self, names=None):
+        """计时包装：探测含求解与恢复，单独归入 step.probe 段。"""
+        with self._timed("step.probe"):
+            return self._available_pv_power(names)
+
+    def _available_pv_power(self, names=None):
         """当步其他设备设定下，零Q且不限有功的原生可用AC功率；不推进能量。
 
         names=None 时保持历史行为：对全部 PV 写 ``%Pmpp=100 kvar=0`` 并保持
@@ -277,6 +355,10 @@ class DSSSession:
         return result
 
     def solve(self, seconds=None, *, native_controls=False):
+        with self._timed("step.solve"):
+            return self._solve(seconds, native_controls=native_controls)
+
+    def _solve(self, seconds=None, *, native_controls=False):
         if self._closed or self._failed:
             raise RuntimeError("会话已关闭或失败，须reset")
         if seconds is not None:
@@ -430,6 +512,10 @@ class DSSSession:
             self.command(f"Edit {element} enabled={'yes' if enabled else 'no'}")
 
     def branch_state(self):
+        with self._timed("step.branch_state"):
+            return self._branch_state()
+
+    def _branch_state(self):
         result = {}
         for element in sorted(self.native.AllElementNames):
             if not element.lower().startswith(("line.", "transformer.")):
@@ -488,7 +574,11 @@ class DSSSession:
     def total_load_power(self):
         return sum((self.powers("Load." + n) for n in self.loads), start=np.zeros(2))
 
-    def read_state(self):
+    def read_state(self, light=False):
+        with self._timed("step.read_state"):
+            return self._read_state(light=light)
+
+    def _read_state(self, light=False):
         converged = getattr(
             getattr(self.native, "Solution", None), "Converged", None
         )
@@ -498,6 +588,35 @@ class DSSSession:
                 f"failed={self._failed} "
                 f"measurement_valid={self._measurement_valid} "
                 f"converged={converged}"
+            )
+        if light:
+            # 训练步精简读取：电压用一次 AllBusVmagPu 批量按节点名分组（与
+            # 逐母线 puVmagAngle 同源同值）；注入只取可控设备类（负荷类注入
+            # 与全网支路明细省略，active_balance_error 置 None——完整校验与
+            # 轨迹快照走默认完整读取）。
+            names = self.native.AllNodeNames
+            values = self.native.AllBusVmagPu
+            voltages = {}
+            for node, value in zip(names, values):
+                bus, _, phase = node.rpartition(".")
+                if phase in ("1", "2", "3"):
+                    voltages.setdefault(bus.lower(), {})[int(phase)] = float(value)
+            # 与完整读取同键序同覆盖（按 bus_names 排序、保留无相节点母线的
+            # 空映射），保证两种模式的观测向量逐位同序。
+            voltages = {n: voltages.get(n, {}) for n in self.bus_names}
+            injections = {}
+            for prefix in ("pvsystem.", "storage.", "generator."):
+                for element in self._connections:
+                    if element.startswith(prefix):
+                        injections[element] = tuple(-self.powers(element))
+            return GridState(
+                self.time_s,
+                voltages,
+                injections,
+                tuple(-self.total_power()),
+                tuple(self.total_loss()),
+                {n: b.soc for n, b in self.batteries.items()},
+                None,
             )
         active_buses = {
             node.rpartition(".")[0].lower()
