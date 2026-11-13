@@ -19,6 +19,7 @@ class DataConfig:
     irradiance_scale: float = 1.0
     noise: float = 0.025
     load_groups: dict[str, str] = field(default_factory=dict)
+    scenario_names: list[str] | None = None  # 读取期按 manifest 场景名过滤；不改变生成
 
     def __post_init__(self):
         if self.source not in ("synthetic", "files"):
@@ -42,13 +43,41 @@ class DataConfig:
         if not 0 <= self.seed < 2**32 or not 1 <= self.step_seconds <= 3600:
             raise ValueError("无效数据种子或 step_seconds（1..3600）")
         if self.episodes_per_split < 6:
-            raise ValueError("episodes_per_split 至少为6，覆盖六类场景")
+            raise ValueError("episodes_per_split 至少为6；默认12可轮转覆盖全部八类场景")
         if not (0 < self.load_scale <= 3 and 0 < self.irradiance_scale <= 1.5):
             raise ValueError("数据倍率超出合成器支持范围")
         if not 0 <= self.noise <= 0.2:
             raise ValueError("data.noise 必须在 [0, 0.2]")
         if any(g not in GROUPS for g in self.load_groups.values()):
             raise ValueError(f"load_groups 的值必须属于 {GROUPS}")
+        if self.scenario_names is not None and (
+            not isinstance(self.scenario_names, list)
+            or not self.scenario_names
+            or any(not isinstance(s, str) or not s.strip() for s in self.scenario_names)
+            or len(set(self.scenario_names)) != len(self.scenario_names)
+        ):
+            raise ValueError("scenario_names 必须是非空、不重复的场景名列表")
+
+
+def validate_observation_projection(buses, neighborhood):
+    """关键母线观测投影的配置校验；两任务（VVC/SmartGrid）共用。"""
+    if buses is not None and neighborhood is not None:
+        raise ValueError(
+            "observation_buses 与 observation_neighborhood 互斥，只能选择一种投影方式"
+        )
+    if neighborhood is not None and (
+        not isinstance(neighborhood, int)
+        or isinstance(neighborhood, bool)
+        or not 1 <= neighborhood <= 4
+    ):
+        raise ValueError("observation_neighborhood 必须是 1..4 的整数跳数")
+    if buses is not None:
+        if not isinstance(buses, list) or not buses:
+            raise ValueError("observation_buses 必须是非空母线名列表")
+        if any(
+            not isinstance(b, str) or not b.strip() for b in buses
+        ) or len(set(b.lower() for b in buses)) != len(buses):
+            raise ValueError("observation_buses 含空名或重复项（大小写不敏感）")
 
 
 def validate_operation(config):
@@ -69,3 +98,10 @@ def validate_operation(config):
         raise ValueError("回合长度必须为正，合成场景不能超过一天")
     if not 0 < config.voltage_min < config.voltage_max < 2:
         raise ValueError("电压约束必须满足0<min<max<2")
+    penalty = getattr(config, "divergence_penalty", 10000.0)
+    if not math.isfinite(penalty) or penalty < 0:
+        raise ValueError("divergence_penalty必须为非负有限值")
+    validate_observation_projection(
+        getattr(config, "observation_buses", None),
+        getattr(config, "observation_neighborhood", None),
+    )

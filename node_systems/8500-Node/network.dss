@@ -1,0 +1,45 @@
+// IEEE 8500-Node 静态网络主文件（network.dss）
+// 唯一静态网络定义；时钟、场景与外部控制由公共 DSSSession 负责。
+// 底稿：Master.dss（官方 CSV-R2b 数据的忠实转换；2026-11 与 IEEE PES 发行物逐值比对一致）。
+// 相对 Master.dss 的改动：
+//   1) 移除 Generator.batt1..batt10 旧占位电池（无原生能量状态，训练环境直接拒绝）；
+//   2) 移除 BusCoords 行（BusCoords.csv 不随仓库分发，仅影响绘图坐标，不影响潮流）；
+//   3) 不含任何 Set mode / 日仿真设置（DSSSession 以 snapshot 模式接管时钟与步长）。
+
+Clear
+
+New Circuit.IEEE8500
+
+! Make the source stiff with small impedance
+~ pu=1.05  r1=0  x1=0.001  r0=0  x0=0.001
+
+Redirect  LineCodes2.dss
+Redirect  Triplex_Linecodes.dss
+
+Redirect  Lines.dss
+Redirect  Transformers.dss
+Redirect  LoadXfmrs.dss    ! Load Transformers
+Redirect  Triplex_Lines.dss
+Redirect  Loads.dss     ! Balanced Loads
+Redirect  Capacitors.dss
+Redirect  CapControls.dss
+Redirect  Regulators.dss
+
+! 联络开关以 enabled + Open 表达常开（N/O）状态。
+! Lines.dss 原以 enabled=False 定义这 5 个开关，但停用元件不参与节点分配，
+! 快照求解前无法枚举相别；Open 保持元件为活元件（后续 N-1 重构可 Close），
+! 电气效果与停用等价。与 9500-Node 模型的 N/O 开关表达方式一致。
+Edit Line.WD701_48332_sw enabled=True
+Open  Line.WD701_48332_sw 1
+Edit Line.V7995_48332_sw enabled=True
+Open  Line.V7995_48332_sw 1
+Edit Line.WG127_48332_sw enabled=True
+Open  Line.WG127_48332_sw 1
+Edit Line.WF856_48332_sw enabled=True
+Open  Line.WF856_48332_sw 1
+Edit Line.WF586_48332_sw enabled=True
+Open  Line.WF586_48332_sw 1
+
+! Let DSS estimate the voltage bases
+Set voltagebases=[115, 12.47,  0.48, 0.208]
+Calcvoltagebases     ! This also establishes the bus list

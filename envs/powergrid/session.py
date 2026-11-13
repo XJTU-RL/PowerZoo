@@ -91,6 +91,9 @@ class DSSSession:
         for overlay in self.overlays:
             self.command(f'redirect "{self._input_path(overlay)}"')
         self.command("Set mode=snapshot controlmode=off")
+        # 训练求解固定 Newton 快照：恒功率负荷（Model=1）语义正确。
+        # 前推回代（solve mode=direct）把恒功率负荷按导纳处理，会改变负荷
+        # 物理响应，只允许出现在模型文件的 compile 期初始化序列中。
         self.command("CalcVoltageBases")
         self.command(
             f"Set stepsize={self.step_seconds:.12g} number=1 maxiterations=100 tolerance=1e-8"
