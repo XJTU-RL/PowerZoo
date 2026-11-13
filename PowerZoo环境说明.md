@@ -1,6 +1,6 @@
 # PowerZoo 环境说明
 
-本文是当前五类电力任务的导航。安装步骤见 [README](README.md)，
+本文是当前六类电力任务的导航。安装步骤见 [README](README.md)，
 配置字段与覆盖顺序见 [配置说明](docs/configuration.md)。旧版直接向构造器传入
 `dss_folder_path`、`reward_type: "powerzoo"` 的示例已不适用。
 
@@ -13,6 +13,7 @@
 | `district_dispatch` | 区域 DER 协同调度、实际功率计量与成本 | [区域调度说明](docs/district-physics.md) |
 | `dsr` / `dsr_13bus` | 有源静态配电网恢复 | [恢复任务说明](docs/dsr-physics.md) |
 | `stackelberg` / `stackelberg_13bus` | 顺序定价、真实负荷响应与逐主体结算 | [顺序定价说明](docs/pricing-physics.md) |
+| `lfc` | OHASAC 论文算例：OpenDSS 配电网 + Simulink 输电网联合仿真的负荷频率控制（13/34Bus） | [LFC 开发约定](docs/development.md) |
 
 `powerzoo` 是 `vvc` 的历史别名。DSR 当前表示恢复任务，不沿用旧版需求侧响应语义。
 环境注册集中在 [`utils/environment_registry.py`](utils/environment_registry.py)。
@@ -38,9 +39,10 @@ python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 
 ## 共享物理层与集中控制
 
-五类任务使用 [`envs/powergrid/`](envs/powergrid/) 的原生 DSS context、设备与场景组件，
+vvc/smartgrid/dsr/stackelberg/district 五类任务使用 [`envs/powergrid/`](envs/powergrid/) 的原生 DSS context、设备与场景组件，
 各自保留任务目标、奖励和交互顺序。模型容量、接线与设备额定值取自 DSS。
 运行时使用模型副本，场景数据按 manifest、单位、时间和摘要校验。
+LFC 为忠实论文内核，使用全局 DSS 引擎并按 worker 进程隔离（见 [LFC 开发约定](docs/development.md)）。
 
 集中式基线用于与多智能体控制比较，不另写一套物理仿真：
 
@@ -55,7 +57,8 @@ python scripts/train.py --config configs/experiments/vvc_13bus_smoke.yaml
 ## 运行检查与历史材料
 
 安装基线验证使用 `python scripts/check_runtime.py --train`；各任务还有
-`check_vvc.py`、`check_smartgrid.py`、`check_district.py`、`check_dsr.py` 和 `check_pricing.py`。
+`check_vvc.py`、`check_smartgrid.py`、`check_district.py`、`check_dsr.py` 和 `check_pricing.py`，
+LFC 为 `check_lfc.py`（MATLAB 联合仿真层经 `--matlab` 分层执行）。
 命令参数、验收范围和已知限制以各任务说明和
 [物理实施记录](docs/physics-refactor-progress.md) 为准，短训练不证明策略已收敛。
 
