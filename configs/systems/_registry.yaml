@@ -17,6 +17,7 @@ base_systems:
   - 9500Node_bal
   - UKMVLV_HVUG
   - SMARTDS_P4UDT4
+  - SMARTDS_RDT1534
 
 # PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
@@ -82,6 +83,13 @@ metadata:
     typical_episode_length: 96
     external_case: smart_ds_sfo_p4udt4
     fetch_command: "python scripts/download_external_case.py --case smart_ds_sfo_p4udt4"
+
+  SMARTDS_RDT1534:
+    description: "NREL SMART-DS v1.0 GSO rural rdt1534 feeder (12.47kV, 2150 buses, 472 PV), 15-min timeseries"
+    node_count: 4173
+    typical_episode_length: 96
+    external_case: smart_ds_gso_rdt1534
+    fetch_command: "python scripts/download_external_case.py --case smart_ds_gso_rdt1534"
 
   District_34Bus_3Zone:
     description: "IEEE 34-bus partitioned into 3 dispatch zones with DERs"

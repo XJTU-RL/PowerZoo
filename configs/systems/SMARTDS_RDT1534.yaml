@@ -1,0 +1,25 @@
+# 外部算例：NREL SMART-DS v1.0（2017）GSO rural 场景 rhs0_1247 变电站的
+# rdt1534 馈线（12.47kV 农村馈线）。数据获取：
+#   python scripts/download_external_case.py --case smart_ds_gso_rdt1534
+# 许可 CC BY 4.0（OEDI 2981）。引擎实测：2,150 母线/4,173 电气节点/
+# 1,440 负荷/472 台 PV（218 台 kvarlimit、217 台原生 InvControl，参数补丁
+# 见 manifest）。15 分钟×35040 点曲线，当地标准时（GSO=UTC-5 无夏令时）。
+# dss_folder 指向布局根（rural），dss_file 为馈线 standalone 主入口。
+system:
+  name: SMARTDS_RDT1534
+  dss_folder: data/external/smart_ds_gso_rdt1534/SMART-DS/v1.0/2017/GSO/rural
+  dss_file: scenarios/solar_high_batteries_none_timeseries/opendss/rhs0_1247/rhs0_1247--rdt1534/Master.dss
+episode:
+  max_steps: 96
+devices:
+  pv_systems:
+    action_num: inf
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 6.0606

@@ -160,6 +160,28 @@ SMART_DS_SFO_P4UDT4 = FileSetCase(
             reason="InvControl 参数 VV_RefReactivePower 于 2020 年更名为"
             " RefReactivePower（引擎报错提示的官方改名）",
         ),
+        FilePatch(
+            path=(
+                "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/"
+                "Master.dss"
+            ),
+            find="Solve mode=yearly stepsize=15m number=35040",
+            replace="! Solve mode=yearly stepsize=15m number=35040（派生注释："
+            "训练会话按 15 分钟步长显式驱动，compile 期全年求解只为导出"
+            "官方监控数据，且会留下控制器遗留状态）",
+            reason="compile 期 35040 步全年求解在每次会话 reset 重放（rdt1534 "
+            "实测 278s），且其遗留的 InvControl 中间状态偏离模型文件初始值",
+        ),
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "p4uhs0_4/p4uhs0_4--p4udt4/Master.dss"
+            ),
+            find="Solve mode=yearly stepsize=15m number=35040",
+            replace="! Solve mode=yearly stepsize=15m number=35040（派生注释，"
+            "理由同 base 入口）",
+            reason="同 base 入口：去掉 compile 期全年求解",
+        ),
     ),
     description=(
         "NREL SMART-DS v1.0（2017 年合成数据）SFO/P4U 场景的 p4udt4 馈线："
@@ -218,6 +240,16 @@ SMART_DS_GSO_RDT1534 = FileSetCase(
             find="VV_RefReactivePower",
             replace="RefReactivePower",
             reason="同 p4udt4：InvControl 参数 2020 年官方改名",
+        ),
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "rhs0_1247/rhs0_1247--rdt1534/Master.dss"
+            ),
+            find="Solve mode=yearly stepsize=15m number=35040",
+            replace="! Solve mode=yearly stepsize=15m number=35040（派生注释，"
+            "理由同 p4udt4）",
+            reason="compile 期全年求解实测 278s 且遗留控制器中间状态",
         ),
     ),
     description=(
