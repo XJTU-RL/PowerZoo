@@ -1,0 +1,22 @@
+# SMART-DS p4udt4 局部观测 + 分组共享策略 短训练冒烟（任务3）。
+# 需先下载数据：python scripts/download_external_case.py --case smart_ds_sfo_p4udt4
+# 运行示例（分组共享经 --set 传入）：
+#   python scripts/train.py --config configs/experiments/smartgrid_p4udt4_local_smoke.yaml \
+#     --set algo.share_param=group --set device.cuda=false
+# 已验证：480 步 2 线程 CPU 冒烟（局部观测 6 个 PV actor 18 维 + 集中 critic
+# 全局观测；share_param=group 时 6 台 PV 共用一个策略网络）。
+run:
+  algo: happo
+  env: smartgrid
+  exp_name: smartgrid_p4udt4_local_smoke
+training_ref: smoke
+system_ref: SMARTDS_P4UDT4
+env:
+  max_episode_steps: 24
+  seed: 0
+  pv_plan: none
+  pv_control_mode: rl
+  observation_mode: local
+  light_state_read: true
+  data:
+    step_seconds: 900
