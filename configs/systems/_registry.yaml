@@ -15,6 +15,7 @@ base_systems:
   - 8500Node
   - 9500Node
   - 9500Node_bal
+  - UKMVLV_HVUG
 
 # PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
@@ -66,6 +67,13 @@ metadata:
     description: "IEEE 9500-node balanced load case (1275 two-phase 208V loads, 178 PV, 2 Storage)"
     node_count: 9500
     typical_episode_length: 24
+
+  UKMVLV_HVUG:
+    description: "UK MV-LV hybrid network (HV_UG): 37629 buses / 112887 nodes, external data required"
+    node_count: 112887
+    typical_episode_length: 24
+    external_case: uk_mvlv_hv_ug
+    fetch_command: "python scripts/download_external_case.py --case uk_mvlv_hv_ug"
 
   District_34Bus_3Zone:
     description: "IEEE 34-bus partitioned into 3 dispatch zones with DERs"

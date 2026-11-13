@@ -1,0 +1,29 @@
+# 外部算例：英国 33/11kV 电缆中压网 + 75 个 LV 子网联合模型（HV_UG 版）。
+# 数据不在仓库内：先运行 python scripts/download_external_case.py --case uk_mvlv_hv_ug
+# 下载到 data/external/（或设 POWERZOO_EXTERNAL_CASES 指向已有目录）。
+# 上游无 LICENSE，压缩包与展开模型不得再分发；来源登记见 utils/external_cases.py。
+#
+# 模型画像（引擎实测，见 docs/uk-mvlv-import.md）：37,629 母线 / 112,887 电气
+# 节点 / 50Hz / 电压基值 33-11-0.3984kV；19,072 负荷（75 个中压集中负荷由
+# 上游 lds_edit.dss 禁用，不可重新启用以免重复计负荷）；2 台 33/11kV 主变
+# 各带 1 个原生 RegControl（NumTaps=19，素数 → action_num=20 才能整除档位）；
+# 无电容/PV/储能。master 入口自带 solve 与 energymeter；负荷时序由场景管线
+# 注入。铭牌静态快照收敛但 49% 节点高于 1.05pu——原始越限按原样报告。
+system:
+  name: UKMVLV_HVUG
+  dss_folder: data/external/uk_mvlv_hv_ug/HV_UG_full
+  dss_file: master_mvlv.dss
+episode:
+  max_steps: 24
+devices:
+  regulators:
+    action_num: 20
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 6.0606
