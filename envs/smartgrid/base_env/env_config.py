@@ -56,7 +56,13 @@ class SmartGridConfig:
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     voltage_min: float = 0.95
     voltage_max: float = 1.05
+    # 物理求解失败（如恒功率负荷电压崩溃）时的终止惩罚；必须大于剩余步数
+    # 的最好累计奖励，防止智能体主动制造崩溃逃避损耗惩罚。
+    divergence_penalty: float = 10000.0
     state_type: str = "EP"
+    # 关键母线观测投影：显式名单或设备邻域二选一；None 保持全母线展开。
+    observation_buses: Optional[list[str]] = None
+    observation_neighborhood: Optional[int] = None
 
     use_cmdp: bool = True
     use_lagrangian_reward: bool = False

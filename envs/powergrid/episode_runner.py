@@ -152,6 +152,21 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         elif isinstance(infos, dict):
             info_dict = infos
 
+        if info_dict.get("physical_failure"):
+            # 物理失败步没有可读取的有效物理状态（失败会话禁止读取，
+            # 两个快照组装器的 read_state 都会抛错）；返回显式失败标记
+            # 快照，回放与导出据此展示终止原因而非中断。
+            return {
+                "step": step,
+                "physical_failure": True,
+                "failure_reason": info_dict.get("failure_reason", ""),
+                "reward": float(np.asarray(rewards).reshape(-1)[0])
+                if rewards is not None
+                else None,
+                "buses": {},
+                "lines": [],
+            }
+
         snapshot = self._snapshot(self._env, step, actions, rewards, info_dict)
 
         return snapshot

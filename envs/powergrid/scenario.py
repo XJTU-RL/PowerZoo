@@ -19,7 +19,16 @@ UNITS = {
     "irradiance": "kW/m2",
     "temperature": "degC_array",
 }
-SCENARIOS = ("sunny", "cloudy", "cloud_ramp", "evening_peak", "high_pv", "night")
+SCENARIOS = (
+    "sunny",
+    "cloudy",
+    "cloud_ramp",
+    "evening_peak",
+    "high_pv",
+    "night",
+    "load_imbalance",
+    "light_load_high_pv",
+)
 COLUMNS = ("time_s", *("load_" + g for g in GROUPS), "irradiance", "temperature")
 
 
@@ -30,8 +39,17 @@ def _digest(path):
 def _generation(config, steps):
     return {
         k: v
-        for k, v in dict(asdict(config), steps=steps, version=VERSION).items()
-        if k not in ("path", "source", "split", "load_groups", "manifest_sha256")
+        for k, v in dict(
+            asdict(config), steps=steps, version=VERSION, scenarios=list(SCENARIOS)
+        ).items()
+        if k not in (
+            "path",
+            "source",
+            "split",
+            "load_groups",
+            "manifest_sha256",
+            "scenario_names",
+        )
     }
 
 
@@ -65,7 +83,7 @@ def generate_dataset(output, config=None, steps=360):
                 np.random.SeedSequence([config.seed, split_id, i])
             )
             scenario = SCENARIOS[i % len(SCENARIOS)]
-            start = (9, 9, 10, 17, 10, 0)[i % 6]
+            start = (9, 9, 10, 17, 10, 0, 9, 10)[i % len(SCENARIOS)]
             if steps * config.step_seconds > 6 * 3600:
                 start = 0
             hour = start + np.arange(steps) * config.step_seconds / 3600
@@ -78,6 +96,9 @@ def generate_dataset(output, config=None, steps=360):
                 weather *= 1 - 0.75 * np.exp(
                     -(((np.arange(steps) - center) / width) ** 2)
                 )
+            elif scenario == "light_load_high_pv":
+                # 轻载高光伏：压低云况扰动制造持续高辐照，形成电压抬升压力。
+                weather = rng.uniform(0.97, 1.0) * np.ones(steps)
             g = np.clip(solar * (weather + _smooth(rng, steps, config.noise)), 0, 1.3)
             g *= config.irradiance_scale
             # 简化 NOCT=45°C 热模型 + 5分钟热惯性；是合成假设，不是实测组件温度。
@@ -102,11 +123,22 @@ def generate_dataset(output, config=None, steps=360):
                 level *= 1.15
             elif scenario == "high_pv":
                 level *= 0.65
+            elif scenario == "light_load_high_pv":
+                level *= 0.5
+            # 组间负荷强失衡：residential 重载 / commercial 轻载 / industrial 基准。
+            # 在以单相负荷为主的系统里组间失衡即近似三相不平衡压力。
+            gain = (
+                (1.70, 0.50, 1.00)
+                if scenario == "load_imbalance"
+                else (1.0, 1.0, 1.0)
+            )
             loads = [
                 np.clip(
-                    (b + common + _smooth(rng, steps, config.noise / 2)) * level, 0.1, 3
+                    (b * gb + common + _smooth(rng, steps, config.noise / 2)) * level,
+                    0.1,
+                    3,
                 )
-                for b in bases
+                for b, gb in zip(bases, gain)
             ]
             values = np.column_stack((hour * 3600, *loads, g, temperature))
             name = f"{split}_{i:03d}.csv"
@@ -156,7 +188,9 @@ def prepare_dataset(config, steps):
             if not (folder / "manifest.json").exists():
                 generate_dataset(folder, config, steps)
         path = folder / "manifest.json"
-    dataset = ScenarioDataset(path, config.split, steps, config.step_seconds)
+    dataset = ScenarioDataset(
+        path, config.split, steps, config.step_seconds, config.scenario_names
+    )
     if config.manifest_sha256 and dataset.sha256 != config.manifest_sha256:
         raise ValueError("数据清单摘要与训练快照不符")
     if config.source == "synthetic" and dataset.manifest.get(
@@ -171,7 +205,7 @@ def prepare_dataset(config, steps):
 class ScenarioDataset:
     """manifest + CSV 是唯一数据入口；不回填、截断、循环或猜测单位。"""
 
-    def __init__(self, path, split, steps, step_seconds):
+    def __init__(self, path, split, steps, step_seconds, scenario_names=None):
         self.path = Path(path).resolve()
         self.manifest = json.loads(self.path.read_text(encoding="utf-8"))
         if (
@@ -185,6 +219,8 @@ class ScenarioDataset:
             or not self.manifest["origin"]
         ):
             raise ValueError("数据清单必须声明非空 origin 来源")
+        wanted = set(scenario_names) if scenario_names is not None else None
+        available = set()
         self.episodes = []
         seen, files = set(), set()
         for entry in self.manifest["episodes"]:
@@ -197,6 +233,10 @@ class ScenarioDataset:
                 raise ValueError("未知数据集合")
             if entry["split"] != split:
                 continue
+            if wanted is not None:
+                available.add(entry.get("scenario"))
+                if entry.get("scenario") not in wanted:
+                    continue
             if (
                 not file.is_relative_to(self.path.parent)
                 or _digest(file) != entry["sha256"]
@@ -228,6 +268,11 @@ class ScenarioDataset:
             values.setflags(write=False)
             self.episodes.append((entry, values))
         if not self.episodes:
+            if wanted is not None:
+                raise ValueError(
+                    f"scenario_names {sorted(wanted)} 与数据集 {split} 场景无交集；"
+                    f"数据集实际包含：{sorted(a for a in available if a)}"
+                )
             raise ValueError(f"数据集没有 {split} 场景")
 
     def group_for(self, name, mapping):

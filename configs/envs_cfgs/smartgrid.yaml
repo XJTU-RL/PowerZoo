@@ -8,3 +8,7 @@ env:
     seed: 2026
     step_seconds: 60
     episodes_per_split: 12
+    # 可选（默认关闭）：
+    # scenario_names: [evening_peak, load_imbalance]   # 读取期按名过滤场景（生成不变、缓存 key 不变）
+    # observation_neighborhood: 2                       # 关键母线观测投影（大系统降维）
+    # observation_buses: [800, 840]                     # 显式投影名单（与上一项互斥）

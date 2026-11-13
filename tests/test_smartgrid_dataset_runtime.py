@@ -8,6 +8,7 @@ import json
 import numpy as np
 import pytest
 
+from envs.powergrid.scenario import SCENARIOS, _generation
 from envs.smartgrid.data_process.dataset import (
     DataConfig,
     ScenarioDataset,
@@ -19,28 +20,53 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_generation_reproducible_and_splits_independent(tmp_path):
-    cfg = DataConfig(seed=0, episodes_per_split=6)
+    cfg = DataConfig(seed=0, episodes_per_split=8)
     a = generate_dataset(tmp_path / "a", cfg, 360)
     b = generate_dataset(tmp_path / "b", cfg, 360)
     assert a.read_bytes() == b.read_bytes()
     manifests = json.loads(a.read_text())
-    assert len(manifests["episodes"]) == 18
+    assert len(manifests["episodes"]) == 24
     hashes = [v["sha256"] for v in manifests["episodes"]]
-    assert len(set(hashes)) == 18
+    assert len(set(hashes)) == 24
     train = ScenarioDataset(a, "train", 360, 60)
-    assert {e[0]["scenario"] for e in train.episodes} == {
-        "sunny",
-        "cloudy",
-        "cloud_ramp",
-        "evening_peak",
-        "high_pv",
-        "night",
-    }
+    assert {e[0]["scenario"] for e in train.episodes} == set(SCENARIOS)
     assert np.all(train.episodes[5][1][:, 4] == 0)
     assert train.episodes[0][1][:, 4].max() > 0.5
     assert train.episodes[0][1][:, 5].max() > 30
     with pytest.raises(FileExistsError):
         generate_dataset(tmp_path / "a", cfg, 360)
+
+
+def test_new_scenarios_and_name_filtering(tmp_path):
+    """新场景（组间失衡/轻载高光伏）的数值特征与读取期按名过滤。"""
+    cfg = DataConfig(seed=0, episodes_per_split=8, noise=0.0, step_seconds=600)
+    manifest = generate_dataset(tmp_path, cfg, 8)
+    rows = {}
+    for entry in json.loads(manifest.read_text())["episodes"]:
+        if entry["split"] == "train":
+            rows[entry["scenario"]] = np.loadtxt(
+                tmp_path / entry["file"], delimiter=",", skiprows=1
+            )
+    imbalance = rows["load_imbalance"][:, 1:4].mean(axis=0)
+    assert imbalance[0] > imbalance[2] * 1.3, "residential 未显著重载"
+    assert imbalance[1] < imbalance[2] * 0.7, "commercial 未显著轻载"
+    light = rows["light_load_high_pv"]
+    sunny = rows["sunny"]
+    assert light[:, 1:4].mean() < sunny[:, 1:4].mean() * 0.7, "未显著轻载"
+    assert light[:, 4].mean() > sunny[:, 4].mean(), "辐照未高于晴天基线"
+
+    filtered = ScenarioDataset(manifest, "train", 8, 600, ["cloud_ramp"])
+    assert [e[0]["scenario"] for e in filtered.episodes] == ["cloud_ramp"]
+    unfiltered = ScenarioDataset(manifest, "train", 8, 600)
+    assert len(unfiltered.episodes) == 8
+    with pytest.raises(ValueError, match="无交集"):
+        ScenarioDataset(manifest, "train", 8, 600, ["不存在的场景"])
+    # scenario_names 是读取过滤，不进入合成缓存 key
+    cfg_filtered = DataConfig(
+        seed=0, episodes_per_split=8, noise=0.0, step_seconds=600,
+        scenario_names=["sunny"],
+    )
+    assert _generation(cfg_filtered, 8) == _generation(cfg, 8)
 
 
 @pytest.mark.parametrize(

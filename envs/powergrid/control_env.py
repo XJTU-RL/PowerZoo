@@ -42,6 +42,8 @@ class DeviceControlEnv(gym.Env):
             raise ValueError(f"data.load_groups 包含不存在的 DSS 负荷：{unknown_loads}")
         self.dss_folder_path, self.dss_file = str(system.resolve()), cfg.dss_file
         self.horizon = cfg.max_episode_steps
+        self.divergence_penalty = getattr(cfg, "divergence_penalty", 10000.0)
+        self._diverged = False
         self.reg_act_num, self.bat_act_num, self.pv_act_num = (
             cfg.reg_act_num,
             cfg.bat_act_num,
@@ -72,6 +74,10 @@ class DeviceControlEnv(gym.Env):
         self.all_bus_names, self.topology = (
             self.circuit.bus_names,
             self.circuit.topology,
+        )
+        self._obs_buses, self._obs_projection = self._resolve_observation_buses(
+            getattr(cfg, "observation_buses", None),
+            getattr(cfg, "observation_neighborhood", None),
         )
         self.useS, self.use_render = False, False
         self.wrap_observation, self.observe_load = True, False
@@ -115,6 +121,81 @@ class DeviceControlEnv(gym.Env):
             else gym.spaces.Discrete(int(n))
         )
 
+    def _resolve_observation_buses(self, buses, neighborhood):
+        """在首次 reset 前固定投影母线有序名单；跨步稳定是 schema 对齐的前提。
+
+        名单模式：显式列表（大小写不敏感匹配 DSS 母线名）。
+        邻域模式：可控设备母线 ∪ 电压源母线，经拓扑图 k 跳扩展。
+        返回 (有序母线名列表或 None, 投影说明或 None)；None 表示全母线展开不变。
+        """
+        if buses is None and neighborhood is None:
+            return None, None
+        known = {b.lower(): b for b in self.all_bus_names}
+        if buses is not None:
+            missing = sorted(b for b in buses if b.lower() not in known)
+            if missing:
+                self.circuit.close()
+                raise ValueError(f"observation_buses 包含不存在的母线：{missing}")
+            projection = sorted({known[b.lower()] for b in buses})
+            return projection, {"mode": "buses", "bus_count": len(projection)}
+        groups = (
+            ("capacitor.", self.cap_names),
+            ("storage.", self.bat_names),
+            ("pvsystem.", self.pv_names),
+            ("generator.", self.svg_names),
+        )
+        seeds = set()
+        for prefix, device_names in groups:
+            for name in device_names:
+                conn = self.circuit._connections.get(prefix + name.lower())
+                if conn and conn["buses"]:
+                    seeds.add(conn["buses"][0].split(".")[0].lower())
+        for reg in self.circuit.regulators.values():
+            conn = self.circuit._connections.get(
+                "transformer." + reg.transformer.lower()
+            )
+            if conn and conn["buses"]:
+                seeds.add(conn["buses"][0].split(".")[0].lower())
+        for element, conn in self.circuit._connections.items():
+            if element.startswith("vsource.") and conn["buses"]:
+                seeds.add(conn["buses"][0].split(".")[0].lower())
+        reached = {seed for seed in seeds if seed in known}
+        frontier = {seed for seed in seeds if seed in self.topology}
+        reached |= frontier
+        for _ in range(neighborhood):
+            nxt = set()
+            for bus in frontier:
+                nxt |= set(self.topology[bus])
+            nxt -= reached
+            reached |= nxt
+            frontier = nxt
+            if not frontier:
+                break
+        projection = sorted(known[b] for b in reached if b in known)
+        return projection, {
+            "mode": "neighborhood",
+            "hops": neighborhood,
+            "seed_count": len(seeds),
+            "bus_count": len(projection),
+        }
+
+    def _voltage_statistics(self, voltages):
+        """投影模式下保留全网电压量纲：min/max/mean 与越限比例取自全量 dict。"""
+        values = np.concatenate(
+            [np.asarray(v) for v in voltages.values() if len(v)]
+        )
+        if not values.size:
+            return [0.0, 0.0, 0.0, 0.0, 0.0]
+        below = values < self.config.voltage_min
+        above = values > self.config.voltage_max
+        return [
+            float(values.min()),
+            float(values.max()),
+            float(values.mean()),
+            float(below.mean()),
+            float(above.mean()),
+        ]
+
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
         self._next_episode = int(self.rng.integers(len(self.dataset.episodes)))
@@ -153,8 +234,39 @@ class DeviceControlEnv(gym.Env):
         return parse_actions(action, self.agent_spaces)
 
     def step(self, action):
-        if self.t >= self.horizon:
+        if self.t >= self.horizon or self._diverged:
             raise RuntimeError("回合已结束，请先 reset")
+        try:
+            return self._step(action)
+        except RuntimeError as exc:
+            if not self.circuit._failed:
+                raise
+            self._diverged = True
+            return self._divergence_transition(exc)
+
+    def _divergence_transition(self, exc):
+        """物理求解失败转移：恒功率负荷电压崩溃等真实发散工况终止回合并重罚。
+
+        大规模系统（如 9500-Node）在极端分接/电容组合下潮流无解属真实物理；
+        惩罚必须超过剩余步数的最好累计奖励，避免智能体学会主动制造崩溃
+        逃避损耗惩罚。观测冻结为上一步值（失败会话不能读取状态），下一次
+        reset 经 circuit.reset 自动恢复（既有失败后须 reset 契约不变）。
+        """
+        self._on_divergence()
+        self.t += 1
+        reward = -float(self.divergence_penalty)
+        info = {
+            "physical_failure": True,
+            "failure_reason": str(exc),
+            "reward_total": reward,
+            "episode_progress": self.t / self.horizon,
+            "terminated": True,
+            "truncated": False,
+            "TimeLimit.truncated": False,
+        }
+        return self.wrap_obs(self.obs), reward, True, info
+
+    def _step(self, action):
         parts = iter(self._actions(action))
         self.circuit.begin_interval(float(self.profile[self.t, 0]))
         self._apply_data(self.t)
@@ -284,8 +396,15 @@ class DeviceControlEnv(gym.Env):
 
     def wrap_obs(self, obs):
         values = []
+        voltages = obs["bus_voltages"]
+        if self._obs_buses is None:
+            for value in voltages.values():
+                values.extend(np.asarray(value).reshape(-1))
+        else:
+            for name in self._obs_buses:
+                values.extend(np.asarray(voltages[name]).reshape(-1))
+            values.extend(self._voltage_statistics(voltages))
         for key in (
-            "bus_voltages",
             "cap_statuses",
             "reg_statuses",
             "bat_statuses",
@@ -326,10 +445,24 @@ class DeviceControlEnv(gym.Env):
         ]
         digest = sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
         observation_schema = []
-        for bus, phases in self.physical_state.voltages_pu.items():
-            observation_schema.extend(
-                f"bus.{bus}.phase{phase}.voltage_pu" for phase in phases
-            )
+        if self._obs_buses is None:
+            for bus, phases in self.physical_state.voltages_pu.items():
+                observation_schema.extend(
+                    f"bus.{bus}.phase{phase}.voltage_pu" for phase in phases
+                )
+        else:
+            for bus in self._obs_buses:
+                phases = self.physical_state.voltages_pu.get(bus, {})
+                observation_schema.extend(
+                    f"bus.{bus}.phase{phase}.voltage_pu" for phase in phases
+                )
+            observation_schema += [
+                "bus.voltage_stat.min_pu",
+                "bus.voltage_stat.max_pu",
+                "bus.voltage_stat.mean_pu",
+                "bus.voltage_stat.violation_low_ratio",
+                "bus.voltage_stat.violation_high_ratio",
+            ]
         for key in (
             "cap_statuses",
             "reg_statuses",
@@ -355,6 +488,7 @@ class DeviceControlEnv(gym.Env):
         return {
             **self.circuit.manifest(),
             "task": type(self.config).__name__,
+            "observation_projection": self._obs_projection,
             "observation_schema": observation_schema,
             "observation_schema_sha256": sha256(
                 json.dumps(observation_schema).encode()
@@ -445,6 +579,7 @@ class DeviceControlEnv(gym.Env):
         self._next_episode = (index + 1) % len(self.dataset.episodes)
         self.entry, self.profile = self.dataset.episodes[index]
         self.t = 0
+        self._diverged = False
         self.circuit.reset(seconds=float(self.profile[0, 0]))
         self._apply_data(0)
         self.available_pv_kw = self.circuit.available_pv_power()
@@ -461,6 +596,9 @@ class DeviceControlEnv(gym.Env):
 
     def _init_task(self):
         pass
+
+    def _on_divergence(self):
+        """物理失败结算钩子：任务层在提前终止前结算回合级状态（默认无）。"""
 
     def _reset_task(self, seed):
         pass

@@ -13,6 +13,8 @@ base_systems:
   - 34Bus
   - 123Bus
   - 8500Node
+  - 9500Node
+  - 9500Node_bal
 
 # PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
@@ -53,6 +55,16 @@ metadata:
   8500Node:
     description: "IEEE 8500-node test feeder base configuration"
     node_count: 8500
+    typical_episode_length: 24
+
+  9500Node:
+    description: "IEEE 9500-node unbalanced load case (2550 single-phase 120V loads, 178 PV, 2 Storage)"
+    node_count: 9500
+    typical_episode_length: 24
+
+  9500Node_bal:
+    description: "IEEE 9500-node balanced load case (1275 two-phase 208V loads, 178 PV, 2 Storage)"
+    node_count: 9500
     typical_episode_length: 24
 
   District_34Bus_3Zone:
