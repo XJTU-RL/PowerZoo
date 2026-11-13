@@ -139,6 +139,15 @@ def validate_algorithm(values, defaults, prefix=""):
             numeric = isinstance(expected, str) and re.fullmatch(
                 r"[-+]?\d+(?:\.\d*)?[eE][-+]?\d+", expected
             )
+            if (
+                isinstance(expected, bool)
+                and key == "share_param"
+                and value == "group"
+            ):
+                # 分组共享（同类设备共用一个策略网络）：仅 on-policy runner
+                # 实现该枚举；其余算法传入会在各自 runner 被拒绝。
+                result[key] = "group"
+                continue
             result[key] = typed_value(value, float if numeric else type(expected), path)
     return result
 

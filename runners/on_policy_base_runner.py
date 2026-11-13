@@ -166,7 +166,26 @@ class OnPolicyBaseRunner:
 
         # actor
         # 如果 share_param 为 true,代表处理同质 agent
-        if self.share_param:
+        if self.share_param == "group":
+            # 按设备类型分组共享（同类 PV/电容等各建一个网络，组内成员共用）：
+            # 分组键=(观测空间, 动作空间) 的字符串签名；组内断言天然成立。
+            self.actor = []
+            groups = {}
+            for agent_id in range(self.num_agents):
+                key = (
+                    str(self.envs.observation_space[agent_id]),
+                    str(self.envs.action_space[agent_id]),
+                )
+                if key not in groups:
+                    groups[key] = ALGO_REGISTRY[args["algo"]](
+                        {**algo_args["model"], **algo_args["algo"]},
+                        self.envs.observation_space[agent_id],
+                        self.envs.action_space[agent_id],
+                        device=self.device,
+                    )
+                self.actor.append(groups[key])
+            self.actor_groups = groups
+        elif self.share_param:
             self.actor = []
             # 使用第一个agent的观测空间作为全部的观测空间,并且只需要一个 agent 作为 actor
             agent = ALGO_REGISTRY[args["algo"]](
@@ -201,7 +220,15 @@ class OnPolicyBaseRunner:
         if self.algo_args["render"]["use_render"] is False:  # train, not render
             # 首先检测环境是否为异构环境
             is_heterogeneous_env = False
-            if not self.share_param:  # 如果不共享参数，进一步检查action_space是否相同
+            if not self.share_param or self.share_param == "group":
+                # 不共享或按组共享时，检查观测/动作空间是否一致；
+                # group 模式下混合空间（如 12/13/18 维局部观测）必须走异构 buffer。
+                base_observation_space = self.envs.observation_space[0]
+                if any(
+                    self.envs.observation_space[agent_id] != base_observation_space
+                    for agent_id in range(1, self.num_agents)
+                ):
+                    is_heterogeneous_env = True
                 # 检查所有agent的action_space是否相同
                 base_action_space = self.envs.action_space[0]
                 for agent_id in range(1, self.num_agents):
@@ -872,12 +899,19 @@ class OnPolicyBaseRunner:
             )
 
         for agent_id in range(self.num_agents):
-            # 提取当前智能体的可用动作
-            if available_actions[0] is not None:
-                agent_available_actions = []
-                for env_idx in range(len(available_actions)):
-                    agent_available_actions.append(available_actions[env_idx][agent_id])
-                agent_available_actions = np.array(agent_available_actions)
+            # 提取当前智能体的可用动作：按 agent 判定而非只看第一个
+            # （Box/连续空间无离散可用性掩码；混合空间逐 agent 判定，避免
+            # 把 None 包装成 object 数组写入未分配的 buffer 槽）。
+            if (
+                available_actions is not None
+                and available_actions[0][agent_id] is not None
+            ):
+                agent_available_actions = np.array(
+                    [
+                        available_actions[env_idx][agent_id]
+                        for env_idx in range(len(available_actions))
+                    ]
+                )
             else:
                 agent_available_actions = None
 
