@@ -119,6 +119,15 @@ class DSSSession:
             f"Set stepsize={self.step_seconds:.12g} number=1 maxiterations=100 tolerance=1e-8"
         )
         self.native = self.dss.ActiveCircuit
+        # snapshot 求解仍会用全局 LoadMult 缩放全部负荷：若模型 compile 期
+        # 设置了非 1 的乘子，会与场景层"铭牌×组倍率"的写入路径重复叠加，
+        # 必须拒绝而不是静默相乘（SMART-DS 等外部算例接入的安全栅栏）。
+        if not math.isclose(self.native.Solution.LoadMult, 1.0, rel_tol=0, abs_tol=1e-12):
+            raise RuntimeError(
+                f"模型设置了非 1 的全局负荷乘子 LoadMult="
+                f"{self.native.Solution.LoadMult}；会话场景路径会把铭牌值当作"
+                "唯一真值写入，二者叠加会重复计负荷。请在模型中复位该设置。"
+            )
         self.native.Solution.dblHour = seconds / 3600
         # Enabled变化会重建全局NodeRef；停用元件的NodeOrder不能再作为相别权威。
         self._connections = {}
@@ -195,27 +204,77 @@ class DSSSession:
         self.trace.update(trace)
         return trace
 
-    def set_pv_conditions(self, irradiance, temperature):
-        if (
-            not math.isfinite(irradiance)
-            or irradiance < 0
-            or not math.isfinite(temperature)
-        ):
-            raise ValueError("PV辐照度与组件温度无效")
-        for name in self.pvs:
+    def set_pv_conditions(self, irradiance, temperature, mapping=None):
+        """写入 PV 辐照度/温度；mapping 逐 PV 覆盖且只写 mapping 内设备。
+
+        mapping=None 保持历史行为：全网同一标量（SMART-DS 之前唯一路径）。
+        mapping={PV名: (辐照度 kW/m², 温度 °C)} 用于逐设备天气（SMART-DS
+        每台 PV 有独立倾角/朝向曲线）；映射中出现不存在的 PV 立即报错。
+        """
+        if mapping is None:
+            if (
+                not math.isfinite(irradiance)
+                or irradiance < 0
+                or not math.isfinite(temperature)
+            ):
+                raise ValueError("PV辐照度与组件温度无效")
+            targets = {name: (irradiance, temperature) for name in self.pvs}
+        else:
+            unknown = set(mapping) - set(self.pvs)
+            if unknown:
+                raise ValueError(f"PV辐照映射包含不存在的设备：{sorted(unknown)}")
+            targets = dict(mapping)
+        for name, (irradiance_pv, temperature_pv) in targets.items():
+            if (
+                not math.isfinite(irradiance_pv)
+                or irradiance_pv < 0
+                or not math.isfinite(temperature_pv)
+            ):
+                raise ValueError(f"PVSystem.{name} 辐照度与组件温度无效")
             self.command(
-                f"Edit PVSystem.{name} irradiance={irradiance:.12g} temperature={temperature:.12g}"
+                f"Edit PVSystem.{name} irradiance={irradiance_pv:.12g}"
+                f" temperature={temperature_pv:.12g}"
             )
 
-    def available_pv_power(self):
-        """当步其他设备设定下，零Q且不限有功的原生可用AC功率；不推进能量。"""
-        for name in self.pvs:
+    def available_pv_power(self, names=None):
+        """当步其他设备设定下，零Q且不限有功的原生可用AC功率；不推进能量。
+
+        names=None 时保持历史行为：对全部 PV 写 ``%Pmpp=100 kvar=0`` 并保持
+        该设定（既有训练路径依赖此语义）。显式传入名单时只探测这些设备，
+        且**探测前快照、探测后恢复**其 ``%Pmpp/kvar``——被探测设备与其他
+        未列入设备的设定在探测前后完全不变（SMART-DS 引入：未接管 PV 的
+        原生 pf/InvControl 行为不得被探测覆盖）。
+        """
+        if names is None:
+            for name in self.pvs:
+                self.command(f"Edit PVSystem.{name} %Pmpp=100 kvar=0")
+            self.solve()
+            return {
+                name: max(0.0, -float(self.powers("PVSystem." + name)[0]))
+                for name in self.pvs
+            }
+        unknown = set(names) - set(self.pvs)
+        if unknown:
+            raise ValueError(f"PV探测名单包含不存在的设备：{sorted(unknown)}")
+        snapshot = {}
+        for name in names:
+            self.require_element(f"PVSystem.{name}")
+            properties = self.native.ActiveCktElement.Properties
+            pmpp_pct = properties("%pmpp").Val
+            kvar = properties("kvar").Val
+            snapshot[name] = (pmpp_pct, kvar)
             self.command(f"Edit PVSystem.{name} %Pmpp=100 kvar=0")
         self.solve()
-        return {
+        result = {
             name: max(0.0, -float(self.powers("PVSystem." + name)[0]))
-            for name in self.pvs
+            for name in names
         }
+        for name, (pmpp_pct, kvar) in snapshot.items():
+            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} kvar={kvar}")
+        # 恢复写入会使量测栅栏失效；补一次同工况求解，使探测对会话状态
+        # 完全透明（读数合法且电路回到探测前的工作点）。
+        self.solve()
+        return result
 
     def solve(self, seconds=None, *, native_controls=False):
         if self._closed or self._failed:
@@ -430,12 +489,16 @@ class DSSSession:
         return sum((self.powers("Load." + n) for n in self.loads), start=np.zeros(2))
 
     def read_state(self):
-        if (
-            self._failed
-            or not self._measurement_valid
-            or not self.native.Solution.Converged
-        ):
-            raise RuntimeError("失败会话不能读取为正常物理状态")
+        converged = getattr(
+            getattr(self.native, "Solution", None), "Converged", None
+        )
+        if self._failed or not self._measurement_valid or not converged:
+            raise RuntimeError(
+                "失败会话不能读取为正常物理状态："
+                f"failed={self._failed} "
+                f"measurement_valid={self._measurement_valid} "
+                f"converged={converged}"
+            )
         active_buses = {
             node.rpartition(".")[0].lower()
             for node in self.native.AllNodeNames
