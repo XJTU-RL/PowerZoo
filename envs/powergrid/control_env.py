@@ -42,6 +42,8 @@ class DeviceControlEnv(gym.Env):
             raise ValueError(f"data.load_groups 包含不存在的 DSS 负荷：{unknown_loads}")
         self.dss_folder_path, self.dss_file = str(system.resolve()), cfg.dss_file
         self.horizon = cfg.max_episode_steps
+        self.divergence_penalty = getattr(cfg, "divergence_penalty", 10000.0)
+        self._diverged = False
         self.reg_act_num, self.bat_act_num, self.pv_act_num = (
             cfg.reg_act_num,
             cfg.bat_act_num,
@@ -232,8 +234,38 @@ class DeviceControlEnv(gym.Env):
         return parse_actions(action, self.agent_spaces)
 
     def step(self, action):
-        if self.t >= self.horizon:
+        if self.t >= self.horizon or self._diverged:
             raise RuntimeError("回合已结束，请先 reset")
+        try:
+            return self._step(action)
+        except RuntimeError as exc:
+            if not self.circuit._failed:
+                raise
+            self._diverged = True
+            return self._divergence_transition(exc)
+
+    def _divergence_transition(self, exc):
+        """物理求解失败转移：恒功率负荷电压崩溃等真实发散工况终止回合并重罚。
+
+        大规模系统（如 9500-Node）在极端分接/电容组合下潮流无解属真实物理；
+        惩罚必须超过剩余步数的最好累计奖励，避免智能体学会主动制造崩溃
+        逃避损耗惩罚。观测冻结为上一步值（失败会话不能读取状态），下一次
+        reset 经 circuit.reset 自动恢复（既有失败后须 reset 契约不变）。
+        """
+        self.t += 1
+        reward = -float(self.divergence_penalty)
+        info = {
+            "physical_failure": True,
+            "failure_reason": str(exc),
+            "reward_total": reward,
+            "episode_progress": self.t / self.horizon,
+            "terminated": True,
+            "truncated": False,
+            "TimeLimit.truncated": False,
+        }
+        return self.wrap_obs(self.obs), reward, True, info
+
+    def _step(self, action):
         parts = iter(self._actions(action))
         self.circuit.begin_interval(float(self.profile[self.t, 0]))
         self._apply_data(self.t)
@@ -546,6 +578,7 @@ class DeviceControlEnv(gym.Env):
         self._next_episode = (index + 1) % len(self.dataset.episodes)
         self.entry, self.profile = self.dataset.episodes[index]
         self.t = 0
+        self._diverged = False
         self.circuit.reset(seconds=float(self.profile[0, 0]))
         self._apply_data(0)
         self.available_pv_kw = self.circuit.available_pv_power()

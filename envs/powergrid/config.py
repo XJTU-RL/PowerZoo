@@ -98,6 +98,9 @@ def validate_operation(config):
         raise ValueError("回合长度必须为正，合成场景不能超过一天")
     if not 0 < config.voltage_min < config.voltage_max < 2:
         raise ValueError("电压约束必须满足0<min<max<2")
+    penalty = getattr(config, "divergence_penalty", 10000.0)
+    if not math.isfinite(penalty) or penalty < 0:
+        raise ValueError("divergence_penalty必须为非负有限值")
     validate_observation_projection(
         getattr(config, "observation_buses", None),
         getattr(config, "observation_neighborhood", None),

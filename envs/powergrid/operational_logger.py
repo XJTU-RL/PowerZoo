@@ -45,10 +45,14 @@ class OperationalLogger(BaseLogger):
             infos = infos[0]
         if not isinstance(infos, dict):
             raise ValueError("运行任务缺少真实info，不能用零指标替代")
-        for key in cls.extra_sum_keys:
-            record[key] += infos[key]
         record["steps"] += 1
         record["reward"] += infos["reward_total"]
+        if infos.get("physical_failure"):
+            # 物理失败步（如电压崩溃终止）没有可累计的真实物理量；只计步数
+            # 与奖励（含终止惩罚），不补零指标——与"不能用零指标替代"同则。
+            return
+        for key in cls.extra_sum_keys:
+            record[key] += infos[key]
         for target, key in (
             ("loss_kwh", "power_loss_kw"),
             ("pv_kwh", "pv_power_kw"),
