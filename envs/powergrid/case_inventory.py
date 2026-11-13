@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 import math
+import re
 
 import numpy as np
 
@@ -45,38 +46,41 @@ def _joined_commands(text):
 
 
 def dependency_closure(model_dir, master):
-    """从主入口出发收集 redirect/include 依赖闭包；不修改任何文件。
+    """从主入口出发收集 redirect/include 与 LoadShape ``file=`` 依赖闭包。
 
     返回 ``{"entry", "files", "missing", "notes"}``；missing 精确到引用处的
     ``相对路径:行号``。``compile`` 命令只记入 notes（其语义是新建电路而非
-    引用依赖）。路径统一用 ``/``；解析相对当前文件目录。
+    引用依赖）。数据文件（``mult=(file=..)`` 等）记为 ``kind="datafile"`` 且
+    不再递归解析。路径统一用 ``/``；解析相对当前文件目录。
     """
     model_dir = Path(model_dir).resolve()
     entry = model_dir / master
     if not entry.is_file():
         raise FileNotFoundError(f"主入口不存在：{entry}")
 
-    files, missing, notes, stack = {}, [], [], [(entry, f"{master}:1")]
+    files, missing, notes, stack = {}, [], [], [(entry, f"{master}:1", "script")]
     visited = set()
     while stack:
-        path, origin = stack.pop()
+        path, origin, kind = stack.pop()
         key = path.relative_to(model_dir).as_posix()
         if key in visited:
             continue
         visited.add(key)
         if not path.is_file():
-            missing.append({"from": origin, "path": key})
+            missing.append({"from": origin, "path": key, "kind": kind})
             continue
         files[key] = {
             "sha256": sha256(path.read_bytes()).hexdigest(),
             "bytes": path.stat().st_size,
+            "kind": kind,
         }
+        if kind != "script":
+            continue  # 数据文件（如 LoadShape CSV）不再递归解析
         text = path.read_text(encoding="utf-8", errors="replace")
         for line_number, command in _joined_commands(text):
             parts = command.split(None, 1)
-            if len(parts) < 2:
-                continue
-            head, rest = parts[0].lower(), parts[1].strip().strip('"')
+            head = parts[0].lower() if parts else ""
+            rest = parts[1].strip().strip('"') if len(parts) > 1 else ""
             if head in ("redirect", "include"):
                 target = (path.parent / rest.replace("\\", "/")).resolve()
                 if not target.is_relative_to(model_dir):
@@ -84,11 +88,28 @@ def dependency_closure(model_dir, master):
                         {"from": f"{key}:{line_number}", "path": rest, "reason": "越界"}
                     )
                     continue
-                stack.append(
-                    (target, f"{key}:{line_number}")
-                )
+                stack.append((target, f"{key}:{line_number}", "script"))
             elif head == "compile":
                 notes.append({"from": f"{key}:{line_number}", "command": command})
+            elif head == "new":
+                # LoadShape 等数据驱动元件：mult=(file=..)/qmult=(file=..)
+                # 指向的 CSV 是运行依赖（SMART-DS 布局根下的 profiles/）。
+                for match in re.finditer(r"file=([^)\s]+)", rest):
+                    reference = match.group(1).strip('"')
+                    target = (path.parent / reference.replace("\\", "/")).resolve()
+                    if not target.is_relative_to(model_dir):
+                        missing.append(
+                            {
+                                "from": f"{key}:{line_number}",
+                                "path": reference,
+                                "reason": "越界",
+                                "kind": "datafile",
+                            }
+                        )
+                        continue
+                    stack.append(
+                        (target, f"{key}:{line_number}", "datafile")
+                    )
     return {"entry": master, "files": files, "missing": missing, "notes": notes}
 
 
