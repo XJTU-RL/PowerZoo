@@ -1,17 +1,22 @@
 """外部 OpenDSS 算例的来源登记、下载校验与定位。
 
-外部算例指不由本仓库分发的大规模模型（如英国 MV-LV 联合网络）。上游数据
-许可未确认（uk-mvlv-models 仓库无 LICENSE 文件，默认保留所有权利），因此
-压缩包与解压产物一律不进入版本库，只提交：来源登记、下载脚本、适配配置、
-清单检查与测试。
+外部算例指不由本仓库分发的大规模模型。两类登记：
+
+- ``ExternalCase``（单 zip）：如英国 MV-LV 联合网络。上游许可未确认
+  （uk-mvlv-models 无 LICENSE，默认保留所有权利），压缩包与解压产物不进
+  版本库。
+- ``FileSetCase``（文件清单）：如 NREL SMART-DS（OEDI 分发）。逐文件登记
+  SHA-256（清单 JSON 提交本仓库），只下载被引用的最小子集而非整个区域；
+  必要的引擎兼容补丁（如 2017 版参数在当前 DSS C-API 的改名）以精确文本
+  替换应用并逐条记录理由，原始 SHA-256 一并写入 manifest，可从上游复原。
 
 数据目录默认为 ``data/external/``（已在 .gitignore 忽略），可用环境变量
 ``POWERZOO_EXTERNAL_CASES`` 指到仓库外。目录布局：
 
     data/external/<case_id>/
     ├── manifest.json          # 下载时生成的来源记录
-    ├── <zip 名>.zip           # 原始压缩包（保留供 SHA-256 复核）
-    └── <zip 顶层目录>/        # 解压产物，模型目录（上游原样，不做修改）
+    ├── <zip 名>.zip           # 单 zip 算例：原始压缩包（供 SHA-256 复核）
+    └── <布局根>/…             # 模型文件（FileSetCase 保留上游相对布局）
 """
 
 from dataclasses import dataclass
@@ -79,6 +84,168 @@ UK_MVLV_HV_UG = ExternalCase(
 CASES = {case.case_id: case for case in (UK_MVLV_HV_UG,)}
 
 
+@dataclass(frozen=True)
+class FilePatch:
+    """对布局内指定文件的精确文本替换；每条必须给出理由并写入 manifest。"""
+
+    path: str
+    find: str
+    replace: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class CaseEntry:
+    folder: str  # 相对布局根的模型目录
+    master: str  # 相对模型目录的主入口
+
+
+@dataclass(frozen=True)
+class FileSetCase:
+    """文件清单型外部算例：逐文件登记 SHA-256，按需下载最小子集。
+
+    ``file_manifest`` 指向提交在仓库内的清单 JSON（含 source_base 与逐文件
+    sha256/bytes）；布局保留上游相对结构（LoadShape 的 ``file=`` 相对引用
+    依赖该结构）。
+    """
+
+    case_id: str
+    dataset_url: str
+    file_manifest: str  # 仓库内相对路径
+    layout_root: str
+    entries: dict  # {入口名: CaseEntry}
+    patches: tuple  # (FilePatch, ...)
+    description: str
+    citation: str
+    license_note: str
+
+
+SMART_DS_SFO_P4UDT4 = FileSetCase(
+    case_id="smart_ds_sfo_p4udt4",
+    dataset_url="https://data.openei.org/submissions/2981",
+    file_manifest="configs/external/smart_ds_sfo_p4udt4_files.json",
+    layout_root="SMART-DS/v1.0/2017/SFO/P4U",
+    entries={
+        "base": CaseEntry(
+            folder="scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4",
+            master="Master.dss",
+        ),
+        "solar_high_none": CaseEntry(
+            folder=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "p4uhs0_4/p4uhs0_4--p4udt4"
+            ),
+            master="Master.dss",
+        ),
+    },
+    patches=(
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "p4uhs0_4/p4uhs0_4--p4udt4/PVSystems.dss"
+            ),
+            find="kvarlimit=",
+            replace="kvarMax=",
+            reason="2017 版 PVSystem 参数 kvarlimit 在当前 DSS C-API 0.14.5 已"
+            "拆分为 kvarMax/kvarMaxAbs；映射到发出侧上限 kvarMax，吸收侧"
+            "保持引擎默认（=kvarMax）",
+        ),
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "p4uhs0_4/p4uhs0_4--p4udt4/PVSystems.dss"
+            ),
+            find="VV_RefReactivePower",
+            replace="RefReactivePower",
+            reason="InvControl 参数 VV_RefReactivePower 于 2020 年更名为"
+            " RefReactivePower（引擎报错提示的官方改名）",
+        ),
+    ),
+    description=(
+        "NREL SMART-DS v1.0（2017 年合成数据）SFO/P4U 场景的 p4udt4 馈线："
+        "4kV 城市馈线，71 母线/36 负荷/13 变压器；base_timeseries 无 PV，"
+        "solar_high_batteries_none 变体含 6 台 PVSystem（其中 1 台绑定原生"
+        " InvControl Volt-Var）。负荷 pu 曲线（铭牌=年峰值）与 PV 辐照曲线"
+        "（kW/m²）均为 15 分钟×35040 点，当地标准时（SFO=UTC-8，全年无夏令时）；"
+        "中心抽头用户=两个负荷对象各挂一半额定（官方指南明确，勿重复计负荷）。"
+    ),
+    citation=(
+        "B. Palmintier et al., “SMART-DS Synthetic Electrical Network Data "
+        "OpenDSS Models for SFO, GSO, and AUS,” OEDI submission 2981, 2020. "
+        "https://data.openei.org/submissions/2981；方法论文：B. Palmintier "
+        "et al., “Experiences developing large-scale synthetic U.S.-style "
+        "distribution test systems,” Electric Power Systems Research, vol. "
+        "190, 106665, 2021, doi:10.1016/j.epsr.2020.106665"
+    ),
+    license_note=(
+        "OEDI 提交页标注 CC BY 4.0（https://creativecommons.org/licenses/"
+        "by/4.0/）：下载、内部派生与再分发均允许，须署名（引用见上）并注明"
+        "修改。本仓库仍按文件清单从上游获取、不打包原始数据；派生修改逐条"
+        "登记于 manifest。"
+    ),
+)
+
+SMART_DS_GSO_RDT1534 = FileSetCase(
+    case_id="smart_ds_gso_rdt1534",
+    dataset_url="https://data.openei.org/submissions/2981",
+    file_manifest="configs/external/smart_ds_gso_rdt1534_files.json",
+    layout_root="SMART-DS/v1.0/2017/GSO/rural",
+    entries={
+        "solar_high_none": CaseEntry(
+            folder=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "rhs0_1247/rhs0_1247--rdt1534"
+            ),
+            master="Master.dss",
+        ),
+    },
+    patches=(
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "rhs0_1247/rhs0_1247--rdt1534/PVSystems.dss"
+            ),
+            find="kvarlimit=",
+            replace="kvarMax=",
+            reason="同 p4udt4：2017 版参数 kvarlimit 在当前引擎已拆分为 kvarMax/"
+            "kvarMaxAbs，映射到发出侧上限",
+        ),
+        FilePatch(
+            path=(
+                "scenarios/solar_high_batteries_none_timeseries/opendss/"
+                "rhs0_1247/rhs0_1247--rdt1534/PVSystems.dss"
+            ),
+            find="VV_RefReactivePower",
+            replace="RefReactivePower",
+            reason="同 p4udt4：InvControl 参数 2020 年官方改名",
+        ),
+    ),
+    description=(
+        "NREL SMART-DS v1.0（2017）GSO rural 场景 rhs0_1247 变电站的 rdt1534 "
+        "馈线：12.47kV 农村馈线，472 台 PVSystem（218 台带 kvarlimit、217 台"
+        "绑定原生 InvControl）。15 分钟×35040 点曲线，当地标准时"
+        "（GSO=UTC-5，全年无夏令时）。"
+    ),
+    citation=SMART_DS_SFO_P4UDT4.citation,
+    license_note=SMART_DS_SFO_P4UDT4.license_note,
+)
+
+FILE_SET_CASES = {
+    case.case_id: case for case in (SMART_DS_SFO_P4UDT4, SMART_DS_GSO_RDT1534)
+}
+
+
+def _registry(case_id):
+    if case_id in CASES:
+        return CASES[case_id], "zip"
+    if case_id in FILE_SET_CASES:
+        return FILE_SET_CASES[case_id], "file_set"
+    raise ExternalCaseError(
+        f"未登记的外部算例：{case_id}"
+        f"（zip：{sorted(CASES)}；文件清单：{sorted(FILE_SET_CASES)}）"
+    )
+
+
 def external_root(root=None):
     """外部数据根目录；POWERZOO_EXTERNAL_CASES 显式优先。"""
     import os
@@ -88,10 +255,7 @@ def external_root(root=None):
 
 
 def case_dir(case_id, root=None):
-    if case_id not in CASES:
-        raise ExternalCaseError(
-            f"未登记的外部算例：{case_id}（已登记：{sorted(CASES)}）"
-        )
+    _registry(case_id)
     return external_root(root) / case_id
 
 
@@ -130,7 +294,17 @@ def _safe_members(archive, case):
 
 
 def download(case_id, root=None, *, keep_zip=True, force=False, timeout=120):
-    """按登记的 URL 与 SHA-256 下载、校验并解压外部算例；返回校验报告。
+    """下载并校验外部算例（按登记类型分派 zip / 文件清单）。"""
+    _, kind = _registry(case_id)
+    if kind == "file_set":
+        return _download_file_set(case_id, root, force=force, timeout=timeout)
+    return _download_zip(
+        case_id, root, keep_zip=keep_zip, force=force, timeout=timeout
+    )
+
+
+def _download_zip(case_id, root=None, *, keep_zip=True, force=False, timeout=120):
+    """按登记的 URL 与 SHA-256 下载、校验并解压 zip 算例；返回校验报告。
 
     已存在且校验通过的算例默认跳过（force=True 时重新下载）。
     解压前逐成员检查路径，拒绝绝对路径与 ``..`` 越界。
@@ -213,8 +387,180 @@ def download(case_id, root=None, *, keep_zip=True, force=False, timeout=120):
     }
 
 
+def _load_file_manifest(case):
+    """读仓库内提交的文件清单 JSON；清单即下载契约（逐文件 sha256/bytes）。"""
+    path = ROOT / case.file_manifest
+    if not path.is_file():
+        raise ExternalCaseError(f"文件清单缺失：{path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("case_id") != case.case_id or data.get("schema_version") != 1:
+        raise ExternalCaseError(f"{path} 的 case_id/schema_version 与登记不符")
+    return data
+
+
+def _download_file_set(case_id, root=None, *, force=False, timeout=120):
+    """按仓库内清单逐文件下载校验，应用登记补丁并写 manifest。"""
+    case = FILE_SET_CASES[case_id]
+    target = case_dir(case_id, root)
+    present = verify(case_id, root)
+    if not force and present is not None and present["status"] == "ok":
+        return {"case_id": case_id, "status": "already_present", "dir": str(target)}
+
+    listing = _load_file_manifest(case)
+    source_base = listing["source_base"].rstrip("/")
+    layout = target / case.layout_root
+    layout.mkdir(parents=True, exist_ok=True)
+    patches_by_path = {}
+    for patch in case.patches:
+        patches_by_path.setdefault(patch.path, []).append(patch)
+
+    records = []
+    for item in listing["files"]:
+        rel = item["path"]
+        parts = Path(rel).parts
+        if rel.startswith("/") or ".." in parts:
+            raise ExternalCaseError(f"清单含越界路径：{rel}")
+        destination = layout / rel
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urlopen(f"{source_base}/{rel}", timeout=timeout) as response, open(
+                destination, "wb"
+            ) as handle:
+                while True:
+                    block = response.read(DOWNLOAD_CHUNK_BYTES)
+                    if not block:
+                        break
+                    handle.write(block)
+        except Exception as error:
+            raise ExternalCaseError(
+                f"下载失败：{source_base}/{rel}（{error}）"
+            ) from error
+        raw_sha = _sha256_file(destination)
+        if raw_sha != item["sha256"] or destination.stat().st_size != item["bytes"]:
+            destination.unlink(missing_ok=True)
+            raise ExternalCaseError(
+                f"{destination} 校验失败：SHA-256={raw_sha}（清单值 "
+                f"{item['sha256']}）；上游可能已更新，未经审查不得换用新版本"
+            )
+        record = {"path": rel, "sha256": raw_sha, "bytes": item["bytes"], "patched": False}
+        for patch in patches_by_path.get(rel, ()):
+            text = destination.read_text(encoding="utf-8")
+            count = text.count(patch.find)
+            if count == 0:
+                raise ExternalCaseError(
+                    f"登记补丁未命中：{rel} 中找不到 {patch.find!r}（{patch.reason}）；"
+                    "上游文件可能已变化"
+                )
+            destination.write_text(
+                text.replace(patch.find, patch.replace), encoding="utf-8"
+            )
+            record["patched"] = True
+            record.setdefault("patches", []).append(
+                {
+                    "find": patch.find,
+                    "replace": patch.replace,
+                    "count": count,
+                    "reason": patch.reason,
+                    "sha256_before": raw_sha,
+                }
+            )
+        if record["patched"]:
+            record["patched_sha256"] = _sha256_file(destination)
+        records.append(record)
+
+    for name, entry in case.entries.items():
+        if not (layout / entry.folder / entry.master).is_file():
+            raise ExternalCaseError(
+                f"下载完成但入口 {name} 缺少主入口：{layout / entry.folder / entry.master}"
+            )
+    manifest = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "case_id": case_id,
+        "kind": "file_set",
+        "source": {
+            "dataset_url": case.dataset_url,
+            "source_base": source_base,
+            "file_manifest": case.file_manifest,
+            "citation": case.citation,
+            "license_note": case.license_note,
+        },
+        "layout_root": case.layout_root,
+        "entries": {n: {"folder": e.folder, "master": e.master} for n, e in case.entries.items()},
+        "files": records,
+        "downloaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tool": "scripts/download_external_case.py",
+    }
+    manifest_path(case_id, root).write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    patched = [r for r in records if r["patched"]]
+    return {
+        "case_id": case_id,
+        "status": "downloaded",
+        "dir": str(target),
+        "file_count": len(records),
+        "patched_files": len(patched),
+        "entries": sorted(case.entries),
+    }
+
+
 def verify(case_id, root=None):
     """校验算例可用性；返回 ``status=ok`` 报告或含 problems 清单的 unavailable 报告。"""
+    case, kind = _registry(case_id)
+    if kind == "file_set":
+        return _verify_file_set(case_id, root)
+    return _verify_zip(case_id, root)
+
+
+def _verify_file_set(case_id, root=None):
+    case = FILE_SET_CASES[case_id]
+    directory = case_dir(case_id, root)
+    manifest_file = directory / MANIFEST_NAME
+    layout = directory / case.layout_root
+    problems = []
+    if not directory.is_dir():
+        problems.append(f"数据目录不存在：{directory}")
+        return {"case_id": case_id, "status": "unavailable", "problems": problems}
+    if not manifest_file.is_file():
+        problems.append(f"缺少来源记录：{manifest_file}")
+        for name, entry in case.entries.items():
+            master = layout / entry.folder / entry.master
+            if not master.is_file():
+                problems.append(f"入口 {name} 缺少主入口：{master}")
+        return {"case_id": case_id, "status": "unavailable", "problems": problems}
+
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    if manifest.get("case_id") != case_id or manifest.get("kind") != "file_set":
+        raise ExternalCaseError(
+            f"{manifest_file} 内容与算例登记不一致；请删除该目录后重新下载。"
+            f"{download_hint(case_id)}"
+        )
+    for record in manifest["files"]:
+        path = layout / record["path"]
+        expected = record.get("patched_sha256", record["sha256"])
+        if not path.is_file():
+            problems.append(f"缺少清单文件：{path}")
+        elif _sha256_file(path) != expected:
+            problems.append(f"{path} SHA-256 与 manifest 记录不符（数据被改动？）")
+    for name, entry in case.entries.items():
+        master = layout / entry.folder / entry.master
+        if not master.is_file():
+            problems.append(f"入口 {name} 缺少主入口：{master}")
+    if problems:
+        return {"case_id": case_id, "status": "unavailable", "problems": problems}
+    return {
+        "case_id": case_id,
+        "status": "ok",
+        "layout_root": str(layout),
+        "entries": {
+            name: {"folder": str(layout / e.folder), "master": e.master}
+            for name, e in case.entries.items()
+        },
+        "downloaded_at": manifest["downloaded_at"],
+    }
+
+
+def _verify_zip(case_id, root=None):
     case = CASES[case_id]
     directory = case_dir(case_id, root)
     manifest_file = directory / MANIFEST_NAME
@@ -255,7 +601,12 @@ def verify(case_id, root=None):
 
 
 def locate(case_id, root=None):
-    """返回模型目录 Path；不可用时抛出带补救命令的异常。"""
+    """zip 算例：返回模型目录 Path；文件清单算例请用 locate_entry。"""
+    _, kind = _registry(case_id)
+    if kind == "file_set":
+        raise ExternalCaseError(
+            f"{case_id} 是文件清单算例（多入口）；请用 locate_entry(case_id, entry)"
+        )
     report = verify(case_id, root)
     if report["status"] != "ok":
         raise ExternalCaseError(
@@ -265,5 +616,50 @@ def locate(case_id, root=None):
     return Path(report["model_folder"])
 
 
+def locate_entry(case_id, entry, root=None):
+    """文件清单算例：返回 (模型目录 Path, 主入口文件名)。"""
+    case, kind = _registry(case_id)
+    if kind != "file_set":
+        raise ExternalCaseError(f"{case_id} 不是文件清单算例；请用 locate()")
+    if entry not in case.entries:
+        raise ExternalCaseError(
+            f"入口 {entry!r} 未登记（可用：{sorted(case.entries)}）"
+        )
+    report = verify(case_id, root)
+    if report["status"] != "ok":
+        raise ExternalCaseError(
+            f"外部算例 {case_id} 未就绪：{'；'.join(report['problems'])}。"
+            f"{download_hint(case_id)}"
+        )
+    return Path(report["entries"][entry]["folder"]), case.entries[entry].master
+
+
 def read_manifest(case_id, root=None):
     return json.loads(manifest_path(case_id, root).read_text(encoding="utf-8"))
+
+
+def s3_list_objects(source_base, prefix, *, exclude=("/analysis/",), timeout=60):
+    """匿名列出 S3/HTTP 对象存储前缀下全部对象 key（分页；排除子目录片段）。
+
+    仅用于清单发现（--discover）；日常下载校验不依赖网络列举。
+    """
+    import re
+    from urllib.parse import quote, urlsplit
+
+    # listing 查询必须打在 bucket 根上；source_base 的路径并入前缀。
+    parts = urlsplit(source_base.rstrip("/"))
+    bucket_root = f"{parts.scheme}://{parts.netloc}"
+    full_prefix = "/".join(p for p in (parts.path.strip("/"), prefix.strip("/")) if p)
+    keys, token = [], None
+    while True:
+        url = f"{bucket_root}/?list-type=2&prefix={quote(full_prefix, safe='/')}"
+        if token:
+            url += f"&continuation-token={quote(token)}"
+        with urlopen(url, timeout=timeout) as response:
+            data = response.read().decode("utf-8")
+        keys.extend(re.findall(r"<Key>([^<]+)</Key>", data))
+        token = re.search(r"<NextContinuationToken>([^<]+)</NextContinuationToken>", data)
+        if not token:
+            break
+        token = token.group(1)
+    return [k for k in keys if not any(part in k for part in exclude)]
