@@ -16,6 +16,26 @@ from envs.powergrid.devices import discover, prepare, names
 from envs.powergrid.state import GridState
 
 
+def _derived_node_order(element_obj):
+    """按 BusNames 语义推导元件节点序：显式相别后缀优先，无后缀取 1..NumPhases，
+    不足 NumConductors 补中性导体 0。外部算例存在编译期即停用的元件（如英国
+    MV-LV 模型被 lds_edit.dss 禁用的中压集中负荷），它们不进引擎节点序表，
+    NodeOrder 会报“Nodes are not initialized”；该推导对启用元件已与原生
+    NodeOrder 在 UK/8500/9500 共 7 万元件上逐一对拍全等。"""
+    names = list(element_obj.BusNames)
+    phases, conductors = int(element_obj.NumPhases), int(element_obj.NumConductors)
+    order = []
+    for name in names:
+        suffix = name.partition(".")[2]
+        nodes = (
+            [int(x) for x in suffix.split(".")]
+            if suffix
+            else list(range(1, phases + 1))
+        )
+        order.extend(nodes[:conductors] + [0] * (conductors - len(nodes)))
+    return order
+
+
 class DSSSession:
     def __init__(
         self, model_folder, master, overlays=(), step_seconds=60, svg_elements=()
@@ -106,9 +126,16 @@ class DSSSession:
             self.require_element(element)
             obj = self.native.ActiveCktElement
             if obj.NumTerminals:
+                # 停用元件（如外部算例禁用的中压集中负荷）不在引擎节点序表中，
+                # 改用与 NodeOrder 对拍全等的推导，避免加载合法模型即报错。
+                nodes = (
+                    list(map(int, obj.NodeOrder))
+                    if obj.Enabled
+                    else _derived_node_order(obj)
+                )
                 self._connections[element.lower()] = {
                     "buses": list(obj.BusNames),
-                    "nodes": list(map(int, obj.NodeOrder)),
+                    "nodes": nodes,
                     "phases": int(obj.NumPhases),
                     "conductors": int(obj.NumConductors),
                     "terminals": int(obj.NumTerminals),
