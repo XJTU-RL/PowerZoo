@@ -97,13 +97,19 @@ python scripts/check_smartgrid.py --config configs/experiments/smartgrid_svg_smo
 8500节点自2026-11起改用network.dss静态快照主文件（移除Generator.batt占位电池与
 缺失的loadshape/BusCoords依赖），环境可构造并通过短回合冒烟（观测8562维）；
 但其完整物理验收（对照组、24小时全天）尚未执行，仍不列入已验证支持矩阵。
-9500节点（bal/unbal双变体）同期接入：铭牌负荷与随机分接/电容组合下Newton法
-在该网络停滞（2%电压平台），故9500系统在yaml中声明solve_algorithm: direct
-（前推回代，实测随机组合5/5收敛而Newton 1/5），compile期初始潮流亦用direct；
-其它系统默认snapshot（Newton）不变。178个PVSystem建议保持不可控训练
-（vvc家族默认不控PV；smartgrid需显式关闭pv_control）。
-8500/9500×{HAPPO,SHOM}四组合已完成240步CPU冒烟训练并保存checkpoint
-（smoke配置只验证链路，不声称策略收敛）。
+9500节点（bal/unbal双变体）同期接入：铭牌负荷下Newton停滞（2%电压平台），
+compile期初始潮流用前推回代（direct）收敛并整定分接——direct把恒功率负荷按
+导纳处理，该解仅用于初始化，不进入运行期物理；运行期求解固定Newton快照，
+保证Model=1恒功率负荷语义正确（曾试以direct作运行期求解，经审查指出并实验
+证实其系统性改变负荷响应——0.7倍负荷下Newton与direct解平均差0.0047pu，
+已回退）。随机分接/电容组合下Newton不收敛属恒功率负荷的真实电压崩溃工况
+（鞍结），实测随机组合收敛率8/10且direct初值/hybrid/loadmult渐进均无法救活；
+9500训练可用性需要环境级失败语义（求解失败→回合终止+大惩罚）支持，列为
+后续工作。178个PVSystem建议保持不可控训练（vvc家族默认不控PV；smartgrid
+需显式关闭pv_control）。
+8500×{HAPPO,SHOM}已完成240步CPU冒烟训练并保存checkpoint（smoke只验证
+链路，不声称策略收敛）；9500环境层验证通过（构造/reset/step/投影），训练
+受上述失败语义限制。
 大规模系统观测建议开启关键母线投影（observation_neighborhood，k=1..4）：可控
 设备母线∪电压源母线经拓扑k跳扩展，投影时追加全网电压统计特征；9500实例k=2把
 观测从9943维降至约1500维且奖励逐位不变。默认关闭投影，全母线展开行为不变。

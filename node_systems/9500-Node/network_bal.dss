@@ -7,8 +7,11 @@
 //   2) 移除 set Mark* 与 Plot daisy 绘图命令；
 //   3) 保留 basecase 的机组出力、17 条 setkvbase、Energymeter 与 9 个常开联络开关；
 //   4) 建立初始潮流的两次 solve 改用前推回代（solve mode=direct）：铭牌负荷下 Newton
-//      法在本网络停滞（2% 电压平台），direct 一次收敛并顺带完成调压器分接整定；
-//      运行期场景管线把负荷置于 0.4~0.9 倍铭牌区间，Newton（SolveSnap）在该区间正常收敛。
+//      法在本网络停滞（2% 电压平台）。注意 direct 把恒功率负荷按导纳处理，这里的
+//      解仅用于 compile 期的分接整定与状态初始化；运行期求解固定 Newton 快照
+//      （session.py），保证 Model=1 恒功率负荷语义正确。随机分接组合下 Newton
+//      不收敛属真实电压崩溃工况（恒功率负荷鞍结），训练可用性需要环境级
+//      失败语义（终止+惩罚）支持，见 docs/vvc-physics.md。
 //
 // 负荷时序由场景管线每步改写 Load.kw/kvar；PV 辐照/温度由 set_pv_conditions 注入。
 

@@ -244,11 +244,7 @@ class ConfigLoader:
             {"system", "episode", "devices", "constraints", "default_rewards"},
             "system document",
         )
-        check(
-            system.get("system", {}),
-            {"name", "dss_file", "dss_folder", "solve_algorithm"},
-            "system",
-        )
+        check(system.get("system", {}), {"name", "dss_file", "dss_folder"}, "system")
         check(system.get("episode", {}), {"max_steps"}, "episode")
         check(
             system.get("constraints", {}), {"voltage_min", "voltage_max"}, "constraints"
@@ -271,8 +267,6 @@ class ConfigLoader:
         values = {key: info[key] for key in ("dss_file", "dss_folder") if key in info}
         if "name" in info:
             values["system_name"] = info["name"]
-        if "solve_algorithm" in info:
-            values["solve_algorithm"] = info["solve_algorithm"]
         if "max_steps" in system.get("episode", {}):
             values["max_episode_steps"] = system["episode"]["max_steps"]
         if family in ("vvc", "smartgrid"):

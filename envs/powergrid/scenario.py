@@ -39,7 +39,9 @@ def _digest(path):
 def _generation(config, steps):
     return {
         k: v
-        for k, v in dict(asdict(config), steps=steps, version=VERSION).items()
+        for k, v in dict(
+            asdict(config), steps=steps, version=VERSION, scenarios=list(SCENARIOS)
+        ).items()
         if k not in (
             "path",
             "source",

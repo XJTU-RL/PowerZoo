@@ -7,8 +7,6 @@ system:
   name: 9500Node_bal
   dss_folder: node_systems/9500-Node
   dss_file: network_bal.dss
-  # 与 unbal 版同因：Newton 在重载/极端分接组合下停滞，统一用前推回代。
-  solve_algorithm: direct
 episode:
   max_steps: 24
 devices:
