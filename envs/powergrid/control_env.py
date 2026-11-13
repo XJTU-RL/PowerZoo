@@ -19,6 +19,9 @@ class DeviceControlEnv(gym.Env):
         pv_control_enabled=False,
         pv_act_num=float("inf"),
         svg_elements=(),
+        pv_control_mode="legacy",
+        pv_control_devices=None,
+        pv_action_mode="pq",
     ):
         self.config = cfg = config
         self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
@@ -58,6 +61,45 @@ class DeviceControlEnv(gym.Env):
                 "regulator.action_num 的间隔必须对齐 DSS NumTaps 的实际档位"
             )
         self.pv_control_enabled = pv_control_enabled
+        # PV 控制权三态（SMART-DS 引入；legacy 逐字节保持旧布尔路径）：
+        # - legacy：pv_control_enabled 布尔语义，全部 PV 全量探测（探测写入
+        #   %Pmpp=100 kvar=0 且保持——既有训练路径依赖此行为）。
+        # - rl：只控制 pv_control_devices（缺省全部 PV），探测仅限接管名单且
+        #   探测前后恢复设定；未接管 PV 不写不探测（保持模型 pf/kvar 设定）；
+        #   绑定被接管 PV 的原生 InvControl 每回合重编译后显式停用并记录。
+        # - fixed：PV 不进动作空间、不探测、不写（模型静态 pf 运行）。
+        self.pv_control_mode = pv_control_mode
+        self.pv_action_mode = pv_action_mode
+        if pv_control_mode not in ("legacy", "rl", "fixed"):
+            self.circuit.close()
+            raise ValueError(f"未知 PV 控制模式：{pv_control_mode}")
+        if pv_action_mode not in ("pq", "q_only"):
+            self.circuit.close()
+            raise ValueError(f"未知 PV 动作模式：{pv_action_mode}")
+        if pv_action_mode == "q_only" and pv_act_num != float("inf"):
+            self.circuit.close()
+            raise ValueError("q_only 模式需要连续动作空间（pv_act_num=inf）")
+        discovered_pvs = list(self.circuit.pvs)
+        self.pv_control_list = list(discovered_pvs) if pv_control_enabled else []
+        if pv_control_mode == "rl":
+            requested = list(pv_control_devices) if pv_control_devices else list(discovered_pvs)
+            unknown = set(requested) - set(discovered_pvs)
+            if unknown:
+                self.circuit.close()
+                raise ValueError(f"pv_control_devices 包含不存在的 PV：{sorted(unknown)}")
+            self.pv_control_list = sorted(set(requested))
+            self.pv_control_enabled = True
+        elif pv_control_mode == "fixed":
+            self.pv_control_list = []
+            self.pv_control_enabled = False
+        self.disabled_invcontrols = {}
+        if pv_control_mode == "rl":
+            from envs.powergrid.devices import invcontrol_bindings
+
+            controlled = set(self.pv_control_list)
+            for name, members in invcontrol_bindings(self.circuit).items():
+                if controlled.intersection(members):
+                    self.disabled_invcontrols[name] = members
         self.cap_names, self.reg_names, self.bat_names, self.pv_names = map(
             list,
             (
@@ -85,11 +127,15 @@ class DeviceControlEnv(gym.Env):
             [gym.spaces.Discrete(2) for _ in self.cap_names]
             + [gym.spaces.Discrete(self.reg_act_num) for _ in self.reg_names]
             + [self._space(self.bat_act_num, 1) for _ in self.bat_names]
-            + (
-                [self._space(self.pv_act_num, 2) for _ in self.pv_names]
-                if self.pv_control_enabled
-                else []
-            )
+            # PV 动作维度：pq=2（有功分数+无功命令）；q_only=1（有功不控、
+            # 保持当步可用功率，仅无功命令）。控制数量与顺序取自
+            # pv_control_list（回合内稳定）。
+            + [
+                self._space(
+                    self.pv_act_num, 1 if self.pv_action_mode == "q_only" else 2
+                )
+                for _ in self.pv_control_list
+            ]
             + [self._space(float("inf"), 1) for _ in self.svg_names]
         )
         self.base_load_kw = sum(load.kw for load in self.circuit.loads.values())
@@ -207,18 +253,23 @@ class DeviceControlEnv(gym.Env):
         apply_operating_row(self.circuit, row, self.dataset, self.config.data.load_groups)
 
     def _pv_action(self, name, action):
+        from envs.powergrid.devices import pv_command_request
+
         pv = self.circuit.pvs[name]
         if self.pv_act_num == float("inf"):
-            fraction, qcommand = (float(action[0]) + 1) / 2, float(action[1])
+            if self.pv_action_mode == "q_only":
+                # Q-only：有功不控（=当步可用功率满发），仅下发无功命令。
+                fraction, qcommand = 1.0, float(action[0])
+            else:
+                fraction, qcommand = (float(action[0]) + 1) / 2, float(action[1])
         else:
             fraction, qcommand = float(action[0]) / (self.pv_act_num - 1), 0.0
-        kw = fraction * self.available_pv_kw[name]
-        headroom = np.sqrt(max(0, pv.kva**2 - kw**2))
-        qlimit = min(headroom, pv.kvar_max if qcommand >= 0 else pv.kvar_max_abs)
-        q = qcommand * qlimit
+        request = pv_command_request(
+            pv, fraction, qcommand, self.available_pv_kw[name]
+        )
         diff = abs(pv.fraction - fraction) + abs(pv.q_fraction - qcommand)
         pv.fraction, pv.q_fraction = fraction, qcommand
-        return {"kw": kw, "kvar": q}, diff
+        return request, diff
 
     def _storage_action(self, name, action):
         fraction = (
@@ -290,13 +341,21 @@ class DeviceControlEnv(gym.Env):
             requests["Storage." + name] = self._storage_action(name, next(parts))
         self.circuit.apply(requests)
         # 可用AC功率来自同一引擎的无时间探测，保留Pmpp、效率和温度基准。
-        self.available_pv_kw = self.circuit.available_pv_power()
+        # legacy=全量探测且保持探测设定（旧行为）；rl=仅接管名单且探测后恢复；
+        # fixed=完全不探测（PV 保持模型静态设定）。
+        if self.pv_control_mode == "fixed":
+            self.available_pv_kw = {}
+        elif self.pv_control_mode == "legacy":
+            self.available_pv_kw = self.circuit.available_pv_power()
+        else:
+            self.available_pv_kw = self.circuit.available_pv_power(
+                self.pv_control_list
+            )
         requests = {}
-        if self.pv_control_enabled:
-            for name in self.pv_names:
-                request, diff = self._pv_action(name, next(parts))
-                requests["PVSystem." + name] = request
-                pvdiff.append(diff)
+        for name in self.pv_control_list:
+            request, diff = self._pv_action(name, next(parts))
+            requests["PVSystem." + name] = request
+            pvdiff.append(diff)
         for name in self.svg_names:
             value = float(next(parts)[0])
             dev = self.circuit.svgs[name]
@@ -347,13 +406,18 @@ class DeviceControlEnv(gym.Env):
             values.append(trace["Storage." + name]["applied"]["kw"] / bat.max_kw)
         if self.pv_control_enabled:
             for name, pv in self.circuit.pvs.items():
+                if name not in self.pv_control_list:
+                    continue
                 applied = trace["PVSystem." + name]["applied"]
-                values.extend(
-                    [
-                        applied["kw"] / max(self.available_pv_kw[name], 1e-9),
-                        applied["kvar"] / pv.kva,
-                    ]
-                )
+                if self.pv_action_mode == "q_only":
+                    values.append(applied["kvar"] / pv.kva)
+                else:
+                    values.extend(
+                        [
+                            applied["kw"] / max(self.available_pv_kw[name], 1e-9),
+                            applied["kvar"] / pv.kva,
+                        ]
+                    )
         for name, svg in self.circuit.svgs.items():
             values.append(trace["Generator." + name]["applied"]["kvar"] / svg.kva)
         return values
@@ -432,11 +496,7 @@ class DeviceControlEnv(gym.Env):
             ["Capacitor." + n for n in self.cap_names]
             + ["RegControl." + n for n in self.reg_names]
             + ["Storage." + n for n in self.bat_names]
-            + (
-                ["PVSystem." + n for n in self.pv_names]
-                if self.pv_control_enabled
-                else []
-            )
+            + ["PVSystem." + n for n in self.pv_control_list]
         )
         elements += ["Generator." + n for n in self.svg_names]
         schema = [
@@ -488,6 +548,18 @@ class DeviceControlEnv(gym.Env):
         return {
             **self.circuit.manifest(),
             "task": type(self.config).__name__,
+            "pv_control": {
+                "mode": self.pv_control_mode,
+                "action_mode": self.pv_action_mode,
+                "controlled": list(self.pv_control_list),
+                "uncontrolled": [
+                    name for name in self.pv_names if name not in self.pv_control_list
+                ],
+                "disabled_invcontrols": {
+                    name: members
+                    for name, members in self.disabled_invcontrols.items()
+                },
+            },
             "observation_projection": self._obs_projection,
             "observation_schema": observation_schema,
             "observation_schema_sha256": sha256(
@@ -581,8 +653,22 @@ class DeviceControlEnv(gym.Env):
         self.t = 0
         self._diverged = False
         self.circuit.reset(seconds=float(self.profile[0, 0]))
+        if self.disabled_invcontrols:
+            # 每次重编译后重放 InvControl 停用（RL 接管设备的唯一写入方声明）。
+            for name in self.disabled_invcontrols:
+                self.circuit.command(f"Edit InvControl.{name} enabled=no")
         self._apply_data(0)
-        self.available_pv_kw = self.circuit.available_pv_power()
+        if self.pv_control_mode == "fixed":
+            # fixed：不探测不写 PV；_apply_data 的写入使量测栅栏失效，
+            # 需求解一次才允许读取首步观测。
+            self.available_pv_kw = {}
+            self.circuit.solve()
+        elif self.pv_control_mode == "legacy":
+            self.available_pv_kw = self.circuit.available_pv_power()
+        else:
+            self.available_pv_kw = self.circuit.available_pv_power(
+                self.pv_control_list
+            )
         self._observe()
         return self.wrap_obs(self.obs)
 

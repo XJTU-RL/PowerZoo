@@ -135,6 +135,43 @@ def discover(session):
             raise ValueError(f"{element}需要正的发出/吸收无功能力")
 
 
+def invcontrol_bindings(session):
+    """返回 {InvControl 名: [绑定的 PVSystem 名]}（空绑定也列出）。
+
+    SMART-DS 等外部模型用原生 InvControl 承载 Volt-Var/Volt-Watt；RL 接管
+    某 PV 时必须停用绑定它的 InvControl，保证同一设备同一时段唯一写入方。
+    """
+    bindings = {}
+    for element in session.native.AllElementNames:
+        kind, _, name = element.partition(".")
+        if kind.lower() != "invcontrol":
+            continue
+        listed = session.read_property(element, "PVSystemlist")
+        members = []
+        for member in listed.strip().strip("[]").split(","):
+            member = member.strip()
+            if member:
+                # 引擎返回全名（PVSystem.xxx）；统一剥掉类前缀对齐裸设备名。
+                _, _, bare = member.partition(".")
+                members.append(bare if bare else member)
+        bindings[name] = members
+    return bindings
+
+
+def pv_command_request(device, fraction, qcommand, available_kw):
+    """PV 动作编码（fraction∈[0,1]、qcommand∈[-1,1]）→ 物理请求。
+
+    环境动作与基线脚本共用本映射；最终限幅（kVA 容量圆 + 非对称 kvarMax/
+    kvarMaxAbs）由 prepare() 统一执行，这里只做归一化命令→kW/kvar 的一层。
+    """
+    kw = fraction * available_kw
+    qlimit = min(
+        math.sqrt(max(0, device.kva**2 - kw**2)),
+        device.kvar_max if qcommand >= 0 else device.kvar_max_abs,
+    )
+    return {"kw": kw, "kvar": qcommand * qlimit}
+
+
 def prepare(session, requests):
     """先验证整帧，再写原生状态；结果记录请求与实际下发值。"""
     commands, trace = [], {}
