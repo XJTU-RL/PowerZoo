@@ -50,7 +50,16 @@ class OnPolicyMARunner(OnPolicyBaseRunner):
             advantages = (advantages - mean_advantages) / (std_advantages + 1e-5)
 
         # update actors
-        if self.share_param:
+        if self.share_param == "group":
+            # 分组共享：每组用自己的代表网络在组内成员的 buffer 上更新；
+            # 只调 actor[0] 会漏掉其余组的独立网络（审核复现的缺陷）。
+            for representative, members in self._shared_groups():
+                group_buffers = [self.actor_buffer[i] for i in members]
+                info = self.actor[representative].share_param_train(
+                    group_buffers, advantages.copy(), len(members), self.state_type
+                )
+                actor_train_infos.extend(info for _ in members)
+        elif self.share_param:
             actor_train_info = self.actor[0].share_param_train(
                 self.actor_buffer, advantages.copy(), self.num_agents, self.state_type
             )

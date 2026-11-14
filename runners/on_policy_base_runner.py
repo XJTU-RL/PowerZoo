@@ -315,6 +315,22 @@ class OnPolicyBaseRunner:
         if not self.algo_args["render"]["use_render"] and hasattr(self, "logger"):
             self._log_initialization_summary()
 
+    def _shared_groups(self):
+        """按网络实例分组的 [(代表 agent_id, [成员 ids])]。
+
+        share_param=True 时全队一组；False 时每 agent 一组；"group" 时同
+        (观测,动作) 空间的成员共用一个实例归一组。训练更新与 lr 衰减都应
+        按组施加，只更新第一组会漏掉其余组的独立网络。
+        """
+        groups, index = [], {}
+        for agent_id, actor in enumerate(self.actor):
+            key = id(actor)
+            if key not in index:
+                index[key] = (agent_id, [])
+                groups.append(index[key])
+            index[key][1].append(agent_id)
+        return groups
+
     def run(self):
         """Run the training (or rendering) pipeline."""
         if self.algo_args["render"]["use_render"] is True:
@@ -335,11 +351,8 @@ class OnPolicyBaseRunner:
             if self.algo_args["train"][
                 "use_linear_lr_decay"
             ]:  # linear decay of learning rate
-                if self.share_param:
-                    self.actor[0].lr_decay(episode, episodes)
-                else:
-                    for agent_id in range(self.num_agents):
-                        self.actor[agent_id].lr_decay(episode, episodes)
+                for representative, _ in self._shared_groups():
+                    self.actor[representative].lr_decay(episode, episodes)
                 self.critic.lr_decay(episode, episodes)
 
             self.logger.episode_init(
