@@ -128,6 +128,8 @@ class DSSSession:
             raise ValueError("初始时间必须为非负有限秒数")
         self._pending, self._solved, self._failed = False, False, False
         self.trace = {}
+        # 重编译后 PV 回到模型文件的 pf 推导，显式无功驱动记录随之清空。
+        self._pv_explicit_q = set()
         self.dss.ClearAll()
         with self._timed("reset.compile"):
             self.command(f'compile "{self._input_path(self.master)}"')
@@ -158,6 +160,7 @@ class DSSSession:
         # 等运行态每次 reset 后仍从引擎重读（discover 重建设备对象）。
         cached = getattr(self, "_structure_cache", None)
         if cached is not None and cached["sha"] == self.model_sha256:
+            self._pv_explicit_q = set()
             with self._timed("reset.cache_hit"):
                 self._connections = cached["connections"]
                 self.bus_phase_nodes = cached["bus_phase_nodes"]
@@ -274,6 +277,12 @@ class DSSSession:
             except Exception:
                 self._failed = True
                 raise
+            # 记录被显式写入 kvar 的 PV：此后该设备的无功由显式值驱动
+            #（pf 推导被覆盖），探测恢复须还原显式 kvar 而非 pf。
+            for element in trace:
+                kind, _, name = element.partition(".")
+                if kind.lower() == "pvsystem":
+                    self._pv_explicit_q.add(name)
             self.trace.update(trace)
             return trace
 
@@ -314,44 +323,53 @@ class DSSSession:
         with self._timed("step.probe"):
             return self._available_pv_power(names)
 
+    def _pv_snapshot(self, name):
+        self.require_element(f"PVSystem.{name}")
+        properties = self.native.ActiveCktElement.Properties
+        return (
+            properties("%pmpp").Val,
+            properties("kvar").Val,
+            properties("pf").Val,
+        )
+
+    def _restore_pv(self, name, snapshot):
+        """按驱动变量恢复：显式写过 kvar 的设备还原显式 kvar；其余还原
+        pf（保留模型 fixed-pf 语义——辐照变化时无功跟随有功，而不是被
+        探测钉在固定无功上，审核复现的缺陷）。
+        """
+        pmpp_pct, kvar, pf = snapshot
+        if name in self._pv_explicit_q:
+            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} kvar={kvar}")
+        else:
+            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} pf={pf}")
+
     def _available_pv_power(self, names=None):
         """当步其他设备设定下，零Q且不限有功的原生可用AC功率；不推进能量。
 
-        names=None 时保持历史行为：对全部 PV 写 ``%Pmpp=100 kvar=0`` 并保持
-        该设定（既有训练路径依赖此语义）。显式传入名单时只探测这些设备，
-        且**探测前快照、探测后恢复**其 ``%Pmpp/kvar``——被探测设备与其他
-        未列入设备的设定在探测前后完全不变（SMART-DS 引入：未接管 PV 的
-        原生 pf/InvControl 行为不得被探测覆盖）。
+        全量（names=None）与子集（RL 接管名单）探测统一**快照/恢复**：探测
+        写 ``%Pmpp=100 kvar=0`` 求解读数后按驱动变量恢复原设定（显式 kvar
+        或 pf），再补一次同工况求解使探测对会话状态与量测栅栏完全透明。
+        未列入设备不被触碰（未接管 PV 的原生 pf/InvControl 行为不被覆盖）。
         """
-        if names is None:
-            for name in self.pvs:
-                self.command(f"Edit PVSystem.{name} %Pmpp=100 kvar=0")
-            self.solve()
-            return {
-                name: max(0.0, -float(self.powers("PVSystem." + name)[0]))
-                for name in self.pvs
-            }
-        unknown = set(names) - set(self.pvs)
+        targets = list(self.pvs) if names is None else list(names)
+        unknown = set(targets) - set(self.pvs)
         if unknown:
             raise ValueError(f"PV探测名单包含不存在的设备：{sorted(unknown)}")
-        snapshot = {}
-        for name in names:
-            self.require_element(f"PVSystem.{name}")
-            properties = self.native.ActiveCktElement.Properties
-            pmpp_pct = properties("%pmpp").Val
-            kvar = properties("kvar").Val
-            snapshot[name] = (pmpp_pct, kvar)
+        snapshot = {name: self._pv_snapshot(name) for name in targets}
+        for name in targets:
             self.command(f"Edit PVSystem.{name} %Pmpp=100 kvar=0")
-        self.solve()
+        # 内部直调 _solve：两次求解的耗时全部归入 step.probe，不与 step.solve
+        # 重复累计（审核复现的计时双计）。
+        self._solve()
         result = {
             name: max(0.0, -float(self.powers("PVSystem." + name)[0]))
-            for name in names
+            for name in targets
         }
-        for name, (pmpp_pct, kvar) in snapshot.items():
-            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} kvar={kvar}")
+        for name, values in snapshot.items():
+            self._restore_pv(name, values)
         # 恢复写入会使量测栅栏失效；补一次同工况求解，使探测对会话状态
         # 完全透明（读数合法且电路回到探测前的工作点）。
-        self.solve()
+        self._solve()
         return result
 
     def solve(self, seconds=None, *, native_controls=False):
