@@ -307,6 +307,15 @@ def download_hint(case_id):
     )
 
 
+
+
+def _dependency_missing(model_dir, master):
+    """主入口 redirect/include/LoadShape 数据依赖闭包的缺失清单（不修改文件）。"""
+    from envs.powergrid.case_inventory import dependency_closure
+
+    return dependency_closure(Path(model_dir), master)["missing"]
+
+
 def _sha256_file(path, chunk=DOWNLOAD_CHUNK_BYTES):
     digest = sha256()
     with open(path, "rb") as handle:
@@ -387,7 +396,19 @@ def _download_zip(case_id, root=None, *, keep_zip=True, force=False, timeout=120
             f"解压完成但未找到主入口：{extracted / case.master}"
         )
 
-    file_count = sum(1 for path in extracted.rglob("*") if path.is_file())
+    file_hashes = {
+        path.relative_to(extracted).as_posix(): _sha256_file(path)
+        for path in sorted(extracted.rglob("*"))
+        if path.is_file()
+    }
+    # 完整性门禁：入口依赖闭包（redirect/include/LoadShape file=）必须无缺失，
+    # 否则视为下载/展开损坏，立即失败并留下诊断。
+    missing = _dependency_missing(extracted, case.master)
+    if missing:
+        raise ExternalCaseError(
+            f"{case_id} 依赖闭包缺失（ refusing 安装）：{missing[:5]}"
+            f"（共 {len(missing)} 项）"
+        )
     manifest = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "case_id": case_id,
@@ -399,7 +420,12 @@ def _download_zip(case_id, root=None, *, keep_zip=True, force=False, timeout=120
             "license_note": case.license_note,
         },
         "zip": {"name": case.zip_name, "sha256": case.zip_sha256, "bytes": case.zip_bytes},
-        "extraction": {"top_dir": case.zip_top_dir, "file_count": file_count},
+        "extraction": {
+            "top_dir": case.zip_top_dir,
+            "file_count": len(file_hashes),
+            # 逐文件 sha：verify(deep=True) 与损坏检测的依据（审核复现缺项）。
+            "files": file_hashes,
+        },
         "downloaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "tool": "scripts/download_external_case.py",
     }
@@ -415,7 +441,7 @@ def _download_zip(case_id, root=None, *, keep_zip=True, force=False, timeout=120
         "model_folder": str(extracted),
         "master": case.master,
         "sha256": case.zip_sha256,
-        "file_count": file_count,
+        "file_count": len(file_hashes),
     }
 
 
@@ -536,12 +562,17 @@ def _download_file_set(case_id, root=None, *, force=False, timeout=120):
     }
 
 
-def verify(case_id, root=None):
-    """校验算例可用性；返回 ``status=ok`` 报告或含 problems 清单的 unavailable 报告。"""
+def verify(case_id, root=None, deep=False):
+    """校验算例可用性；返回 ``status=ok`` 报告或含 problems 清单的 unavailable 报告。
+
+    快检（默认）：manifest/压缩包哈希/主入口存在 + 依赖闭包无缺失（缺依赖
+    文件立即失败——审核复现的漏洞）。deep=True 额外全量比对展开文件与
+    manifest 登记的逐文件 SHA-256（检测展开后被改动的损坏，代价为全量读）。
+    """
     case, kind = _registry(case_id)
     if kind == "file_set":
         return _verify_file_set(case_id, root)
-    return _verify_zip(case_id, root)
+    return _verify_zip(case_id, root, deep=deep)
 
 
 def _verify_file_set(case_id, root=None):
@@ -592,7 +623,7 @@ def _verify_file_set(case_id, root=None):
     }
 
 
-def _verify_zip(case_id, root=None):
+def _verify_zip(case_id, root=None, deep=False):
     case = CASES[case_id]
     directory = case_dir(case_id, root)
     manifest_file = directory / MANIFEST_NAME
@@ -613,14 +644,35 @@ def _verify_zip(case_id, root=None):
                 )
         if not master_file.is_file():
             problems.append(f"缺少主入口：{master_file}")
+    manifest = None
+    if manifest_file.is_file():
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        if manifest.get("case_id") != case_id or manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
+            raise ExternalCaseError(
+                f"{manifest_file} 内容与算例登记不一致；请删除该目录后重新下载。"
+                f"{download_hint(case_id)}"
+            )
+        if deep:
+            recorded = (manifest.get("extraction") or {}).get("files") or {}
+            if not recorded:
+                problems.append(f"{manifest_file} 缺少逐文件哈希（旧版 manifest）；请重新下载后启用深度校验")
+            else:
+                for rel, expected in recorded.items():
+                    path = model / rel
+                    if not path.is_file():
+                        problems.append(f"深度校验缺少文件：{path}")
+                    elif _sha256_file(path) != expected:
+                        problems.append(f"{path} 与 manifest 哈希不符（文件被改动或损坏）")
+        if master_file.is_file():
+            # 快检也做依赖闭包：缺失依赖（缺文件）不允许通过。
+            for item in _dependency_missing(model, case.master):
+                problems.append(
+                    f"依赖缺失（{item.get('from', '?')} 引用 {item.get('path', '?')}）"
+                )
     if problems:
         return {"case_id": case_id, "status": "unavailable", "problems": problems}
-    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-    if manifest.get("case_id") != case_id or manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
-        raise ExternalCaseError(
-            f"{manifest_file} 内容与算例登记不一致；请删除该目录后重新下载。"
-            f"{download_hint(case_id)}"
-        )
+    if manifest is None:
+        return {"case_id": case_id, "status": "unavailable", "problems": problems}
     return {
         "case_id": case_id,
         "status": "ok",
@@ -629,6 +681,7 @@ def _verify_zip(case_id, root=None):
         "upstream_commit": manifest["source"]["upstream_commit"],
         "zip_sha256": manifest["zip"]["sha256"],
         "downloaded_at": manifest["downloaded_at"],
+        "deep_checked": bool(deep),
     }
 
 
