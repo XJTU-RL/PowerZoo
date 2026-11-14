@@ -27,13 +27,45 @@ class DeviceControlEnv(gym.Env):
         observation_mode="global",
     ):
         self.config = cfg = config
-        self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
+        smartds_spec = getattr(cfg, "smartds_series", None)
+        if smartds_spec:
+            # SMART-DS 真实逐设备时序：episode=天，训练/评估按天留出。
+            from utils.external_cases import locate_entry
+            from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
+
+            folder, master = locate_entry(
+                smartds_spec["case"], smartds_spec["entry"]
+            )
+            layout = folder.parents[4]
+            self.dataset = SmartDSEpisodeDataset(
+                layout,
+                str(folder.relative_to(layout)) + "/" + master,
+                days={
+                    "train": smartds_spec["train_days"],
+                    "validation": smartds_spec.get("validation_days", []),
+                },
+                split=smartds_spec.get("split", "train"),
+            )
+            if len(self.dataset.day_indices[self.dataset.split]) == 0:
+                raise ValueError(
+                    f"smartds_series split={self.dataset.split} 没有可用天"
+                )
+            if self.dataset.max_episode_steps_ok(cfg.max_episode_steps) is False:
+                raise ValueError("episode 步数超过一天 96 步")
+        else:
+            self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
         system = Path(cfg.dss_folder or f"node_systems/{cfg.system_name}")
         if not system.is_absolute():
             system = Path(folder_path) / system
         self.circuit = DSSSession(
             system, cfg.dss_file, overlays, cfg.data.step_seconds, svg_elements
         )
+        if smartds_spec:
+            if self.circuit.step_seconds != 900:
+                self.circuit.close()
+                raise ValueError("smartds_series 需要 data.step_seconds=900（15 分钟原始采样）")
+            self.dataset.bind(self.circuit)
+        self._episode_index = 0
         if self.circuit.native.Generators.Count and any(
             n.lower().startswith("batt")
             for n in self.circuit.native.Generators.AllNames
@@ -351,12 +383,13 @@ class DeviceControlEnv(gym.Env):
         hour = (self.circuit.time_s / 3600.0) % 24.0
         clock = [math.sin(2 * math.pi * hour / 24), math.cos(2 * math.pi * hour / 24)]
         progress = [self.t / max(self.horizon, 1)]
+        # 设备特征：全部类型定长 7 槽（不足补 0），配合类型 one-hot 使所有
+        # 智能体的局部观测同维——并行环境按 (n_envs, n_agents, dim) 堆叠
+        # 要求统一维度；类型身份由 one-hot 段携带，分组共享仍按动作空间分。
         if kind == "capacitor":
             device = [float(self.obs["cap_statuses"][name])]
         elif kind == "regcontrol":
-            device = [
-                float(self.obs["reg_statuses"][name]),
-            ]
+            device = [float(self.obs["reg_statuses"][name])]
         elif kind == "storage":
             soc, power = self.obs["bat_statuses"][name]
             device = [float(soc), float(power)]
@@ -365,32 +398,32 @@ class DeviceControlEnv(gym.Env):
             p, q = self.obs["pv_statuses"][name]
             available = self.available_pv_kw.get(name, 0.0)
             kw = available * pv.fraction
+            headroom = math.sqrt(max(0.0, pv.kva**2 - kw**2))
             device = [
                 float(p),
                 float(q),
                 float(available / pv.pmpp),
-                float(min(pv.kvar_max, math.sqrt(max(0.0, pv.kva**2 - kw**2))) / pv.kva),
-                float(min(pv.kvar_max_abs, math.sqrt(max(0.0, pv.kva**2 - kw**2))) / pv.kva),
+                float(min(pv.kvar_max, headroom) / pv.kva),
+                float(min(pv.kvar_max_abs, headroom) / pv.kva),
                 float(pv.fraction),
                 float(pv.q_fraction),
             ]
         else:  # generator(SVG)
             p, q = self.obs["svg_statuses"][name]
             device = [float(p), float(q)]
-        vector = np.asarray(own + summary + clock + progress + device, dtype=np.float32)
+        device = device[:7] + [0.0] * (7 - len(device))
+        kinds = ("capacitor", "regcontrol", "storage", "pvsystem", "generator")
+        onehot = [1.0 if kind == k else 0.0 for k in kinds]
+        vector = np.asarray(
+            onehot + own + summary + clock + progress + device, dtype=np.float32
+        )
         if not np.isfinite(vector).all():
             raise RuntimeError(f"智能体{index}局部观测出现非有限值")
         return vector
 
     def local_observation_dim(self, index):
-        spec = {
-            "capacitor": 12,
-            "regcontrol": 12,
-            "storage": 13,
-            "pvsystem": 18,
-            "generator": 13,
-        }
-        return spec[self._agent_devices()[index][0]]
+        # 统一维度：one-hot(5)+母线电压(3)+邻域摘要(5)+时间(2)+进度(1)+设备(7)。
+        return 23
 
     def local_observation_schema(self):
         """逐智能体的局部观测语义清单（进入 manifest 与 checkpoint 绑定）。"""
@@ -402,11 +435,12 @@ class DeviceControlEnv(gym.Env):
                     "element": f"{kind}.{name}",
                     "dim": self.local_observation_dim(index),
                     "fields": [
+                        "type_onehot[5]",
                         "own_bus_voltage_pu[3]",
                         "neighborhood.v_min/v_max/v_mean/v_low_ratio/v_high_ratio",
                         "time_sin/cos",
                         "episode_progress",
-                        "device_state",
+                        "device_state[7]",
                     ],
                     "neighborhood_hops": int(
                         getattr(self.config, "local_observation_neighborhood", 1)
@@ -422,6 +456,13 @@ class DeviceControlEnv(gym.Env):
             space.seed((seed + i) % 2**32)
 
     def _apply_data(self, index):
+        from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
+
+        if isinstance(self.dataset, SmartDSEpisodeDataset):
+            day = self.entry["day"]
+            self.dataset.apply_step(self.circuit, day, index)
+            self.current_row = self.profile[index]  # 观测上下文（全网均值）
+            return
         self.current_row = row = self.profile[index]
         apply_operating_row(self.circuit, row, self.dataset, self.config.data.load_groups)
 
@@ -830,6 +871,7 @@ class DeviceControlEnv(gym.Env):
             raise ValueError(f"场景编号 {index} 越界")
         self._next_episode = (index + 1) % len(self.dataset.episodes)
         self.entry, self.profile = self.dataset.episodes[index]
+        self._episode_index = index
         self.t = 0
         self._diverged = False
         self.circuit.reset(seconds=float(self.profile[0, 0]))

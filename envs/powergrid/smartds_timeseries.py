@@ -28,7 +28,7 @@ import numpy as np
 
 POINTS_PER_YEAR = 35040
 INTERVAL_SECONDS = 900
-STEPS_PER_DAY = 24 * 60 * 15 // 15  # = 96
+STEPS_PER_DAY = 24 * 60 // 15  # 96 步/天（15 分钟原始采样）
 
 
 def _shape_definitions(scripts):
@@ -260,3 +260,97 @@ class SmartDSTimeseries:
                 },
             )
         return row
+
+
+class SmartDSEpisodeDataset:
+    """SMART-DS 逐设备时序的训练数据集：一个 episode = 一天（96×15min）。
+
+    按天划分训练/评估留出（相邻时刻随机划分会造成泄漏，审核指出）：train_days
+    与 eval_days 不相交；评估 worker（envs_tools 强制 validation split）只
+    见 eval 天。逐设备数据由绑定的 SmartDSTimeseries 直接写入会话；
+    profile 列仅作观测上下文（全网平均辐照/温度/负荷倍率），不参与写入。
+    """
+
+    def __init__(self, layout_root, master, days, split="train", day_indices=None):
+        self.series_source = (Path(layout_root), master)
+        self.step_seconds = INTERVAL_SECONDS
+        self.steps_per_episode = STEPS_PER_DAY
+        self.day_indices = {
+            "train": list(days.get("train", [])),
+            "validation": list(days.get("validation", [])),
+        }
+        self.split = split
+        from hashlib import sha256
+        import json as _json
+
+        digest = sha256(
+            _json.dumps(
+                {
+                    "layout": str(layout_root),
+                    "master": master,
+                    "days": {k: sorted(v) for k, v in self.day_indices.items()},
+                    "steps": STEPS_PER_DAY,
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        self.sha256 = digest
+        self._series = None  # 首次 bind 时构建（避免构造期读全部曲线）
+        self._bind_hook = None
+
+    # -- 与 ScenarioDataset 相同的最小接口面（control_env 消费） ----------
+    @property
+    def episodes(self):
+        days = self.day_indices[self.split]
+        return [
+            (
+                {
+                    "id": f"day{day:03d}",
+                    "day": day,
+                    "scenario": f"smartds_day{day:03d}",
+                },
+                self._episode_profile(day),
+            )
+            for day in days
+        ]
+
+    def _episode_profile(self, day):
+        """(96,6) 上下文矩阵：时间轴 + 全网平均负荷倍率/辐照/温度（仅观测）。"""
+        series = self._ensure_series()
+        rows = [series.row(day * STEPS_PER_DAY + t) for t in range(STEPS_PER_DAY)]
+        profile = np.zeros((STEPS_PER_DAY, 6))
+        for t, row in enumerate(rows):
+            loads = np.array([v[0] for v in row["loads"].values()])
+            pvs = np.array([v[0] for v in row["pv"].values()]) if row["pv"] else np.zeros(1)
+            temps = np.array([v[1] for v in row["pv"].values()]) if row["pv"] else np.zeros(1)
+            profile[t] = (
+                t * INTERVAL_SECONDS,
+                float(loads.mean() / 1e3),
+                float(loads.mean() / 1e3),
+                float(loads.mean() / 1e3),
+                float(pvs.mean()),
+                float(temps.mean()),
+            )
+        return profile
+
+    def group_for(self, name, mapping):
+        return 0  # 逐设备写入不使用组倍率；接口占位
+
+    def max_episode_steps_ok(self, steps):
+        return steps <= STEPS_PER_DAY
+
+    def bind(self, session):
+        """把底层 SmartDSTimeseries 绑定到会话（构造后调用一次）。"""
+        if self._series is None:
+            layout, master = self.series_source
+            self._series = SmartDSTimeseries(layout, master).bind(session)
+        return self._series
+
+    def _ensure_series(self):
+        if self._series is None:
+            raise RuntimeError("SmartDSEpisodeDataset 需先 bind(session)")
+        return self._series
+
+    def apply_step(self, session, day, t):
+        """写入该天第 t 步的逐设备负荷/PV 辐照（不推进时间）。"""
+        return self._ensure_series().apply(session, day * STEPS_PER_DAY + t)

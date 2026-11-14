@@ -78,6 +78,11 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
         env_args = copy.deepcopy(env_args)
         if evaluation:
             env_args["data"]["split"] = "validation"
+            if env_args.get("smartds_series"):
+                # 按天留出：评估 worker 只见 validation_days（防相邻时刻泄漏）。
+                env_args["smartds_series"] = {
+                    **env_args["smartds_series"], "split": "validation"
+                }
     elif family == "lfc":
         # LFC 无数据集切分；评估语义（*_eval 模型与 DSS、worker 号 4+rank）
         # 由包装器按 evaluation 标志实现（论文 make_eval_env 的 ranks=4 语义）。

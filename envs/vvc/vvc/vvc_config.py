@@ -1,6 +1,7 @@
 """经典VVC任务配置；容量/相别由DSS提供，时序与物理执行复用公共层。"""
 
 from dataclasses import dataclass, field
+from typing import Optional
 import math
 from envs.powergrid.config import DataConfig, validate_operation
 
@@ -30,6 +31,10 @@ class VVCConfig:
     # 局部 actor 观测（CTDE）：global=旧行为；local=自身母线/状态/k 跳邻域摘要，
     # 集中 critic 状态保持全网观测。local 模式下 observation_buses/neighborhood
     # 投影仍作用于 critic 状态。
+    # SMART-DS 真实逐设备时序（episode=天，96×15min；train/validation 按天
+    # 留出）：{case, entry, train_days: [..], validation_days: [..], split}。
+    # 设置后忽略合成 data 场景；与 data.step_seconds=900 同时使用。
+    smartds_series: Optional[dict] = None
     observation_mode: str = "global"
     local_observation_neighborhood: int = 1
     power_w: float = 10.0
