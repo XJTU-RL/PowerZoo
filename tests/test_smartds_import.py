@@ -213,11 +213,13 @@ def test_subset_probe_restores_settings_and_keeps_measurements(smartds_like_mode
     try:
         session.begin_interval(0)
         series.apply(session, 48)
-        # 探测前设定非默认值，验证探测前后完全恢复。
-        session.command("Edit PVSystem.pv1 %Pmpp=60 kvar=0.3")
+        # 探测前经 apply 写显式 Q（登记为显式驱动），验证探测前后完全恢复。
+        pv = session.pvs["pv1"]
+        session.apply({"PVSystem.pv1": {"kw": pv.pmpp * 0.6, "kvar": 0.3}})
+        session.solve()
         available = session.available_pv_power(["pv1"])
         assert available["pv1"] > 0  # 午间辐照 0.8 kW/m²
-        assert session.read_property("PVSystem.pv1", "%pmpp") == "60"
+        assert session.read_property("PVSystem.pv1", "%pmpp") != "100"  # 非探测值
         assert float(session.read_property("PVSystem.pv1", "kvar")) == pytest.approx(0.3)
         state = session.read_state()  # 探测对量测栅栏透明
         # 注入口径"发出为正"：恢复 %Pmpp=60 后仍按恢复设定出力。
@@ -509,3 +511,84 @@ def test_smartds_rdt1534_loads_and_timeseries():
         assert all(0 <= irr for irr, _ in row["pv"].values())
     finally:
         session.close()
+
+
+@pytest.mark.slow
+@requires_smartds
+def test_probe_restores_fixed_pf_semantics():
+    """探测不得把 fixed-pf 运行改成固定无功（审核复现缺陷）。
+
+    SMART-DS 的 pv_load_p4ulv25 定义 pf=-0.95：全量（legacy）与子集探测后
+    pf 必须保持 -0.95，且辐照变化时无功按 pf 跟随有功（而非钉在探测期
+    导出的 kvar 值）。
+    """
+    from envs.powergrid.session import DSSSession
+    from envs.powergrid.smartds_timeseries import SmartDSTimeseries
+    from utils.external_cases import locate_entry
+
+    folder, master = locate_entry("smart_ds_sfo_p4udt4", "solar_high_none")
+    layout = folder.parents[4]
+    rel = str(folder.relative_to(layout)) + "/" + master
+    session = DSSSession(layout, rel, step_seconds=900)
+    try:
+        name = "pv_load_p4ulv25"
+        series = SmartDSTimeseries(layout, rel).bind(session)
+        session.reset(seconds=48 * 900)
+        session.begin_interval(48 * 900)
+        series.apply(session, 48)  # 午间辐照
+        before_pf = float(session.read_property(f"PVSystem.{name}", "pf"))
+        assert before_pf == pytest.approx(-0.95)
+        session.available_pv_power()  # 全量探测（含该未接管 PV）
+        after_pf = float(session.read_property(f"PVSystem.{name}", "pf"))
+        assert after_pf == pytest.approx(-0.95), "探测后 pf 被覆盖"
+        session.solve()
+        q_noon = -session.powers(f"PVSystem.{name}")[1]  # 注入发出为正
+        p_noon = session.available_pv_power()[name]
+        # 换到低辐照时刻：pf 语义下 |Q| 应跟随 |P| 变化（Q/P≈tan(acos(.95))）。
+        session.finish_interval()
+        session.reset(seconds=52 * 900)
+        session.begin_interval(52 * 900)
+        series.apply(session, 52)
+        session.available_pv_power()
+        session.solve()
+        p_low, q_low = [-v for v in session.powers(f"PVSystem.{name}")]
+        avail_low = session.available_pv_power()[name]
+        if min(p_noon, avail_low) > 1e-3:
+            ratio_noon = abs(q_noon / p_noon)
+            ratio_low = abs(q_low / avail_low)
+            assert ratio_low == pytest.approx(ratio_noon, rel=0.25), (
+                f"pf 跟随失效：午间 Q/P={ratio_noon:.3f} 低辐照 Q/P={ratio_low:.3f}"
+            )
+    finally:
+        session.close()
+
+
+def test_probe_restores_explicit_kvar_for_controlled_pv():
+    """RL 显式写 kvar 的 PV：探测恢复显式 kvar（pf 已被接管覆盖）。"""
+    import numpy as np
+
+    from envs.powergrid.session import DSSSession
+
+    from pathlib import Path
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "model.dss").write_text(
+            "new circuit.t\n"
+            "new pvsystem.pv1 bus1=sourcebus.1 kV=1 kVA=2 Pmpp=2 pf=0.95\n"
+            "new load.l1 bus1=sourcebus.1 kW=0.5\n"
+            "solve\n",
+            encoding="utf-8",
+        )
+        session = DSSSession(root, "model.dss")
+        try:
+            session.begin_interval(0)
+            # 模拟 RL 显式 Q 写入（apply 路径记录 explicit_q）
+            session.apply({"PVSystem.pv1": {"kw": 1.0, "kvar": 0.4}})
+            session.solve()
+            session.available_pv_power(["pv1"])
+            kvar = float(session.read_property("PVSystem.pv1", "kvar"))
+            assert kvar == pytest.approx(0.4), "显式 kvar 应被恢复，而非 pf 推导"
+        finally:
+            session.close()

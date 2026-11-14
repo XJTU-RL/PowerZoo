@@ -8,7 +8,7 @@
 run:
   algo: happo
   env: smartgrid
-  exp_name: smartgrid_p4udt4_local_smoke
+  exp_name: smartgrid_p4udt4_local_shorttrain
 training_ref: smoke
 system_ref: SMARTDS_P4UDT4
 env:

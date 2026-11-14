@@ -1,0 +1,25 @@
+# SMART-DS rdt1534（12.47kV，472 台 PV）真实逐设备时序短训练。
+# 数百台受控光伏 × 局部观测 × 分组共享（一个 PV 策略网络）× 按天留出。
+# 运行：
+#   python scripts/train.py --config configs/experiments/smartgrid_rdt1534_smartds_smoke.yaml \
+#     --set algo.share_param=group --set train.n_rollout_threads=2 \
+#     --set train.num_env_steps=480 --set train.episode_length=60 \
+#     --set model.use_recurrent_policy=false --set device.cuda=false
+run:
+  algo: happo
+  env: smartgrid
+  exp_name: smartgrid_rdt1534_smartds_shorttrain
+system_ref: SMARTDS_RDT1534
+env:
+  max_episode_steps: 96
+  pv_plan: none
+  pv_control_mode: rl
+  observation_mode: local
+  light_state_read: true
+  smartds_series:
+    case: smart_ds_gso_rdt1534
+    entry: solar_high_none
+    train_days: [0, 1]
+    validation_days: [2]
+  data:
+    step_seconds: 900

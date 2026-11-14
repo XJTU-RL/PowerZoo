@@ -31,7 +31,7 @@ def test_local_mode_shapes_and_shared_state():
         obs, state, _ = env.reset()
         assert len(env.observation_space) == len(env.action_space)
         dims = {space.shape[0] for space in env.observation_space}
-        assert dims == {12, 13, 18}  # 电容/调压 12、储能/SVG 13、PV 18
+        assert dims == {23}  # 统一维度：类型 one-hot+定长槽位（异维无法堆叠）
         assert all(space.shape != state[0].shape for space in env.observation_space)
         # 集中 critic 状态=全局 wrap_obs，与 global 模式同源同维。
         assert state[0].shape == env.share_observation_space[0].shape
