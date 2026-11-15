@@ -34,7 +34,7 @@ pytest -m integration
 # PowerZoo environment tests
 pytest -m vvc
 
-# PowerZoo_LLM environment tests
+# PowerZoo_LLM environment tests (SmartGrid)
 pytest -m smartgrid
 
 # Skip slow tests
@@ -47,17 +47,18 @@ pytest -m "not requires_opendss"
 ### Run Specific Test Files
 
 ```bash
-# PowerZoo environment tests
-pytest tests/envs/vvc/
+# PowerZoo (VVC) physics tests
+pytest tests/test_vvc_physics.py
 
-# PowerZoo_LLM environment tests
+# PowerZoo_LLM environment tests (SmartGrid)
 pytest tests/envs/smartgrid/
 
-# Specific test file
-pytest tests/envs/vvc/test_vvc_env.py
+# LFC (OHASAC) physics tests — MATLAB-free layers only; the co-simulation
+# layer runs via `python scripts/check_lfc.py --matlab`
+pytest tests/test_lfc_physics.py
 
 # Specific test function
-pytest tests/envs/vvc/test_vvc_env.py::TestVVCEnvBasics::test_import_vvc
+pytest tests/test_lfc_physics.py::test_ohasac_algorithm_registry
 ```
 
 ### Code Coverage
@@ -82,14 +83,17 @@ pytest -n auto
 
 ```
 tests/
-├── conftest.py                    # Shared fixtures and configuration
-├── pytest.ini                     # Pytest configuration (in project root)
+├── conftest.py                    # Shared fixtures, configuration, marker registration
 ├── envs/
-│   ├── vvc/
-│   │   └── test_vvc_env.py   # PowerZoo environment tests
-│   └── smartgrid/
-│       └── test_smartgrid_env.py  # PowerZoo_LLM environment tests
-└── README.md                      # This file
+│   ├── vvc/                       # VVC environment registration tests
+│   └── smartgrid/                 # SmartGrid env config / rewards / logging / single-agent
+├── test_algorithms.py             # Algorithm registry and actor contracts
+├── test_common.py / test_models.py / test_runners.py / test_utils.py
+├── test_config_pipeline.py / test_unified_config.py / test_configuration_*.py
+│                                  # Config parsing, provenance, contract and behavioral effects
+├── test_*_physics.py              # Physics contracts per task family:
+│                                  #   vvc / smartgrid / dsr / district / pricing / lfc / powergrid
+└── test_training_entrypoints.py / test_windows_runtime.py / test_hf_shared_assets.py
 ```
 
 ## Test Markers

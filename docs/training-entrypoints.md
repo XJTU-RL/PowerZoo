@@ -12,6 +12,10 @@
 五类电力环境共用 `scripts/train.py`，实际实现只有 `utils/train_cli.py` 一份。
 `examples/multi_agent/scripts/train.py` 保留为兼容路径，也调用同一函数。
 SmartGrid集中控制PPO使用SB3后端，共用配置解析、启动准备和仿真；不混用MARL训练循环。
+2026-11 起 LFC（OHASAC 论文算例）作为第六个环境家族接入同一入口：实验见
+`configs/experiments/lfc_13bus_ohasac_quickstart.yaml`，短训练设置为
+`configs/training/lfc_smoke.yaml`；MATLAB 联合仿真依赖与算法 `ohasac` 的运行边界见
+[开发约定](development.md)的 LFC 节。
 
 ```mermaid
 flowchart TD
@@ -151,5 +155,3 @@ SmartGrid仍有低电压场景；各环境短训练均不用于宣称策略收�
 District差异训练日志另外汇总于`results/validation/config_simplicity/`。生成结果不提交Git。
 验收快照记录的`dss_folder`是已清理的临时副本；若要继续使用验收权重，需显式把该路径
 覆盖为相应正式模型目录。正常启动训练时的配置快照则记录用户指定的模型路径。
-<!-- LFC 补充 -->
-- `lfc`：OHASAC 论文算例（OpenDSS+Simulink 联合仿真）；env 专用字段 f1~f7 奖励权重、system（13Bus/34Bus）、dss_file；MATLAB R2024a~R2025b 依赖边界与快速链路实验见 `configs/experiments/lfc_13bus_ohasac_quickstart.yaml` 与 docs/development.md 的 LFC 节。

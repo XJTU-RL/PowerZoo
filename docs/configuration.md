@@ -153,6 +153,12 @@ District 的拓扑、位置、容量用于建立运行对象，必须与 DSS 对
   `market`与`costs`分别计算有单位的TOU金额和代理代价，固定尺度归一化，不抵消电价。
   `use_neighbor_obs`控制一跳邻区信息，不存在普通交流联络线P/Q动作。
   系统YAML只选模型和默认电压约束，不再投影另一套设备拓扑，详见[区域调度说明](district-physics.md)。
+- **LFC**：`f1`~`f7` 是论文口径的七个奖励权重（频率偏差/频率越限、光伏与储能均衡出力、
+  储能充放电诱导、放电惩罚、光储平滑），直接进入分量奖励拼装；`system`（13Bus/34Bus）
+  选择算例与智能体数（10/20），`dss_file` 指定训练模型，评估文件自动取 `<stem>_eval.dss`。
+  `long_term_load_disturbance`、`use_irrad` 分别对应论文长时程扰动与辐照度实验口径。
+  联合仿真依赖本机 MATLAB R2024a~R2025b，无 MATLAB 时仅做配置与数据校验；
+  开发与运行边界见[开发约定](development.md)的 LFC 节。
 
 ## 最终值、来源和重放
 
@@ -209,6 +215,10 @@ DSR 和 District 各自推荐的训练节与环境设置放在同一个环境文
 只有真正重复使用的配置才抽取引用，不需要复制训练循环或整套默认参数。
 详见[入口整理说明](training-entrypoints.md)。
 
+LFC（OHASAC 论文算例）于 2026-11 按同一入口接入，是第六个环境家族；其短训练设置为
+`configs/training/lfc_smoke.yaml`，算法 `ohasac` 与 MATLAB 联合仿真的运行边界见
+[开发约定](development.md)的 LFC 节。
+
 
 ## 配置精简历史（物理重建前的2026-10-28基线）
 
@@ -254,5 +264,3 @@ VVC、SmartGrid、District共享powergrid的DataConfig/ScenarioDataset、唯一�
 VVC的data.step_seconds默认3600，SmartGrid默认60；环境时长与算法采样长度仍分别设置。
 旧VVC的scale/load_noise/显示/灵敏度标志已退役，使用实际data.load_scale/data.noise，详见[VVC记录](vvc-physics.md)。
 系统文件只定义模型路径、动作分辨率、约束和基准权重；不再接受无消费者的display/source_bus设置。
-<!-- LFC 补充 -->
-- `lfc`：OHASAC 论文算例（OpenDSS+Simulink 联合仿真）；env 专用字段 f1~f7 奖励权重、system（13Bus/34Bus）、dss_file；MATLAB R2024a~R2025b 依赖边界与快速链路实验见 `configs/experiments/lfc_13bus_ohasac_quickstart.yaml` 与 docs/development.md 的 LFC 节。

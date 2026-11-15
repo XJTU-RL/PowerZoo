@@ -1,8 +1,13 @@
 ##### Project Specification #####
 **/results/**
 docs/archive/
+# 论文原始材料（LaTeX 源、实验数据、投稿存档）不进版本库，不上传 GitHub
+papers/
 .VSCodeCounter/
 training_ui/.cache/
+# 本地工具产物（ZCode 会话目录、video-agent-kit 工作目录）
+.zcode/
+.video_agent/
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files
