@@ -1,6 +1,11 @@
 # 本仓库身份与分支规则（含 GLM）
 
 开始工作前读取 [AGENTS.md](AGENTS.md) 与 [开发流程](docs/development.md)。
+通用开发纪律以 AGENTS.md 为本仓事实源；下文工作流不得放宽其隔离、署名和授权边界。
+主工作区只读；代码、配置、文档、CI 更新均在对应任务的独立 worktree 完成，
+同任务复用已有目录，命令锚定绝对路径，不清理其他任务。
+PR 使用四章节交付格式，验证随改动范围扩展；适配来源见
+[开发纪律依据](docs/development-discipline-source.md)。
 后续新分支使用 `sheldon123z/<topic>`；提交 author/committer 使用
 `sheldon123z <zhengxiaodongfl@gmail.com>`，不添加工具署名或协作者尾注。
 推送另行核验实际凭据所属账号；独立任务分支/worktree上的代码可直接提交和推送，
