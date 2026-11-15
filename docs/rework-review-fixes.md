@@ -146,3 +146,132 @@ python -m pytest tests/ -o addopts="" -q --ignore=tests/envs
    留出协议（本阶段仅 3 天示例：2 训练 + 1 评估）。
 4. UK apply 段（463 ms 逐负荷 Edit）与观测/奖励组装段的批量化优化。
 5. rdt1534 每回合 reset ≈60s（曲线解析）的派生二进制缓存优化。
+
+## 8. 4d8af3b5 复审七项修复（分支 `sheldon123z/review-fixes-4d8af3b5`）
+
+针对复审报告（`docs/review-remediation-4d8af3b5.md`，见规则 worktree）
+确认的七项缺陷，逐项"失败复现 → 最小修复 → 针对性测试"返工。每项
+一个提交：
+
+| # | 缺陷 | 提交 | 状态 |
+|---|---|---|---|
+| 1 | P1 MAPPO 分组 FP 优势串位与日志错配 | `37b7494c` | 已验证 |
+| 2 | P1 PV 探测恢复漏掉模型原生 constant-Q | `47d27704` | 已验证 |
+| 3 | P2 按天留出缺少不相交门禁 | `e0251af6` | 已验证 |
+| 4 | P2 未采集支路数据仍记过载数 0 | `e2f45cb5` | 已验证 |
+| 5 | P2 性能读取分段重复计时 | `4b8c9fcf` | 已验证 |
+| 6 | P2 UK 深检 CLI 未完成 | `2b2931a8` | 已验证 |
+| 7 | P2 真实时序未进训练数据冻结记录 | `9028105f` | 已验证 |
+
+### 8.1 MAPPO 分组 FP 优势串位与日志错配（P1，已验证）
+
+- 根因：group 模式把全队 advantages 配组内 buffer 传
+  `MAPPO.share_param_train`，后者用组内序号切 agent 维——组 [0,2]/[1]
+  的成员 1（真实 agent2）收到 agent1 的优势；训练信息按组顺序 extend
+  拼接成 [A,A,B]。另发现前置崩溃：FP 归一化用 stack 后 4 维
+  active_masks 掩蔽 3 维 advantages 必然 IndexError，FP 路径到不了
+  分组逻辑。
+- 修复：FP 按成员索引切 `advantages[:, :, members]`；EP 保持全队共享
+  优势；训练信息预分配按实际 agent ID 回填（[A,B,A]）；掩蔽 squeeze
+  尾维。
+- 验证：`tests/test_mappo_group_fp.py` 9 项（修复前 5 failed 复现三类
+  缺陷）；覆盖 FP 切片、EP 共享、active mask 掩蔽归一化、全队共享、
+  不共享 FP/EP 四条路径日志、真实 MAPPO 组件在非连续组数据上两个
+  独立网络都更新。
+
+### 8.2 PV 探测恢复保留模型原生 constant-Q（P1，已验证）
+
+- 根因：恢复只认 apply 显式写过的 kvar（`_pv_explicit_q`）；模型原生
+  `kvar=10` 的恒无功设备被当 fixed-pf 恢复（写 pf=1），探测后 Q 钉 0。
+- 判据实验（OpenDSS 实测）：kvar 与 pf 互为派生、getter 读不出驱动
+  标志；模型只写 kvar 时 pf getter 恒为 1（默认值不派生），写 pf 时为
+  设定值；运行期 pf→kvar 切换后 pf getter 残留旧值——因此采用
+  **reset 后注册 + apply 跟踪**而非读数推断。
+- 修复：`_pv_drive_mode` 注册表；`|pf|<1` 判 pf 驱动，其余按 kvar
+  驱动恢复（pf=±1 且 kvar=0 时两种写法行为等价）；apply 写 kvar 更新
+  注册；定义行同时写 kvar 与 pf 且 kvar 靠后的模型不受支持（参数顺序
+  语义，已注释）。
+- 验证：`tests/test_powergrid_session.py` 新增 6 项（kvar=10 探测后降
+  辐照 Q 保持 10——修复前 0，复审复现值锁定；pf=-0.95 Q 随辐照派生；
+  apply 显式/reset 回原生/子集探测不越界）；全套 33 项通过。
+
+### 8.3 按天留出门禁（P2，已验证）
+
+- 根因：dataset 只复制日号列表、仅检查选中 split 非空；真实 p4udt4 曾
+  接受重叠配置，两个 split 都 reset 到 day000（首负荷相同，留出失效）。
+- 修复：`validate_holdout_days`——0..364 整数（bool 显式排除）、无
+  重复、train/validation 不相交；split 只允许 train/validation；启用
+  评估但 validation_days 为空在主进程 spawn 前报错。
+- 验证：`tests/test_real_timeseries.py` 新增 11 项（重叠/重复/-1/365/
+  0.5/"3"/True/None/未知 split/空评估留出，修复前 10 failed）。
+
+### 8.4 支路统计三态契约（P2，已验证）
+
+- 勘误：本报告 B3 曾声称"未采集输出 null 并标注 collected=false"——
+  复审确认该契约当时并未交付（light info 实为 0/0 缺标记），本次补齐。
+- 修复：`summarize_branch_stats` 三态（未采集=collected False 全 None；
+  已采集=事实计数+unrated 单列）；check_smartds 提取 `branch_summary`
+  去掉两处 `or 0`，summary 聚合跳过 None。
+- 验证：纯函数四态 + 真实 light/full 步 info + 脚本聚合共 8 项新增
+  （修复前 7 failed）；真实跑 check_smartds 四模式 × 96 步（最大载荷
+  pu：native 3.529 / fixed 3.529 / rl_q_only 3.332 / rl_pq 2.645）。
+
+### 8.5 基准分段互斥（P2，已验证）
+
+- 勘误：本报告 B5"分段之和与步均吻合"在当时口径下不成立——
+  read_state 内嵌 branch_state 双计（9500 full 分段和 392.8 > 墙钟
+  296.0），负余量被 `max(other,0)` 钳零；B5 修复的 probe/solve 双计
+  路径保持有效。
+- 修复：`exclusive_step_ms` 把 branch_state 从 read_state 拆出为互斥
+  五段；`step_residual` 保留原始余量、负值超墙钟 5% 时输出
+  `step_timing_anomaly` 诊断。
+- 验证：复审数据回归（204.990-145.897=59.093）+ 异常标记 + 真实
+  34Bus_PV probe 不含 solve 三项新增；实跑基准分段和均低于墙钟：
+  34Bus_PV 3.3<4.8、P4UDT4 2.9<3.9、9500 full 235.5<285.1、9500 light
+  54.7<99.4（macOS arm64，3-5 步去首步预热）。
+
+### 8.6 UK 深检 CLI（P2，已验证）
+
+- 勘误：本报告 B4 提到的 `--verify --deep` 当时 CLI 参数不存在（退出
+  2）；深检 API 本身有效。本次补 CLI。
+- 修复：`--deep`（仅与 --verify 组合）传入 verify；帮助文本写明
+  file_set 算例校验本就逐文件、旧 manifest 迁移=--force 重下重建清单
+  后自行替换，不把现存未知文件自签为可信。
+- 验证：新增 5 项（篡改展开文件快检过/深检败、旧 manifest 指引重下、
+  --deep 单独用退出 2、CLI 三态退出码、本机真实 UK 旧 manifest 深检
+  明确失败）；真实上游验证：临时目录重下 UK（9.3MB/3282 文件）深检
+  退出 0，篡改 generators.dss 退出 1 并指认该文件。
+- 未完成：本仓 `data/external` 的 UK 旧 manifest 未替换（迁移须用户
+  决定），"真实完整性验收"待重下后标记。
+
+### 8.7 真实时序数据冻结（P2，已验证）
+
+- 根因：prepare_run 对 smartds 场景仍冻结合成 ScenarioDataset（worker
+  不用）；真实 dataset 哈希只含路径/master/日期/步数——曲线内容改动
+  不影响摘要，搬目录反而变摘要。
+- 修复：`SmartDSTimeseries.content_digest`（脚本+全部曲线字节，无绝对
+  路径）；dataset.sha256 惰性属性（内容指纹+日号/split+单位/时间基准）
+  支持 `content_sha256` 恢复校验（control_env 构造期触发）；prepare_run
+  smartds 分支冻结 dataset_sha256/manifest_sha256/days/split/master，
+  不再写入合成 path/manifest_sha256；合成路径行为不变。
+- 验证：新增 4 项（负荷曲线改一字节摘要变+旧摘要恢复被拒、仅搬目录
+  摘要稳定、PV/温度曲线与映射脚本参与摘要、prepare_run 冻结与 worker
+  构造一致且无合成写入）。
+
+### 8.8 回归验收（2026-11-15，本机 macOS arm64 / Python 3.12.8）
+
+- 七个指定测试文件 112 项全过、0 skip（外部数据经 `data/external`
+  符号链接只读引用既有算例，真实算例测试全部执行）。
+- `tests/test_runners/test_algorithms/test_common/test_mappo_group_fp`
+  37 项通过；`test_config_pipeline/test_training_entrypoints/
+  test_unified_config` 71 项通过。
+- `python scripts/check_runtime.py --train`：POWERZOO_RUNTIME_OK（含
+  24 步 HAPPO smoke 与 spawn 双 worker）。
+- `pip check` 冲突如实报告：共享 miniforge base 环境既有冲突
+  （daytona/gradio/pyopenssl/crawl4ai/patchright/mem0ai 等），另
+  powerzoo 声明的 h5py/imageio 因 `--no-deps` 安装未装（本次测试
+  不依赖）；不把测试通过表述为整个依赖环境通过。
+- 未验证/剩余限制汇总：真实 FP 分组短训练未跑（现有算例以 EP 为主，
+  组件级已覆盖）；checkpoint 恢复端到端重放未单独实跑（info 绑定与
+  构造期校验分别覆盖）；rdt1534 级数据集每次构造读全部曲线字节未加
+  缓存（约秒级）；本仓 UK 旧 manifest 待用户决定是否重下迁移。
