@@ -275,3 +275,120 @@ def test_incomplete_native_controls_cannot_finish_or_publish_state(model):
         assert session.time_s == 0
     finally:
         session.close()
+
+
+def _pv_variant(model, replacement):
+    """在 fixture 模型的 PVSystem 行上做文本替换，返回写入后的文件。"""
+    file = model / "model.dss"
+    text = file.read_text(encoding="utf-8")
+    old = "kvarmax=80 kvarmaxabs=60"
+    assert old in text, "fixture 模型 PV 行缺少替换锚点"
+    file.write_text(text.replace(old, replacement), encoding="utf-8")
+    return file
+
+
+def test_probe_restores_model_native_constant_q(model):
+    """模型原生 kvar=10 的 PV：探测后降辐照，恒无功必须保持 10。
+
+    复现 4d8af3b5 复审缺陷 2（P1）：探测恢复只认 apply 显式写过的 kvar，
+    模型原生 constant-Q 设备被当 fixed-pf 恢复（pf=1），Q 被钉成 0。
+    """
+    _pv_variant(model, "kvar=10 kvarmax=80 kvarmaxabs=60")
+    session = DSSSession(model, "model.dss")
+    try:
+        session.solve()
+        p, q = -session.powers("PVSystem.pv")
+        assert p == pytest.approx(36, rel=1e-4)  # 100kW × 0.4 × eff 0.9
+        assert q == pytest.approx(10, rel=1e-4)
+
+        session.available_pv_power()  # 全量探测（写 %Pmpp=100 kvar=0 后恢复）
+
+        session.set_pv_conditions(0.2, 25)
+        session.solve()
+        p, q = -session.powers("PVSystem.pv")
+        assert p == pytest.approx(18, rel=1e-4)
+        assert q == pytest.approx(10, rel=1e-4), (
+            "探测后恒无功模式丢失：constant-Q 被恢复成 pf=1（Q 钉 0）"
+        )
+    finally:
+        session.close()
+
+
+def test_probe_keeps_model_fixed_pf_tracking(model):
+    """模型原生 pf=-0.95 的 PV：探测后 Q 仍随辐照按 pf 派生（回归保护）。"""
+    _pv_variant(model, "pf=-0.95 kvarmax=80 kvarmaxabs=60")
+    session = DSSSession(model, "model.dss")
+    try:
+        session.solve()
+        p, q = -session.powers("PVSystem.pv")
+        assert q == pytest.approx(p * np.tan(np.arccos(-0.95)), rel=1e-3)
+
+        session.available_pv_power()
+
+        session.set_pv_conditions(0.2, 25)
+        session.solve()
+        p_low, q_low = -session.powers("PVSystem.pv")
+        assert p_low == pytest.approx(18, rel=1e-4)
+        assert q_low == pytest.approx(
+            p_low * np.tan(np.arccos(-0.95)), rel=1e-3
+        ), "探测恢复把 fixed-pf 模式错还原成恒无功"
+    finally:
+        session.close()
+
+
+def test_probe_after_explicit_apply_restores_explicit_kvar(model):
+    """RL 经 apply 显式接管 Q 后，探测恢复显式 kvar（既有行为回归）。"""
+    session = DSSSession(model, "model.dss")
+    try:
+        session.begin_interval(0)
+        session.apply({"PVSystem.pv": {"kw": 18, "kvar": 5}})
+        session.available_pv_power()
+        session.solve()
+        _, q = -session.powers("PVSystem.pv")
+        assert q == pytest.approx(5, rel=1e-3)
+        session.finish_interval()
+    finally:
+        session.close()
+
+
+def test_probe_after_apply_reset_returns_to_native_mode(model):
+    """apply 接管后 reset：驱动注册随模型重编译回到原生定义。"""
+    _pv_variant(model, "kvar=10 kvarmax=80 kvarmaxabs=60")
+    session = DSSSession(model, "model.dss")
+    try:
+        session.begin_interval(0)
+        session.apply({"PVSystem.pv": {"kw": 18, "kvar": 5}})
+        session.available_pv_power()
+        session.reset()
+        session.solve()
+        _, q = -session.powers("PVSystem.pv")
+        assert q == pytest.approx(10, rel=1e-4), "reset 后原生恒无功 10 未恢复"
+    finally:
+        session.close()
+
+
+def test_subset_probe_leaves_unlisted_native_pv_untouched(model):
+    """子集探测只碰接管名单：未列出的原生 fixed-pf PV 驱动不被改写。"""
+    file = model / "model.dss"
+    text = file.read_text(encoding="utf-8")
+    extra = (
+        "New PVSystem.pv2 bus1=bus phases=3 conn=wye kv=12.47 kva=100 pmpp=100 "
+        "irradiance=0.4 effcurve=eff %cutin=0 %cutout=0 pf=-0.95 "
+        "kvarmax=80 kvarmaxabs=60 WattPriority=yes PFPriority=no\n"
+    )
+    file.write_text(
+        text.replace("New Storage.bat", extra + "New Storage.bat"), encoding="utf-8"
+    )
+    session = DSSSession(model, "model.dss")
+    try:
+        session.available_pv_power(names=["pv"])
+
+        session.set_pv_conditions(0.2, 25)
+        session.solve()
+        p2, q2 = -session.powers("PVSystem.pv2")
+        assert p2 == pytest.approx(18, rel=1e-4)
+        assert q2 == pytest.approx(
+            p2 * np.tan(np.arccos(-0.95)), rel=1e-3
+        ), "子集探测改写了未列名 PV 的无功驱动模式"
+    finally:
+        session.close()

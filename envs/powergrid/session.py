@@ -128,8 +128,8 @@ class DSSSession:
             raise ValueError("初始时间必须为非负有限秒数")
         self._pending, self._solved, self._failed = False, False, False
         self.trace = {}
-        # 重编译后 PV 回到模型文件的 pf 推导，显式无功驱动记录随之清空。
-        self._pv_explicit_q = set()
+        # 重编译后 PV 回到模型文件定义；驱动注册在 discover/缓存重放后重建。
+        self._pv_drive_mode = {}
         self.dss.ClearAll()
         with self._timed("reset.compile"):
             self.command(f'compile "{self._input_path(self.master)}"')
@@ -160,7 +160,7 @@ class DSSSession:
         # 等运行态每次 reset 后仍从引擎重读（discover 重建设备对象）。
         cached = getattr(self, "_structure_cache", None)
         if cached is not None and cached["sha"] == self.model_sha256:
-            self._pv_explicit_q = set()
+            self._pv_drive_mode = {}
             with self._timed("reset.cache_hit"):
                 self._connections = cached["connections"]
                 self.bus_phase_nodes = cached["bus_phase_nodes"]
@@ -184,6 +184,7 @@ class DSSSession:
                     dev.fraction, dev.q_fraction = 1.0, 0.0
                 for element in self.svg_elements:
                     self.command(f"Edit {element} status=fixed")
+            self._register_pv_drive_modes()
             return
         # Enabled变化会重建全局NodeRef；停用元件的NodeOrder不能再作为相别权威。
         self._connections = {}
@@ -213,6 +214,7 @@ class DSSSession:
                 self.bus_phase_nodes[bus.lower()].append(int(phase))
         with self._timed("reset.discover"):
             discover(self)
+        self._register_pv_drive_modes()
         with self._timed("reset.topology"):
             self.topology = nx.MultiGraph()
             for element in sorted(self.native.AllElementNames):
@@ -282,7 +284,7 @@ class DSSSession:
             for element in trace:
                 kind, _, name = element.partition(".")
                 if kind.lower() == "pvsystem":
-                    self._pv_explicit_q.add(name)
+                    self._pv_drive_mode[name] = "kvar"
             self.trace.update(trace)
             return trace
 
@@ -323,6 +325,23 @@ class DSSSession:
         with self._timed("step.probe"):
             return self._available_pv_power(names)
 
+    def _register_pv_drive_modes(self):
+        """reset 后为每台 PV 注册原生无功驱动变量（"kvar" 或 "pf"）。
+
+        OpenDSS 中 kvar 与 pf 互为派生，getter 读不出驱动标志；实测判据：
+        模型只写 kvar 时 pf getter 恒为 1（默认值，未派生），写 pf 时
+        pf getter 为设定值。据此 |pf|<1 判 pf 驱动，其余按 kvar 驱动恢复
+        （pf=±1 且 kvar=0 时两种写法行为等价，判错无影响）。
+        定义行同时写 kvar 与 pf 且 kvar 靠后的模型不受支持（OpenDSS 按
+        参数顺序后者生效，pf getter 会残留设定值，读数无法区分）。
+        """
+        for name in self.pvs:
+            try:
+                pf = float(self.read_property("PVSystem." + name, "pf"))
+            except (TypeError, ValueError):
+                pf = 1.0
+            self._pv_drive_mode[name] = "pf" if abs(pf) < 1.0 - 1e-9 else "kvar"
+
     def _pv_snapshot(self, name):
         self.require_element(f"PVSystem.{name}")
         properties = self.native.ActiveCktElement.Properties
@@ -333,15 +352,15 @@ class DSSSession:
         )
 
     def _restore_pv(self, name, snapshot):
-        """按驱动变量恢复：显式写过 kvar 的设备还原显式 kvar；其余还原
-        pf（保留模型 fixed-pf 语义——辐照变化时无功跟随有功，而不是被
-        探测钉在固定无功上，审核复现的缺陷）。
+        """按注册的驱动变量恢复：kvar 驱动（模型原生恒无功或 apply 显式
+        接管）还原显式 kvar；pf 驱动（模型 fixed-pf）还原 pf——辐照变化
+        时无功跟随有功，而不是被探测钉在固定无功上（审核复现的缺陷）。
         """
         pmpp_pct, kvar, pf = snapshot
-        if name in self._pv_explicit_q:
-            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} kvar={kvar}")
-        else:
+        if self._pv_drive_mode.get(name, "kvar") == "pf":
             self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} pf={pf}")
+        else:
+            self.command(f"Edit PVSystem.{name} %Pmpp={pmpp_pct} kvar={kvar}")
 
     def _available_pv_power(self, names=None):
         """当步其他设备设定下，零Q且不限有功的原生可用AC功率；不推进能量。

@@ -488,4 +488,6 @@ node_systems/**/loadshape/data_with_gaussian_noise/[0-9][0-9][0-9]/
 runs/
 
 # External OpenDSS cases (license unclear upstream; never commit, fetch via scripts/download_external_case.py)
+# 无尾斜杠规则覆盖符号链接形态（链接到已有数据目录做只读测试）
+data/external
 data/external/
