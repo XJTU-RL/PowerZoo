@@ -9,23 +9,11 @@ SmartGrid Bus Data Extractor
 from envs.powergrid.snapshot import extract_bus_data
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-
-def extract_bus_voltages_from_obs(obs: dict) -> Dict[str, List[float]]:
-    """从 env.obs 字典中提取母线电压
-
-    Args:
-            obs: 环境观测字典，含 'bus_voltages' 键
-
-    Returns:
-            {bus_name: [v_mag_pu_phase1, ...]}
-    """
-    return obs.get("bus_voltages", {})
 
 
 def compute_voltage_stats(
@@ -76,28 +64,3 @@ def compute_voltage_stats(
         "violation_rate": violated_count / total_phases if total_phases > 0 else 0.0,
         "total_phases": total_phases,
     }
-
-
-def get_bus_voltage_series(
-    snapshots: List[Dict[str, Any]],
-    bus_name: str,
-) -> List[float]:
-    """从快照序列中提取指定母线的电压时间序列
-
-    Args:
-            snapshots: 快照列表
-            bus_name: 母线名称
-
-    Returns:
-            电压均值时间序列
-    """
-    series: List[float] = []
-    for snap in snapshots:
-        buses = snap.get("buses", {})
-        bus_info = buses.get(bus_name, {})
-        v_pu = bus_info.get("v_mag_pu", [])
-        if v_pu:
-            series.append(float(np.mean(v_pu)))
-        else:
-            series.append(0.0)
-    return series

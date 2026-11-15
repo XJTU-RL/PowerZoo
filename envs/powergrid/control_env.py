@@ -79,8 +79,6 @@ class DeviceControlEnv(gym.Env):
             getattr(cfg, "observation_buses", None),
             getattr(cfg, "observation_neighborhood", None),
         )
-        self.useS, self.use_render = False, False
-        self.wrap_observation, self.observe_load = True, False
         self.agent_spaces = (
             [gym.spaces.Discrete(2) for _ in self.cap_names]
             + [gym.spaces.Discrete(self.reg_act_num) for _ in self.reg_names]

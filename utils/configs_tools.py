@@ -150,10 +150,3 @@ def save_config(args, algo_args, env_args, run_dir):
     with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as out:
         out.write(output)
     # 不再写入测试代码到progress.txt - 留给base_logger正确处理
-
-
-def save_render(args, run_dir):
-    renderdata = convert_json(args)
-    output = json.dumps(renderdata, separators=(",", ":\t"), indent=4, sort_keys=True)
-    with open(os.path.join(run_dir, "renderdata.json"), "w", encoding="utf-8") as out:
-        out.write(output)

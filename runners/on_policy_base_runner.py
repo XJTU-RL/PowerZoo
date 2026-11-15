@@ -36,7 +36,7 @@ from utils.envs_tools import (
     get_agents_bus,
 )
 from utils.models_tools import init_device
-from utils.configs_tools import init_dir, save_config, save_render
+from utils.configs_tools import init_dir, save_config
 from envs import LOGGER_REGISTRY
 import multiprocessing as mp
 
@@ -1194,10 +1194,8 @@ class OnPolicyBaseRunner:
                 )
                 rewards = 0
                 k = 0
-                item_arrays = []
                 while True:
                     eval_actions_collector = []
-                    saved_data = {}
                     for agent_id in range(self.num_agents):
 
                         test2 = eval_available_actions[agent_id].copy()
@@ -1227,14 +1225,6 @@ class OnPolicyBaseRunner:
                         eval_info,
                         eval_available_actions,
                     ) = self.envs.step(eval_actions)
-                    saved_data = {
-                        "bus_voltages": eval_info[0]["bus_voltages"],
-                        "agent_bus": eval_info[0]["agents_bus"],
-                        "powerloss": eval_info[0]["powerloss"],
-                        "time": k,
-                    }
-                    item_array = list(saved_data.items())
-                    item_arrays.append(item_array)
                     rewards += eval_rewards[0][0]
                     k = k + 1
                     if self.manual_render:
@@ -1244,7 +1234,6 @@ class OnPolicyBaseRunner:
                     if eval_dones[0]:
                         print(f"total reward of this episode: {rewards}")
                         break
-                save_render(item_arrays, self.algo_args["train"]["model_dir"])
 
     def prep_rollout(self):
         """Prepare for rollout."""
