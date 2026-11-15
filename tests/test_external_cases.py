@@ -422,3 +422,103 @@ def test_uk_engine_vs_session_baseline_matches():
         assert result["match"], result
     finally:
         session.close()
+
+
+# ---- 深检 CLI 与旧 manifest 迁移（复审 4d8af3b5：--verify --deep 退出 2） ------
+
+def test_deep_verify_detects_tampered_extracted_file(packaged_tiny_case):
+    """展开文件被篡改：快检（zip 未动）通过，深检必须失败——深检的独有价值。"""
+    case, root = packaged_tiny_case
+    download(case.case_id, root)
+    model = locate(case.case_id, root)
+    victim = model / "loads.dss"
+    victim.write_text(victim.read_text(encoding="utf-8") + "\n!tampered", encoding="utf-8")
+
+    assert verify(case.case_id, root)["status"] == "ok"  # 快检只看 zip 哈希
+
+    deep = verify(case.case_id, root, deep=True)
+    assert deep["status"] == "unavailable"
+    assert any("哈希不符" in p for p in deep["problems"])
+
+
+def test_deep_verify_old_manifest_reports_redownload(packaged_tiny_case):
+    """旧版 manifest 缺逐文件哈希：深检明确失败并指引重新下载，不自签现存文件。"""
+    import json
+
+    case, root = packaged_tiny_case
+    download(case.case_id, root)
+    from utils.external_cases import manifest_path
+
+    manifest_file = manifest_path(case.case_id, root)
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    del manifest["extraction"]["files"]
+    manifest_file.write_text(json.dumps(manifest), encoding="utf-8")
+
+    deep = verify(case.case_id, root, deep=True)
+    assert deep["status"] == "unavailable"
+    assert any("旧版 manifest" in p and "重新下载" in p for p in deep["problems"])
+
+
+def test_cli_deep_without_verify_is_usage_error(packaged_tiny_case, monkeypatch):
+    """--deep 不带 --verify：argparse 用法错误退出 2（复审时 --deep 参数不存在）。"""
+    import sys as _sys
+
+    case, root = packaged_tiny_case
+    from scripts.download_external_case import main
+
+    monkeypatch.setattr(
+        _sys, "argv", ["download_external_case.py", "--case", case.case_id, "--deep"]
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+
+
+def test_cli_verify_deep_exit_codes(packaged_tiny_case, monkeypatch, capsys):
+    """CLI 三态：完整数据深检退出 0；篡改后深检退出 1；篡改后快检仍 0（对照）。"""
+    import sys as _sys
+
+    case, root = packaged_tiny_case
+    from scripts.download_external_case import main
+
+    download(case.case_id, root)
+
+    def run_cli(*flags):
+        monkeypatch.setattr(
+            _sys,
+            "argv",
+            [
+                "download_external_case.py",
+                "--case", case.case_id,
+                "--data-dir", str(root),
+                "--verify",
+                *flags,
+            ],
+        )
+        main()
+
+    run_cli("--deep")  # 新下载完整：深检通过（main 正常返回）
+
+    model = locate(case.case_id, root)
+    victim = model / "lines.dss"
+    victim.write_text(victim.read_text(encoding="utf-8") + "\n!tampered", encoding="utf-8")
+
+    run_cli()  # 快检不查展开内容：仍通过（对照组）
+
+    with pytest.raises(SystemExit) as exc:
+        run_cli("--deep")
+    assert exc.value.code == 1
+    assert "哈希不符" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(
+    verify("uk_mvlv_hv_ug")["status"] != "ok",
+    reason="外部算例 uk_mvlv_hv_ug 未下载：python scripts/download_external_case.py --case uk_mvlv_hv_ug",
+)
+def test_local_uk_old_manifest_deep_verify_fails_clearly():
+    """本机真实 UK 数据（旧版 manifest）：深检明确失败并给出迁移指引。"""
+    deep = verify("uk_mvlv_hv_ug", deep=True)
+    assert deep["status"] == "unavailable"
+    assert any(
+        "旧版 manifest" in p and "重新下载" in p for p in deep["problems"]
+    ), "旧 manifest 深检不得静默通过或自签现存文件"

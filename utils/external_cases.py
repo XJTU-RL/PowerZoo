@@ -620,6 +620,8 @@ def _verify_file_set(case_id, root=None):
             for name, e in case.entries.items()
         },
         "downloaded_at": manifest["downloaded_at"],
+        # 文件清单算例的校验本就逐文件比对哈希，deep 开关恒等价。
+        "deep_checked": True,
     }
 
 

@@ -130,6 +130,17 @@ def main():
     parser.add_argument("--no-keep-zip", action="store_true", help="解压后删除压缩包（仅 zip 算例）")
     parser.add_argument("--verify", action="store_true", help="只做校验，不下载")
     parser.add_argument(
+        "--deep",
+        action="store_true",
+        help=(
+            "与 --verify 组合：逐文件比对展开内容与 manifest 逐文件 SHA-256"
+            "（zip 算例；文件清单算例的校验本就逐文件，无需此开关）。"
+            "旧版 manifest 缺逐文件哈希会明确失败——迁移方式是重新下载"
+            "（--force）从上游压缩包重建清单，核对后自行替换现存数据；"
+            "不把现存未知文件自签为可信版本"
+        ),
+    )
+    parser.add_argument(
         "--discover",
         action="store_true",
         help="联网枚举生成文件清单 JSON（文件清单算例专用）",
@@ -140,6 +151,9 @@ def main():
         help="--discover 时把清单写入仓库登记路径（否则打印到 stdout）",
     )
     args = parser.parse_args()
+
+    if args.deep and not args.verify:
+        parser.error("--deep 仅与 --verify 组合使用（深度校验不执行下载）")
 
     if args.discover:
         manifest = _discover(args.case)
@@ -155,7 +169,7 @@ def main():
 
     root = external_root(args.data_dir)
     if args.verify:
-        report = verify(args.case, root)
+        report = verify(args.case, root, deep=args.deep)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         if report is None or report["status"] != "ok":
             sys.exit(1)
