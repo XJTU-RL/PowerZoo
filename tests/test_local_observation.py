@@ -136,3 +136,47 @@ def test_invalid_observation_mode_rejected():
     with pytest.raises(Exception) as error:
         _build(mode="everywhere")
     assert "观测模式" in str(error.value) or isinstance(error.value, ConfigError)
+
+
+@pytest.mark.parametrize("restore_kind", ["checkpoint", "sidecar"])
+def test_restore_rejects_changed_local_semantics(tmp_path, restore_kind):
+    """真实同维局部观测：邻域变化和缺失元数据均不得静默恢复。"""
+    import json
+    from copy import deepcopy
+    from utils.physics_manifest import validate_checkpoint, validate_sidecar
+
+    envs = []
+    try:
+        manifests = []
+        for hops in (0, 2):
+            env = _build(extra={"local_observation_neighborhood": hops})
+            envs.append(env)
+            env.reset()
+            manifests.append(env.env.get_physics_manifest())
+        saved, changed = manifests
+        assert envs[0].observation_space[0].shape == envs[1].observation_space[0].shape
+        assert saved["observation_schema_sha256"] == changed["observation_schema_sha256"]
+        assert saved["local_observation_schema"] != changed["local_observation_schema"]
+        model = tmp_path / "actor.pt"
+        path = (tmp_path / "physics.manifest.json" if restore_kind == "checkpoint"
+                else model.with_suffix(".physics.json"))
+        path.write_text(json.dumps(saved))
+        restore = (lambda current: validate_checkpoint(tmp_path, current)
+                   if restore_kind == "checkpoint" else validate_sidecar(model, current))
+        restore(deepcopy(saved))
+        with pytest.raises(ValueError, match="local_observation_schema"):
+            restore(changed)
+        for key in ("local_observation_schema", "observation_mode"):
+            legacy = deepcopy(saved)
+            del legacy[key]
+            path.write_text(json.dumps(legacy))
+            with pytest.raises(ValueError, match=key):
+                restore(saved)
+            path.write_text(json.dumps(saved))
+        mode_changed = deepcopy(saved)
+        mode_changed["observation_mode"] = "global"
+        with pytest.raises(ValueError, match="observation_mode"):
+            restore(mode_changed)
+    finally:
+        for env in envs:
+            env.close()

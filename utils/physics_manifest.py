@@ -28,6 +28,8 @@ def validate_checkpoint(model_dir, manifest):
 def compare_manifests(saved, manifest):
     for key in (
         "task",
+        "observation_mode",
+        "local_observation_schema",
         "observation_schema_sha256",
         "model_sha256",
         "action_schema_sha256",
@@ -42,7 +44,7 @@ def compare_manifests(saved, manifest):
     ):
         if saved.get(key) != manifest.get(key):
             raise ValueError(
-                f"checkpoint的{key}与当前环境不一致；不能静默重放不同物理模型或动作映射"
+                f"checkpoint的{key}与当前环境不一致；不能静默重放不同物理模型、观测语义或动作映射"
             )
 
 

@@ -114,3 +114,18 @@ python -m pip check
 
 PR的存量源分支保留原名，避免重命名导致GitHub关闭打开的PR；没有新建工具前缀分支。
 新提交author/committer为sheldon123z，推送用经gh当前用户接口核验的本人凭据，未改全局身份。
+
+
+## 更新后局部观测恢复门禁
+
+独立核实新审查意见：34Bus_PV 的局部邻域从0跳改为2跳，actor维度仍为23、全局
+observation_schema_sha256相同，但局部schema不同；此前checkpoint/sidecar均静默通过。
+新增真实算例负例在修复前两项均失败（未抛出预期异常），记录
+`/tmp/pr60-local-schema-before.log`。compare_manifests现逐项比较observation_mode和
+local_observation_schema，两类恢复入口共用；相同配置允许，邻域/模式变化和缺失字段
+拒绝，旧checkpoint需先核验来源，不能默认补齐放行。
+
+修复后局部观测、真实时序、SmartGrid物理与VVC物理四个相关文件59 passed、0 skip，
+78.55s，日志 `/tmp/pr60-local-schema-after.log`；语法/未定义名称检查及diff检查通过。
+Windows流程加入该真实局部观测回归。先前538项验证对应整合版本，新增两项不与旧
+结果混算；最终提交由Linux/Windows CI重新执行。
