@@ -1,0 +1,32 @@
+# 外部算例：NREL SMART-DS v1.0（2017）SFO/P4U 场景 p4udt4 馈线（4kV 城市馈线）。
+# 数据不在仓库内：先运行
+#   python scripts/download_external_case.py --case smart_ds_sfo_p4udt4
+# 下载到 data/external/（或设 POWERZOO_EXTERNAL_CASES）。许可 CC BY 4.0（OEDI
+# submission 2981），来源/补丁记录见 utils/external_cases.py 与 manifest。
+#
+# 引擎实测（solar_high_batteries_none 变体）：71 母线/156 电气节点/36 负荷
+# （14 对中心抽头单相负荷共享曲线、铭牌各半）/13 变压器/6 台 PVSystem（两相
+# 240V 接线，含 pf=±0.95、kVA<Pmpp、kvarMax 非对称、1 台原生 InvControl
+# Volt-Var）/无调压器/无电容/无储能。负荷 pu 曲线（铭牌=年峰值）与 PV 辐照
+# 曲线（kW/m²）为 15 分钟×35040 点，当地标准时（UTC-8 无夏令时）。
+# 两处引擎兼容补丁（2017→当前 C-API 参数改名）逐条登记于 manifest。
+# dss_folder 指向布局根（P4U）：LoadShape 以 ../../../../../profiles 相对
+# 引用曲线；dss_file 为馈线 standalone 主入口相对路径。
+system:
+  name: SMARTDS_P4UDT4
+  dss_folder: data/external/smart_ds_sfo_p4udt4/SMART-DS/v1.0/2017/SFO/P4U
+  dss_file: scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Master.dss
+episode:
+  max_steps: 96
+devices:
+  pv_systems:
+    action_num: inf
+constraints:
+  voltage_min: 0.95
+  voltage_max: 1.05
+default_rewards:
+  power_loss: 1.0
+  capacitor: 0.0303
+  regulator: 0.0303
+  battery_soc: 0.0
+  battery_discharge: 6.0606

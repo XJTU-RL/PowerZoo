@@ -1,0 +1,15 @@
+# 34Bus_PV MAPPO 分组共享冒烟（返工验证：两组异构网络都必须被更新）。
+# 运行（注意：新格式实验文件不带 algo_args，训练参数经 --set 传入）：
+#   python scripts/train.py --config configs/experiments/smartgrid_34bus_mappo_group_smoke.yaml \
+#     --set algo.share_param=group --set train.n_rollout_threads=2 \
+#     --set train.num_env_steps=480 --set train.episode_length=60 \
+#     --set model.use_recurrent_policy=false --set device.cuda=false
+run:
+  algo: mappo
+  env: smartgrid
+  exp_name: smartgrid_34bus_mappo_group_shorttrain
+system_ref: 34Bus_PV
+env:
+  max_episode_steps: 24
+  observation_mode: local
+  light_state_read: true

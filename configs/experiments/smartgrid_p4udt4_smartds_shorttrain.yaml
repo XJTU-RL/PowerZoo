@@ -1,0 +1,25 @@
+# SMART-DS p4udt4 真实逐设备时序短训练（返工交付：真实数据替代合成场景，
+# 训练 day0-1 / 评估 day2 按天留出）。
+# 运行：
+#   python scripts/train.py --config configs/experiments/smartgrid_p4udt4_smartds_smoke.yaml \
+#     --set algo.share_param=group --set train.n_rollout_threads=2 \
+#     --set train.num_env_steps=480 --set train.episode_length=60 \
+#     --set model.use_recurrent_policy=false --set device.cuda=false
+run:
+  algo: happo
+  env: smartgrid
+  exp_name: smartgrid_p4udt4_smartds_shorttrain
+system_ref: SMARTDS_P4UDT4
+env:
+  max_episode_steps: 96
+  pv_plan: none
+  pv_control_mode: rl
+  observation_mode: local
+  light_state_read: true
+  smartds_series:
+    case: smart_ds_sfo_p4udt4
+    entry: solar_high_none
+    train_days: [0, 1]
+    validation_days: [2]
+  data:
+    step_seconds: 900

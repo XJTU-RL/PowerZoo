@@ -2,7 +2,7 @@ name: Windows runtime
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main, "sheldon123z/**", "codex/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -39,4 +39,4 @@ jobs:
       - name: Validate native DSS, actual rollout, spawn workers, and HAPPO update
         run: python scripts/check_runtime.py --train
       - name: Run Windows regression tests
-        run: python -m pytest tests/test_windows_runtime.py tests/test_powergrid_session.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q
+        run: python -m pytest tests/test_windows_runtime.py tests/test_powergrid_session.py tests/test_pr60_regressions.py tests/test_mappo_group_fp.py tests/test_local_observation.py tests/test_config_pipeline.py tests/test_unified_config.py -o addopts="" -q

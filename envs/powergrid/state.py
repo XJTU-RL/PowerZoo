@@ -15,6 +15,8 @@ class GridState:
 
     @property
     def active_balance_error_kw(self):
+        if self.branches is None:
+            return None  # light 读取不含全网明细，平衡校验走完整读取
         return (
             self.grid_import[0]
             + sum(p[0] for p in self.injections.values())

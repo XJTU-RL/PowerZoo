@@ -1,20 +1,26 @@
 # 分支与 worktree 开发
 
 主目录保留 `main`，每项开发使用独立分支和目录。worktree 共享 Git 对象和历史，
-文件、索引和当前分支分别独立。不要在同一个工作目录中并行切换任务分支。
+文件、索引和当前分支分别独立。不要在同一个工作目录中并行切换任务分支。主工作区只读，代码、配置、文档和 CI
+更新都在任务 worktree 完成。同任务继续已有 worktree，不同任务分别隔离；每次命令
+显式指定工作目录或 `git -C <绝对路径>`。开发纪律的适配依据与未采用项见
+[开发纪律依据](development-discipline-source.md)。
 
 ## 新建任务
 
-以下为 PowerShell 示例。实际目录可以调整，分支和目录名应描述当前任务。
+新任务分支统一为 `sheldon123z/<topic>`，新 worktree 放在仓库内
+`.claude/worktrees/<分支名将 / 替换为 ->`。既有分支、提交及目录保留原名，
+下文历史实施记录中的旧名称不作为新任务命名模板。
+以下为 PowerShell 示例，任务名称应描述实际工作。
 常规新任务从已验证的 `main` 创建；Windows 修复尚未合入时，从明确依赖的任务分支创建。
-旧提交含 Windows 非法文件名，本次 `config-pipeline` 从环境修复提交 `28e25a7c` 创建。
-两个任务分别提交，不自动合并或推送。
+不同任务分别验收。在独立任务分支和worktree上，新写或修复的代码及配套更改
+可以直接提交、推送；新建PR先询问用户，不自动合并。
 
 ```powershell
 git -C D:\Exps\PowerZoo status --short --branch
 git -C D:\Exps\PowerZoo worktree list
-git -C D:\Exps\PowerZoo worktree add -b codex/config-pipeline D:\Exps\PowerZoo-worktrees\config-pipeline codex/windows-environment
-Set-Location D:\Exps\PowerZoo-worktrees\config-pipeline
+git -C D:\Exps\PowerZoo worktree add -b sheldon123z/config-pipeline D:\Exps\PowerZoo\.claude\worktrees\sheldon123z-config-pipeline main
+Set-Location D:\Exps\PowerZoo\.claude\worktrees\sheldon123z-config-pipeline
 conda activate powerzoo-win
 python -m pip install --no-deps -e .
 ```
@@ -22,6 +28,58 @@ python -m pip install --no-deps -e .
 `pip install -e .` 会把当前 Conda 环境的包路径指向这个 worktree。共用环境时，
 切换任务后需重新执行该命令；同时开发不同依赖组合时，为各 worktree 创建不同 Conda 环境。
 从项目根目录启动训练，以明确配置和输出路径。
+
+## 提交署名与推送身份
+
+GitHub 用户名已通过连接器的当前用户接口核实为 `sheldon123z`（用户 ID
+`42455304`）；`zhengxiaodongfl@gmail.com` 来自现有 Git 配置与仓库历史提交，
+并非根据用户名猜测。连接器未返回邮箱，本次未验证该邮箱在 GitHub 的验证状态。
+后续新提交 author 和 committer 的姓名均使用 GitHub 用户名，邮箱沿用上述已配置邮箱。
+不添加工具/机器人署名、`Co-authored-by` 或生成工具标记；提交信息描述实际改动。
+
+仅在当前仓库本地设置，或使用单次命令配置；不修改全局 Git 配置。本规则文件的
+修改不会自动改写当前 Git 配置。以后获准提交前可在任务 worktree 执行：
+
+```powershell
+git config --local user.name sheldon123z
+git config --local user.email zhengxiaodongfl@gmail.com
+git var GIT_AUTHOR_IDENT
+git var GIT_COMMITTER_IDENT
+```
+
+worktree 的本地配置可能由同仓库共享，设置前检查现状；身份环境变量可能覆盖配置，
+以上两条 `git var` 的最终结果都应为本人身份。不得为修正署名擅自 amend、rebase
+或批量改写历史提交，也不为应用新命名规则自动重命名既有分支。
+
+提交署名与推送认证是两件事。推送前核对 remote、实际 Git 传输使用的凭据/认证账号
+及任务范围，账号应为 `sheldon123z`；组织 `XJTU-RL` 是仓库所有者，不是本人的用户名。
+连接器登录成功不代表本机 Git/gh 凭据可用，`user.name` 也不能改变推送账号。
+凭据不可用时停止推送并报告，不输出 token。遇到平台强制命名前缀、署名或服务端
+合并身份时明确说明限制，不声称仓库规则能够覆盖。规则文件本身不会自动设置Git身份，
+每次提交须核对最终author/committer；已有历史名称与署名保留。
+
+更新已有PR时保留存量源分支，正常快进推送即可；不要为套用新命名规则自动重命名
+打开PR的head分支，GitHub会关闭该PR。若确需改名，先说明影响并询问，不擅自关闭重建。
+
+## 更新、验证与交付纪律
+
+更新 PR 前获取远端状态，核对目标分支、当前 head 和他人新增提交；只有包含最新
+远端历史的提交才正常快进推送。发现实质冲突先保留双方并报告，不强推、重写历史，
+也不因平台规则自动 merge/rebase。创建新 PR 先询问；已有 PR 的授权更新可继续，
+合并仍需单独授权。
+
+验证随影响面扩展：相关回归先运行，公共训练器、数据契约、物理状态恢复和依赖
+变更扩大范围。纯文档修改检查内容、链接与差异即可。报告准确区分模拟/真实数据、
+固定策略/实际训练、checkpoint 恢复/研究效果；缺测、失败和跳过不能算通过。
+数据来源、划分、设备映射与冻结指纹以实际运行消费的事实源为准，补充负例验证，
+不能仅改断言或基线让测试通过。
+
+PR 正文使用四章节：`变更摘要`、`Mock 与真实数据状态`、`验证记录`、`风险与回滚`。
+写明实际基线、验证范围、未运行项和回滚办法，不在长期规则中堆积临时测试数量。
+清理前预览并核对改动已经保存，只移除自己的任务 worktree；禁止主目录
+`git clean -ffdx`，不删除其他在途目录。
+
+## 历史实施记录
 
 本次 Windows 环境任务使用分支 `codex/windows-environment`，目录为
 `D:\Exps\PowerZoo-worktrees\windows-environment`。
@@ -81,8 +139,12 @@ CUDA 环境另运行 `python scripts/check_runtime.py --train --require-cuda`。
 
 ### 继续增加算例与任务
 
-日常开发先继续或基于`codex/physics-refactor`的已验收提交创建新的`codex/<topic>`分支和同级worktree。
+日常开发优先继续对应任务；需要新分支时，从已验收且明确依赖的提交创建
+`sheldon123z/<topic>`，worktree 使用本文的新目录规则。物理层历史研发分支见上文记录。
 本轮不自动合并到main；此前环境/config修复已经沿本分支提交历史继承，无需再复制旧环境目录。
+
+当前 GLM 修订的返工清单与验收步骤见
+[4d8af3b5 复审修复建议](review-remediation-4d8af3b5.md)。
 
 仅换馈线、负荷水平、控制分组、价格或故障时，优先新增现有任务的**独立算例YAML**：
 

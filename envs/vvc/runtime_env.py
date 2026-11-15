@@ -8,7 +8,11 @@ class Env(DeviceControlEnv):
     def __init__(self, folder_path, config):
         if not isinstance(config, VVCConfig):
             raise TypeError("VVC需要唯一加载器构造的VVCConfig")
-        super().__init__(folder_path, config, config.overlays)
+        super().__init__(
+            folder_path, config, config.overlays,
+            light_state_read=getattr(config, "light_state_read", False),
+            observation_mode=getattr(config, "observation_mode", "global"),
+        )
 
     def _reward(self, capdiff, regdiff, soc_err, dis_err, pvdiff):
         c = self.config

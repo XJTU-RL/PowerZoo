@@ -15,6 +15,9 @@ base_systems:
   - 8500Node
   - 9500Node
   - 9500Node_bal
+  - UKMVLV_HVUG
+  - SMARTDS_P4UDT4
+  - SMARTDS_RDT1534
 
 # PV 扩展系统 (通过 pv_plan 参数选择方案)
 pv_systems:
@@ -66,6 +69,27 @@ metadata:
     description: "IEEE 9500-node balanced load case (1275 two-phase 208V loads, 178 PV, 2 Storage)"
     node_count: 9500
     typical_episode_length: 24
+
+  UKMVLV_HVUG:
+    description: "UK MV-LV hybrid network (HV_UG): 37629 buses / 112887 nodes, external data required"
+    node_count: 112887
+    typical_episode_length: 24
+    external_case: uk_mvlv_hv_ug
+    fetch_command: "python scripts/download_external_case.py --case uk_mvlv_hv_ug"
+
+  SMARTDS_P4UDT4:
+    description: "NREL SMART-DS v1.0 SFO/P4U p4udt4 feeder (4kV, 71 buses, 6 PV with native InvControl), 15-min timeseries"
+    node_count: 156
+    typical_episode_length: 96
+    external_case: smart_ds_sfo_p4udt4
+    fetch_command: "python scripts/download_external_case.py --case smart_ds_sfo_p4udt4"
+
+  SMARTDS_RDT1534:
+    description: "NREL SMART-DS v1.0 GSO rural rdt1534 feeder (12.47kV, 2150 buses, 472 PV), 15-min timeseries"
+    node_count: 4173
+    typical_episode_length: 96
+    external_case: smart_ds_gso_rdt1534
+    fetch_command: "python scripts/download_external_case.py --case smart_ds_gso_rdt1534"
 
   District_34Bus_3Zone:
     description: "IEEE 34-bus partitioned into 3 dispatch zones with DERs"

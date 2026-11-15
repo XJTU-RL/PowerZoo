@@ -1,0 +1,19 @@
+# SMART-DS p4udt4 MAPPO 分组共享冒烟（返工 B1 验证：分组后所有组都更新）。
+# 运行：
+#   python scripts/train.py --config configs/experiments/smartgrid_p4udt4_mappo_group_smoke.yaml \
+#     --set algo.share_param=group --set train.n_rollout_threads=2 \
+#     --set train.num_env_steps=480 --set train.episode_length=60 \
+#     --set model.use_recurrent_policy=false --set device.cuda=false
+run:
+  algo: mappo
+  env: smartgrid
+  exp_name: smartgrid_p4udt4_mappo_group_shorttrain
+system_ref: SMARTDS_P4UDT4
+env:
+  max_episode_steps: 24
+  pv_plan: none
+  pv_control_mode: rl
+  observation_mode: local
+  light_state_read: true
+  data:
+    step_seconds: 900

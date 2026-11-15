@@ -166,7 +166,26 @@ class OnPolicyBaseRunner:
 
         # actor
         # 如果 share_param 为 true,代表处理同质 agent
-        if self.share_param:
+        if self.share_param == "group":
+            # 按设备类型分组共享（同类 PV/电容等各建一个网络，组内成员共用）：
+            # 分组键=(观测空间, 动作空间) 的字符串签名；组内断言天然成立。
+            self.actor = []
+            groups = {}
+            for agent_id in range(self.num_agents):
+                key = (
+                    str(self.envs.observation_space[agent_id]),
+                    str(self.envs.action_space[agent_id]),
+                )
+                if key not in groups:
+                    groups[key] = ALGO_REGISTRY[args["algo"]](
+                        {**algo_args["model"], **algo_args["algo"]},
+                        self.envs.observation_space[agent_id],
+                        self.envs.action_space[agent_id],
+                        device=self.device,
+                    )
+                self.actor.append(groups[key])
+            self.actor_groups = groups
+        elif self.share_param:
             self.actor = []
             # 使用第一个agent的观测空间作为全部的观测空间,并且只需要一个 agent 作为 actor
             agent = ALGO_REGISTRY[args["algo"]](
@@ -201,7 +220,15 @@ class OnPolicyBaseRunner:
         if self.algo_args["render"]["use_render"] is False:  # train, not render
             # 首先检测环境是否为异构环境
             is_heterogeneous_env = False
-            if not self.share_param:  # 如果不共享参数，进一步检查action_space是否相同
+            if not self.share_param or self.share_param == "group":
+                # 不共享或按组共享时，检查观测/动作空间是否一致；
+                # group 模式下混合空间（如 12/13/18 维局部观测）必须走异构 buffer。
+                base_observation_space = self.envs.observation_space[0]
+                if any(
+                    self.envs.observation_space[agent_id] != base_observation_space
+                    for agent_id in range(1, self.num_agents)
+                ):
+                    is_heterogeneous_env = True
                 # 检查所有agent的action_space是否相同
                 base_action_space = self.envs.action_space[0]
                 for agent_id in range(1, self.num_agents):
@@ -288,6 +315,22 @@ class OnPolicyBaseRunner:
         if not self.algo_args["render"]["use_render"] and hasattr(self, "logger"):
             self._log_initialization_summary()
 
+    def _shared_groups(self):
+        """按网络实例分组的 [(代表 agent_id, [成员 ids])]。
+
+        share_param=True 时全队一组；False 时每 agent 一组；"group" 时同
+        (观测,动作) 空间的成员共用一个实例归一组。训练更新与 lr 衰减都应
+        按组施加，只更新第一组会漏掉其余组的独立网络。
+        """
+        groups, index = [], {}
+        for agent_id, actor in enumerate(self.actor):
+            key = id(actor)
+            if key not in index:
+                index[key] = (agent_id, [])
+                groups.append(index[key])
+            index[key][1].append(agent_id)
+        return groups
+
     def run(self):
         """Run the training (or rendering) pipeline."""
         if self.algo_args["render"]["use_render"] is True:
@@ -308,11 +351,8 @@ class OnPolicyBaseRunner:
             if self.algo_args["train"][
                 "use_linear_lr_decay"
             ]:  # linear decay of learning rate
-                if self.share_param:
-                    self.actor[0].lr_decay(episode, episodes)
-                else:
-                    for agent_id in range(self.num_agents):
-                        self.actor[agent_id].lr_decay(episode, episodes)
+                for representative, _ in self._shared_groups():
+                    self.actor[representative].lr_decay(episode, episodes)
                 self.critic.lr_decay(episode, episodes)
 
             self.logger.episode_init(
@@ -408,6 +448,23 @@ class OnPolicyBaseRunner:
 
             self.after_update()
 
+    @staticmethod
+    def _agent_available_actions(available_actions, agent_id):
+        """提取逐环境/逐智能体掩码；连续环境的任一整帧 None 均合法。
+
+        同一智能体的掩码必须在所有 worker 一致存在或一致缺失，避免将
+        部分缺失静默转成 object 数组或忽略真实离散约束。
+        """
+        if available_actions is None:
+            return None
+        masks = [None if frame is None else frame[agent_id]
+                 for frame in available_actions]
+        if all(mask is None for mask in masks):
+            return None
+        if any(mask is None for mask in masks):
+            raise ValueError(f"智能体 {agent_id} 的动作掩码在 worker 间部分缺失")
+        return np.stack(masks).astype(np.float32)
+
     def warmup(self):
         """预热重播缓冲区. warmup 函数的主要作用是通过与环境的初步交互来填充重放缓冲区，
         使得在训练开始之前，缓冲区中已经有了一定数量的环境状态、观测和可用动作的数据。"""
@@ -432,12 +489,11 @@ class OnPolicyBaseRunner:
                 and self.actor_buffer[agent_id].available_actions is not None
             ):
                 # 提取当前智能体的可用动作
-                agent_available_actions = []
-                for env_idx in range(len(available_actions)):
-                    agent_available_actions.append(available_actions[env_idx][agent_id])
-                self.actor_buffer[agent_id].available_actions[0] = np.array(
-                    agent_available_actions
+                agent_available_actions = self._agent_available_actions(
+                    available_actions, agent_id
                 )
+                if agent_available_actions is not None:
+                    self.actor_buffer[agent_id].available_actions[0] = agent_available_actions
 
         # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
         if self.state_type == "EP":
@@ -872,14 +928,12 @@ class OnPolicyBaseRunner:
             )
 
         for agent_id in range(self.num_agents):
-            # 提取当前智能体的可用动作
-            if available_actions[0] is not None:
-                agent_available_actions = []
-                for env_idx in range(len(available_actions)):
-                    agent_available_actions.append(available_actions[env_idx][agent_id])
-                agent_available_actions = np.array(agent_available_actions)
-            else:
-                agent_available_actions = None
+            # 提取当前智能体的可用动作：按 agent 判定而非只看第一个
+            # （Box/连续空间无离散可用性掩码；混合空间逐 agent 判定，避免
+            # 把 None 包装成 object 数组写入未分配的 buffer 槽）。
+            agent_available_actions = self._agent_available_actions(
+                available_actions, agent_id
+            )
 
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
@@ -1028,15 +1082,9 @@ class OnPolicyBaseRunner:
             for agent_id in range(self.num_agents):
                 # 提取当前智能体的可用动作
                 # 异构动作空间：离散智能体有掩码列表，连续智能体返回None
-                agent_available_actions = None
-                if eval_available_actions[0] is not None:
-                    per_env = [
-                        eval_available_actions[env_idx][agent_id]
-                        for env_idx in range(len(eval_available_actions))
-                    ]
-                    # 只有当该智能体在所有环境中都有可用动作时才转为数组
-                    if per_env[0] is not None:
-                        agent_available_actions = np.array(per_env, dtype=np.float32)
+                agent_available_actions = self._agent_available_actions(
+                    eval_available_actions, agent_id
+                )
 
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],

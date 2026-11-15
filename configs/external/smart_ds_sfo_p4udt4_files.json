@@ -1,0 +1,367 @@
+{
+ "schema_version": 1,
+ "case_id": "smart_ds_sfo_p4udt4",
+ "source_base": "https://oedi-data-lake.s3.amazonaws.com/SMART-DS/v1.0/2017/SFO/P4U",
+ "upstream": {
+  "dataset_url": "https://data.openei.org/submissions/2981",
+  "publisher": "NREL via OEDI"
+ },
+ "generator": "python scripts/download_external_case.py --case smart_ds_sfo_p4udt4 --discover",
+ "files": [
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_15_180.csv",
+   "sha256": "4cf697900e3a0e8b7389797cb62d5bfe987d6c78468d56986ed0abed855d2938",
+   "bytes": 261161
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_25_135.csv",
+   "sha256": "a8cc34d76dc1cc5574814391fef8a0ccd22f5415de473bd401746589b34fe7f4",
+   "bytes": 258868
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_25_90.csv",
+   "sha256": "824a293a1c911f77ece665bd664b1d605c1f78f6fc9a32521736cee0cdf8fada",
+   "bytes": 259893
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_35_180.csv",
+   "sha256": "66a4b6de92deda7814cd87242317c1e5e70793fb39576d373cbc479a5825c6e5",
+   "bytes": 258119
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_35_270.csv",
+   "sha256": "c4b8c19029ea59e334a003b1ef1cf40e2eed3e8940abf0f4b742bca8d8b76c14",
+   "bytes": 258576
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_35_90.csv",
+   "sha256": "8cfaa38938ed4babe8c3ebcc89a9270b8149064bb724f561fa033ff60fba05b0",
+   "bytes": 258898
+  },
+  {
+   "path": "profiles/SFO_37.8067_-122.4322_45_225.csv",
+   "sha256": "27a91a48619a27033758e6d03786c83e7aa3510a8481882e357aa51d7caf6c81",
+   "bytes": 258322
+  },
+  {
+   "path": "profiles/com_kvar_1236_pu.csv",
+   "sha256": "09162f7755f41cbc729d461f4ff2c5e3974b6d1adecfc13cdc7dd76bd988ca1b",
+   "bytes": 669467
+  },
+  {
+   "path": "profiles/com_kvar_16052_pu.csv",
+   "sha256": "9302f5acf0bcd27cc3e495f321a93b1f0a56f002be39dd9bb1ae3a882b6a210f",
+   "bytes": 677140
+  },
+  {
+   "path": "profiles/com_kvar_16059_pu.csv",
+   "sha256": "d8b2a6ff7579e58ad4d628a371be80e4df45976634be90b198073feaf8857df2",
+   "bytes": 679662
+  },
+  {
+   "path": "profiles/com_kvar_17691_pu.csv",
+   "sha256": "8715645c32d873f07bc30a9e9f65aa299046e2fb0026ccfb217ed969c50ce404",
+   "bytes": 668340
+  },
+  {
+   "path": "profiles/com_kvar_17871_pu.csv",
+   "sha256": "cd4e1eeae1244ef133cad5d7250453b5052fdd785fdd5c96f0e2f25da1836a7f",
+   "bytes": 676680
+  },
+  {
+   "path": "profiles/com_kvar_17905_pu.csv",
+   "sha256": "c3fb74b3642abd42532d7e27cdb2149f8ae54d384348bc4683ffb96094ba6ad7",
+   "bytes": 678010
+  },
+  {
+   "path": "profiles/com_kvar_19689_pu.csv",
+   "sha256": "2397cd810d57e4d580875143e848cad512d41cdc4ebd8fb02859630bd7322517",
+   "bytes": 678218
+  },
+  {
+   "path": "profiles/com_kvar_21144_pu.csv",
+   "sha256": "459d7bd692d04852136b4fdae9b8a25d7878a86051548d28a6f3ff789f02f614",
+   "bytes": 652979
+  },
+  {
+   "path": "profiles/com_kvar_2601_pu.csv",
+   "sha256": "8262459ab702104e88aa17caf5816d855fac50cc86a5820f7f98e5eb0459e5d3",
+   "bytes": 672614
+  },
+  {
+   "path": "profiles/com_kvar_29184_pu.csv",
+   "sha256": "b5b314ff6be33163faaa6f4e66148d139d8bceadcc824440047e18a6ef2b0d40",
+   "bytes": 672528
+  },
+  {
+   "path": "profiles/com_kvar_29440_pu.csv",
+   "sha256": "7d6b9d65f5a9dfd1ecbfd0d6fbb21af5825ad5b1fc2543eae8bbc8c7db01a0bb",
+   "bytes": 660001
+  },
+  {
+   "path": "profiles/com_kvar_29552_pu.csv",
+   "sha256": "e55d5dd5698c3b95696370f11247e4661b36b37fc20fa0cbf53ebc91151f4d0c",
+   "bytes": 675024
+  },
+  {
+   "path": "profiles/com_kvar_29596_pu.csv",
+   "sha256": "d1e0f8aba84b5a503473b2a42d6ff801c41c1661960cf62ff8489e0ce41ebd28",
+   "bytes": 664665
+  },
+  {
+   "path": "profiles/com_kvar_31713_pu.csv",
+   "sha256": "6baf0a6d148883aef5c76ead2a621400a95aa45ba4dd7d7f5cdd4a38fa3d07b9",
+   "bytes": 658713
+  },
+  {
+   "path": "profiles/com_kvar_32186_pu.csv",
+   "sha256": "e94f0bd7d1445c3ef957dffb04b2ba88704b5a898a6db7abe299a6e4f2d69bc4",
+   "bytes": 670950
+  },
+  {
+   "path": "profiles/com_kvar_39448_pu.csv",
+   "sha256": "eeb2a9a1cf2dff09d14a429fede2766f3f2db9f35ad28ecb66e015b4f10d829f",
+   "bytes": 672230
+  },
+  {
+   "path": "profiles/com_kvar_39952_pu.csv",
+   "sha256": "a80a8e054de6b0ba856d42e34607c0576700e51a30bd9924f5c9a8744b8d1b32",
+   "bytes": 679098
+  },
+  {
+   "path": "profiles/com_kvar_41505_pu.csv",
+   "sha256": "5fb0d000cb477db5b8a3c03186d2be05496fcf1043a80ec5f24843c5795a99f6",
+   "bytes": 673790
+  },
+  {
+   "path": "profiles/com_kvar_41556_pu.csv",
+   "sha256": "be6e1e72646c5c3624c0e0faa564acb64397e711ab91910c7d03e2e938019351",
+   "bytes": 661255
+  },
+  {
+   "path": "profiles/com_kw_1236_pu.csv",
+   "sha256": "602496f9264433af10be650fdaa6b0b49dc59babaac52c4ffce325873e86d910",
+   "bytes": 670857
+  },
+  {
+   "path": "profiles/com_kw_16052_pu.csv",
+   "sha256": "2ca57ab69f2152c702ef3a0ee3768b5572cddc533176b3eb02bcc41ae5e6bbb7",
+   "bytes": 672631
+  },
+  {
+   "path": "profiles/com_kw_16059_pu.csv",
+   "sha256": "ea5b4be0891fd228ffc69570a7ce8e413d7df93054c04c057d6c419f22694f34",
+   "bytes": 675837
+  },
+  {
+   "path": "profiles/com_kw_17691_pu.csv",
+   "sha256": "21b4559670906100f27ff621261856f8ef731714f35c33cb6eaaf9049906d3a5",
+   "bytes": 676322
+  },
+  {
+   "path": "profiles/com_kw_17871_pu.csv",
+   "sha256": "665cef8a5ea82cc3f7486e8b46d019e5044ef97388e09599b4f68002f2bd1a5d",
+   "bytes": 671061
+  },
+  {
+   "path": "profiles/com_kw_17905_pu.csv",
+   "sha256": "03373be6430a1a8504b44b20de11f0e4f9028b46aaace9d174e69e2755f48f2f",
+   "bytes": 675662
+  },
+  {
+   "path": "profiles/com_kw_19689_pu.csv",
+   "sha256": "f5c2ff1412befdc8042630ee4e76e8f0e76c909256de3af12391ca486a395683",
+   "bytes": 674167
+  },
+  {
+   "path": "profiles/com_kw_21144_pu.csv",
+   "sha256": "c82891acd4f7685addb3d54134eb6df67ebc3f157fdc85e7114443a0fac727de",
+   "bytes": 664551
+  },
+  {
+   "path": "profiles/com_kw_2601_pu.csv",
+   "sha256": "9e347ccbe0a26784c4baddf47333d0dfbf3e623e245acda14ac67a2055873c97",
+   "bytes": 670246
+  },
+  {
+   "path": "profiles/com_kw_29184_pu.csv",
+   "sha256": "5dd8502379fc3201b75ba2a89d5aa34a1363b016dc82537e54f4838a7f851b3f",
+   "bytes": 670364
+  },
+  {
+   "path": "profiles/com_kw_29440_pu.csv",
+   "sha256": "f92d56d48da114ff0caf7b9e3ff7a978aa7af15a1d06d517b2727973ee97e2df",
+   "bytes": 671486
+  },
+  {
+   "path": "profiles/com_kw_29552_pu.csv",
+   "sha256": "053a97332d1075afd2b73194a9082f9e87bcad6c80ac8803c422b5e5404d0e95",
+   "bytes": 670995
+  },
+  {
+   "path": "profiles/com_kw_29596_pu.csv",
+   "sha256": "4284d697217a45be81b939e8b27693f0d92884eee259aef89cd2907d0a90016f",
+   "bytes": 664453
+  },
+  {
+   "path": "profiles/com_kw_31713_pu.csv",
+   "sha256": "d28626b291477946d5e80096e0415948c1dd62d592b9c2b124f204cfaf2bf0df",
+   "bytes": 671684
+  },
+  {
+   "path": "profiles/com_kw_32186_pu.csv",
+   "sha256": "32a2914ed327a0fb8540703546247f4aa66ecc5a5e9b9cec6b92e1d69f3b617b",
+   "bytes": 665217
+  },
+  {
+   "path": "profiles/com_kw_39448_pu.csv",
+   "sha256": "7c8af6a302b7b24c135cc43c6b1e6244179bbe824f2d0a4b413932ab156a889d",
+   "bytes": 668638
+  },
+  {
+   "path": "profiles/com_kw_39952_pu.csv",
+   "sha256": "630dbace4362134af926ca3e2e1b4ead29ffb634aef782fda58734aaaf366faa",
+   "bytes": 675796
+  },
+  {
+   "path": "profiles/com_kw_41505_pu.csv",
+   "sha256": "0954aca8d5bdc6484d90386db422d5e8652e8ad4a41c1a5ed008375949b667d3",
+   "bytes": 669910
+  },
+  {
+   "path": "profiles/com_kw_41556_pu.csv",
+   "sha256": "aa3b8685296256ae9089e95b00820cac01301cd3382fcfbbe64d47af9ec87ff3",
+   "bytes": 670056
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Buscoords.dss",
+   "sha256": "754a4b50d1ebe4bf56da6bab181662972d459020a43dae493937b783c0b0e05b",
+   "bytes": 3439
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Intermediates.txt",
+   "sha256": "c603f31507c0a1ec8a5fc95e8b17420b4c74d55bd6dc866dcd0cbab4d157de47",
+   "bytes": 6967
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/LineCodes.dss",
+   "sha256": "8792183464ab6528877799c4bd66fc59a15887c829aec57916b0c9465ea0e4a5",
+   "bytes": 4264
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Lines.dss",
+   "sha256": "ed9888b852be75e73aceb2a07dcbface2768308535f39d69de0ff26d564e0793",
+   "bytes": 9510
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/LoadShapes.dss",
+   "sha256": "c15d685c74a21dd0c5c8e63dcb5f0a8d030eec8e84ef8d63f38d53aeca4b9487",
+   "bytes": 3338
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Loads.dss",
+   "sha256": "054fb269ebef47c5b847349e10bc253826de9c01fbb002b38dc6bd55a283eab5",
+   "bytes": 5919
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Master.dss",
+   "sha256": "adee84cc6ac373e79cb65faaa820cd033f4482519098447ad9d9d1acd1421e92",
+   "bytes": 705
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/SMART-DS_version.txt",
+   "sha256": "5717e7c840171019a4eeab5b79a7f894a4986eaff93d04ec5b12c9a189f594bf",
+   "bytes": 4
+  },
+  {
+   "path": "scenarios/base_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Transformers.dss",
+   "sha256": "4be6aa1d17d6aa1a494bb6948d9691399e49dfe78b91f887dbbec0e250b467b6",
+   "bytes": 4350
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Buscoords.dss",
+   "sha256": "754a4b50d1ebe4bf56da6bab181662972d459020a43dae493937b783c0b0e05b",
+   "bytes": 3439
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Intermediates.txt",
+   "sha256": "c603f31507c0a1ec8a5fc95e8b17420b4c74d55bd6dc866dcd0cbab4d157de47",
+   "bytes": 6967
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/LineCodes.dss",
+   "sha256": "8792183464ab6528877799c4bd66fc59a15887c829aec57916b0c9465ea0e4a5",
+   "bytes": 4264
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Lines.dss",
+   "sha256": "ed9888b852be75e73aceb2a07dcbface2768308535f39d69de0ff26d564e0793",
+   "bytes": 9510
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/LoadShapes.dss",
+   "sha256": "fca773613d30f719208c8b4f34e4dfb26dfa56fd2860c05382a66aafa615cde6",
+   "bytes": 4321
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Loads.dss",
+   "sha256": "054fb269ebef47c5b847349e10bc253826de9c01fbb002b38dc6bd55a283eab5",
+   "bytes": 5919
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Master.dss",
+   "sha256": "46b655078c1a2cdea268654327362a164c2d90bb593a9a41d870b242cb2bb0e8",
+   "bytes": 734
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/PVSystems.dss",
+   "sha256": "2f4ec3549944ba1c8e147c846aaf16f48c6b3330302f2f53562f9c2af4c194cb",
+   "bytes": 1453
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/SMART-DS_version.txt",
+   "sha256": "5717e7c840171019a4eeab5b79a7f894a4986eaff93d04ec5b12c9a189f594bf",
+   "bytes": 4
+  },
+  {
+   "path": "scenarios/solar_high_batteries_none_timeseries/opendss/p4uhs0_4/p4uhs0_4--p4udt4/Transformers.dss",
+   "sha256": "4be6aa1d17d6aa1a494bb6948d9691399e49dfe78b91f887dbbec0e250b467b6",
+   "bytes": 4350
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_15_180_full.csv",
+   "sha256": "3cbe5b94c4f4393c3e635bb2eb7ceb111b403727b14b465c78f6efaef60058ff",
+   "bytes": 1734533
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_25_135_full.csv",
+   "sha256": "9673813dc9876f002490b840149d0cf0afcf457f4f5e2cb864947f9e169e4377",
+   "bytes": 1733540
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_25_90_full.csv",
+   "sha256": "6b5cc22ea9e1d3a25b1df038a4d8d64f56317868c226ea166c43c49f460012f8",
+   "bytes": 1731716
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_35_180_full.csv",
+   "sha256": "9314889f9bd2c7b857a0aa405ec2a2ef6429e8d68b875f9a22018ad36298179f",
+   "bytes": 1734122
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_35_270_full.csv",
+   "sha256": "3a4912a259dbed489edb4d0406145ec9a9c143b496247226c1e1c39314802956",
+   "bytes": 1730550
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_35_90_full.csv",
+   "sha256": "b809d6e215884aa74aa61a417d41536140df90416e03b6f0db8f1be0a799868a",
+   "bytes": 1730401
+  },
+  {
+   "path": "solar_data/SFO_37.8067_-122.4322_45_225_full.csv",
+   "sha256": "6d9c286f69c635b15683e689a19b48e846114b70743886769116240bfbc8be46",
+   "bytes": 1732248
+  }
+ ]
+}

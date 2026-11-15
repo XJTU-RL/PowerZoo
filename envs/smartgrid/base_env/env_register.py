@@ -16,6 +16,14 @@ def get_node_systems_path():
 def make_env(env_name_or_config, dss_act=False, worker_idx=None, config_dict=None):
     if isinstance(env_name_or_config, SmartGridConfig):
         config = env_name_or_config
+        # pv_plans/ 目录的 overlay 只属于 34Bus_PV；外部系统（如 SMART-DS）
+        # 自带 PV 时必须显式 pv_plan=none，防止家族预设把 34Bus 的方案
+        # 静默叠加到别的模型上。
+        if config.system_name != "34Bus_PV" and config.pv_plan not in (None, "none"):
+            raise ValueError(
+                f"系统 {config.system_name} 不是 34Bus_PV，pv_plan="
+                f"{config.pv_plan!r} 无效；外部模型自带 PV 时请显式 pv_plan=none"
+            )
     else:
         from utils.config_pipeline import ConfigLoader
         from utils.config_validation import build_dataclass

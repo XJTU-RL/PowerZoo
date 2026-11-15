@@ -51,6 +51,24 @@ class SmartGridConfig:
     bat_act_num: Union[int, float] = 33
     pv_act_num: Union[int, float] = float("inf")
     pv_control_enabled: bool = True
+    # PV 控制权（SMART-DS 引入；legacy 保持 pv_control_enabled 布尔语义）：
+    # rl=只控 pv_control_devices（缺省全部），探测限接管名单且探测后恢复；
+    # fixed=不控不探测不写；legacy=全量探测且保持探测设定（旧行为）。
+    pv_control_mode: str = "legacy"
+    pv_control_devices: Optional[list[str]] = None
+    pv_action_mode: str = "pq"  # pq=有功分数+无功；q_only=仅无功（需连续）
+    # 精简状态读取（大规模训练推荐）：观测逐位等价（测试锁定），info 的
+    # 支路统计与全网平衡校验为 None，完整轨迹/评估走完整读取。
+    light_state_read: bool = False
+    # 局部 actor 观测（CTDE）：global=旧行为；local=自身母线/状态/k 跳邻域摘要，
+    # 集中 critic 状态保持全网观测。local 模式下 observation_buses/neighborhood
+    # 投影仍作用于 critic 状态。
+    # SMART-DS 真实逐设备时序（episode=天，96×15min；train/validation 按天
+    # 留出）：{case, entry, train_days: [..], validation_days: [..], split}。
+    # 设置后忽略合成 data 场景；与 data.step_seconds=900 同时使用。
+    smartds_series: Optional[dict] = None
+    observation_mode: str = "global"
+    local_observation_neighborhood: int = 1
     svg_elements: list[str] = field(default_factory=list)
     pv_plan: Optional[str] = None
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
@@ -88,6 +106,12 @@ class SmartGridConfig:
         n = self.pv_act_num
         if n != math.inf and (not math.isfinite(n) or n < 2 or int(n) != n):
             raise ValueError("pv_act_num必须是>=2的整数或.inf")
+        if self.pv_control_mode not in ("legacy", "rl", "fixed"):
+            raise ValueError("pv_control_mode必须是legacy/rl/fixed")
+        if self.pv_action_mode not in ("pq", "q_only"):
+            raise ValueError("pv_action_mode必须是pq/q_only")
+        if self.pv_action_mode == "q_only" and self.pv_act_num != math.inf:
+            raise ValueError("q_only需要连续动作空间（pv_act_num=.inf）")
         for name, value in asdict(self.reward_weights).items():
             if not math.isfinite(value) or value < 0:
                 raise ValueError(f"reward_weights.{name}必须为非负有限值")
