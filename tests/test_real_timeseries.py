@@ -172,3 +172,130 @@ def test_evaluation_worker_requires_nonempty_holdout():
     }
     with pytest.raises(ValueError, match="validation_days"):
         _vector_env("smartgrid_smartds_p4udt4", 0, 1, env_args, evaluation=True)
+
+
+# ---- 支路统计三态契约：未采集 / 已采集无额定 / 已采集有读数 ----------
+
+def test_branch_stats_uncollected_is_null_not_zero():
+    """light 读取未采集支路明细：最大值与计数为 None + collected=False，不得记 0。"""
+    from envs.powergrid.control_env import summarize_branch_stats
+
+    assert summarize_branch_stats(None) == {
+        "branch_stats_collected": False,
+        "max_branch_loading_pu": None,
+        "branch_overload_count": None,
+        "unrated_branch_count": None,
+    }
+
+
+def test_branch_stats_collected_empty_network():
+    from envs.powergrid.control_env import summarize_branch_stats
+
+    stats = summarize_branch_stats({})
+    assert stats["branch_stats_collected"] is True
+    assert stats["max_branch_loading_pu"] is None
+    assert stats["branch_overload_count"] == 0
+    assert stats["unrated_branch_count"] == 0
+
+
+def test_branch_stats_all_unrated_not_claimed_safe():
+    """已采集但全无额定值：不得宣称整个网络没有过载。"""
+    from envs.powergrid.control_env import summarize_branch_stats
+
+    stats = summarize_branch_stats(
+        {"line.l1": {"loading_pu": None}, "line.l2": {"loading_pu": None}}
+    )
+    assert stats["max_branch_loading_pu"] is None
+    assert stats["branch_overload_count"] == 0
+    assert stats["unrated_branch_count"] == 2
+
+
+def test_branch_stats_partial_unrated_with_overload():
+    from envs.powergrid.control_env import summarize_branch_stats
+
+    stats = summarize_branch_stats(
+        {
+            "line.l1": {"loading_pu": 1.2},
+            "line.l2": {"loading_pu": 0.8},
+            "transformer.t1": {"loading_pu": None},
+        }
+    )
+    assert stats["max_branch_loading_pu"] == 1.2
+    assert stats["branch_overload_count"] == 1
+    assert stats["unrated_branch_count"] == 1
+
+
+@requires_smartds
+def test_light_step_info_reports_branch_stats_uncollected():
+    """真实 light 步 info：collected=False 且支路统计为 None（复现：曾记 0）。"""
+    env = _env()
+    try:
+        env.reset()
+        action = [
+            space.sample() for space in env.action_space
+        ]
+        _, _, _, _, infos, _ = env.step(action)
+        info = infos[0]
+        assert info["branch_stats_collected"] is False
+        assert info["max_branch_loading_pu"] is None
+        assert info["branch_overload_count"] is None
+        assert info["unrated_branch_count"] is None
+    finally:
+        env.close()
+
+
+@requires_smartds
+def test_full_step_info_reports_branch_stats_collected():
+    """真实 full 步 info：collected=True 且计数为整数。"""
+    from utils.config_pipeline import ConfigLoader
+    from utils.envs_tools import make_power_env
+
+    cfg = ConfigLoader().load(
+        "happo",
+        "smartgrid",
+        system_ref="SMARTDS_P4UDT4",
+        values={
+            "env": {
+                "smartds_series": dict(SERIES_SPEC),
+                "max_episode_steps": 4,
+                "pv_plan": "none",
+                "pv_control_mode": "rl",
+                "data": {"step_seconds": 900},
+                "light_state_read": False,
+            }
+        },
+    )
+    env = make_power_env("smartgrid", cfg.env_args, 0, 0)
+    try:
+        env.reset()
+        action = [
+            space.sample() for space in env.action_space
+        ]
+        _, _, _, _, infos, _ = env.step(action)
+        info = infos[0]
+        assert info["branch_stats_collected"] is True
+        assert isinstance(info["branch_overload_count"], int)
+        assert isinstance(info["unrated_branch_count"], int)
+    finally:
+        env.close()
+
+
+def test_check_smartds_branch_summary_without_or_zero():
+    """check_smartds 聚合：无额定支路不得经 `or 0` 被当作 0 载荷统计。"""
+    from types import SimpleNamespace
+    from scripts.check_smartds import branch_summary
+
+    state = SimpleNamespace(
+        branches={
+            "line.l1": {"loading_pu": 1.5},
+            "line.l2": {"loading_pu": None},
+        }
+    )
+    summary = branch_summary(state)
+    assert summary["overloaded_branches"] == 1
+    assert summary["max_branch_loading_pu"] == 1.5
+    assert summary["unrated_branches"] == 1
+
+    empty = SimpleNamespace(branches={})
+    assert branch_summary(empty)["max_branch_loading_pu"] is None
+    assert branch_summary(empty)["overloaded_branches"] == 0

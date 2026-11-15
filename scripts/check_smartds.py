@@ -28,6 +28,27 @@ INTERVAL = 900
 STEPS_PER_DAY = 96
 
 
+def branch_summary(state):
+    """支路过载统计：无额定值（None）不得经 `or 0` 被当作 0 载荷计入。
+
+    已采集但无可评级支路时 max 为 None——不得据此宣称网络无过载；
+    未评级数单独记录。state.branches 为 None（未采集）时报错而非静默
+    记 0（本脚本固定完整读取，None 属契约破坏）。
+    """
+    if state.branches is None:
+        raise ValueError("支路统计收到未采集状态（branches=None），本脚本要求完整读取")
+    rated = [
+        info["loading_pu"]
+        for info in state.branches.values()
+        if info.get("loading_pu") is not None
+    ]
+    return {
+        "overloaded_branches": sum(x > 1.0 for x in rated),
+        "max_branch_loading_pu": max(rated) if rated else None,
+        "unrated_branches": len(state.branches) - len(rated),
+    }
+
+
 def _run_day(session, series, mode, *, offset=0, fraction=0.75, qcommand=-0.3):
     """从全年第 offset 步起跑 96 步（一天）；返回逐步记录与汇总。"""
     from envs.powergrid.devices import pv_command_request
@@ -76,7 +97,7 @@ def _run_day(session, series, mode, *, offset=0, fraction=0.75, qcommand=-0.3):
             continue
 
         voltages = [v for phases in state.voltages_pu.values() for v in phases.values()]
-        overloaded = [b for b, info in state.branches.items() if (info.get("loading_pu") or 0) > 1.0]
+        branches = branch_summary(state)
         pv_rows = {
             name.split(".", 1)[1]: {
                 "available_kw": available.get(name.split(".", 1)[1]),
@@ -107,10 +128,9 @@ def _run_day(session, series, mode, *, offset=0, fraction=0.75, qcommand=-0.3):
                     max((v - 1.05 for v in voltages), default=0.0),
                 ),
                 "loss_kw": state.losses[0],
-                "overloaded_branches": len(overloaded),
-                "max_branch_loading_pu": max(
-                    (info.get("loading_pu") or 0) for info in state.branches.values()
-                ),
+                "overloaded_branches": branches["overloaded_branches"],
+                "unrated_branches": branches["unrated_branches"],
+                "max_branch_loading_pu": branches["max_branch_loading_pu"],
                 "grid_import_kw": state.grid_import[0],
                 "pv": pv_rows,
                 "seconds": {
@@ -137,8 +157,17 @@ def _run_day(session, series, mode, *, offset=0, fraction=0.75, qcommand=-0.3):
         "v_max_pu": round(max(s["v_max_pu"] for s in steps if "v_max_pu" in s), 5)
         if any("v_max_pu" in s for s in steps)
         else None,
-        "max_branch_loading_pu": round(
-            max((s.get("max_branch_loading_pu", 0) for s in steps), default=0.0), 4
+        "max_branch_loading_pu": (
+            round(
+                max(
+                    s["max_branch_loading_pu"]
+                    for s in steps
+                    if s.get("max_branch_loading_pu") is not None
+                ),
+                4,
+            )
+            if any(s.get("max_branch_loading_pu") is not None for s in steps)
+            else None
         ),
         "step_seconds_avg": round(
             sum(sum(s.get("seconds", {}).values()) for s in steps) / max(len(steps), 1), 3

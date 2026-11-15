@@ -10,6 +10,35 @@ from envs.powergrid.session import DSSSession
 from envs.powergrid.scenario import prepare_dataset, apply_operating_row
 
 
+def summarize_branch_stats(branches):
+    """支路过载统计的三态契约（复审 4d8af3b5：未采集曾被记成 0 过载）。
+
+    - branches 为 None（light 读取未采集）：collected=False，最大值与
+      计数均为 None——未采集不等于无过载；
+    - 已采集但无可评级支路（loading_pu 全 None）：collected=True、
+      计数为事实值（0 条可评级过载），unrated 记录未评级数——不得
+      据此宣称整个网络没有过载。
+    """
+    if branches is None:
+        return {
+            "branch_stats_collected": False,
+            "max_branch_loading_pu": None,
+            "branch_overload_count": None,
+            "unrated_branch_count": None,
+        }
+    loadings = [
+        branch["loading_pu"]
+        for branch in branches.values()
+        if branch["loading_pu"] is not None
+    ]
+    return {
+        "branch_stats_collected": True,
+        "max_branch_loading_pu": max(loadings) if loadings else None,
+        "branch_overload_count": sum(x > 1 for x in loadings),
+        "unrated_branch_count": len(branches) - len(loadings),
+    }
+
+
 class DeviceControlEnv(gym.Env):
     def __init__(
         self,
@@ -805,16 +834,8 @@ class DeviceControlEnv(gym.Env):
         pv_kw = sum(p[0] for p in pv_powers)
         rated = sum(pv.pmpp for pv in self.circuit.pvs.values())
         storage = [-self.circuit.powers("Storage." + n)[0] for n in self.bat_names]
-        branches = self.physical_state.branches or {}
-        loadings = [
-            b["loading_pu"]
-            for b in branches.values()
-            if b["loading_pu"] is not None
-        ]
         return {
-            "max_branch_loading_pu": max(loadings) if loadings else None,
-            "branch_overload_count": sum(x > 1 for x in loadings),
-            "unrated_branch_count": len(branches) - len(loadings),
+            **summarize_branch_stats(self.physical_state.branches),
             "step_seconds": self.circuit.step_seconds,
             "dataset_sha256": self.dataset.sha256,
             "physics_model_sha256": self.circuit.model_sha256,
