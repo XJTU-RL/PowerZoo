@@ -60,10 +60,14 @@ def discover(session):
     for name in names(c.RegControls):
         c.RegControls.Name = name
         transformer, winding = c.RegControls.Transformer, c.RegControls.Winding
-        c.Transformers.Name, c.Transformers.Wdg = transformer, winding
+        tap_winding = int(c.RegControls.TapWinding)
+        monitored_bus = c.RegControls.MonitoredBus
+        c.Transformers.Name, c.Transformers.Wdg = transformer, tap_winding
         session.regulators[name] = SimpleNamespace(
             transformer=transformer,
             winding=winding,
+            tap_winding=tap_winding,
+            monitored_bus=monitored_bus,
             mintap=float(c.Transformers.MinTap),
             maxtap=float(c.Transformers.MaxTap),
             numtaps=int(c.Transformers.NumTaps),
@@ -230,7 +234,7 @@ def prepare(session, requests):
             if set(request) - allowed:
                 raise ValueError(f"{element}未知指令：{set(request)-allowed}")
             commands.append(
-                f"Edit Transformer.{reg.transformer} wdg={reg.winding} tap={tap:.12g}"
+                f"Edit Transformer.{reg.transformer} wdg={reg.tap_winding} tap={tap:.12g}"
             )
             trace[element] = {"requested": dict(request), "applied": applied}
             continue

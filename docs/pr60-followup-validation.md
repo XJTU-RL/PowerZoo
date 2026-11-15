@@ -129,3 +129,37 @@ local_observation_schema，两类恢复入口共用；相同配置允许，邻�
 78.55s，日志 `/tmp/pr60-local-schema-after.log`；语法/未定义名称检查及diff检查通过。
 Windows流程加入该真实局部观测回归。先前538项验证对应整合版本，新增两项不与旧
 结果混算；最终提交由Linux/Windows CI重新执行。
+
+## 合并前调压器与越限统计修复
+
+基线为PR60 `8c1b3cf660012bff98253fc3aa678f340aac9cd7`，仍在原集成worktree上更新。
+EPRI [RegControl](https://opendss.epri.com/RegControl.html) 与
+[属性说明](https://opendss.epri.com/Properties23.html) 明确：Winding是监测绕组，
+TapWinding是实际调档绕组，Bus可以覆盖为远端监测点。不能用端子1或TapWinding
+替代监测位置。本轮观测取Bus优先，否则取Winding对应端子；邻域构造共用同一解析。
+设备发现、tap档位范围、动作写入、tap状态与轨迹读数则使用TapWinding。
+
+局部actor仍是母线级各相pu电压，未将其改称原生PT相选择结果或LDC补偿电压。
+清单显式记录观测母线、实际邻域母线集合、采样口径、监测/调档绕组及远端节点字符串，
+并参与既有local_observation_schema比较；旧端子1语义的局部策略不能只补字段静默恢复。
+本轮同时将实际调档目标写入动作语义摘要，防止旧监测绕组动作含义被静默接受。
+
+真实34Bus_PV回归覆盖原始creg1a Winding=2（零跳814r侧）、Winding=1/TapWinding=2、
+Winding=2/TapWinding=1、Bus=850.2远端覆盖。观测自身电压/邻域、清单及重放门禁一致；
+实际tap仅写到调档绕组，另一绕组不变，轨迹读数正确且reset恢复。模型仅在测试临时副本编辑。
+
+SMART-DS基线脚本的逐步越限幅度加入零下界；执行实际_run_day记录和汇总路径的合规、
+边界、欠压和过压测试，确认[0.99,1.01]为0，欠压/过压为正幅度。
+
+验证记录：新增8项定向回归通过（15.96s）；本地全仓548 passed、0 skip（208.72s），
+日志 `/tmp/pr60-regulator-full.log`。全仓启动后最后补充动作目标摘要，最终代码又运行
+局部观测、真实时序、SmartGrid/VVC物理四文件67 passed、0 skip（79.66s），日志
+`/tmp/pr60-regulator-final.log`；不将两次结果相加。最终提交另由CI全量验证。
+原生运行检查POWERZOO_RUNTIME_OK（双DSS、1/2 worker、HAPPO24步），日志
+`/tmp/pr60-regulator-runtime.log`；pip check仍失败，日志`/tmp/pr60-regulator-pip.log`，
+含multipart/h5py/imageio缺包及共享环境版本冲突，未调整共享依赖。语法/未定义名称检查
+及git diff --check通过。
+
+兼容性：局部观测语义和调压器动作目标新增绑定会拒绝缺少这些信息的旧checkpoint；
+不能为通过检查而默认补字段，须核验旧训练语义，必要时重新训练。全局观测本身未改，
+但包含调压器且缺少新动作目标摘要的旧模型也会拒绝恢复。本次未执行合并。

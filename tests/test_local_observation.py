@@ -180,3 +180,85 @@ def test_restore_rejects_changed_local_semantics(tmp_path, restore_kind):
     finally:
         for env in envs:
             env.close()
+
+
+@pytest.mark.parametrize("monitor,tap,remote,expected", [
+    (2, 2, "", "814r"),
+    (1, 2, "", "814"),
+    (2, 1, "", "814r"),
+    (2, 1, "850.2", "850"),
+])
+def test_regulator_observes_monitor_bus_and_actuates_tap_winding(
+    tmp_path, monitor, tap, remote, expected
+):
+    """原始34Bus与独立监测/调档/远端配置：零跳电压、动作和清单一致。"""
+    from copy import deepcopy
+    from pathlib import Path
+    import shutil
+    from utils.physics_manifest import compare_manifests
+
+    source = Path(__file__).resolve().parents[1] / "node_systems" / "34Bus_PV"
+    model = tmp_path / "model"
+    shutil.copytree(source, model)
+    if (monitor, tap, remote) != (2, 2, ""):
+        with (model / "network.dss").open("a") as stream:
+            stream.write(f'\nEdit RegControl.creg1a winding={monitor} '
+                         f'tapwinding={tap} bus="{remote}"\n')
+    env = _build(extra={"dss_folder": str(model), "local_observation_neighborhood": 0})
+    try:
+        env.reset()
+        core = env.env
+        dev = core.circuit.regulators["creg1a"]
+        assert (dev.winding, dev.tap_winding, dev.monitored_bus) == (monitor, tap, remote)
+        index = core._agent_devices().index(("regcontrol", "creg1a"))
+        assert core._device_bus("regcontrol", "creg1a") == expected
+        assert core._local_neighborhoods()[index] == (expected, {expected})
+        voltage = core.physical_state.voltages_pu[expected]
+        vector = core.agent_local_observation(index)
+        np.testing.assert_allclose(vector[5:8], [voltage.get(p, 0) for p in (1, 2, 3)])
+        assert vector[8] == pytest.approx(min(voltage.values()))
+        assert vector[9] == pytest.approx(max(voltage.values()))
+        saved = core.get_physics_manifest()
+        schema = saved["local_observation_schema"][index]
+        action_entry = saved["action_schema"][index]
+        assert action_entry["element"] == "RegControl.creg1a"
+        assert action_entry["actuator"] == {
+            "element": "Transformer.reg1a", "winding": tap,
+        }
+        # 旧摘要只绑定动作空间，不能证明调档目标；独立构造旧格式以验证拒绝。
+        import json
+        from hashlib import sha256
+        legacy = deepcopy(saved)
+        for entry in legacy["action_schema"]:
+            entry.pop("actuator", None)
+        legacy["action_schema_sha256"] = sha256(
+            json.dumps(legacy["action_schema"], sort_keys=True).encode()
+        ).hexdigest()
+        with pytest.raises(ValueError, match="action_schema_sha256"):
+            compare_manifests(legacy, saved)
+        assert schema["voltage_bus"] == expected
+        assert schema["neighborhood_buses"] == [expected]
+        assert schema["regcontrol_reference"] == {
+            "monitor_winding": monitor, "tap_winding": tap, "remote_bus": remote,
+        }
+        incompatible = deepcopy(saved)
+        incompatible["local_observation_schema"][index]["voltage_bus"] = "wrong-side"
+        with pytest.raises(ValueError, match="local_observation_schema"):
+            compare_manifests(saved, incompatible)
+        core.circuit.begin_interval(core.circuit.time_s)
+        native = core.circuit.native.Transformers
+        native.Name, native.Wdg = dev.transformer, 3 - tap
+        other_before = native.Tap
+        target = dev.initial + (dev.maxtap - dev.mintap) / dev.numtaps
+        core.circuit.apply({"RegControl.creg1a": {"tap": target}})
+        assert core.circuit.regulator_tap("creg1a") == pytest.approx(target)
+        native.Name, native.Wdg = dev.transformer, 3 - tap
+        assert native.Tap == other_before
+        core.circuit.solve()
+        core.circuit.finish_interval()
+        assert core.circuit.trace["RegControl.creg1a"]["measured"]["tap"] == pytest.approx(target)
+        env.reset()
+        assert core.circuit.regulator_tap("creg1a") == dev.initial
+        assert core.local_observation_schema()[index] == schema
+    finally:
+        env.close()

@@ -369,17 +369,7 @@ class DeviceControlEnv(gym.Env):
         hops = int(getattr(self.config, "local_observation_neighborhood", 1))
         views = []
         for kind, name in self._agent_devices():
-            element = (
-                "transformer." + self.circuit.regulators[name].transformer
-                if kind == "regcontrol"
-                else kind + "." + name
-            )
-            conn = self.circuit._connections.get(element.lower())
-            seed = (
-                conn["buses"][0].split(".")[0].lower()
-                if conn and conn["buses"]
-                else None
-            )
+            seed = self._device_bus(kind, name)
             reached, frontier = set(), set()
             if seed:
                 frontier = {seed} & set(self.topology)
@@ -398,14 +388,23 @@ class DeviceControlEnv(gym.Env):
         return views
 
     def _device_bus(self, kind, name):
-        element = (
-            "transformer." + self.circuit.regulators[name].transformer
-            if kind == "regcontrol"
-            else kind + "." + name
-        )
+        """电压观测锚点：调压器取远端 Bus 或监测 Winding，非 TapWinding。
+
+        actor 保持母线级三相 pu 槽位，不将其冒充原生 PT 相选择或 LDC 补偿电压。
+        """
+        terminal = 0
+        element = kind + "." + name
+        if kind == "regcontrol":
+            reg = self.circuit.regulators[name]
+            if reg.monitored_bus:
+                return reg.monitored_bus.split(".")[0].lower()
+            element = "transformer." + reg.transformer
+            terminal = reg.winding - 1
         conn = self.circuit._connections.get(element.lower())
         if conn and conn["buses"]:
-            return conn["buses"][0].split(".")[0].lower()
+            if not 0 <= terminal < len(conn["buses"]):
+                raise ValueError(f"{kind}.{name}监测绕组不存在：{terminal + 1}")
+            return conn["buses"][terminal].split(".")[0].lower()
         return None
 
     def agent_local_observation(self, index):
@@ -491,6 +490,16 @@ class DeviceControlEnv(gym.Env):
                     "agent": index,
                     "element": f"{kind}.{name}",
                     "dim": self.local_observation_dim(index),
+                    "voltage_sampling": "all_bus_phases_pu",
+                    "voltage_bus": self._local_neighborhoods()[index][0],
+                    "neighborhood_buses": sorted(self._local_neighborhoods()[index][1]),
+                    "regcontrol_reference": (
+                        {
+                            "monitor_winding": self.circuit.regulators[name].winding,
+                            "tap_winding": self.circuit.regulators[name].tap_winding,
+                            "remote_bus": self.circuit.regulators[name].monitored_bus,
+                        } if kind == "regcontrol" else None
+                    ),
                     "fields": [
                         "type_onehot[5]",
                         "own_bus_voltage_pu[3]",
@@ -774,6 +783,13 @@ class DeviceControlEnv(gym.Env):
             {"element": element, "space": str(space)}
             for element, space in zip(elements, self.agent_spaces)
         ]
+        for entry in schema:
+            if entry["element"].startswith("RegControl."):
+                reg = self.circuit.regulators[entry["element"].split(".", 1)[1]]
+                entry["actuator"] = {
+                    "element": "Transformer." + reg.transformer,
+                    "winding": reg.tap_winding,
+                }
         digest = sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest()
         observation_schema = []
         if self._obs_buses is None:

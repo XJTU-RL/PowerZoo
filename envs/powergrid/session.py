@@ -439,7 +439,7 @@ class DSSSession:
                 dev = self.regulators[element.split(".", 1)[1]]
                 self.native.Transformers.Name, self.native.Transformers.Wdg = (
                     dev.transformer,
-                    dev.winding,
+                    dev.tap_winding,
                 )
                 trace["measured"] = {"tap": float(self.native.Transformers.Tap)}
             elif element.startswith("Capacitor."):
@@ -475,7 +475,7 @@ class DSSSession:
         reg = self.regulators[name]
         self.native.Transformers.Name, self.native.Transformers.Wdg = (
             reg.transformer,
-            reg.winding,
+            reg.tap_winding,
         )
         return float(self.native.Transformers.Tap)
 

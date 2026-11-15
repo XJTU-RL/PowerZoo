@@ -509,3 +509,30 @@ def test_prepare_run_freezes_smartds_content_not_synthetic():
     cfg.env_args["smartds_series"]["dataset_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="摘要与训练快照"):
         prepare_run(cfg)
+
+
+@pytest.mark.parametrize("voltages,expected,count", [
+    ([0.99, 1.01], 0.0, 0),
+    ([0.95, 1.05], 0.0, 0),
+    ([0.90, 1.01], 0.05, 1),
+    ([0.99, 1.10], 0.05, 1),
+])
+def test_smartds_daily_voltage_violation_is_nonnegative(monkeypatch, voltages, expected, count):
+    """执行实际逐步/汇总记录路径；合规不能记录成负越限幅度。"""
+    from types import SimpleNamespace
+    import scripts.check_smartds as check
+
+    monkeypatch.setattr(check, "STEPS_PER_DAY", 1)
+    state = SimpleNamespace(
+        voltages_pu={"bus": dict(enumerate(voltages, 1))}, branches={},
+        injections={}, losses=(0.0, 0.0), grid_import=(0.0, 0.0),
+    )
+    session = SimpleNamespace(
+        reset=lambda **kwargs: None, begin_interval=lambda seconds: None,
+        solve=lambda **kwargs: None, read_state=lambda: state,
+        finish_interval=lambda: None,
+    )
+    steps, summary = check._run_day(session, SimpleNamespace(apply=lambda *args: None), "fixed")
+    assert steps[0]["max_violation_pu"] == pytest.approx(expected)
+    assert steps[0]["violating_nodes"] == count
+    assert summary["max_violation_pu"] == pytest.approx(expected)

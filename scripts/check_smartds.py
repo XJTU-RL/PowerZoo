@@ -124,6 +124,7 @@ def _run_day(session, series, mode, *, offset=0, fraction=0.75, qcommand=-0.3):
                     1 for v in voltages if v < 0.95 or v > 1.05
                 ),
                 "max_violation_pu": max(
+                    0.0,
                     max(0.95 - v for v in voltages),
                     max((v - 1.05 for v in voltages), default=0.0),
                 ),
