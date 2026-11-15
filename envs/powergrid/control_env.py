@@ -74,8 +74,14 @@ class DeviceControlEnv(gym.Env):
                     "validation": smartds_spec.get("validation_days", []),
                 },
                 split=smartds_spec.get("split", "train"),
-                # 快照恢复：prepare_run 冻结的摘要（无预填时不校验）
-                content_sha256=smartds_spec.get("dataset_sha256"),
+                # 快照恢复：prepare_run 按 split 冻结的对应摘要（无预填不校验）。
+                # 摘要组成含 split（不同 split 是不同数据切片），评估 worker
+                # 须取 validation 口径的期望值而非 train 的。
+                content_sha256=(
+                    smartds_spec.get("dataset_sha256_validation")
+                    if smartds_spec.get("split", "train") == "validation"
+                    else smartds_spec.get("dataset_sha256")
+                ),
             )
             if smartds_spec.get("dataset_sha256"):
                 # 恢复校验在构造期触发（访问惰性摘要并比对），数据版本

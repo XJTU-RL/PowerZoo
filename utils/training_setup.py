@@ -59,14 +59,33 @@ def prepare_run(config):
                 "master": rel_master,
                 "days": dataset.day_indices,
                 "split": dataset.split,
-                # 曲线/脚本内容指纹：worker 恢复时校验（control_env 构造期）。
+                # 曲线/脚本内容指纹：worker 恢复时按各自 split 校验
+                # （control_env 构造期）。摘要组成含 split——train 与
+                # validation 是不同数据切片，须分别冻结。
                 "dataset_sha256": dataset.sha256,
                 # 外部清单指纹：逐文件哈希与派生补丁版本的载体。
                 "manifest_sha256": manifest_sha256,
             }
+            if dataset.day_indices["validation"]:
+                validation_dataset = SmartDSEpisodeDataset(
+                    layout,
+                    rel_master,
+                    days={
+                        "train": smartds_spec["train_days"],
+                        "validation": smartds_spec.get("validation_days", []),
+                    },
+                    split="validation",
+                )
+                frozen["dataset_sha256_validation"] = validation_dataset.sha256
             config.env_args["smartds_series"] = {**smartds_spec, **frozen}
             config.files[str(external_manifest)] = manifest_sha256
-            for key in ("dataset_sha256", "manifest_sha256"):
+            for key in (
+                "dataset_sha256",
+                "dataset_sha256_validation",
+                "manifest_sha256",
+            ):
+                if frozen.get(key) is None:
+                    continue
                 path = f"env.smartds_series.{key}"
                 entry = {"source": "runtime smartds dataset preparation", "value": frozen[key]}
                 if not config.history.get(path) or config.history[path][-1] != entry:

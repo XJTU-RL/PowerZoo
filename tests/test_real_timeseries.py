@@ -417,6 +417,12 @@ def test_prepare_run_freezes_smartds_content_not_synthetic():
     spec = cfg.env_args["smartds_series"]
     assert len(spec["dataset_sha256"]) == 64, "真实曲线内容摘要未冻结"
     assert len(spec["manifest_sha256"]) == 64, "外部清单指纹未冻结"
+    assert len(spec.get("dataset_sha256_validation", "")) == 64, (
+        "评估 split 摘要未冻结——评估 worker 会拿 train 摘要误判版本"
+    )
+    assert spec["dataset_sha256_validation"] != spec["dataset_sha256"], (
+        "split 维度应参与摘要（train 与 validation 是不同数据切片）"
+    )
     assert spec["days"] == {"train": [0, 1], "validation": [2]}
     assert spec["master"].endswith("Master.dss")
     # 未使用的合成场景清单不得被登记为数据来源：data 保持配置默认
