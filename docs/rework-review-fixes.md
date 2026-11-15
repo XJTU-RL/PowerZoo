@@ -258,6 +258,24 @@ python -m pytest tests/ -o addopts="" -q --ignore=tests/envs
   摘要稳定、PV/温度曲线与映射脚本参与摘要、prepare_run 冻结与 worker
   构造一致且无合成写入）。
 
+### 8.7b 真实训练补充验证与 split 维度修复（9b5ceedc）
+
+七项修复提交后，对两条复审边界补跑真实训练，暴露并修复一个新缺陷：
+
+- **EP 34Bus_PV MAPPO 三组短训练（48 步 ×2 线程）**：P1-1 runner 重构
+  后已确认边界保持——checkpoint 实测 3 个独立网络（成员 [0,1]/
+  [2–9]/[10–18]，与复审基线"三组 2/8/9"一致），组内逐张量相同、
+  组间互异、三组均非初始化值；训练与评估（含 log_train 消费重构后
+  的 actor_train_infos）完整跑通。
+- **p4udt4 真实时序端到端（96 步 + day2 评估 worker）**：首跑暴露
+  9028105f 的缺陷——dataset 摘要组成含 split（不同 split 是不同数据
+  切片，设计内），但 prepare_run 只冻结 train 口径一个摘要，评估
+  worker（envs_tools 强制 split=validation）构造期校验必然失败
+  （实测期望 aedd170b/实际 bc1fa98e）。修复：validation_days 非空
+  时额外冻结 `dataset_sha256_validation`，control_env 按 worker 的
+  split 取对应期望值。修复后端到端训练+评估通过（电压违规率 5.80%、
+  PV 出力/Pmpp 7.31%），train/validation 两口径校验实测生效。
+
 ### 8.8 回归验收（2026-11-15，本机 macOS arm64 / Python 3.12.8）
 
 - 七个指定测试文件 112 项全过、0 skip（外部数据经 `data/external`
