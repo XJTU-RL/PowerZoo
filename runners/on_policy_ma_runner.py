@@ -44,7 +44,8 @@ class OnPolicyMARunner(OnPolicyBaseRunner):
             active_masks_array = np.stack(active_masks_collector, axis=2)
             advantages_copy = advantages.copy()
             # 每份 active_masks 是 [T+1, N, 1]，stack 后带尾维 1；squeeze 掉
-            # 才能与 [T, N, num_agents] 的 advantages 对齐做布尔掩蔽。
+            # 才能对齐 advantages 的前三维 [T, N, num_agents]；真实 critic
+            # 还带值函数尾维 1，布尔索引会保留该尾维。
             advantages_copy[(active_masks_array[:-1] == 0.0).squeeze(axis=-1)] = np.nan
             mean_advantages = np.nanmean(advantages_copy)
             std_advantages = np.nanstd(advantages_copy)

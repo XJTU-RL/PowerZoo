@@ -59,16 +59,29 @@ class DeviceControlEnv(gym.Env):
         smartds_spec = getattr(cfg, "smartds_series", None)
         if smartds_spec:
             # SMART-DS 真实逐设备时序：episode=天，训练/评估按天留出。
-            from utils.external_cases import locate_entry
+            from utils.external_cases import locate_entry, manifest_path
             from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
 
             folder, master = locate_entry(
                 smartds_spec["case"], smartds_spec["entry"]
             )
             layout = folder.parents[4]
+            expected_manifest = smartds_spec.get("manifest_sha256")
+            if expected_manifest and sha256(
+                Path(manifest_path(smartds_spec["case"])).read_bytes()
+            ).hexdigest() != expected_manifest:
+                raise ValueError("SMART-DS 外部清单摘要与训练快照不符")
+            rel_master = str(folder.relative_to(layout)) + "/" + master
+            digest_key = (
+                "dataset_sha256_validation" if smartds_spec.get("split", "train") == "validation"
+                else "dataset_sha256"
+            )
+            if any(smartds_spec.get(key) for key in ("dataset_sha256", "dataset_sha256_validation")):
+                if not smartds_spec.get(digest_key):
+                    raise ValueError(f"SMART-DS 缺少当前 split 的冻结摘要：{digest_key}")
             self.dataset = SmartDSEpisodeDataset(
                 layout,
-                str(folder.relative_to(layout)) + "/" + master,
+                rel_master,
                 days={
                     "train": smartds_spec["train_days"],
                     "validation": smartds_spec.get("validation_days", []),
@@ -77,13 +90,9 @@ class DeviceControlEnv(gym.Env):
                 # 快照恢复：prepare_run 按 split 冻结的对应摘要（无预填不校验）。
                 # 摘要组成含 split（不同 split 是不同数据切片），评估 worker
                 # 须取 validation 口径的期望值而非 train 的。
-                content_sha256=(
-                    smartds_spec.get("dataset_sha256_validation")
-                    if smartds_spec.get("split", "train") == "validation"
-                    else smartds_spec.get("dataset_sha256")
-                ),
+                content_sha256=smartds_spec.get(digest_key),
             )
-            if smartds_spec.get("dataset_sha256"):
+            if smartds_spec.get(digest_key):
                 # 恢复校验在构造期触发（访问惰性摘要并比对），数据版本
                 # 不符立即失败而不是等到首个 info。
                 _ = self.dataset.sha256
@@ -95,17 +104,24 @@ class DeviceControlEnv(gym.Env):
                 raise ValueError("episode 步数超过一天 96 步")
         else:
             self.dataset = prepare_dataset(cfg.data, cfg.max_episode_steps)
-        system = Path(cfg.dss_folder or f"node_systems/{cfg.system_name}")
+        system = layout if smartds_spec else Path(
+            cfg.dss_folder or f"node_systems/{cfg.system_name}"
+        )
         if not system.is_absolute():
             system = Path(folder_path) / system
         self.circuit = DSSSession(
-            system, cfg.dss_file, overlays, cfg.data.step_seconds, svg_elements
+            system, rel_master if smartds_spec else cfg.dss_file,
+            overlays, cfg.data.step_seconds, svg_elements
         )
         if smartds_spec:
             if self.circuit.step_seconds != 900:
                 self.circuit.close()
                 raise ValueError("smartds_series 需要 data.step_seconds=900（15 分钟原始采样）")
-            self.dataset.bind(self.circuit)
+            try:
+                self.dataset.bind(self.circuit)
+            except Exception:
+                self.circuit.close()
+                raise
         self._episode_index = 0
         if self.circuit.native.Generators.Count and any(
             n.lower().startswith("batt")
@@ -802,6 +818,16 @@ class DeviceControlEnv(gym.Env):
             raise RuntimeError("观测值与语义清单长度不一致")
         return {
             **self.circuit.manifest(),
+            "smartds_dataset": (
+                {
+                    "split_sha256": {
+                        split: self.dataset.sha256_for_split(split)
+                        for split, days in self.dataset.day_indices.items() if days
+                    },
+                    "days": self.dataset.day_indices,
+                    "mapping": self.dataset._ensure_series().mapping(),
+                } if getattr(self.config, "smartds_series", None) else None
+            ),
             "task": type(self.config).__name__,
             "observation_mode": self.observation_mode,
             "local_observation_schema": (
@@ -850,6 +876,9 @@ class DeviceControlEnv(gym.Env):
             **summarize_branch_stats(self.physical_state.branches),
             "step_seconds": self.circuit.step_seconds,
             "dataset_sha256": self.dataset.sha256,
+            "smartds_split": (
+                self.dataset.split if getattr(self.config, "smartds_series", None) else None
+            ),
             "physics_model_sha256": self.circuit.model_sha256,
             "control_trace": {
                 k: v for k, v in self.circuit.trace.items() if not k.startswith("Load.")

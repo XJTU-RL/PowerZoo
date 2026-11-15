@@ -25,6 +25,7 @@ from hashlib import sha256
 from pathlib import Path
 from urllib.request import urlopen
 import json
+import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -386,7 +387,8 @@ def _download_zip(case_id, root=None, *, keep_zip=True, force=False, timeout=120
     extracted = model_folder(case_id, root)
     if extracted.exists():
         raise ExternalCaseError(
-            f"解压目标已存在：{extracted}；请手工确认后删除或使用 --force"
+            f"解压目标已存在：{extracted}；请使用新的 --data-dir 重建并核对，"
+            "不覆盖现存模型；旧清单可用 --migrate-manifest 从可信原始 ZIP 迁移"
         )
     with zipfile.ZipFile(zip_path) as archive:
         _safe_members(archive, case)
@@ -623,6 +625,66 @@ def _verify_file_set(case_id, root=None):
         # 文件清单算例的校验本就逐文件比对哈希，deep 开关恒等价。
         "deep_checked": True,
     }
+
+
+def migrate_zip_manifest(case_id, root=None):
+    """以登记 SHA-256 的本地原始 ZIP 为信任锚迁移清单，不下载或改模型。
+
+    每个展开文件必须与可信归档逐字节一致，且无未知文件/缺失依赖；
+    所有门禁通过后仅原子替换 manifest，绝不对未知现存文件自签哈希。
+    """
+    case, kind = _registry(case_id)
+    if kind != "zip":
+        raise ExternalCaseError("清单迁移仅适用于 ZIP 算例")
+    directory = case_dir(case_id, root)
+    archive_path = directory / case.zip_name
+    if (not archive_path.is_file() or archive_path.stat().st_size != case.zip_bytes
+            or _sha256_file(archive_path) != case.zip_sha256):
+        raise ExternalCaseError("迁移需要与登记大小及 SHA-256 一致的原始压缩包")
+    model = model_folder(case_id, root)
+    expected = {}
+    with zipfile.ZipFile(archive_path) as archive:
+        _safe_members(archive, case)
+        for member in archive.infolist():
+            if not member.is_dir():
+                rel = Path(member.filename).relative_to(case.zip_top_dir).as_posix()
+                expected[rel] = sha256(archive.read(member)).hexdigest()
+    actual = {p.relative_to(model).as_posix() for p in model.rglob("*") if p.is_file()}
+    if actual != set(expected):
+        raise ExternalCaseError("展开文件集合与可信压缩包不符，拒绝迁移清单")
+    for rel, digest in expected.items():
+        path = model / rel
+        if (not path.resolve().is_relative_to(model.resolve())
+                or _sha256_file(path) != digest):
+            raise ExternalCaseError(f"{rel} 与可信压缩包不符，拒绝迁移清单")
+    if _dependency_missing(model, case.master):
+        raise ExternalCaseError("展开模型依赖缺失，拒绝迁移清单")
+    manifest = read_manifest(case_id, root)
+    if manifest.get("case_id") != case_id:
+        raise ExternalCaseError("原清单 case_id 不符，拒绝迁移")
+    manifest.update(
+        schema_version=MANIFEST_SCHEMA_VERSION,
+        source={
+            "repo_url": case.repo_url, "upstream_commit": case.upstream_commit,
+            "zip_url": case.zip_url, "citation": case.citation,
+            "license_note": case.license_note,
+        },
+        zip={"name": case.zip_name, "sha256": case.zip_sha256, "bytes": case.zip_bytes},
+        extraction={"top_dir": case.zip_top_dir, "file_count": len(expected),
+                    "files": expected},
+    )
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory,
+                                         prefix="manifest-", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            json.dump(manifest, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        temporary.replace(manifest_path(case_id, root))
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return verify(case_id, root, deep=True)
 
 
 def _verify_zip(case_id, root=None, deep=False):

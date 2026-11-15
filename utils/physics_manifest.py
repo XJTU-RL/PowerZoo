@@ -38,6 +38,7 @@ def compare_manifests(saved, manifest):
         "storage",
         "pv",
         "svg",
+        "smartds_dataset",
     ):
         if saved.get(key) != manifest.get(key):
             raise ValueError(

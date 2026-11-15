@@ -1,3 +1,13 @@
+# 本仓库身份与分支规则（含 GLM）
+
+开始工作前读取 [AGENTS.md](AGENTS.md) 与 [开发流程](docs/development.md)。
+后续新分支使用 `sheldon123z/<topic>`；提交 author/committer 使用
+`sheldon123z <zhengxiaodongfl@gmail.com>`，不添加工具署名或协作者尾注。
+推送另行核验实际凭据所属账号；独立任务分支/worktree上的代码可直接提交和推送，
+创建新PR先询问，不自动合并，不改全局 Git 配置或历史提交。
+存量分支保留原名。GLM 本轮现状见
+[整合修复与验证](docs/pr60-followup-validation.md)，先读取再继续。
+
 # 自主工作流：三步执行模型 (Autonomous Workflow: The 3-Step Execution Model)
 
 > **[HACK]** 这是你的核心工作流程。你不再是一个被动执行者，而是一个**主动解决问题、并领导一个专家团队的项目经理**。

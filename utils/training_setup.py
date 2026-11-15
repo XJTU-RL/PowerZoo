@@ -1,5 +1,7 @@
 """正式训练启动前的共享准备；不导入 Torch、DSS 或训练器。"""
 
+from hashlib import sha256
+from pathlib import Path
 import secrets
 
 def prepare_run(config):
@@ -48,11 +50,11 @@ def prepare_run(config):
                 },
                 split=smartds_spec.get("split", "train"),
             )
-            from hashlib import sha256 as _sha256
-            from pathlib import Path as _Path
-
-            external_manifest = _Path(manifest_path(smartds_spec["case"]))
-            manifest_sha256 = _sha256(external_manifest.read_bytes()).hexdigest()
+            external_manifest = Path(manifest_path(smartds_spec["case"]))
+            manifest_sha256 = sha256(external_manifest.read_bytes()).hexdigest()
+            expected_manifest = smartds_spec.get("manifest_sha256")
+            if expected_manifest and expected_manifest != manifest_sha256:
+                raise ValueError("SMART-DS 外部清单摘要与训练快照不符")
             frozen = {
                 "case": smartds_spec["case"],
                 "entry": smartds_spec["entry"],
@@ -62,22 +64,26 @@ def prepare_run(config):
                 # 曲线/脚本内容指纹：worker 恢复时按各自 split 校验
                 # （control_env 构造期）。摘要组成含 split——train 与
                 # validation 是不同数据切片，须分别冻结。
-                "dataset_sha256": dataset.sha256,
+                "dataset_sha256": dataset.sha256_for_split("train"),
                 # 外部清单指纹：逐文件哈希与派生补丁版本的载体。
                 "manifest_sha256": manifest_sha256,
             }
-            if dataset.day_indices["validation"]:
-                validation_dataset = SmartDSEpisodeDataset(
-                    layout,
-                    rel_master,
-                    days={
-                        "train": smartds_spec["train_days"],
-                        "validation": smartds_spec.get("validation_days", []),
-                    },
-                    split="validation",
-                )
-                frozen["dataset_sha256_validation"] = validation_dataset.sha256
+            for split, key in (
+                ("train", "dataset_sha256"),
+                ("validation", "dataset_sha256_validation"),
+            ):
+                digest = dataset.sha256_for_split(split)
+                if smartds_spec.get(key) and smartds_spec[key] != digest:
+                    raise ValueError(f"SMART-DS {split} 摘要与训练快照不符")
+                if split == "train" or dataset.day_indices[split]:
+                    frozen[key] = digest
             config.env_args["smartds_series"] = {**smartds_spec, **frozen}
+            config.env_args.update(dss_folder=str(layout), dss_file=rel_master)
+            for key in ("dss_folder", "dss_file"):
+                path = f"env.{key}"
+                record = {"source": "runtime smartds entry selection", "value": config.env_args[key]}
+                if not config.history.get(path) or config.history[path][-1] != record:
+                    config.history.setdefault(path, []).append(record)
             config.files[str(external_manifest)] = manifest_sha256
             for key in (
                 "dataset_sha256",

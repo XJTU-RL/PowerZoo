@@ -293,3 +293,13 @@ python -m pytest tests/ -o addopts="" -q --ignore=tests/envs
   组件级已覆盖）；checkpoint 恢复端到端重放未单独实跑（info 绑定与
   构造期校验分别覆盖）；rdt1534 级数据集每次构造读全部曲线字节未加
   缓存（约秒级）；本仓 UK 旧 manifest 待用户决定是否重下迁移。
+
+
+## 9. PR60 本地整合补充（基于60ac9ea6，未提交）
+
+GLM按用户此前任务推进至60ac9ea6的内容保留；本地补充修复已在独立的
+`sheldon123z/pr60-integrated` 工作区整合，未修改指定GLM工作区，也未执行Git合并。
+逐split摘要保留GLM格式，checkpoint绑定完整划分表；另纳入LFC None mask、
+PV实际驱动恢复、日期懒加载及可信ZIP清单迁移。旧章节中的驱动模式猜测等表述
+是此前阶段记录，当前实现和371项相关回归证据以
+[整合修复与验证](pr60-followup-validation.md)为准。

@@ -459,6 +459,58 @@ def test_deep_verify_old_manifest_reports_redownload(packaged_tiny_case):
     assert any("旧版 manifest" in p and "重新下载" in p for p in deep["problems"])
 
 
+@pytest.mark.parametrize("problem", [None, "tamper", "missing", "extra", "archive"])
+def test_manifest_migration_requires_trusted_archive_and_matching_model(packaged_tiny_case, problem):
+    """迁移只更新元数据；未知/损坏展开文件和非登记归档都不得自签。"""
+    import json
+    from utils.external_cases import manifest_path, migrate_zip_manifest
+
+    case, root = packaged_tiny_case
+    download(case.case_id, root)
+    model = locate(case.case_id, root)
+    path = manifest_path(case.case_id, root)
+    legacy = json.loads(path.read_text())
+    del legacy["extraction"]["files"]
+    path.write_text(json.dumps(legacy))
+    original_manifest = path.read_bytes()
+    if problem == "tamper":
+        (model / "loads.dss").write_text("modified")
+    elif problem == "missing":
+        (model / "loads.dss").unlink()
+    elif problem == "extra":
+        (model / "unknown.dss").write_text("unknown")
+    elif problem == "archive":
+        (root / case.case_id / case.zip_name).write_bytes(b"wrong archive")
+    before = {p.relative_to(model): p.read_bytes() for p in model.rglob("*") if p.is_file()}
+    if problem:
+        with pytest.raises(ExternalCaseError):
+            migrate_zip_manifest(case.case_id, root)
+        assert path.read_bytes() == original_manifest
+    else:
+        assert migrate_zip_manifest(case.case_id, root)["status"] == "ok"
+        assert json.loads(path.read_text())["extraction"]["files"]
+    assert before == {p.relative_to(model): p.read_bytes() for p in model.rglob("*") if p.is_file()}
+
+
+def test_cli_migrates_trusted_legacy_manifest(packaged_tiny_case, monkeypatch, capsys):
+    """离线可信迁移命令成功后，深检为 ok，模型无需重新下载。"""
+    import json
+    import sys
+    from scripts.download_external_case import main
+    from utils.external_cases import manifest_path
+
+    case, root = packaged_tiny_case
+    download(case.case_id, root)
+    path = manifest_path(case.case_id, root)
+    legacy = json.loads(path.read_text())
+    del legacy["extraction"]["files"]
+    path.write_text(json.dumps(legacy))
+    monkeypatch.setattr(sys, "argv", ["download_external_case.py", "--case", case.case_id,
+                                     "--data-dir", str(root), "--migrate-manifest"])
+    main()
+    assert json.loads(capsys.readouterr().out)["deep_checked"] is True
+
+
 def test_cli_deep_without_verify_is_usage_error(packaged_tiny_case, monkeypatch):
     """--deep 不带 --verify：argparse 用法错误退出 2（复审时 --deep 参数不存在）。"""
     import sys as _sys

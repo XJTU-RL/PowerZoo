@@ -26,6 +26,7 @@ from utils.external_cases import (  # noqa: E402
     FILE_SET_CASES,
     download,
     external_root,
+    migrate_zip_manifest,
     s3_list_objects,
     verify,
 )
@@ -130,13 +131,18 @@ def main():
     parser.add_argument("--no-keep-zip", action="store_true", help="解压后删除压缩包（仅 zip 算例）")
     parser.add_argument("--verify", action="store_true", help="只做校验，不下载")
     parser.add_argument(
+        "--migrate-manifest", action="store_true",
+        help="以登记哈希的本地原始 ZIP 逐文件核对后迁移旧清单；不下载或改模型",
+    )
+    parser.add_argument(
         "--deep",
         action="store_true",
         help=(
             "与 --verify 组合：逐文件比对展开内容与 manifest 逐文件 SHA-256"
             "（zip 算例；文件清单算例的校验本就逐文件，无需此开关）。"
-            "旧版 manifest 缺逐文件哈希会明确失败——迁移方式是重新下载"
-            "（--force）从上游压缩包重建清单，核对后自行替换现存数据；"
+            "旧版 manifest 缺逐文件哈希会明确失败：可用 --migrate-manifest"
+            "核对本地可信 ZIP 后迁移；无归档时用新的 --data-dir 重新下载，"
+            "核对后自行替换现存数据；"
             "不把现存未知文件自签为可信版本"
         ),
     )
@@ -152,6 +158,9 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.migrate_manifest and (args.verify or args.deep or args.discover
+                                  or args.force or args.no_keep_zip or args.write_manifest):
+        parser.error("--migrate-manifest 不与校验、下载或发现选项组合")
     if args.deep and not args.verify:
         parser.error("--deep 仅与 --verify 组合使用（深度校验不执行下载）")
 
@@ -168,6 +177,12 @@ def main():
         return
 
     root = external_root(args.data_dir)
+    if args.migrate_manifest:
+        report = migrate_zip_manifest(args.case, root)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        if report["status"] != "ok":
+            sys.exit(1)
+        return
     if args.verify:
         report = verify(args.case, root, deep=args.deep)
         print(json.dumps(report, ensure_ascii=False, indent=2))

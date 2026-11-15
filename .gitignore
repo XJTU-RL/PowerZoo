@@ -485,6 +485,7 @@ node_systems/**/loadshape/data_with_gaussian_noise/[0-9][0-9][0-9]/
 
 # Shared task worktrees
 .Codex/worktrees/
+.claude/worktrees/
 runs/
 
 # External OpenDSS cases (license unclear upstream; never commit, fetch via scripts/download_external_case.py)

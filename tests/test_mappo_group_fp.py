@@ -101,6 +101,20 @@ class _Namespace:
         self.__dict__.update(kwargs)
 
 
+def test_group_fp_preserves_real_critic_value_axis():
+    """真实 FP critic 的 [T,N,A,1] 布局须保留值轴并按成员切片。"""
+    runner, net_a, net_b = _make_fake_runner("FP", "group")
+    runner.critic_buffer.returns = runner.critic_buffer.returns[..., None]
+    runner.critic_buffer.value_preds = runner.critic_buffer.value_preds[..., None]
+    runner.actor_buffer[2].active_masks[0] = 0
+    raw = runner.critic_buffer.returns[:-1] - runner.critic_buffer.value_preds[:-1]
+    active = np.stack([b.active_masks[:-1] for b in runner.actor_buffer], axis=2)
+    expected = (raw - raw[active != 0].mean()) / (raw[active != 0].std() + 1e-5)
+    runner.train()
+    np.testing.assert_allclose(net_a.share_calls[0]["advantages"], expected[:, :, [0, 2]])
+    np.testing.assert_allclose(net_b.share_calls[0]["advantages"], expected[:, :, [1]])
+
+
 def _expected_fp_normalized(raw_advantages, active_masks_list=None):
     """按 runner 的 FP 归一化公式计算期望（active 样本统计量）。"""
     advantages_copy = raw_advantages.copy()

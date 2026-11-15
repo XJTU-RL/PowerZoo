@@ -314,6 +314,29 @@ def test_probe_restores_model_native_constant_q(model):
         session.close()
 
 
+@pytest.mark.parametrize("settings,constant_q", [
+    ("pf=.95 kvar=10", True), ("kvar=10 pf=-.95", False),
+])
+def test_probe_uses_effective_native_driver_after_ordered_edits(model, settings, constant_q):
+    """PF/kvar getter 会残留旧值，恢复须遵循引擎最后生效的属性。"""
+    _pv_variant(model, f"{settings} kvarmax=80 kvarmaxabs=60")
+    session = DSSSession(model, "model.dss")
+    try:
+        for runtime in (False, True):
+            if runtime:
+                session.command(f"Edit PVSystem.pv {settings}")
+            session.set_pv_conditions(0.4, 25)
+            session.solve()
+            session.available_pv_power(["pv"])
+            session.set_pv_conditions(0.2, 25)
+            session.solve()
+            p, q = -session.powers("PVSystem.pv")
+            expected = 10 if constant_q else p * np.tan(np.arccos(-0.95))
+            assert q == pytest.approx(expected, rel=1e-4)
+    finally:
+        session.close()
+
+
 def test_probe_keeps_model_fixed_pf_tracking(model):
     """模型原生 pf=-0.95 的 PV：探测后 Q 仍随辐照按 pf 派生（回归保护）。"""
     _pv_variant(model, "pf=-0.95 kvarmax=80 kvarmaxabs=60")

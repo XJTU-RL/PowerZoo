@@ -19,6 +19,7 @@
   环境温度；无 P-TCurve 时对出力无影响，仅如实透传）。
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 import json
@@ -308,8 +309,12 @@ def validate_holdout_days(days):
     worker 内崩溃（复审 4d8af3b5：重叠配置曾被接受，两个 split 都
     reset 到同一天，留出形同虚设）。
     """
+    if not isinstance(days, dict) or set(days) - {"train", "validation"}:
+        raise ValueError("smartds_series days 只支持 train/validation 映射")
     seen = {}
     for split, values in days.items():
+        if not isinstance(values, (list, tuple)):
+            raise ValueError(f"smartds_series {split}_days 必须是日号列表")
         for day in values:
             # bool 是 int 子类，必须显式排除（True 曾通过整数检查）
             if isinstance(day, bool) or not isinstance(day, int):
@@ -332,6 +337,29 @@ def validate_holdout_days(days):
                     f"smartds_series {split}_days 含重复日号：day{day:03d}"
                 )
             seen[day] = split
+
+
+class _DayEpisodes(Sequence):
+    """只在索引选中天时构造上下文；长度和重复索引不遍历其他天。"""
+
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset.day_indices[self.dataset.split])
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return [self[i] for i in range(*index.indices(len(self)))]
+        day = self.dataset.day_indices[self.dataset.split][index]
+        if day not in self.dataset._profiles:
+            profile = self.dataset._episode_profile(day)
+            profile.setflags(write=False)
+            self.dataset._profiles[day] = profile
+        return (
+            {"id": f"day{day:03d}", "day": day, "scenario": f"smartds_day{day:03d}"},
+            self.dataset._profiles[day],
+        )
 
 
 class SmartDSEpisodeDataset:
@@ -361,34 +389,49 @@ class SmartDSEpisodeDataset:
         # 快照恢复时预填的期望摘要；与实际内容不符即拒绝（对齐合成路径
         # manifest_sha256 的校验语义）。首次访问 .sha256 时比对。
         self._expected_sha256 = content_sha256
-        self._sha256 = None
+        self._split_sha256 = {}
+        self._content_sha256 = None
         self._series = None  # 首次 bind 时构建（避免构造期读全部曲线）
-        self._bind_hook = None
+        self._profiles = {}
+        self._episodes = _DayEpisodes(self)
 
     @property
     def sha256(self):
-        """绑定实际数据内容的版本摘要（惰性计算，构造期不读曲线文件）。
+        """当前 split 的内容摘要；每次访问均核对恢复期望，失败不缓存放行。"""
+        digest = self.sha256_for_split(self.split)
+        if self._expected_sha256 and digest != self._expected_sha256:
+            raise ValueError(
+                "SMART-DS 时序摘要与训练快照不符（曲线/映射被改动或数据版本不同）；"
+                f"期望 {self._expected_sha256}，实际 {digest}"
+            )
+        return digest
 
-        组成：曲线/脚本内容指纹 + 入口相对路径 + 日号与 split + 步数 +
-        单位与时间基准。不含数据目录绝对路径——内容不变仅搬目录时摘要
-        不变（复审 4d8af3b5：旧摘要用路径字符串，既绑不住曲线内容、
-        搬目录又会误判版本）。
+    def sha256_for_split(self, split):
+        """保留 GLM 的逐 split 摘要格式，共享一次内容扫描。
+
+        train/validation 分别绑定数据切片；checkpoint 可保存两者组成的
+        整套划分表，使验证切换合法、改变划分仍被拒绝。
         """
+        if split not in self.day_indices:
+            raise ValueError(f"未知 SMART-DS split：{split!r}")
         from hashlib import sha256
 
-        if self._sha256 is None:
+        if split not in self._split_sha256:
             layout, master = self.series_source
-            self._sha256 = sha256(
+            if self._content_sha256 is None:
+                self._content_sha256 = (
+                    self._series or SmartDSTimeseries(layout, master)
+                ).content_digest()
+            self._split_sha256[split] = sha256(
                 json.dumps(
                     {
-                        "series_content": SmartDSTimeseries(
-                            layout, master
-                        ).content_digest(),
+                        "series_content": self._content_sha256,
                         "master": master,
                         "days": {k: sorted(v) for k, v in self.day_indices.items()},
-                        "split": self.split,
+                        "split": split,
                         "steps": STEPS_PER_DAY,
                         "units": {
+                            # 保留60ac9ea6摘要字面格式；qmut为历史拼写，实际输入是qmult。
                             "load": "kW/kvar 铭牌 × mult/qmut 曲线倍率",
                             "pv": "kW/m2 辐照 mult + degC solar_data 温度",
                         },
@@ -398,35 +441,20 @@ class SmartDSEpisodeDataset:
                     ensure_ascii=False,
                 ).encode("utf-8")
             ).hexdigest()
-            if self._expected_sha256 and self._sha256 != self._expected_sha256:
-                raise ValueError(
-                    "SMART-DS 时序摘要与训练快照不符（曲线/映射被改动或数据版本不同）；"
-                    f"期望 {self._expected_sha256}，实际 {self._sha256}"
-                )
-        return self._sha256
+        return self._split_sha256[split]
 
     # -- 与 ScenarioDataset 相同的最小接口面（control_env 消费） ----------
     @property
     def episodes(self):
-        days = self.day_indices[self.split]
-        return [
-            (
-                {
-                    "id": f"day{day:03d}",
-                    "day": day,
-                    "scenario": f"smartds_day{day:03d}",
-                },
-                self._episode_profile(day),
-            )
-            for day in days
-        ]
+        """返回按天惰性索引，不为 len() 或 reset 的边界检查生成数据。"""
+        return self._episodes
 
     def _episode_profile(self, day):
         """(96,6) 上下文矩阵：时间轴 + 全网平均负荷倍率/辐照/温度（仅观测）。"""
         series = self._ensure_series()
-        rows = [series.row(day * STEPS_PER_DAY + t) for t in range(STEPS_PER_DAY)]
         profile = np.zeros((STEPS_PER_DAY, 6))
-        for t, row in enumerate(rows):
+        for t in range(STEPS_PER_DAY):
+            row = series.row(day * STEPS_PER_DAY + t)
             loads = np.array([v[0] for v in row["loads"].values()])
             pvs = np.array([v[0] for v in row["pv"].values()]) if row["pv"] else np.zeros(1)
             temps = np.array([v[1] for v in row["pv"].values()]) if row["pv"] else np.zeros(1)
@@ -449,8 +477,12 @@ class SmartDSEpisodeDataset:
     def bind(self, session):
         """把底层 SmartDSTimeseries 绑定到会话（构造后调用一次）。"""
         if self._series is None:
-            layout, master = self.series_source
-            self._series = SmartDSTimeseries(layout, master).bind(session)
+            _, master = self.series_source
+            # 物理与供数都消费会话临时副本，运行中不再读可变的源目录。
+            self._series = SmartDSTimeseries(session.folder, master).bind(session)
+            self._content_sha256 = None
+            self._split_sha256.clear()
+            _ = self.sha256  # 编译副本也须匹配 prepare_run 冻结的内容
         return self._series
 
     def _ensure_series(self):

@@ -339,8 +339,9 @@ def test_dataset_digest_binds_load_curve_content(tmp_path):
     stale = SmartDSEpisodeDataset(
         layout, rel, days=_days(), content_sha256=before
     )
-    with pytest.raises(ValueError, match="摘要与训练快照不符"):
-        _ = stale.sha256
+    for _ in range(2):
+        with pytest.raises(ValueError, match="摘要与训练快照不符"):
+            _ = stale.sha256
     # 期望值正确时不拒绝
     ok = SmartDSEpisodeDataset(layout, rel, days=_days(), content_sha256=after)
     assert ok.sha256 == after
@@ -370,18 +371,23 @@ def test_dataset_digest_binds_pv_curve_and_mapping(tmp_path):
     solar = sorted((layout / "solar_data").glob("*.csv"))
     assert solar, "测试预期 solar_data 目录存在 PV 曲线"
     victim = solar[0]
-    victim.write_bytes(victim.read_bytes() + b"\n")
+    original = victim.read_bytes()
+    victim.write_bytes(original + b"\n")
     assert (
         SmartDSEpisodeDataset(layout, rel, days=_days()).sha256 != base
     ), "PV/温度曲线未绑定进摘要"
 
     # 恢复数据后改映射脚本（LoadShape 定义所在 loadshapes.dss）
-    victim.write_bytes(victim.read_bytes().rstrip(b"\n")[:-1])
-    shapes = sorted(layout.rglob("LoadShapes.dss"))
-    assert shapes
-    script = shapes[0]
+    victim.write_bytes(original)
+    assert SmartDSEpisodeDataset(layout, rel, days=_days()).sha256 == base
+    from envs.powergrid.smartds_timeseries import SmartDSTimeseries
+
+    definitions = list(SmartDSTimeseries(layout, rel).shapes.values())
+    first, second = definitions[:2]
+    assert first["mult"] != second["mult"]
+    script = layout / first["origin"].rsplit(":", 1)[0]
     script.write_text(
-        script.read_text(encoding="utf-8") + "\n!mapping touched",
+        script.read_text(encoding="utf-8").replace(first["mult"], second["mult"], 1),
         encoding="utf-8",
     )
     assert (
@@ -447,5 +453,59 @@ def test_prepare_run_freezes_smartds_content_not_synthetic():
     try:
         env.reset()
         assert env.env.dataset.sha256 == spec["dataset_sha256"]
+        trained_manifest = env.env.get_physics_manifest()
     finally:
         env.close()
+
+    from copy import deepcopy
+    from utils.envs_tools import make_eval_env
+    from utils.physics_manifest import compare_manifests
+
+    evaluation = make_eval_env("smartgrid", 0, 1, cfg.env_args)
+    try:
+        evaluation.reset()
+        result = evaluation.step([[space.sample() for space in evaluation.action_space]])
+        info = result[4][0][0]
+        assert info["scenario_id"] == "day002"
+        assert info["smartds_split"] == "validation"
+        assert info["dataset_sha256"] == spec["dataset_sha256_validation"]
+        evaluated_manifest = evaluation.get_physics_manifest()
+        compare_manifests(trained_manifest, evaluated_manifest)
+        assert trained_manifest["smartds_dataset"]["split_sha256"] == {
+            "train": spec["dataset_sha256"],
+            "validation": spec["dataset_sha256_validation"],
+        }
+        assert trained_manifest["smartds_dataset"]["mapping"]["load_shapes"]
+        changed = deepcopy(evaluated_manifest)
+        changed["smartds_dataset"]["days"]["train"] = [10]
+        with pytest.raises(ValueError, match="smartds_dataset"):
+            compare_manifests(trained_manifest, changed)
+        legacy = deepcopy(trained_manifest)
+        del legacy["smartds_dataset"]
+        with pytest.raises(ValueError, match="smartds_dataset"):
+            compare_manifests(legacy, evaluated_manifest)
+    finally:
+        evaluation.close()
+
+    stale = deepcopy(cfg.env_args)
+    stale["smartds_series"]["manifest_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="清单摘要"):
+        make_power_env("smartgrid", stale, 0, 0)
+
+    stale = deepcopy(cfg.env_args)
+    stale["smartds_series"]["split"] = "validation"
+    stale["smartds_series"]["dataset_sha256_validation"] = "0" * 64
+    with pytest.raises(ValueError, match="摘要与训练快照"):
+        make_power_env("smartgrid", stale, 0, 0)
+    del stale["smartds_series"]["dataset_sha256_validation"]
+    with pytest.raises(ValueError, match="缺少当前 split"):
+        make_power_env("smartgrid", stale, 0, 0)
+
+    original_validation = cfg.env_args["smartds_series"]["dataset_sha256_validation"]
+    cfg.env_args["smartds_series"]["dataset_sha256_validation"] = "0" * 64
+    with pytest.raises(ValueError, match="validation 摘要与训练快照"):
+        prepare_run(cfg)
+    cfg.env_args["smartds_series"]["dataset_sha256_validation"] = original_validation
+    cfg.env_args["smartds_series"]["dataset_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="摘要与训练快照"):
+        prepare_run(cfg)

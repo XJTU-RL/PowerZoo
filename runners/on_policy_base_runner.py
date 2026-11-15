@@ -448,6 +448,23 @@ class OnPolicyBaseRunner:
 
             self.after_update()
 
+    @staticmethod
+    def _agent_available_actions(available_actions, agent_id):
+        """提取逐环境/逐智能体掩码；连续环境的任一整帧 None 均合法。
+
+        同一智能体的掩码必须在所有 worker 一致存在或一致缺失，避免将
+        部分缺失静默转成 object 数组或忽略真实离散约束。
+        """
+        if available_actions is None:
+            return None
+        masks = [None if frame is None else frame[agent_id]
+                 for frame in available_actions]
+        if all(mask is None for mask in masks):
+            return None
+        if any(mask is None for mask in masks):
+            raise ValueError(f"智能体 {agent_id} 的动作掩码在 worker 间部分缺失")
+        return np.stack(masks).astype(np.float32)
+
     def warmup(self):
         """预热重播缓冲区. warmup 函数的主要作用是通过与环境的初步交互来填充重放缓冲区，
         使得在训练开始之前，缓冲区中已经有了一定数量的环境状态、观测和可用动作的数据。"""
@@ -472,12 +489,11 @@ class OnPolicyBaseRunner:
                 and self.actor_buffer[agent_id].available_actions is not None
             ):
                 # 提取当前智能体的可用动作
-                agent_available_actions = []
-                for env_idx in range(len(available_actions)):
-                    agent_available_actions.append(available_actions[env_idx][agent_id])
-                self.actor_buffer[agent_id].available_actions[0] = np.array(
-                    agent_available_actions
+                agent_available_actions = self._agent_available_actions(
+                    available_actions, agent_id
                 )
+                if agent_available_actions is not None:
+                    self.actor_buffer[agent_id].available_actions[0] = agent_available_actions
 
         # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
         if self.state_type == "EP":
@@ -915,18 +931,9 @@ class OnPolicyBaseRunner:
             # 提取当前智能体的可用动作：按 agent 判定而非只看第一个
             # （Box/连续空间无离散可用性掩码；混合空间逐 agent 判定，避免
             # 把 None 包装成 object 数组写入未分配的 buffer 槽）。
-            if (
-                available_actions is not None
-                and available_actions[0][agent_id] is not None
-            ):
-                agent_available_actions = np.array(
-                    [
-                        available_actions[env_idx][agent_id]
-                        for env_idx in range(len(available_actions))
-                    ]
-                )
-            else:
-                agent_available_actions = None
+            agent_available_actions = self._agent_available_actions(
+                available_actions, agent_id
+            )
 
             self.actor_buffer[agent_id].insert(
                 obs[:, agent_id],
@@ -1075,15 +1082,9 @@ class OnPolicyBaseRunner:
             for agent_id in range(self.num_agents):
                 # 提取当前智能体的可用动作
                 # 异构动作空间：离散智能体有掩码列表，连续智能体返回None
-                agent_available_actions = None
-                if eval_available_actions[0] is not None:
-                    per_env = [
-                        eval_available_actions[env_idx][agent_id]
-                        for env_idx in range(len(eval_available_actions))
-                    ]
-                    # 只有当该智能体在所有环境中都有可用动作时才转为数组
-                    if per_env[0] is not None:
-                        agent_available_actions = np.array(per_env, dtype=np.float32)
+                agent_available_actions = self._agent_available_actions(
+                    eval_available_actions, agent_id
+                )
 
                 eval_actions, temp_rnn_state = self.actor[agent_id].act(
                     eval_obs[:, agent_id],
