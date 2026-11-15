@@ -74,7 +74,13 @@ class DeviceControlEnv(gym.Env):
                     "validation": smartds_spec.get("validation_days", []),
                 },
                 split=smartds_spec.get("split", "train"),
+                # 快照恢复：prepare_run 冻结的摘要（无预填时不校验）
+                content_sha256=smartds_spec.get("dataset_sha256"),
             )
+            if smartds_spec.get("dataset_sha256"):
+                # 恢复校验在构造期触发（访问惰性摘要并比对），数据版本
+                # 不符立即失败而不是等到首个 info。
+                _ = self.dataset.sha256
             if len(self.dataset.day_indices[self.dataset.split]) == 0:
                 raise ValueError(
                     f"smartds_series split={self.dataset.split} 没有可用天"

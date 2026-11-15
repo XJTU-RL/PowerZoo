@@ -299,3 +299,147 @@ def test_check_smartds_branch_summary_without_or_zero():
     empty = SimpleNamespace(branches={})
     assert branch_summary(empty)["max_branch_loading_pu"] is None
     assert branch_summary(empty)["overloaded_branches"] == 0
+
+
+# ---- 真实时序数据冻结（复审 4d8af3b5：摘要只含路径，绑不住曲线内容） ------
+
+def _copy_case(tmp_path):
+    """只读复制真实 p4udt4 数据到临时目录，返回其 layout 与入口相对路径。"""
+    import shutil
+
+    from utils.external_cases import locate_entry
+
+    folder, master = locate_entry("smart_ds_sfo_p4udt4", "solar_high_none")
+    layout = folder.parents[4]
+    target = tmp_path / "case"
+    shutil.copytree(layout, target)
+    return target, str(folder.relative_to(layout)) + "/" + master
+
+
+def _days():
+    return {"train": [0, 1], "validation": [2]}
+
+
+@requires_smartds
+def test_dataset_digest_binds_load_curve_content(tmp_path):
+    """修改任一负荷曲线字节后摘要必须改变；恢复校验拒绝旧摘要。"""
+    from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
+
+    layout, rel = _copy_case(tmp_path)
+    before = SmartDSEpisodeDataset(layout, rel, days=_days()).sha256
+
+    curves = sorted((layout / "profiles").rglob("*.csv"))
+    assert curves, "测试预期 profiles 目录存在负荷曲线"
+    victim = curves[0]
+    victim.write_bytes(victim.read_bytes() + b"\n")
+
+    after = SmartDSEpisodeDataset(layout, rel, days=_days()).sha256
+    assert after != before, "负荷曲线内容未绑定进摘要"
+
+    stale = SmartDSEpisodeDataset(
+        layout, rel, days=_days(), content_sha256=before
+    )
+    with pytest.raises(ValueError, match="摘要与训练快照不符"):
+        _ = stale.sha256
+    # 期望值正确时不拒绝
+    ok = SmartDSEpisodeDataset(layout, rel, days=_days(), content_sha256=after)
+    assert ok.sha256 == after
+
+
+@requires_smartds
+def test_dataset_digest_stable_across_directory_move(tmp_path):
+    """内容不变仅搬目录：摘要不得因路径不同而误判版本。"""
+    from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
+
+    layout, rel = _copy_case(tmp_path)
+    original = SmartDSEpisodeDataset(layout, rel, days=_days()).sha256
+
+    moved = tmp_path / "renamed"
+    layout.rename(moved)
+    assert SmartDSEpisodeDataset(moved, rel, days=_days()).sha256 == original
+
+
+@requires_smartds
+def test_dataset_digest_binds_pv_curve_and_mapping(tmp_path):
+    """PV 辐照/温度曲线与设备→曲线映射脚本都参与摘要。"""
+    from envs.powergrid.smartds_timeseries import SmartDSEpisodeDataset
+
+    layout, rel = _copy_case(tmp_path)
+    base = SmartDSEpisodeDataset(layout, rel, days=_days()).sha256
+
+    solar = sorted((layout / "solar_data").glob("*.csv"))
+    assert solar, "测试预期 solar_data 目录存在 PV 曲线"
+    victim = solar[0]
+    victim.write_bytes(victim.read_bytes() + b"\n")
+    assert (
+        SmartDSEpisodeDataset(layout, rel, days=_days()).sha256 != base
+    ), "PV/温度曲线未绑定进摘要"
+
+    # 恢复数据后改映射脚本（LoadShape 定义所在 loadshapes.dss）
+    victim.write_bytes(victim.read_bytes().rstrip(b"\n")[:-1])
+    shapes = sorted(layout.rglob("LoadShapes.dss"))
+    assert shapes
+    script = shapes[0]
+    script.write_text(
+        script.read_text(encoding="utf-8") + "\n!mapping touched",
+        encoding="utf-8",
+    )
+    assert (
+        SmartDSEpisodeDataset(layout, rel, days=_days()).sha256 != base
+    ), "设备→曲线映射脚本未绑定进摘要"
+
+
+@requires_smartds
+def test_prepare_run_freezes_smartds_content_not_synthetic():
+    """prepare_run 冻结真实数据摘要与外部清单；不再登记未使用的合成清单。"""
+    from utils.config_pipeline import ConfigLoader
+    from utils.training_setup import prepare_run
+
+    cfg = ConfigLoader().load(
+        "happo",
+        "smartgrid",
+        system_ref="SMARTDS_P4UDT4",
+        values={
+            "env": {
+                "smartds_series": dict(SERIES_SPEC),
+                "max_episode_steps": 4,
+                "pv_plan": "none",
+                "pv_control_mode": "rl",
+                "data": {"step_seconds": 900},
+            }
+        },
+    )
+    cfg.main_args["env"] = "smartgrid_smartds_p4udt4"
+    cfg.algo_args.setdefault("seed", {"seed_specify": True, "seed": 7})
+
+    prepare_run(cfg)
+
+    spec = cfg.env_args["smartds_series"]
+    assert len(spec["dataset_sha256"]) == 64, "真实曲线内容摘要未冻结"
+    assert len(spec["manifest_sha256"]) == 64, "外部清单指纹未冻结"
+    assert spec["days"] == {"train": [0, 1], "validation": [2]}
+    assert spec["master"].endswith("Master.dss")
+    # 未使用的合成场景清单不得被登记为数据来源：data 保持配置默认
+    # （manifest_sha256 未被 runtime 写入），文件表与来源表只认真实数据。
+    assert cfg.env_args["data"].get("manifest_sha256") is None
+    assert not [
+        p for p in cfg.files if "results/powergrid_data" in p
+    ], "合成场景清单被登记进运行文件表"
+    for key in ("env.data.path", "env.data.manifest_sha256"):
+        assert not [
+            e for e in cfg.history.get(key, []) if "dataset preparation" in e["source"]
+        ], f"{key} 被合成数据准备写入"
+    manifest_files = [
+        p for p in cfg.files if p.endswith("smart_ds_sfo_p4udt4/manifest.json")
+    ]
+    assert manifest_files, "外部清单未登记进运行文件表"
+    assert cfg.files[manifest_files[0]] == spec["manifest_sha256"]
+    # 冻结的摘要与 worker 实际构造一致（恢复校验可通过）
+    from utils.envs_tools import make_power_env
+
+    env = make_power_env("smartgrid", cfg.env_args, 0, 0)
+    try:
+        env.reset()
+        assert env.env.dataset.sha256 == spec["dataset_sha256"]
+    finally:
+        env.close()

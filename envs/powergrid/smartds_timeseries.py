@@ -21,6 +21,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+import json
 import math
 import re
 
@@ -100,12 +101,50 @@ class SmartDSTimeseries:
         scripts = _collect_scripts(self.layout_root, self.master)
         if not scripts:
             raise FileNotFoundError(f"入口脚本不可读：{self.layout_root / self.master}")
+        self._scripts = scripts
         self.shapes = _shape_definitions(scripts)
         self._curves = {}
         self._temperatures = {}
         self.load_shapes = {}  # bind 后：负荷名 -> shape 名
         self.pv_shapes = {}  # bind 后：PV 名 -> shape 名
         self.nameplates = {}  # bind 后：负荷名 -> (铭牌 kW, 铭牌 kvar)
+
+    def content_digest(self):
+        """数据内容版本指纹：脚本 + 全部被引用曲线/温度文件的内容哈希。
+
+        不含绝对路径——数据内容不变仅搬目录时摘要不变（复审 4d8af3b5：
+        旧摘要把路径字符串写进哈希，搬目录即误判版本）；修改任一负荷
+        mult/qmut、PV 辐照或温度曲线、以及定义设备→曲线映射的脚本，
+        摘要都会改变。同文件被多个 LoadShape 引用只计一次。
+        """
+        from hashlib import sha256 as _sha256
+
+        items = [
+            ("script", rel, _sha256(text.encode("utf-8")).hexdigest())
+            for rel, text in self._scripts
+        ]
+        file_digests = {}
+
+        def add_file(path):
+            rel = path.relative_to(self.layout_root).as_posix()
+            if rel not in file_digests:
+                file_digests[rel] = _sha256(path.read_bytes()).hexdigest()
+
+        for _, entry in sorted(self.shapes.items()):
+            for key in ("mult", "qmult"):
+                reference = entry.get(key)
+                if reference:
+                    add_file(self._resolve(entry["origin"], reference))
+            mult = entry.get("mult")
+            if mult:
+                stem = Path(mult.replace("\\", "/")).stem
+                solar = self.layout_root / "solar_data" / f"{stem}_full.csv"
+                if solar.is_file():
+                    add_file(solar)
+        items.extend(("data", rel, digest) for rel, digest in sorted(file_digests.items()))
+        return _sha256(
+            json.dumps(sorted(items), ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
 
     def _curve(self, shape_name, key):
         entry = self.shapes.get(shape_name)
@@ -304,7 +343,8 @@ class SmartDSEpisodeDataset:
     profile 列仅作观测上下文（全网平均辐照/温度/负荷倍率），不参与写入。
     """
 
-    def __init__(self, layout_root, master, days, split="train", day_indices=None):
+    def __init__(self, layout_root, master, days, split="train", day_indices=None,
+                 content_sha256=None):
         if split not in ("train", "validation"):
             raise ValueError(
                 f"smartds_series split 只支持 train/validation，收到：{split!r}"
@@ -318,23 +358,52 @@ class SmartDSEpisodeDataset:
             "validation": list(days.get("validation", [])),
         }
         self.split = split
-        from hashlib import sha256
-        import json as _json
-
-        digest = sha256(
-            _json.dumps(
-                {
-                    "layout": str(layout_root),
-                    "master": master,
-                    "days": {k: sorted(v) for k, v in self.day_indices.items()},
-                    "steps": STEPS_PER_DAY,
-                },
-                sort_keys=True,
-            ).encode()
-        ).hexdigest()
-        self.sha256 = digest
+        # 快照恢复时预填的期望摘要；与实际内容不符即拒绝（对齐合成路径
+        # manifest_sha256 的校验语义）。首次访问 .sha256 时比对。
+        self._expected_sha256 = content_sha256
+        self._sha256 = None
         self._series = None  # 首次 bind 时构建（避免构造期读全部曲线）
         self._bind_hook = None
+
+    @property
+    def sha256(self):
+        """绑定实际数据内容的版本摘要（惰性计算，构造期不读曲线文件）。
+
+        组成：曲线/脚本内容指纹 + 入口相对路径 + 日号与 split + 步数 +
+        单位与时间基准。不含数据目录绝对路径——内容不变仅搬目录时摘要
+        不变（复审 4d8af3b5：旧摘要用路径字符串，既绑不住曲线内容、
+        搬目录又会误判版本）。
+        """
+        from hashlib import sha256
+
+        if self._sha256 is None:
+            layout, master = self.series_source
+            self._sha256 = sha256(
+                json.dumps(
+                    {
+                        "series_content": SmartDSTimeseries(
+                            layout, master
+                        ).content_digest(),
+                        "master": master,
+                        "days": {k: sorted(v) for k, v in self.day_indices.items()},
+                        "split": self.split,
+                        "steps": STEPS_PER_DAY,
+                        "units": {
+                            "load": "kW/kvar 铭牌 × mult/qmut 曲线倍率",
+                            "pv": "kW/m2 辐照 mult + degC solar_data 温度",
+                        },
+                        "time_base": "当地标准时（无夏令时），按行号对齐 15min",
+                    },
+                    sort_keys=True,
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ).hexdigest()
+            if self._expected_sha256 and self._sha256 != self._expected_sha256:
+                raise ValueError(
+                    "SMART-DS 时序摘要与训练快照不符（曲线/映射被改动或数据版本不同）；"
+                    f"期望 {self._expected_sha256}，实际 {self._sha256}"
+                )
+        return self._sha256
 
     # -- 与 ScenarioDataset 相同的最小接口面（control_env 消费） ----------
     @property
