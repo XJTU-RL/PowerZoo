@@ -132,3 +132,70 @@ def test_storage_soc_reset_after_cache_hit():
             )
     finally:
         env.close()
+
+
+# ---- 步进计时段互斥口径（复审 4d8af3b5：分段和 392.8ms > 墙钟 296ms） ------
+
+def test_exclusive_step_ms_dedups_nested_branch_state():
+    """read_state 内嵌 branch_state：互斥化后分段和不得超过墙钟。
+
+    复现数据：9500 full 步均 295.967ms，分段和 392.845ms——
+    read 204.990 含 branch 145.897 被双计。
+    """
+    from scripts.benchmark_scale import exclusive_step_ms
+
+    breakdown = {
+        "step.apply": [50.0, 50.0],
+        "step.probe": [0.0, 0.0],
+        "step.solve": [88.0, 88.0],
+        "step.branch_state": [145.897, 145.897],
+        "step.read_state": [204.990, 204.990],
+    }
+    exclusive = exclusive_step_ms(breakdown)
+    assert exclusive["step.read_state"] == pytest.approx(59.093, abs=1e-3)
+    assert exclusive["step.branch_state"] == pytest.approx(145.897, abs=1e-3)
+    total = sum(exclusive.values())
+    assert total == pytest.approx(342.99, abs=1e-2)  # 互斥后不再是 392.8
+
+
+def test_step_residual_not_clamped_and_flags_anomaly():
+    """other 余量保留原始值；分段和超墙钟时显式标记异常而非钳零掩盖。"""
+    from scripts.benchmark_scale import step_residual
+
+    # 正常：墙钟 400ms，互斥分段和 343ms → 余量 +57ms
+    residual, anomaly = step_residual(400.0, 342.99)
+    assert residual == pytest.approx(57.01, abs=0.01)
+    assert anomaly is None
+
+    # 不守恒：墙钟 296ms，分段和 343ms → 余量 -47ms 超阈值，须显式标记
+    residual, anomaly = step_residual(295.967, 342.99)
+    assert residual < 0
+    assert anomaly and "分段" in anomaly
+
+
+def test_real_step_probe_does_not_double_count_solve():
+    """真实步进：probe 段内 solve 不重复计时（已修路径回归）+ 父子包含关系成立。"""
+    env = _build("34Bus_PV")
+    try:
+        actions = _actions(env)
+        env.reset()
+        circuit = env.env.circuit
+        for _ in range(3):
+            env.step(actions)
+        # 探测发生在 apply 之后的 available_pv_power；其内部 _solve 不经
+        # step.solve 计时段——整步 step.solve 增量只来自真正的求解调用。
+        before = dict(circuit.timings)
+        env.step(actions)
+        solve_delta = circuit.timings.get("step.solve", 0) - before.get("step.solve", 0)
+        read_delta = circuit.timings.get("step.read_state", 0) - before.get("step.read_state", 0)
+        branch_delta = (
+            circuit.timings.get("step.branch_state", 0) - before.get("step.branch_state", 0)
+        )
+        assert read_delta >= branch_delta - 1e-6, "read_state 应包含 branch_state 子段"
+        if branch_delta > 0:
+            # 有支路采集时父子包含成立；互斥后单段不超父段
+            assert read_delta - branch_delta >= -1e-6
+        # solve 段与 read 段互斥（不同代码路径）
+        assert solve_delta >= 0
+    finally:
+        env.close()

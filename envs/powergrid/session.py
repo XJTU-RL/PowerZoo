@@ -612,6 +612,8 @@ class DSSSession:
         return sum((self.powers("Load." + n) for n in self.loads), start=np.zeros(2))
 
     def read_state(self, light=False):
+        # 计时口径：本段（完整读取）内嵌 step.branch_state 子段——父子
+        # 包含；聚合分段和时须去重（benchmark_scale.exclusive_step_ms）。
         with self._timed("step.read_state"):
             return self._read_state(light=light)
 

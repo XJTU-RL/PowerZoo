@@ -119,6 +119,41 @@ def _baseline_actions(env):
     return actions
 
 
+def _mean(values):
+    valid = [v for v in values if v is not None]
+    return sum(valid) / max(len(valid), 1)
+
+
+def exclusive_step_ms(step_breakdown):
+    """互斥分段均值：read_state 内嵌 branch_state 子段，双计须去重。
+
+    session 计时保留父子包含口径（read_state 包含 branch_state）；
+    聚合时把 branch_state 从 read_state 中拆出，五段互斥——分段和
+    才能与墙钟同口径比较（复审 4d8af3b5：9500 full 分段和 392.845ms
+    超墙钟 295.967ms，即 read 204.990 含 branch 145.897 被双计）。
+    """
+    exclusive = {key: _mean(values) for key, values in step_breakdown.items()}
+    branch = exclusive.get("step.branch_state")
+    if branch:
+        exclusive["step.read_state"] = exclusive.get("step.read_state", 0.0) - branch
+    return exclusive
+
+
+def step_residual(total_ms, exclusive_sum_ms):
+    """墙钟减互斥分段和：保留原始余量（可为负），负值超阈值时显式诊断。
+
+    不得用 max(other, 0) 钳零掩盖不守恒（复审 4d8af3b5 点名）；负余量
+    说明仍有分段被双计或漏计，返回诊断字符串供报告呈现。
+    """
+    residual = total_ms - exclusive_sum_ms
+    if residual < 0 and abs(residual) > 0.05 * max(total_ms, 1e-9):
+        return residual, (
+            f"分段和{exclusive_sum_ms:.3f}ms 超墙钟{total_ms:.3f}ms "
+            f"{abs(residual):.3f}ms（>{5:.0f}%）：存在被双计或漏计的分段"
+        )
+    return residual, None
+
+
 def run_case(case, steps):
     from utils.config_pipeline import ConfigLoader
     from utils.envs_tools import make_power_env
@@ -170,15 +205,11 @@ def run_case(case, steps):
 
     valid_totals = [t for t in step_totals if t is not None]
     session_ms = {
-        key: round(
-            sum(v for v in values if v is not None)
-            / max(len([v for v in values if v is not None]), 1),
-            3,
-        )
-        for key, values in step_breakdown.items()
+        key: round(value, 3)
+        for key, value in exclusive_step_ms(step_breakdown).items()
     }
     mean_total = sum(valid_totals) / max(len(valid_totals), 1)
-    other_ms = mean_total - sum(session_ms.values())
+    other_ms, timing_anomaly = step_residual(mean_total, sum(session_ms.values()))
     act_dim = 2 if any(s.__class__.__name__ == "Box" for s in core.action_space) else 1
     policy_ms = _reference_policy_latency(obs_dim, act_dim, max(agents, 1))
     result = {
@@ -193,8 +224,11 @@ def run_case(case, steps):
         "construct_timings_ms": {k: round(v, 1) for k, v in construct_timings.items()},
         "reset_timings_ms": {k: round(v, 1) for k, v in reset_timings.items() if v > 0.05},
         "step_total_ms": round(mean_total, 3),
+        # 互斥口径：read_state 不含 branch_state（该子段单列）。
         "step_session_ms": session_ms,
-        "step_observation_reward_logging_ms": round(max(other_ms, 0), 3),
+        # 原始余量，可为负；不守恒时 step_timing_anomaly 给出诊断。
+        "step_observation_reward_logging_ms": round(other_ms, 3),
+        "step_timing_anomaly": timing_anomaly,
         "reference_policy_forward_ms": round(policy_ms, 3),
         "peak_rss_gb": _peak_rss_gb(),
     }
