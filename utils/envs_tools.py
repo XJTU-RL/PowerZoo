@@ -80,6 +80,12 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
             env_args["data"]["split"] = "validation"
             if env_args.get("smartds_series"):
                 # 按天留出：评估 worker 只见 validation_days（防相邻时刻泄漏）。
+                # 空留出在此失败（主进程），不延迟到 worker 内崩溃。
+                if not env_args["smartds_series"].get("validation_days"):
+                    raise ValueError(
+                        "smartds_series 启用评估但 validation_days 为空："
+                        "按天留出必须提供与 train_days 不相交的验证天"
+                    )
                 env_args["smartds_series"] = {
                     **env_args["smartds_series"], "split": "validation"
                 }

@@ -29,6 +29,7 @@ import numpy as np
 POINTS_PER_YEAR = 35040
 INTERVAL_SECONDS = 900
 STEPS_PER_DAY = 24 * 60 // 15  # 96 步/天（15 分钟原始采样）
+DAYS_PER_YEAR = POINTS_PER_YEAR // STEPS_PER_DAY  # 365
 
 
 def _shape_definitions(scripts):
@@ -262,6 +263,38 @@ class SmartDSTimeseries:
         return row
 
 
+def validate_holdout_days(days):
+    """按天留出门禁：日号 0..364 整数（排除 bool）、各列表无重复、
+    训练与验证不相交。非法配置在数据集构造点立即失败，不延迟到
+    worker 内崩溃（复审 4d8af3b5：重叠配置曾被接受，两个 split 都
+    reset 到同一天，留出形同虚设）。
+    """
+    seen = {}
+    for split, values in days.items():
+        for day in values:
+            # bool 是 int 子类，必须显式排除（True 曾通过整数检查）
+            if isinstance(day, bool) or not isinstance(day, int):
+                raise ValueError(
+                    f"smartds_series {split}_days 含非整数日号：{day!r}"
+                    "（须为 0..364 整数）"
+                )
+            if not 0 <= day < DAYS_PER_YEAR:
+                raise ValueError(
+                    f"smartds_series {split}_days 日号越界：{day}"
+                    f"（须为 0..{DAYS_PER_YEAR - 1}）"
+                )
+            if day in seen and seen[day] != split:
+                raise ValueError(
+                    f"smartds_series train_days 与 validation_days 必须不相交："
+                    f"day{day:03d} 同时出现在两个 split"
+                )
+            if day in seen:
+                raise ValueError(
+                    f"smartds_series {split}_days 含重复日号：day{day:03d}"
+                )
+            seen[day] = split
+
+
 class SmartDSEpisodeDataset:
     """SMART-DS 逐设备时序的训练数据集：一个 episode = 一天（96×15min）。
 
@@ -272,6 +305,11 @@ class SmartDSEpisodeDataset:
     """
 
     def __init__(self, layout_root, master, days, split="train", day_indices=None):
+        if split not in ("train", "validation"):
+            raise ValueError(
+                f"smartds_series split 只支持 train/validation，收到：{split!r}"
+            )
+        validate_holdout_days(days)
         self.series_source = (Path(layout_root), master)
         self.step_seconds = INTERVAL_SECONDS
         self.steps_per_episode = STEPS_PER_DAY
