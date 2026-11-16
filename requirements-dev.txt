@@ -1,5 +1,5 @@
 # Tools needed by pytest.ini and local development.
-pytest==8.3.5
+pytest==9.2.0
 pytest-cov==6.1.1
 pytest-xdist==3.6.1
 black==25.1.0
