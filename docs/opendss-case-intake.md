@@ -7,8 +7,8 @@ agreement, and a task-specific rollout with verified controllable devices.
 | Case | Intake status | Intended use |
 | --- | --- | --- |
 | Baran–Wu 69-bus | Converted from the pinned MATPOWER 8.1 source; static OpenDSS and PowerZoo DSS backend checked | Balanced radial power flow and solver regression |
-| IEEE 4-node | Pinned [native delta–wye deck][ieee4]; native execution and redistribution scope pending | Transformer and connection checks |
-| IEEE 37-node | Pinned [native delta feeder][ieee37]; native execution and redistribution scope pending | Unbalanced load flow, line-to-line voltages and regulator checks |
+| IEEE 4-node | Pinned [native delta–wye deck][ieee4]; native and PowerZoo static solves checked; numerical reference and redistribution pending | Balanced transformer and connection checks |
+| IEEE 37-node | Pinned [native delta feeder][ieee37]; native and PowerZoo static solves checked; numerical reference and redistribution pending | Unbalanced load flow, line-to-line voltages and regulator checks |
 | IEEE 13, 34, 123 and 8500-node | Already tracked by PowerZoo; not imported again here | Existing models; task readiness remains case/config-specific |
 
 [ieee4]: https://github.com/dss-extensions/electricdss-tst/blob/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/4Bus-DY-Bal/4Bus-DY-Bal.DSS
@@ -35,6 +35,27 @@ and the [EPRI reference for line-to-line output](https://opendss.epri.com/Show2.
 Do not claim agreement with a numerical reference until its exact operating
 point, transformer connections, phase order, and tap settings are matched.
 
+## IEEE 4-node and 37-node static evidence
+
+On DSS C-API 0.14.5 with DSS-Python 0.15.7, native OpenDSS and PowerZoo
+`DSSSession` agreed for each pinned deck with the same solver and control
+settings. This is a check of the PowerZoo integration with the same engine,
+not an independent worksheet comparison.
+
+- **IEEE 4-node D–Y balanced:** 4 compiled buses, 12 phase nodes and
+  559.6193 kW of active loss. This is the 12.47/4.16 kV delta–grounded-wye
+  transformer variant, with unity taps; it is not an unbalanced test case.
+- **IEEE 37-node:** 39 compiled buses and 117 phase nodes in this deck, even
+  though the published feeder name is 37-node. Active loss was 152.3446 kW.
+  The native open-delta regulator control loop completed with tap ratios
+  1.1000 and 1.0875. The 111 phase-pair magnitudes on the nominal 4.8 kV
+  line-to-line base ranged from 4.4315 to 4.9412 kV. Compare the same phase
+  pairs and operating point; this range is not a voltage compliance result.
+
+These observations establish static execution only. Numerical comparison
+against the original IEEE worksheets and permission to redistribute either
+deck are still unverified.
+
 ## Reproduce the Baran–Wu 69-bus intake
 
 Obtain the original `data/case69.m` from the [MATPOWER 8.1
@@ -60,7 +81,8 @@ about 225.0 kW of active loss, and a minimum voltage near 0.90919 p.u.
 at bus 65. The independent sweep models an ideal slack; the OpenDSS deck
 has small finite source impedance, so its absolute tolerances are printed
 as measured errors in the report. The converted deck also passed a static
-check through the PowerZoo `DSSSession` backend.
+check through the PowerZoo `DSSSession` backend. A rerun with the final
+relative destination produced outputs identical to the previous verified run.
 
 The source is [Baran and Wu (1989)](https://doi.org/10.1109/61.19265), via
 MATPOWER. This conversion is balanced and static. It is **not** a native IEEE
@@ -79,7 +101,19 @@ variant, not in the original-case converter.
    load and loss units, voltage extremes, and upstream reference agreement.
    Fail on bad inputs or nonconvergence; do not treat DSS default equipment
    ratings as validated data.
-3. Recheck the same circuit in PowerZoo. If suitable for a control task, verify
-   devices, action mapping and exactly one control owner per device before a
-   short deterministic rollout. Record which steps actually passed; only then
-   label the case ready for that task.
+3. Recheck the same circuit in PowerZoo. Publish the evidence per task;
+   success in one task does not establish readiness for another.
+
+| Task capability | What must pass before marking it ready |
+| --- | --- |
+| Static power flow | Native and PowerZoo execution with aligned settings; topology, phases, convergence and power balance. For physical agreement, compare against an independent reference. |
+| Three-phase / transformer | Verify phase mapping, winding connections, voltage bases and taps. Match the reference phase pairs and operating point; a balanced case does not validate imbalance. |
+| Time series | Pin the traces and actual interval duration; verify alignment, time advancement and repeated solver convergence. |
+| Dispatch | In addition to traces, verify available resources, rating and energy limits, and feasible scheduling constraints. |
+| Volt/VAR control | Identify controllable devices, verify their action mappings and measured response, and enforce one writer per device between native controls and the policy. |
+| Switching / restoration | Identify the valid switches and outage states; verify feasible transitions, energization, topology and load recovery after switching. |
+
+Keep each original deck distinct from any variant with added devices or
+scenarios. Use evidenced equipment and limits only. Freeze the case manifest,
+data and device/control assumptions before final testing; do not repair a
+failed final benchmark by changing the original-case model.
