@@ -61,7 +61,7 @@ def _inventory(circuit):
         el = f"RegControl.{name}"
         circuit.require_element(el)
         enabled = bool(circuit.native.ActiveCktElement.Enabled)
-        target = (reg.transformer.lower(), reg.tap_winding)
+        target = (reg.transformer.lower(), int(reg.tap_winding))
         max_tap_change = int(circuit.read_property(el, "maxtapchange"))
         if enabled:
             if max_tap_change <= 0 or target in owners:
@@ -83,9 +83,12 @@ def _inventory(circuit):
 
 def _states(circuit):
     return {
-        "capacitors": {n: list(circuit.capacitor_state(n)) for n in circuit.capacitors},
-        "tap_pu": {n: circuit.regulator_tap(n) for n in circuit.regulators},
-        "storage_soc": {n: dev.soc for n, dev in circuit.batteries.items()},
+        "capacitors": {
+            n: [int(state) for state in circuit.capacitor_state(n)]
+            for n in circuit.capacitors
+        },
+        "tap_pu": {n: float(circuit.regulator_tap(n)) for n in circuit.regulators},
+        "storage_soc": {n: float(dev.soc) for n, dev in circuit.batteries.items()},
     }
 
 

@@ -1,7 +1,9 @@
 """Offline wiring tests; these do not exercise the DSS engine."""
 
+import json
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from scripts.export_vvc_baselines import _inventory, _run
@@ -170,3 +172,26 @@ def test_unowned_tap_change_rejected():
     core.circuit.solve = solve
     with pytest.raises(RuntimeError, match="unowned"):
         _run(core, "saved", compare, 2, 17, False)
+
+
+def test_json_accepts_native_numpy_endpoint_scalars():
+    core = Core()
+    circuit = core.circuit
+    circuit.capacitors = {"cap": (np.int32(1), np.int32(0))}
+    circuit.batteries = {"bat": SimpleNamespace(soc=np.float32(0.5))}
+    circuit.regulators = {
+        name: SimpleNamespace(transformer=reg.transformer, tap_winding=np.int32(2))
+        for name, reg in circuit.regulators.items()
+    }
+    tap = circuit.regulator_tap
+    circuit.regulator_tap = lambda name: np.float32(tap(name))
+    result = json.loads(
+        json.dumps(_run(core, "saved", compare, 2, 17, True), allow_nan=False)
+    )
+    assert result["initial_device_state"] == {
+        "capacitors": {"cap": [1, 0]},
+        "storage_soc": {"bat": 0.5},
+        "tap_pu": {name: 1.0 for name in circuit.regulators},
+    }
+    assert result["regcontrol_inventory"][0]["tap_winding"] == 2
+    assert result["last_converged_device_state"]["capacitors"] == {"cap": [1, 0]}
