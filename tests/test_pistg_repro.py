@@ -112,7 +112,7 @@ def test_case33_static_meta_consistency():
 
 def test_dss_session_two_step_compatibility():
     """研究环境组合 DSSSession：两步 5-min 区间求解与时钟推进正常。"""
-    from research.pistg_ldcpo.env.session_utils import rebase_voltage
+    from research.pistg_ldcpo.environment.session_utils import rebase_voltage
 
     session = DSSSession(
         CASE_FOLDER, "network.dss", overlays=("der_overlay.dss",), step_seconds=300
