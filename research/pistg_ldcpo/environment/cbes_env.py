@@ -164,7 +164,8 @@ class CBESEnv:
 
         v_pu = self._read_voltages()
         self._last_v_pu = v_pu
-        branch_kva = self._read_branch_flows()
+        branch_pq = self._read_branch_pq()
+        branch_kva = np.hypot(branch_pq[:, 0], branch_pq[:, 1])
         costs = constraint_costs(
             v_pu,
             branch_kva,
@@ -196,6 +197,8 @@ class CBESEnv:
         done = self.t >= self.steps_per_day
         info = {
             "v_pu": v_pu,
+            "branch_p_kw": branch_pq[:, 0],
+            "branch_q_kvar": branch_pq[:, 1],
             "p_cbess_kw": p_cbess,
             "q_cbess_kvar": q_cbess,
             "p_pv_kw": p_pv_der,
@@ -237,14 +240,13 @@ class CBESEnv:
             v_pu[i - 1] = float(np.mean(list(values.values())))
         return v_pu
 
-    def _read_branch_flows(self) -> np.ndarray:
-        """各线路 parent 端视在功率 kVA（式(24f) 的 |S_ij|）。"""
+    def _read_branch_pq(self) -> np.ndarray:
+        """各线路 parent 端 (P, Q) kW/kvar（式(24f) 与 PIAE 重建目标）。"""
         session = self._ensure_session()
-        s_kva = np.zeros(len(self.branch_names))
+        pq = np.zeros((len(self.branch_names), 2))
         for k, name in enumerate(self.branch_names):
-            p, q = session.powers(f"Line.{name}")
-            s_kva[k] = float(np.hypot(p, q))
-        return s_kva
+            pq[k] = session.powers(f"Line.{name}")
+        return pq
 
     def _observation(self) -> dict:
         """逐步观测（式(8) 窗口的原料）：母线特征 (33,5) + 电价。

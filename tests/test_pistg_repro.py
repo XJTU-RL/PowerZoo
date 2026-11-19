@@ -210,6 +210,89 @@ def test_profile_store_roundtrip():
 
 
 # ---------------------------------------------------------------------------
+# M4：PISTG 编码器与 PIAE（式(10)-(22)）。
+
+
+def test_piam_values_and_encoder_shapes():
+    """PIAM 数值口径（式(10)）与编码器维度（d_STG=80）。"""
+    import json as _json
+
+    import torch
+
+    from research.pistg_ldcpo.models.pistg import (
+        PISTGEncoder,
+        physics_informed_adjacency,
+    )
+
+    meta = _json.loads((CASE_FOLDER / "case_meta.json").read_text(encoding="utf-8"))
+    lines = meta["lines"]
+    adjacency = physics_informed_adjacency(lines, 33, float(meta["base_kv_ll"]))
+    # 手工核对第一条线路 line_1_2（r=0.0922, x=0.047，额定取自 case_meta）。
+    impedance = float(np.hypot(0.0922, 0.0470))
+    s_mva = lines[0]["normamps"] * 12.66 * np.sqrt(3.0) / 1000.0
+    psi = -np.log(1e-6 + impedance) - 1.0 / s_mva
+    expected = float(1.0 / (1.0 + np.exp(-psi)))
+    assert float(adjacency[0, 1]) == pytest.approx(expected, rel=1e-6)
+    assert float(adjacency[1, 0]) == pytest.approx(expected, rel=1e-6)  # 对称
+    assert float(adjacency[0, 0]) == 0.0  # 无自环
+    assert (adjacency == 0).sum() == 33 * 33 - 2 * 32  # 仅 32 条边有权重
+
+    encoder = PISTGEncoder(num_buses=33)
+    bus_window = torch.randn(2, 12, 33, 5)
+    price_window = torch.randn(2, 12)
+    degree = adjacency.sum(-1).clamp(min=1e-6)
+    norm_adj = adjacency / torch.sqrt(degree[:, None] * degree[None, :])
+    h = encoder(bus_window, price_window, norm_adj)
+    assert tuple(h.shape) == (2, 80)
+    assert encoder.d_stg == 80
+
+
+def test_piae_losses_overfit_single_batch():
+    """PIAE 能在单个小批上把三项损失同时压低（物理损失量级正确性）。"""
+    import json
+    import torch
+
+    from research.pistg_ldcpo.models.piae import PIAE, ReconstructionHead
+    from research.pistg_ldcpo.models.pistg import (
+        PISTGEncoder,
+        physics_informed_adjacency,
+    )
+
+    meta = json.loads((CASE_FOLDER / "case_meta.json").read_text(encoding="utf-8"))
+    lines = meta["lines"]
+    adjacency = physics_informed_adjacency(lines, 33, float(meta["base_kv_ll"]))
+    degree = adjacency.sum(-1).clamp(min=1e-6)
+    norm_adj = adjacency / torch.sqrt(degree[:, None] * degree[None, :])
+    encoder = PISTGEncoder(num_buses=33)
+    head = ReconstructionHead(80, 33, 32)
+    stats = {"mean": np.zeros(5), "std": np.ones(5)}
+    target = {k: (0.97 if k == "v_mean" else 0.02 if k == "v_std" else 300.0)
+              for k in ("v_mean", "v_std", "p_mean", "p_std", "q_mean", "q_std")}
+    piae = PIAE(encoder, head, lines, 33, 12.66, stats, target)
+
+    torch.manual_seed(0)
+    bw = torch.randn(16, 12, 33, 5)
+    pw = torch.randn(16, 12)
+    v_t = torch.randn(16, 33)
+    p_t = torch.randn(16, 32)
+    q_t = torch.randn(16, 32)
+    inj = torch.randn(16, 33) * 0.05
+    opt = torch.optim.Adam(
+        list(encoder.parameters()) + list(head.parameters()), lr=1e-3
+    )
+    first = piae.loss(bw, pw, norm_adj, v_t, p_t, q_t, inj)[0]
+    for _ in range(200):
+        loss, _ = piae.loss(bw, pw, norm_adj, v_t, p_t, q_t, inj)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    final = piae.loss(bw, pw, norm_adj, v_t, p_t, q_t, inj)[0]
+    # 随机注入下的 KCL/VDrop 残差有不可压下限，验证 85% 量级下降即可。
+    assert float(final) < 0.15 * float(first), "单批 200 步应显著过拟合下降"
+    assert float(first) < 100.0, "物理损失量级应在 O(1)-O(10)（非 1e6）"
+
+
+# ---------------------------------------------------------------------------
 # M3：动作映射（式(1)(25)(26)）与 CBESS 环境。
 
 
