@@ -293,6 +293,105 @@ def test_piae_losses_overfit_single_batch():
 
 
 # ---------------------------------------------------------------------------
+# M5：LDCPPO（式(27)-(36)）。
+
+
+def test_gae_hand_computed():
+    """式(30)(31)：两步手工算例。r=[1,0]，V=[0.5,0.5]，V(T)=0，γ=1，λ=1。
+
+    δ1 = 0 + 1×0 − 0.5 = −0.5；δ0 = 1 + 1×0.5 − 0.5 = 1；
+    A1 = δ1 = −0.5；A0 = δ0 + γλ·A1 = 0.5。
+    """
+    from research.pistg_ldcpo.algo.ldcppo import compute_gae
+
+    adv = compute_gae(
+        np.array([1.0, 0.0]), np.array([0.5, 0.5]), 0.0, gamma=1.0, lam=1.0
+    )
+    assert adv[1] == pytest.approx(-0.5, abs=1e-12)
+    assert adv[0] == pytest.approx(0.5, abs=1e-12)
+
+
+def test_dual_ascent_direction():
+    """式(36d)：超预算 λ 增、低于预算 λ 减且非负钳制。"""
+    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from research.pistg_ldcpo.config import LdcpoConfig
+
+    agent = LDCPPO(state_dim=4, action_dim=2, cfg=LdcpoConfig())
+    agent.set_budgets({"VD": 1.0, "VN": 1.0, "LO": 1.0})
+    zeros = np.zeros(5)
+    states = np.random.default_rng(0).normal(size=(5, 4)).astype(np.float32)
+    actions = np.zeros((5, 2), np.float32)
+    # 成本 0.1/步 × 5 步（γ<1）→ J<1 → λ 保持 0（初值 0，非负钳制）。
+    agent.update(
+        states, actions, np.full(5, -1.0), np.ones(5) * 0.0,
+        {"VD": np.full(5, 0.1), "VN": zeros, "LO": zeros},
+        {"R": 0.0, "VD": 0.0, "VN": 0.0, "LO": 0.0},
+    )
+    assert agent.multipliers["VD"] == 0.0
+    # 成本 0.5/步 → J≈2.4 > 1 → λ 增。
+    agent.multipliers["VD"] = 0.1
+    agent.update(
+        states, actions, np.full(5, -1.0), np.ones(5) * 0.0,
+        {"VD": np.full(5, 0.5), "VN": zeros, "LO": zeros},
+        {"R": 0.0, "VD": 0.0, "VN": 0.0, "LO": 0.0},
+    )
+    assert agent.multipliers["VD"] > 0.1
+
+
+def test_ldcpo_reduces_cost_in_synthetic_cmdp():
+    """对抗性合成 CMDP：奖励 −(a−1)² 拉向 a=1，约束 |a| 预算 0.2 反压。
+
+    拉格朗日机制的教科书行为：先奖励主导（成本升），λ 积累后约束反压
+    （成本回落）。论文 lr 为 288 步大任务尺度，合成小任务放大 lr/对偶步长。
+    """
+    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from research.pistg_ldcpo.config import LdcpoConfig
+
+    rng = np.random.default_rng(3)
+    cfg = LdcpoConfig()
+    cfg.ppo_epochs = 5
+    cfg.actor_lr = cfg.critic_lr = 3e-4
+    cfg.dual_lr = 5e-3
+    agent = LDCPPO(state_dim=2, action_dim=1, cfg=cfg)
+    agent.set_budgets({"VD": 0.2, "VN": 1e9, "LO": 1e9})  # 只激活 VD 约束
+
+    def rollout():
+        states = rng.normal(size=(16, 2)).astype(np.float32)
+        actions, logps, rewards, costs = [], [], [], []
+        for s in states:
+            a, logp = agent.act(s)
+            actions.append(a)
+            logps.append(logp)
+            rewards.append(-(float(a) - 1.0) ** 2)
+            costs.append(abs(float(a)))
+        agent.update(
+            states, np.stack(actions), np.array(logps), np.array(rewards),
+            {"VD": np.array(costs), "VN": np.zeros(16), "LO": np.zeros(16)},
+            {"R": 0.0, "VD": 0.0, "VN": 0.0, "LO": 0.0},
+        )
+        return float(np.mean(costs))
+
+    costs = [rollout() for _ in range(80)]
+    peak = float(np.mean(costs[30:40]))
+    final = float(np.mean(costs[70:80]))
+    assert agent.multipliers["VD"] > 1.0, "乘子应显著激活"
+    assert final < peak, "约束应在乘子积累后压制成本（V 形轨迹）"
+
+
+def test_flat_state_encoder_dimension():
+    from research.pistg_ldcpo.train import StateEncoder
+
+    encoder = StateEncoder("flat", None)
+    obs = {
+        "bus_features": np.ones((33, 5), np.float32),
+        "price": np.float32(60.0),
+    }
+    encoder.reset(obs)
+    state = encoder.encode()
+    assert state.shape == (12 * (33 * 5 + 1),)  # 平铺窗口 1992 维
+
+
+# ---------------------------------------------------------------------------
 # M3：动作映射（式(1)(25)(26)）与 CBESS 环境。
 
 
