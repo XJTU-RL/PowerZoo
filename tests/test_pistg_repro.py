@@ -135,3 +135,74 @@ def test_dss_session_two_step_compatibility():
             assert session.time_s == pytest.approx((step + 1) * 300.0, abs=1e-6)
     finally:
         session.close()
+
+
+# ---------------------------------------------------------------------------
+# M2：剖面数据契约（依赖 data/external 的 Ausgrid 数据；未下载时跳过，
+# 下载方式见 research/pistg_ldcpo/data/prepare_profiles.py 文档字符串）。
+
+
+def _profiles_or_skip():
+    path = REPO_ROOT / "data" / "external" / "ausgrid-solar-home" / "profiles.npz"
+    if not path.exists():
+        pytest.skip("Ausgrid 剖面未生成（需下载并运行 prepare_profiles.py）")
+    import json
+
+    data = np.load(path)
+    manifest = json.loads(
+        (path.parent / "manifest.json").read_text(encoding="utf-8")
+    )
+    return data, manifest
+
+
+def test_profiles_shapes_and_energy_targets():
+    data, manifest = _profiles_or_skip()
+    p, q, pv, price = (
+        data["p_load_kw"],
+        data["q_load_kvar"],
+        data["pv_available_kw"],
+        data["price_aud_per_mwh"],
+    )
+    assert p.shape == (data["day_keys"].shape[0], 288, 33)
+    assert pv.shape[0] == p.shape[0] and pv.shape[2] == 26
+    assert (p >= 0).all() and (pv >= 0).all() and (price > 0).all()
+    # DER 母线日能量 = 基荷 850 + EV 350 kWh（每母线每日，能量重标定）。
+    der = np.array(manifest["der_buses"]) - 1
+    energy = p[:, :, der].sum(axis=1).mean(axis=1) * (5.0 / 60.0)
+    assert energy.mean() == pytest.approx(1200.0, rel=0.01)
+    # EV 日因子截断 [0.6,1.5] → 单日能量 [1040, 1375] kWh。
+    assert (energy > 1030.0).all() and (energy < 1380.0).all()
+    # 无功 = 有功 × tanφ（pf=0.85）。
+    mask = p > 0
+    ratio = (q[mask] / p[mask])
+    assert np.allclose(ratio, np.tan(np.arccos(0.85)), atol=1e-3)
+    # PV 峰值 = 0.9 × 母线典型日峰负荷（静态容量，跨日一致）。
+    pv_peak = pv.max(axis=(0, 1))
+    assert pv_peak.min() > 50.0 and pv_peak.max() < 120.0
+
+
+def test_profiles_day_split_disjoint():
+    data, manifest = _profiles_or_skip()
+    split = manifest["split"]
+    keys = [str(k) for k in data["day_keys"]]
+    assert set(keys) == set(split.keys())
+    assert set(split.values()) == {"train", "validation", "test"}
+    counts = {s: sum(1 for v in split.values() if v == s)
+              for s in ("train", "validation", "test")}
+    assert sum(counts.values()) == len(keys)
+    assert counts["train"] > 0.7 * len(keys)
+
+
+def test_profile_store_roundtrip():
+    _profiles_or_skip()
+    from research.pistg_ldcpo.data.profile_store import ProfileStore
+
+    store = ProfileStore(REPO_ROOT / "data" / "external" / "ausgrid-solar-home")
+    rng = np.random.default_rng(0)
+    for split in ("train", "validation", "test"):
+        assert store.episode_count(split) > 0
+    episode = store.sample_episode(rng, "train")
+    assert episode.p_load_kw.shape == (288, 33)
+    assert episode.pv_available_kw.shape == (288, 26)
+    assert episode.price_aud_per_kwh_5min.shape == (288,)
+    assert episode.price_aud_per_kwh_5min.max() < 1.0  # AUD/kWh 合理量级
