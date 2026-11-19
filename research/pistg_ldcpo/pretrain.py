@@ -173,7 +173,7 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            losses.append((float(loss), parts))
+            losses.append((float(loss.detach()), parts))
         mean = np.mean([x[0] for x in losses[-100:]])
         parts = {
             k: round(float(np.mean([p[k] for _, p in losses[-100:]])), 6)
