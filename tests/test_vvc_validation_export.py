@@ -23,6 +23,7 @@ class Config:
     smartds_series: dict | None = None
     voltage_min: float = 0.95
     voltage_max: float = 1.05
+    system_name: str = "13Bus"
 
 
 @pytest.fixture
@@ -66,7 +67,17 @@ def runtime(tmp_path, monkeypatch):
                         "voltage_max_pu": 1.01,
                     },
                 }
-            return SimpleNamespace(snapshots=[{"step": 0}, step], episode_length=1)
+            initial = {"step": 0}
+            if self.index != 8:
+                measurements = {
+                    "capacitor_stages": {"cap": [1]},
+                    "regulator_tap_pu": {"reg": 1.0},
+                    "storage_injection_kw": {"bat": 0.0},
+                }
+                initial["benchmark_devices"] = measurements
+                if "physical_failure" not in step:
+                    step["benchmark_devices"] = measurements
+            return SimpleNamespace(snapshots=[initial, step], episode_length=1)
 
         def close(self):
             closed.append(self.index)
@@ -129,3 +140,22 @@ def test_mappo_option_is_forwarded_only_when_explicit(runtime, monkeypatch):
     export.export_validation("model", manifest, [3], seed=17, allow_mappo=True)
     with pytest.raises(ValueError, match="boolean"):
         export.export_validation("model", manifest, [3], seed=17, allow_mappo="true")
+
+
+def test_34bus_aligns_devices_for_success_and_physical_failure(runtime):
+    manifest, config, _ = runtime
+    config.system_name = "34Bus"
+    healthy, failed = export.export_validation("model", manifest, [3, 2], seed=17)[
+        "episodes"
+    ]
+    assert [row["step"] for row in healthy["device_endpoints"]] == [0, 1]
+    assert healthy["device_metrics"]["status"] == "not_24_hours"
+    assert [row["step"] for row in failed["device_endpoints"]] == [0]
+    assert failed["device_metrics"]["regulator_endpoint_changes"] is None
+
+
+def test_34bus_rejects_missing_measured_device_endpoints(runtime):
+    manifest, config, _ = runtime
+    config.system_name = "34Bus"
+    with pytest.raises(ValueError, match="missing measured device endpoints"):
+        export.export_validation("model", manifest, [8], seed=17)

@@ -125,3 +125,20 @@ a real-time delay model. Endpoint tap differences are not event counts.
 Neither baseline emits a policy reward; failed intervals use the same
 incomplete-day refusal rules. Other feeders (including 123Bus), SMART-DS,
 test splits and cases with additional control classes are out of scope.
+
+For classic 34Bus validation, both exporters also save `device_endpoints`
+(the measured reset state at step 0 and one state per converged interval).
+`device_metrics` counts individual capacitor stage bit changes and regulator
+devices whose tap ratio changed by more than 0.000001 p.u. between adjacent
+endpoints. A regulator contributes at most one change per interval, even if
+it crosses several taps. Moves and reversals within the same interval are
+not visible in this statistic. These are observed endpoint changes, not
+requested commands or native controller operation counts.
+
+Storage has no discrete action count here. Charge and discharge are reported
+separately as estimates: multiply each device's signed endpoint terminal
+power by the actual interval duration and sum each sign separately (positive
+injection is discharge); do not net devices. The reset state has no duration.
+The physical metric duration and solver status determine eligibility: failed,
+incomplete or non-24-hour replays retain measured endpoints but have null
+device totals and an explicit status.

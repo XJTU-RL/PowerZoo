@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 
 from scripts.vvc_benchmark_metrics import summarize_episode
+from scripts.vvc_device_metrics import device_output, measure_devices
 
 FIELDS = (
     "dss_converged",
@@ -23,7 +24,14 @@ def _runtime():
     from envs.powergrid.checkpoint import load_checkpoint
     from envs.vvc.render.engine.episode_runner import VVCEpisodeRunner
 
-    return load_checkpoint, VVCEpisodeRunner
+    class BenchmarkRunner(VVCEpisodeRunner):
+        def _snapshot(self, env, step, actions, rewards, infos):
+            snapshot = super()._snapshot(env, step, actions, rewards, infos)
+            if env.config.system_name == "34Bus":
+                snapshot["benchmark_devices"] = measure_devices(env.circuit)
+            return snapshot
+
+    return load_checkpoint, BenchmarkRunner
 
 
 def _normalize(snapshots, identity):
@@ -113,17 +121,32 @@ def export_validation(
             records = _normalize(replay.snapshots, identity)
             if replay.episode_length != len(records):
                 raise ValueError("native snapshot count disagrees with replay length")
+            metrics = summarize_episode(
+                records,
+                config.max_episode_steps,
+                voltage_lower_limit_pu=config.voltage_min,
+                voltage_upper_limit_pu=config.voltage_max,
+            )
+            devices = {}
+            if getattr(config, "system_name", None) == "34Bus":
+                samples = []
+                for snapshot in replay.snapshots:
+                    if snapshot.get("physical_failure") is True:
+                        continue
+                    measurements = snapshot.get("benchmark_devices")
+                    if not isinstance(measurements, dict):
+                        raise ValueError(
+                            "34Bus replay is missing measured device endpoints"
+                        )
+                    samples.append({"step": snapshot["step"], "devices": measurements})
+                devices = device_output(samples, records, metrics)
             episodes.append(
                 {
                     **identity,
                     "seed": seed,
                     "records": records,
-                    "metrics": summarize_episode(
-                        records,
-                        config.max_episode_steps,
-                        voltage_lower_limit_pu=config.voltage_min,
-                        voltage_upper_limit_pu=config.voltage_max,
-                    ),
+                    "metrics": metrics,
+                    **devices,
                 }
             )
         finally:

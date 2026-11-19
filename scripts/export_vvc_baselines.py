@@ -9,6 +9,7 @@ import sys
 
 from scripts.export_vvc_validation import _normalize
 from scripts.vvc_benchmark_metrics import summarize_episode
+from scripts.vvc_device_metrics import device_output, measure_devices
 
 
 MODES = ("hold_initial", "native_regulator")
@@ -133,6 +134,7 @@ def _run(core, saved_physics, compare_manifests, index, seed, native):
         raise ValueError("native scenario identity, split, or manifest mismatch")
     initial = final = _states(circuit)
     snapshots = [{"step": 0}]
+    samples = [{"step": 0, "devices": measure_devices(circuit)}]
     for step in range(1, core.horizon + 1):
         info = _step(core, native)
         if info.get("physical_failure") is True:
@@ -151,8 +153,15 @@ def _run(core, saved_physics, compare_manifests, index, seed, native):
             if any(abs(float(p)) > 1e-6 for p in circuit.powers(f"Storage.{name}")):
                 raise RuntimeError("baseline storage is not electrically idle")
         snapshots.append({"step": step, "info": info})
+        samples.append({"step": step, "devices": measure_devices(circuit)})
 
     records = _normalize(snapshots, identity)
+    metrics = summarize_episode(
+        records,
+        core.config.max_episode_steps,
+        voltage_lower_limit_pu=core.config.voltage_min,
+        voltage_upper_limit_pu=core.config.voltage_max,
+    )
     return {
         **identity,
         "mode": MODES[int(native)],
@@ -163,12 +172,8 @@ def _run(core, saved_physics, compare_manifests, index, seed, native):
         "initial_device_state": initial,
         "last_converged_device_state": final,
         "records": records,
-        "metrics": summarize_episode(
-            records,
-            core.config.max_episode_steps,
-            voltage_lower_limit_pu=core.config.voltage_min,
-            voltage_upper_limit_pu=core.config.voltage_max,
-        ),
+        "metrics": metrics,
+        **device_output(samples, records, metrics),
     }
 
 
