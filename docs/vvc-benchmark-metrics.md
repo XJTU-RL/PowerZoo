@@ -58,3 +58,23 @@ python scripts/vvc_benchmark_metrics.py episode.jsonl --expected-steps 24
 - 不做任何跨回合聚合或泛化性声明。
 
 独立测试（无需加载仓库测试夹具或 OpenDSS）：`python -m pytest --noconftest -o addopts="" tests/test_vvc_benchmark_metrics.py`。
+
+## 原生回放导出（只开放 validation）
+
+在仓库根目录执行：
+
+```bash
+python -m scripts.export_vvc_validation \
+  --checkpoint /path/to/happo/models \
+  --manifest /path/to/frozen/manifest.json \
+  --scenario-index 0 --scenario-index 3 --seed 17 > validation.json
+```
+
+回放仍使用正式 HAPPO checkpoint 加载、设备动作和物理绑定校验。
+训练快照必须已绑定 train 清单路径和 SHA-256，显式传入同一清单；
+导出只切换到 validation，不读取 test 曲线。场景索引按经过训练配置
+场景过滤后的 validation 列表排列，从 0 开始，必须显式且不重复。
+每个回合报告实际场景 ID、清单 SHA-256、种子、分集、供统计的逐步记录
+及单回合指标。初始快照不计入，物理失败单独标记；不导出设备动作计数。
+这不是完整的基准评测或模型自动选择器。实际 HAPPO/数据组合需另行验收，
+不得用 test 挑 checkpoint，也不能把文件不同但曲线重复的样本视为有效留出。

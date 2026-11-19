@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import numpy as np
 from envs.render_common.engine.base_episode_runner import BaseEpisodeRunner
 from envs.render_common.engine.inference_engine import InferenceEngine
@@ -27,7 +27,12 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         inference_engine: Optional[InferenceEngine] = None,
         collect_snapshots: bool = True,
         project_root: str = "",
+        *,
+        scenario_index: int = 0,
     ):
+        if type(scenario_index) is not int or scenario_index < 0:
+            raise ValueError("scenario_index must be a nonnegative integer")
+        self.scenario_index = scenario_index
         super().__init__(config, inference_engine, collect_snapshots)
         self.project_root = project_root or str(Path(__file__).resolve().parents[2])
         self._n_agents: int = 0
@@ -48,7 +53,11 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
             env.seed(seed)
             np.random.seed(seed)
 
-        obs = env.reset(load_profile_idx=0)
+        try:
+            obs = env.reset(load_profile_idx=self.scenario_index)
+        except Exception:
+            env.close()
+            raise
 
         # 保存状态
         self._n_agents = len(env.agent_spaces)
@@ -79,6 +88,23 @@ class DeviceEpisodeRunner(BaseEpisodeRunner):
         )
 
         return env
+
+    @property
+    def benchmark_identity(self) -> dict:
+        """Identity of the current replay selection, not a requested CLI label."""
+        if self._env is None:
+            raise RuntimeError("run an episode before reading benchmark identity")
+        from envs.powergrid.scenario import ScenarioDataset
+
+        if not isinstance(self._env.dataset, ScenarioDataset):
+            raise ValueError("benchmark export requires the frozen scenario manifest")
+        entry = self._env.entry
+        return {
+            "scenario_id": entry["id"],
+            "dataset_sha256": self._env.dataset.sha256,
+            "split": entry["split"],
+            "scenario_index": self._env._episode_index,
+        }
 
     def _env_step(self, actions: np.ndarray) -> tuple:
         """执行环境单步
