@@ -118,7 +118,12 @@ def export_validation(
                     **identity,
                     "seed": seed,
                     "records": records,
-                    "metrics": summarize_episode(records, config.max_episode_steps),
+                    "metrics": summarize_episode(
+                        records,
+                        config.max_episode_steps,
+                        voltage_lower_limit_pu=config.voltage_min,
+                        voltage_upper_limit_pu=config.voltage_max,
+                    ),
                 }
             )
         finally:

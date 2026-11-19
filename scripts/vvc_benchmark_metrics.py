@@ -11,7 +11,7 @@
 - 所有指标仅刻画单个回合；仅服务于 validation 切分上的 checkpoint 选取，
   不产生测试集结论或跨回合/跨数据集声明。
 - MAPPO 与 SHOM 均未验证；本工具不添加策略、训练、网络调用或 native 控制。
-- 计数保持计数，不折算速率；不从 step_seconds 推断回合时长。
+- 计数、越限区间小时和最大越限幅度分别报告；失败或非24小时记录不能参与全天排名。
 - 仅依赖 Python 3.10 标准库，确定性计算，仅本地文件读写，无网络。
 
 命令行用法：
@@ -70,7 +70,11 @@ def _require_number(
     return value if integer else number
 
 
-def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int) -> dict[str, Any]:
+def summarize_episode(
+    records: Iterable[Mapping[str, Any]], expected_steps: int, *,
+    voltage_lower_limit_pu: float | None = None,
+    voltage_upper_limit_pu: float | None = None,
+) -> dict[str, Any]:
     '''汇总单个 VVC 评测回合，返回 JSON 可序列化的指标字典。
 
     参数：
@@ -83,6 +87,8 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
             （不会被读取），处理在此停下并打标记；其后的记录一律不再消费，
             仅在 failure.trailing_records_ignored 中报告被忽略的条数。
         expected_steps：完整回合应有的步数（正整数）。
+        voltage_lower_limit_pu/voltage_upper_limit_pu：两者同时设置。
+            不给限值时最大越限幅度为 None，不使用猜测的默认限值。
 
     返回字段：
         valid / status / expected_steps / steps_completed / steps_processed /
@@ -98,7 +104,8 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
           kWh = Σ power_loss_kw × step_seconds / 3600。
         - 失败步不计入能量、电压、越限计数与 step_seconds 统计。
         - voltage_violation_count_total 是原始计数的求和，不是速率；
-          不输出回合时长，step_seconds_min/mean/max 仅为每步观测值。
+          区间小时对每个有越限相的时段只计一次；不等于相小时。
+        - 全天排名要求所有步收敛且累计区间为 86400 秒；离线输入还应由调用方证实为连续同场景。
 
     异常：
         ValueError：输入不合法（记录条数超过 expected_steps、布尔/数值/
@@ -106,6 +113,16 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
     '''
     if isinstance(expected_steps, bool) or not isinstance(expected_steps, int) or expected_steps <= 0:
         raise ValueError(f'expected_steps 必须为正整数，实际为 {expected_steps!r}')
+    limits = None
+    if voltage_lower_limit_pu is not None or voltage_upper_limit_pu is not None:
+        if voltage_lower_limit_pu is None or voltage_upper_limit_pu is None:
+            raise ValueError("voltage lower and upper limits must be provided together")
+        supplied = {"lower": voltage_lower_limit_pu, "upper": voltage_upper_limit_pu}
+        lower = _require_number(supplied, -1, "lower", minimum=0.0, exclusive_minimum=True)
+        upper = _require_number(supplied, -1, "upper", minimum=0.0, exclusive_minimum=True)
+        if lower >= upper:
+            raise ValueError("voltage lower limit must be less than upper limit")
+        limits = {"lower": lower, "upper": upper}
     try:
         record_list = list(records)
     except TypeError as exc:
@@ -118,6 +135,8 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
     voltage_min_pu = None
     voltage_max_pu = None
     voltage_violation_count_total = 0
+    violating_seconds = 0.0
+    max_exceedance = None
     step_seconds_min = None
     step_seconds_max = None
     step_seconds_sum = 0.0
@@ -151,6 +170,15 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
         if not math.isfinite(diagnostic_energy_kwh):
             raise ValueError(f'记录 {index}：累计能量超出有限范围')
         voltage_violation_count_total += violation_count
+        if violation_count > 0:
+            violating_seconds += step_seconds
+        if limits is not None:
+            exceedance = max(0.0, limits["lower"] - v_min, v_max - limits["upper"])
+            if not math.isfinite(exceedance):
+                raise ValueError(f"record {index}: voltage exceedance is not finite")
+            if (violation_count > 0) != (exceedance > 0):
+                raise ValueError(f"record {index}: voltage count contradicts extrema and limits")
+            max_exceedance = exceedance if max_exceedance is None else max(max_exceedance, exceedance)
         voltage_min_pu = v_min if voltage_min_pu is None else min(voltage_min_pu, v_min)
         voltage_max_pu = v_max if voltage_max_pu is None else max(voltage_max_pu, v_max)
         step_seconds_min = step_seconds if step_seconds_min is None else min(step_seconds_min, step_seconds)
@@ -167,8 +195,15 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
     else:
         status = 'valid'
 
+    valid = status == "valid"
+    ranking_refusal = status if not valid else (
+        None if math.isclose(step_seconds_sum, 86400.0, rel_tol=0, abs_tol=1e-6)
+        else "not_24_hours"
+    )
     return {
-        'valid': status == 'valid',
+        'valid': valid,
+        'eligible_for_day_ranking': ranking_refusal is None,
+        'day_ranking_refusal': ranking_refusal,
         'status': status,
         'expected_steps': expected_steps,
         'steps_completed': steps_completed,
@@ -178,6 +213,11 @@ def summarize_episode(records: Iterable[Mapping[str, Any]], expected_steps: int)
         'voltage_min_pu': voltage_min_pu,
         'voltage_max_pu': voltage_max_pu,
         'voltage_violation_count_total': voltage_violation_count_total,
+        'voltage_limits_pu': limits,
+        'voltage_violation_interval_hours': violating_seconds / 3600.0 if valid else None,
+        'diagnostic_voltage_violation_interval_hours': violating_seconds / 3600.0,
+        'voltage_max_exceedance_pu': max_exceedance if valid else None,
+        'diagnostic_voltage_max_exceedance_pu': max_exceedance,
         'step_seconds_min': step_seconds_min,
         'step_seconds_mean': step_seconds_sum / steps_completed if steps_completed else None,
         'step_seconds_max': step_seconds_max,
@@ -209,6 +249,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument('jsonl_path', help='回合记录的 JSONL 文件路径（每行一个 JSON 对象，空行跳过）')
     parser.add_argument('--expected-steps', type=int, required=True, help='完整回合应有的步数（正整数）')
+    parser.add_argument('--voltage-lower-limit-pu', type=float)
+    parser.add_argument('--voltage-upper-limit-pu', type=float)
     return parser
 
 
@@ -216,7 +258,11 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         records = _load_records(args.jsonl_path)
-        summary = summarize_episode(records, args.expected_steps)
+        summary = summarize_episode(
+            records, args.expected_steps,
+            voltage_lower_limit_pu=args.voltage_lower_limit_pu,
+            voltage_upper_limit_pu=args.voltage_upper_limit_pu,
+        )
     except (OSError, ValueError) as exc:
         print(f'错误：{exc}', file=sys.stderr)
         return 2

@@ -21,6 +21,8 @@ class Config:
     data: Data
     max_episode_steps: int = 1
     smartds_series: dict | None = None
+    voltage_min: float = 0.95
+    voltage_max: float = 1.05
 
 
 @pytest.fixture
@@ -84,6 +86,9 @@ def test_validation_nonzero_indices_and_native_failure(runtime):
     assert healthy["scenario_id"] == "val-3"
     assert len(healthy["records"]) == 1
     assert healthy["metrics"]["energy_kwh"] == 1
+    assert healthy["metrics"]["voltage_violation_interval_hours"] == 0.25
+    assert healthy["metrics"]["voltage_max_exceedance_pu"] == pytest.approx(0.01)
+    assert healthy["metrics"]["day_ranking_refusal"] == "not_24_hours"
     assert failed["metrics"]["status"] == "solver_failure"
     assert failed["metrics"]["energy_kwh"] is None
     assert closed == [3, 2]

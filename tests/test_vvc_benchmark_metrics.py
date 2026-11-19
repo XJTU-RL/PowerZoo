@@ -20,6 +20,13 @@ from vvc_benchmark_metrics import main, summarize_episode  # noqa: E402
 
 RESULT_KEYS = {
     'valid',
+    'eligible_for_day_ranking',
+    'day_ranking_refusal',
+    'voltage_limits_pu',
+    'voltage_violation_interval_hours',
+    'diagnostic_voltage_violation_interval_hours',
+    'voltage_max_exceedance_pu',
+    'diagnostic_voltage_max_exceedance_pu',
     'status',
     'expected_steps',
     'steps_completed',
@@ -88,7 +95,7 @@ def test_complete_episode_integrates_actual_varying_intervals():
     assert result['step_seconds_max'] == pytest.approx(90.0)
 
 
-def test_result_schema_has_no_rate_or_duration_fields():
+def test_result_schema_is_explicit():
     result = summarize_episode([make_record()], 1)
     assert set(result) == RESULT_KEYS
 
@@ -329,3 +336,64 @@ def test_native_divergence_record_without_dss_flag():
 def test_conflicting_native_flags_raise():
     with pytest.raises(ValueError, match='physical_failure'):
         summarize_episode([{'physical_failure': True, 'dss_converged': True}], 24)
+
+
+def test_voltage_duration_uses_unequal_intervals_not_phase_hours():
+    records = [
+        make_record(step_seconds=900, voltage_violation_count=4,
+                    voltage_min_pu=.91, voltage_max_pu=1.01),
+        make_record(step_seconds=2700, voltage_violation_count=0,
+                    voltage_min_pu=.95, voltage_max_pu=1.05),
+        make_record(step_seconds=1200, voltage_violation_count=1,
+                    voltage_min_pu=.99, voltage_max_pu=1.10),
+    ]
+    result = summarize_episode(records, 3,
+                               voltage_lower_limit_pu=.95,
+                               voltage_upper_limit_pu=1.05)
+    assert result["voltage_violation_count_total"] == 5
+    assert result["voltage_violation_interval_hours"] == pytest.approx(2100 / 3600)
+    assert result["voltage_max_exceedance_pu"] == pytest.approx(.05)
+    assert not result["eligible_for_day_ranking"]
+    assert result["day_ranking_refusal"] == "not_24_hours"
+
+
+@pytest.mark.parametrize("failure,reason", [(False, "incomplete"), (True, "solver_failure")])
+def test_voltage_diagnostics_not_rankable_on_incomplete_or_failed_day(failure, reason):
+    records = [make_record(step_seconds=900, voltage_violation_count=3,
+                           voltage_min_pu=.93, voltage_max_pu=1.01)]
+    if failure:
+        records.append({"physical_failure": True})
+    result = summarize_episode(records, 24,
+                               voltage_lower_limit_pu=.95,
+                               voltage_upper_limit_pu=1.05)
+    assert result["voltage_violation_interval_hours"] is None
+    assert result["voltage_max_exceedance_pu"] is None
+    assert result["diagnostic_voltage_violation_interval_hours"] == .25
+    assert result["diagnostic_voltage_max_exceedance_pu"] == pytest.approx(.02)
+    assert result["energy_kwh"] is None
+    assert not result["eligible_for_day_ranking"]
+    assert result["day_ranking_refusal"] == reason
+
+
+def test_complete_day_and_no_default_limits():
+    result = summarize_episode([make_record(step_seconds=3600)] * 24, 24)
+    assert result["eligible_for_day_ranking"]
+    assert result["day_ranking_refusal"] is None
+    assert result["voltage_limits_pu"] is None
+    assert result["voltage_max_exceedance_pu"] is None
+
+
+@pytest.mark.parametrize("lower,upper", [(None, 1.05), (.95, None),
+                                        (1.05, .95), (True, 1.05),
+                                        (.95, float("inf"))])
+def test_invalid_limits_refused(lower, upper):
+    with pytest.raises(ValueError):
+        summarize_episode([], 24, voltage_lower_limit_pu=lower,
+                          voltage_upper_limit_pu=upper)
+
+
+def test_native_count_and_explicit_limits_must_agree():
+    with pytest.raises(ValueError, match="contradicts"):
+        summarize_episode([make_record(voltage_violation_count=0,
+                                       voltage_min_pu=.94, voltage_max_pu=1.02)],
+                          1, voltage_lower_limit_pu=.95, voltage_upper_limit_pu=1.05)

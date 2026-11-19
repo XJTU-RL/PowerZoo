@@ -36,6 +36,16 @@
 | `voltage_violation_count_total` | 收敛步越限计数的直接求和（**计数，不是速率**） |
 | `step_seconds_min` / `step_seconds_mean` / `step_seconds_max` | 每步实际步长区间的观测统计；**不是回合时长**（汇总不推断回合结束时间） |
 | `failure` | null，或 {step_index, reason, trailing_records_ignored} |
+| `voltage_violation_interval_hours` | 有至少一相越限的区间小时；每个区间只计一次，不是相小时 |
+| `voltage_max_exceedance_pu` | 全回合最大越限幅度（p.u.）：max(0, 下限−Vmin, Vmax−上限) |
+| `eligible_for_day_ranking` / `day_ranking_refusal` | 只在完整且收敛、区间合计为 24 小时时通过覆盖门槛；否则明确拒绝原因 |
+
+上述两个全回合电压时长/幅度字段在失败或截断时为 null；`diagnostic_`
+字段保留收敛前缀用于诊断，不能当作全天结果。幅度必须有显式电压上下限，
+离线 CLI 用 `--voltage-lower-limit-pu` 和 `--voltage-upper-limit-pu` 同时设置，
+原生导出直接使用 checkpoint 对应的 VVC 配置限值；不代填。
+越限计数与同一限值下的极值矛盾时拒绝输入。覆盖门槛只验证 24h 和完成状态，
+跨方案比较还须使用相同的冻结场景、时段与限值。
 
 能量按每步**实际区间**积分：`energy_kwh = Σ power_loss_kw × step_seconds / 3600`。
 
@@ -53,7 +63,7 @@ python scripts/vvc_benchmark_metrics.py episode.jsonl --expected-steps 24
 
 ## 不做的事
 
-- 不输出速率（计数不除以步数或时长），不推断、不输出回合时长。
+- 不输出越限速率或相小时，也不从记录推断绝对结束日期。
 - 不新增策略 / 训练 / 网络调用 / native 控制改动；不改清单与环境。
 - 不做任何跨回合聚合或泛化性声明。
 
