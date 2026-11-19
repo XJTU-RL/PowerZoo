@@ -32,11 +32,24 @@ STEPS = 288
 DER_BUSES = sorted(set(range(4, 19)) | {19, 20, 21, 22} | set(range(27, 34)))
 NON_DER_LOAD_BUSES = [2, 3, 23, 24, 25, 26]  # bus1 为变电站无负荷
 TAN_PHI = np.tan(np.arccos(0.85))
-DER_DAILY_ENERGY_KWH = 850.0
-EV_DAILY_ENERGY_KWH = 350.0
+# DER 母线日能量标定（M2 零控制标定冻结）：基荷 1600 + EV 300 kWh/
+# 母线/日，使负荷峰 ~200 kW、PV 峰 ~150-170 kW，白天反送 ~3 MW 出现
+# 论文量级的过压，与 Fig.5(a) 峰值口径和 Fig.9(a) 工作区间一致；
+# Fig.5(b) 的 850 与 Fig.5(a) 在论文内自相矛盾（850 kWh/日不可能有
+# 200 kW 峰），以现象口径优先，偏离文档记录。
+DER_DAILY_ENERGY_KWH = 1600.0
+EV_DAILY_ENERGY_KWH = 300.0
 EV_DAY_SIGMA = 0.15
+EV_FACTOR_RANGE = (0.7, 1.2)  # 日因子截断（标定：避免极端夜压/过载日）
 PRICE_DAY_SIGMA = 0.2
 PV_PENETRATION = 0.9
+# PV 加成（M2 标定冻结）：0.9×峰荷 的字面渗透率不足以复现论文
+# Fig.5(a)/Fig.9(a) 的白天过压现象（论文 Fig.5(a) 与 (b) 的尺度自相矛盾，
+# 取现象口径），等效渗透率 1.35，偏离文档记录。
+PV_BOOST = 1.5
+# 非 DER 母线铭牌缩放（M2 标定冻结）：0.5 抑制夜间馈线整体压降，
+# 使夜压落在论文 Fig.9(a) 工作区间附近。
+NON_DER_SCALE = 0.5
 PV_OVERSIZE = 1.1
 
 # 合成批发电价形状锚点（分钟, AUD/MWh）：夜间低、早晚高、正午光伏压低。
@@ -175,7 +188,7 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
     # EV：固定形状 × 日因子 × 目标能量。
     ev_template = _ev_shape()[None, None, :]
     ev_factor = np.clip(
-        rng.lognormal(0.0, EV_DAY_SIGMA, (n_days, 1)), 0.6, 1.5
+        rng.lognormal(0.0, EV_DAY_SIGMA, (n_days, 1)), *EV_FACTOR_RANGE
     ).astype(np.float32)
     p_ev = ev_template * ev_factor[:, :, None] * EV_DAILY_ENERGY_KWH
 
@@ -183,7 +196,7 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
 
     # PV 安装峰值 = 0.9 × 母线典型日峰负荷（全样本日均，静态容量）。
     typical_peak = p_der.max(axis=2).mean(axis=0)  # (26,)
-    pv_peak = PV_PENETRATION * typical_peak
+    pv_peak = PV_PENETRATION * PV_BOOST * typical_peak
     pv_max = pv_shape.max(axis=2)  # (D, 26)
     pv_available = np.where(
         pv_max[:, :, None] > 0,
@@ -205,7 +218,7 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
         pv_out[:, :, j] = pv_available[:, j, :]
     for bus in NON_DER_LOAD_BUSES:
         kw, _ = nameplate[bus]
-        p_load[:, :, bus - 1] = kw * system_norm
+        p_load[:, :, bus - 1] = kw * NON_DER_SCALE * system_norm
     q_load[:] = p_load * np.float32(TAN_PHI)
 
     # 电价：合成形状 × 对数正态日因子。

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 CASE_FOLDER = REPO_ROOT / "research" / "pistg_ldcpo" / "case" / "ieee33bus"
 
 
@@ -44,7 +44,9 @@ class ScenarioConfig:
     ev_daily_energy_kwh: float = 350.0  # Fig.5(b) EV 柱 ≈350 kWh/母线/日
     load_power_factor: float = 0.85  # 标准 33-bus 系统功率因数 3715/√(3715²+2300²)
     non_der_scale: float = 1.0  # 非 DER 母线 = 标准铭牌 × 日形状
-    price_level: float = 1.0  # 电价整体缩放（零控制成本标定用）
+    # 电价整体缩放（M2 标定冻结）：0.55 使零控制日成本 ≈1400 AUD，
+    # 与论文表 III 有控制成本 1382 AUD/日 同量级。
+    price_level: float = 0.55
 
 
 @dataclass

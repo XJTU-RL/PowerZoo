@@ -166,19 +166,20 @@ def test_profiles_shapes_and_energy_targets():
     assert p.shape == (data["day_keys"].shape[0], 288, 33)
     assert pv.shape[0] == p.shape[0] and pv.shape[2] == 26
     assert (p >= 0).all() and (pv >= 0).all() and (price > 0).all()
-    # DER 母线日能量 = 基荷 850 + EV 350 kWh（每母线每日，能量重标定）。
+    # DER 母线日能量 = 基荷 1600 + EV 300 kWh（每母线每日，能量重标定；
+    # M2 零控制标定冻结值，依据记入 docs/pistg-repro-deviations.md）。
     der = np.array(manifest["der_buses"]) - 1
     energy = p[:, :, der].sum(axis=1).mean(axis=1) * (5.0 / 60.0)
-    assert energy.mean() == pytest.approx(1200.0, rel=0.01)
-    # EV 日因子截断 [0.6,1.5] → 单日能量 [1040, 1375] kWh。
-    assert (energy > 1030.0).all() and (energy < 1380.0).all()
+    assert energy.mean() == pytest.approx(1900.0, rel=0.01)
+    # EV 日因子截断 [0.7,1.2] → 单日能量 [1810, 1960] kWh。
+    assert (energy > 1800.0).all() and (energy < 1970.0).all()
     # 无功 = 有功 × tanφ（pf=0.85）。
     mask = p > 0
     ratio = (q[mask] / p[mask])
     assert np.allclose(ratio, np.tan(np.arccos(0.85)), atol=1e-3)
-    # PV 峰值 = 0.9 × 母线典型日峰负荷（静态容量，跨日一致）。
+    # PV 静态峰值 = 0.9 × PV_BOOST(1.5) × 母线典型日峰负荷（跨日一致）。
     pv_peak = pv.max(axis=(0, 1))
-    assert pv_peak.min() > 50.0 and pv_peak.max() < 120.0
+    assert pv_peak.min() > 150.0 and pv_peak.max() < 230.0
 
 
 def test_profiles_day_split_disjoint():
@@ -206,3 +207,120 @@ def test_profile_store_roundtrip():
     assert episode.pv_available_kw.shape == (288, 26)
     assert episode.price_aud_per_kwh_5min.shape == (288,)
     assert episode.price_aud_per_kwh_5min.max() < 1.0  # AUD/kWh 合理量级
+
+
+# ---------------------------------------------------------------------------
+# M3：动作映射（式(1)(25)(26)）与 CBESS 环境。
+
+
+def test_action_mapping_bounds():
+    """α=±1 恰好触及 SOC 感知界限；式(1e) 圆约束与 ±50 kVAr 硬界成立。"""
+    from research.pistg_ldcpo.environment.physics import (
+        CBESSParams,
+        cbess_energy_update,
+        map_cbess_action,
+        map_pv_action,
+        soc_aware_limits,
+    )
+
+    params = CBESSParams()  # 论文默认：1000 kWh、±250 kW、±50 kVAr、η=0.95
+    dt = 300.0 / 3600.0
+    energy = 500.0  # SOC 50%（居中，充放均不受 SOC 限制）
+    p_max, q_max = map_cbess_action(1.0, 1.0, energy, params, dt)
+    p_min, _ = map_cbess_action(-1.0, 0.0, energy, params, dt)
+    assert p_max == pytest.approx(250.0, abs=1e-9)
+    assert p_min == pytest.approx(-250.0, abs=1e-9)
+    assert abs(q_max) == pytest.approx(50.0, abs=1e-6)  # 圆约束或硬界取小
+
+    # SOC 感知：接近下界时放电受限、充电满额。
+    energy_low = params.soc_min * params.capacity_kwh + 10.0
+    p_ch, p_dis = soc_aware_limits(energy_low, params, dt)
+    assert p_ch == pytest.approx(250.0, abs=1e-9)
+    assert p_dis == pytest.approx(10.0 * 0.95 / dt, abs=1e-6)
+    # α_P=-1 在 SOC 上界附近只能充 0（无空间）。
+    energy_high = params.soc_max * params.capacity_kwh
+    p_zero, _ = map_cbess_action(-1.0, 0.0, energy_high, params, dt)
+    assert p_zero == pytest.approx(0.0, abs=1e-9)
+
+    # 圆约束：任意 α 组合 p²+q² ≤ S_CB²（q 硬界 50 更紧时亦然）。
+    for a_p in (-1, -0.3, 0, 0.7, 1):
+        for a_q in (-1, 0, 1):
+            p_cb, q_cb = map_cbess_action(a_p, a_q, energy, params, dt)
+            assert p_cb**2 + q_cb**2 <= params.s_rating_kva**2 + 1e-6
+            assert abs(q_cb) <= 50.0 + 1e-9
+
+    # 式(1a)：250 kW 充一步（5/60 h），能量增加 η×250×5/60。
+    e_next = cbess_energy_update(500.0, -250.0, params, dt)
+    assert e_next == pytest.approx(500.0 + 0.95 * 250 * 5 / 60, rel=1e-9)
+
+    # 式(2)(3)：κ∈[0,1] 线性于 α_κ；q_inv 受视在功率圆约束。
+    p_pv, q_inv, kappa = map_pv_action(-1.0, 0.0, 100.0, 110.0)
+    assert kappa == 0.0 and p_pv == 100.0 and q_inv == 0.0
+    p_pv, q_inv, kappa = map_pv_action(1.0, 0.0, 100.0, 110.0)
+    assert kappa == 1.0 and p_pv == 0.0
+    p_pv, q_inv, kappa = map_pv_action(0.0, 1.0, 100.0, 110.0)
+    assert kappa == 0.5 and p_pv == 50.0
+    assert p_pv**2 + q_inv**2 <= 110.0**2 + 1e-6
+
+
+def test_constraint_costs_and_reward_values():
+    """式(24c)-(24f) 手工算例：单位与口径逐项核对。"""
+    from research.pistg_ldcpo.environment.physics import (
+        constraint_costs,
+        economic_reward,
+    )
+
+    v = np.array([1.06, 0.94, 1.00, 0.95, 1.05])  # 越上界 0.01、越下界 0.01
+    s = np.array([110.0, 90.0, 100.0])  # 10% 过载一条
+    costs = constraint_costs(v, s, np.full(3, 100.0), 0.95, 1.05)
+    assert costs["VD"] == pytest.approx(0.02, abs=1e-12)
+    assert costs["VN"] == 2.0
+    assert costs["LO"] == pytest.approx(10.0, abs=1E-12)  # (110/100-1)×100
+
+    reward = economic_reward(
+        p_load_kw=np.array([100.0, 50.0]),
+        p_pv_kw=30.0,
+        p_cbess_kw=np.array([10.0, -10.0]),  # 净 0
+        price_aud_per_mwh=60.0,
+        degradation_aud_per_kwh=0.03,
+        dt_hours=5.0 / 60.0,
+    )
+    # 能量成本 = 120 kW × 5/60 h × 0.06 AUD/kWh = 0.6；退化 = 20 kW×5/60×0.03。
+    assert reward == pytest.approx(-(0.6 + 0.05), abs=1e-9)
+
+
+def test_zero_control_day_reproduces_paper_phenomena():
+    """零控制（κ=0、q=0、CBESS 静止）全天回放：白天过压 + 夜间欠压 + 成本量级。
+
+    M2 标定冻结的验收实验；参数依据见 docs/pistg-repro-deviations.md。
+    """
+    _profiles_or_skip()
+    from research.pistg_ldcpo.config import CASE_FOLDER, RunConfig
+    from research.pistg_ldcpo.data.profile_store import ProfileStore
+    from research.pistg_ldcpo.environment.cbes_env import CBESEnv
+
+    cfg = RunConfig()
+    store = ProfileStore(cfg.data_dir)
+    env = CBESEnv(CASE_FOLDER, store, cfg.scenario)
+    try:
+        assert env.action_dim == 60  # 4×2 CBESS + 26×2 PV
+        rng = np.random.default_rng(7)
+        env.reset(rng, "test")
+        action = np.zeros(env.action_dim)
+        action[8:34] = -1.0  # κ=0 完全不弃光
+        vmax_day, vmin_night = 0.0, 1.0
+        for t in range(288):
+            obs, reward, costs, done, info = env.step(action)
+            assert set(costs) == {"VD", "VN", "LO"}
+            if 96 <= t < 192:
+                vmax_day = max(vmax_day, float(info["v_pu"].max()))
+            if t < 72 or t >= 264:
+                vmin_night = min(vmin_night, float(info["v_pu"].min()))
+        metrics = env.day_metrics
+        assert vmax_day > 1.03, "白天应出现论文量级的过压现象"
+        assert vmin_night < 0.93, "夜间应出现欠压现象"
+        cost_aud = -metrics["reward"]
+        assert 500 < cost_aud < 3000, "零控制日成本应在论文表 III 量级附近"
+        assert metrics["curtailed_kwh"] < 1e-6  # 零控制不弃光
+    finally:
+        env.close()

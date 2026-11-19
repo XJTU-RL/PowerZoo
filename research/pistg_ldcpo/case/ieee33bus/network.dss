@@ -1,38 +1,39 @@
 clear
 new circuit.ieee33bus bus1=bus1.1.2.3 basekV=12.66 pu=1.0 angle=0 mvasc3=1000000 mvasc1=1000000
+set voltagebases=[12.66]
 set maxiterations=100 tolerance=1e-8
-new line.line_1_2 bus1=bus1.1.2.3 bus2=bus2.1.2.3 R1=0.092200 X1=0.047000 normamps=400.0
-new line.line_2_3 bus1=bus2.1.2.3 bus2=bus3.1.2.3 R1=0.493000 X1=0.251100 normamps=400.0
-new line.line_3_4 bus1=bus3.1.2.3 bus2=bus4.1.2.3 R1=0.366000 X1=0.186400 normamps=400.0
-new line.line_4_5 bus1=bus4.1.2.3 bus2=bus5.1.2.3 R1=0.381100 X1=0.194100 normamps=400.0
-new line.line_5_6 bus1=bus5.1.2.3 bus2=bus6.1.2.3 R1=0.819000 X1=0.707000 normamps=400.0
-new line.line_6_7 bus1=bus6.1.2.3 bus2=bus7.1.2.3 R1=0.187200 X1=0.618800 normamps=400.0
-new line.line_7_8 bus1=bus7.1.2.3 bus2=bus8.1.2.3 R1=0.711400 X1=0.235100 normamps=400.0
-new line.line_8_9 bus1=bus8.1.2.3 bus2=bus9.1.2.3 R1=1.030000 X1=0.740000 normamps=400.0
-new line.line_9_10 bus1=bus9.1.2.3 bus2=bus10.1.2.3 R1=1.044000 X1=0.740000 normamps=400.0
-new line.line_10_11 bus1=bus10.1.2.3 bus2=bus11.1.2.3 R1=0.196600 X1=0.065000 normamps=400.0
-new line.line_11_12 bus1=bus11.1.2.3 bus2=bus12.1.2.3 R1=0.374400 X1=0.123800 normamps=400.0
-new line.line_12_13 bus1=bus12.1.2.3 bus2=bus13.1.2.3 R1=1.468000 X1=1.155000 normamps=400.0
-new line.line_13_14 bus1=bus13.1.2.3 bus2=bus14.1.2.3 R1=0.541600 X1=0.712900 normamps=400.0
-new line.line_14_15 bus1=bus14.1.2.3 bus2=bus15.1.2.3 R1=0.591000 X1=0.526000 normamps=400.0
-new line.line_15_16 bus1=bus15.1.2.3 bus2=bus16.1.2.3 R1=0.746300 X1=0.545000 normamps=400.0
-new line.line_16_17 bus1=bus16.1.2.3 bus2=bus17.1.2.3 R1=1.289000 X1=1.721000 normamps=400.0
-new line.line_17_18 bus1=bus17.1.2.3 bus2=bus18.1.2.3 R1=0.732000 X1=0.574000 normamps=400.0
-new line.line_2_19 bus1=bus2.1.2.3 bus2=bus19.1.2.3 R1=0.164000 X1=0.156500 normamps=200.0
-new line.line_19_20 bus1=bus19.1.2.3 bus2=bus20.1.2.3 R1=1.504200 X1=1.355400 normamps=200.0
-new line.line_20_21 bus1=bus20.1.2.3 bus2=bus21.1.2.3 R1=0.409500 X1=0.478400 normamps=200.0
-new line.line_21_22 bus1=bus21.1.2.3 bus2=bus22.1.2.3 R1=0.708900 X1=0.937300 normamps=200.0
-new line.line_3_23 bus1=bus3.1.2.3 bus2=bus23.1.2.3 R1=0.451200 X1=0.308300 normamps=200.0
-new line.line_23_24 bus1=bus23.1.2.3 bus2=bus24.1.2.3 R1=0.898000 X1=0.709100 normamps=200.0
-new line.line_24_25 bus1=bus24.1.2.3 bus2=bus25.1.2.3 R1=0.896000 X1=0.701100 normamps=200.0
-new line.line_6_26 bus1=bus6.1.2.3 bus2=bus26.1.2.3 R1=0.203000 X1=0.103400 normamps=200.0
-new line.line_26_27 bus1=bus26.1.2.3 bus2=bus27.1.2.3 R1=0.284200 X1=0.144700 normamps=200.0
-new line.line_27_28 bus1=bus27.1.2.3 bus2=bus28.1.2.3 R1=1.059000 X1=0.933700 normamps=200.0
-new line.line_28_29 bus1=bus28.1.2.3 bus2=bus29.1.2.3 R1=0.804200 X1=0.700600 normamps=200.0
-new line.line_29_30 bus1=bus29.1.2.3 bus2=bus30.1.2.3 R1=0.507500 X1=0.258500 normamps=200.0
-new line.line_30_31 bus1=bus30.1.2.3 bus2=bus31.1.2.3 R1=0.974400 X1=0.963000 normamps=200.0
-new line.line_31_32 bus1=bus31.1.2.3 bus2=bus32.1.2.3 R1=0.310500 X1=0.361900 normamps=200.0
-new line.line_32_33 bus1=bus32.1.2.3 bus2=bus33.1.2.3 R1=0.341000 X1=0.530200 normamps=200.0
+new line.line_1_2 bus1=bus1.1.2.3 bus2=bus2.1.2.3 R1=0.092200 X1=0.047000 normamps=200.0
+new line.line_2_3 bus1=bus2.1.2.3 bus2=bus3.1.2.3 R1=0.493000 X1=0.251100 normamps=200.0
+new line.line_3_4 bus1=bus3.1.2.3 bus2=bus4.1.2.3 R1=0.366000 X1=0.186400 normamps=200.0
+new line.line_4_5 bus1=bus4.1.2.3 bus2=bus5.1.2.3 R1=0.381100 X1=0.194100 normamps=200.0
+new line.line_5_6 bus1=bus5.1.2.3 bus2=bus6.1.2.3 R1=0.819000 X1=0.707000 normamps=200.0
+new line.line_6_7 bus1=bus6.1.2.3 bus2=bus7.1.2.3 R1=0.187200 X1=0.618800 normamps=200.0
+new line.line_7_8 bus1=bus7.1.2.3 bus2=bus8.1.2.3 R1=0.711400 X1=0.235100 normamps=200.0
+new line.line_8_9 bus1=bus8.1.2.3 bus2=bus9.1.2.3 R1=1.030000 X1=0.740000 normamps=200.0
+new line.line_9_10 bus1=bus9.1.2.3 bus2=bus10.1.2.3 R1=1.044000 X1=0.740000 normamps=200.0
+new line.line_10_11 bus1=bus10.1.2.3 bus2=bus11.1.2.3 R1=0.196600 X1=0.065000 normamps=200.0
+new line.line_11_12 bus1=bus11.1.2.3 bus2=bus12.1.2.3 R1=0.374400 X1=0.123800 normamps=200.0
+new line.line_12_13 bus1=bus12.1.2.3 bus2=bus13.1.2.3 R1=1.468000 X1=1.155000 normamps=200.0
+new line.line_13_14 bus1=bus13.1.2.3 bus2=bus14.1.2.3 R1=0.541600 X1=0.712900 normamps=200.0
+new line.line_14_15 bus1=bus14.1.2.3 bus2=bus15.1.2.3 R1=0.591000 X1=0.526000 normamps=200.0
+new line.line_15_16 bus1=bus15.1.2.3 bus2=bus16.1.2.3 R1=0.746300 X1=0.545000 normamps=200.0
+new line.line_16_17 bus1=bus16.1.2.3 bus2=bus17.1.2.3 R1=1.289000 X1=1.721000 normamps=200.0
+new line.line_17_18 bus1=bus17.1.2.3 bus2=bus18.1.2.3 R1=0.732000 X1=0.574000 normamps=200.0
+new line.line_2_19 bus1=bus2.1.2.3 bus2=bus19.1.2.3 R1=0.164000 X1=0.156500 normamps=100.0
+new line.line_19_20 bus1=bus19.1.2.3 bus2=bus20.1.2.3 R1=1.504200 X1=1.355400 normamps=100.0
+new line.line_20_21 bus1=bus20.1.2.3 bus2=bus21.1.2.3 R1=0.409500 X1=0.478400 normamps=100.0
+new line.line_21_22 bus1=bus21.1.2.3 bus2=bus22.1.2.3 R1=0.708900 X1=0.937300 normamps=100.0
+new line.line_3_23 bus1=bus3.1.2.3 bus2=bus23.1.2.3 R1=0.451200 X1=0.308300 normamps=100.0
+new line.line_23_24 bus1=bus23.1.2.3 bus2=bus24.1.2.3 R1=0.898000 X1=0.709100 normamps=100.0
+new line.line_24_25 bus1=bus24.1.2.3 bus2=bus25.1.2.3 R1=0.896000 X1=0.701100 normamps=100.0
+new line.line_6_26 bus1=bus6.1.2.3 bus2=bus26.1.2.3 R1=0.203000 X1=0.103400 normamps=100.0
+new line.line_26_27 bus1=bus26.1.2.3 bus2=bus27.1.2.3 R1=0.284200 X1=0.144700 normamps=100.0
+new line.line_27_28 bus1=bus27.1.2.3 bus2=bus28.1.2.3 R1=1.059000 X1=0.933700 normamps=100.0
+new line.line_28_29 bus1=bus28.1.2.3 bus2=bus29.1.2.3 R1=0.804200 X1=0.700600 normamps=100.0
+new line.line_29_30 bus1=bus29.1.2.3 bus2=bus30.1.2.3 R1=0.507500 X1=0.258500 normamps=100.0
+new line.line_30_31 bus1=bus30.1.2.3 bus2=bus31.1.2.3 R1=0.974400 X1=0.963000 normamps=100.0
+new line.line_31_32 bus1=bus31.1.2.3 bus2=bus32.1.2.3 R1=0.310500 X1=0.361900 normamps=100.0
+new line.line_32_33 bus1=bus32.1.2.3 bus2=bus33.1.2.3 R1=0.341000 X1=0.530200 normamps=100.0
 new load.load_b2 bus1=bus2.1.2.3 kW=100.0000 kvar=60.0000 model=1 status=fixed Vminpu=0.8 Vmaxpu=1.2
 new load.load_b3 bus1=bus3.1.2.3 kW=90.0000 kvar=40.0000 model=1 status=fixed Vminpu=0.8 Vmaxpu=1.2
 new load.load_b4 bus1=bus4.1.2.3 kW=120.0000 kvar=80.0000 model=1 status=fixed Vminpu=0.8 Vmaxpu=1.2

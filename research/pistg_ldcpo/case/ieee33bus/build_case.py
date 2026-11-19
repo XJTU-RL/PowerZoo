@@ -25,10 +25,12 @@ import pandapower as pp
 import pandapower.networks as pn
 
 BASE_KV = 12.66
-# 主干路径（经典编号 1..18）上的线路给 400 A，其余支线 200 A。
+# 主干路径（经典编号 1..18）上的线路给 200 A，其余支线 100 A。
+# 论文未给线路额定；M2 零控制标定选择该组：晚峰主干负载 ~90-105%
+# （论文 Fig.8/9 的过载现象），支线 20-60%（形态一致）。
 TRUNK_BUSES = set(range(1, 19))
-TRUNK_NORMAMPS = 400.0
-LATERAL_NORMAMPS = 200.0
+TRUNK_NORMAMPS = 200.0
+LATERAL_NORMAMPS = 100.0
 # DER 母线集合：主馈线 4-18 ∪ 支线 19-22 ∪ 支线 27-33（含 4 个 CBESS 母线）。
 DER_BUSES = sorted(set(range(4, 19)) | {19, 20, 21, 22} | set(range(27, 34)))
 CBESS_BUSES = [6, 11, 16, 31]

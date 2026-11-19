@@ -11,7 +11,7 @@
       "to_bus": 2,
       "r_ohm": 0.0922,
       "x_ohm": 0.047,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_2_3",
@@ -19,7 +19,7 @@
       "to_bus": 3,
       "r_ohm": 0.493,
       "x_ohm": 0.2511,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_3_4",
@@ -27,7 +27,7 @@
       "to_bus": 4,
       "r_ohm": 0.366,
       "x_ohm": 0.1864,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_4_5",
@@ -35,7 +35,7 @@
       "to_bus": 5,
       "r_ohm": 0.3811,
       "x_ohm": 0.1941,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_5_6",
@@ -43,7 +43,7 @@
       "to_bus": 6,
       "r_ohm": 0.819,
       "x_ohm": 0.707,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_6_7",
@@ -51,7 +51,7 @@
       "to_bus": 7,
       "r_ohm": 0.1872,
       "x_ohm": 0.6188,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_7_8",
@@ -59,7 +59,7 @@
       "to_bus": 8,
       "r_ohm": 0.7114,
       "x_ohm": 0.2351,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_8_9",
@@ -67,7 +67,7 @@
       "to_bus": 9,
       "r_ohm": 1.03,
       "x_ohm": 0.74,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_9_10",
@@ -75,7 +75,7 @@
       "to_bus": 10,
       "r_ohm": 1.044,
       "x_ohm": 0.74,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_10_11",
@@ -83,7 +83,7 @@
       "to_bus": 11,
       "r_ohm": 0.1966,
       "x_ohm": 0.065,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_11_12",
@@ -91,7 +91,7 @@
       "to_bus": 12,
       "r_ohm": 0.3744,
       "x_ohm": 0.1238,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_12_13",
@@ -99,7 +99,7 @@
       "to_bus": 13,
       "r_ohm": 1.468,
       "x_ohm": 1.155,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_13_14",
@@ -107,7 +107,7 @@
       "to_bus": 14,
       "r_ohm": 0.5416,
       "x_ohm": 0.7129,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_14_15",
@@ -115,7 +115,7 @@
       "to_bus": 15,
       "r_ohm": 0.591,
       "x_ohm": 0.526,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_15_16",
@@ -123,7 +123,7 @@
       "to_bus": 16,
       "r_ohm": 0.7463,
       "x_ohm": 0.545,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_16_17",
@@ -131,7 +131,7 @@
       "to_bus": 17,
       "r_ohm": 1.289,
       "x_ohm": 1.721,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_17_18",
@@ -139,7 +139,7 @@
       "to_bus": 18,
       "r_ohm": 0.732,
       "x_ohm": 0.574,
-      "normamps": 400.0
+      "normamps": 200.0
     },
     {
       "name": "line_2_19",
@@ -147,7 +147,7 @@
       "to_bus": 19,
       "r_ohm": 0.164,
       "x_ohm": 0.1565,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_19_20",
@@ -155,7 +155,7 @@
       "to_bus": 20,
       "r_ohm": 1.5042,
       "x_ohm": 1.3554,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_20_21",
@@ -163,7 +163,7 @@
       "to_bus": 21,
       "r_ohm": 0.4095,
       "x_ohm": 0.4784,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_21_22",
@@ -171,7 +171,7 @@
       "to_bus": 22,
       "r_ohm": 0.7089,
       "x_ohm": 0.9373,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_3_23",
@@ -179,7 +179,7 @@
       "to_bus": 23,
       "r_ohm": 0.4512,
       "x_ohm": 0.3083,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_23_24",
@@ -187,7 +187,7 @@
       "to_bus": 24,
       "r_ohm": 0.898,
       "x_ohm": 0.7091,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_24_25",
@@ -195,7 +195,7 @@
       "to_bus": 25,
       "r_ohm": 0.896,
       "x_ohm": 0.7011,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_6_26",
@@ -203,7 +203,7 @@
       "to_bus": 26,
       "r_ohm": 0.203,
       "x_ohm": 0.1034,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_26_27",
@@ -211,7 +211,7 @@
       "to_bus": 27,
       "r_ohm": 0.2842,
       "x_ohm": 0.1447,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_27_28",
@@ -219,7 +219,7 @@
       "to_bus": 28,
       "r_ohm": 1.059,
       "x_ohm": 0.9337,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_28_29",
@@ -227,7 +227,7 @@
       "to_bus": 29,
       "r_ohm": 0.8042,
       "x_ohm": 0.7006,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_29_30",
@@ -235,7 +235,7 @@
       "to_bus": 30,
       "r_ohm": 0.5075,
       "x_ohm": 0.2585,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_30_31",
@@ -243,7 +243,7 @@
       "to_bus": 31,
       "r_ohm": 0.9744,
       "x_ohm": 0.963,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_31_32",
@@ -251,7 +251,7 @@
       "to_bus": 32,
       "r_ohm": 0.3105,
       "x_ohm": 0.3619,
-      "normamps": 200.0
+      "normamps": 100.0
     },
     {
       "name": "line_32_33",
@@ -259,7 +259,7 @@
       "to_bus": 33,
       "r_ohm": 0.341,
       "x_ohm": 0.5302,
-      "normamps": 200.0
+      "normamps": 100.0
     }
   ],
   "der_buses": [
