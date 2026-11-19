@@ -1,4 +1,4 @@
-"""Replay a frozen HAPPO checkpoint on explicit VVC validation scenarios."""
+"""Replay a frozen VVC checkpoint on explicit VVC validation scenarios."""
 
 import argparse
 from dataclasses import replace
@@ -49,8 +49,17 @@ def _normalize(snapshots, identity):
 
 
 def export_validation(
-    checkpoint, manifest, indices, *, seed, device="cpu", split="validation"
+    checkpoint,
+    manifest,
+    indices,
+    *,
+    seed,
+    device="cpu",
+    split="validation",
+    allow_mappo=False,
 ):
+    if type(allow_mappo) is not bool:
+        raise ValueError("allow_mappo must be a boolean")
     if split != "validation":
         raise ValueError("only validation is enabled")
     indices = tuple(indices)
@@ -65,7 +74,10 @@ def export_validation(
     manifest = Path(manifest).resolve(strict=True)
     digest = sha256(manifest.read_bytes()).hexdigest()
     load_checkpoint, runner_class = _runtime()
-    engine = load_checkpoint(checkpoint, device=device, expected_family="vvc")
+    replay_options = {"allow_mappo": True} if allow_mappo else {}
+    engine = load_checkpoint(
+        checkpoint, device=device, expected_family="vvc", **replay_options
+    )
     config = engine.config
     if config.smartds_series:
         raise ValueError("this exporter only supports ScenarioDataset-based VVC")
@@ -122,6 +134,7 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--split", choices=["validation"], default="validation")
+    parser.add_argument("--allow-mappo", action="store_true")
     args = parser.parse_args(argv)
     try:
         output = export_validation(
@@ -131,6 +144,7 @@ def main(argv=None):
             seed=args.seed,
             device=args.device,
             split=args.split,
+            allow_mappo=args.allow_mappo,
         )
         print(json.dumps(output, sort_keys=True, allow_nan=False))
     except (OSError, ValueError, RuntimeError) as exc:

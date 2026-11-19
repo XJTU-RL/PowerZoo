@@ -78,3 +78,9 @@ python -m scripts.export_vvc_validation \
 及单回合指标。初始快照不计入，物理失败单独标记；不导出设备动作计数。
 这不是完整的基准评测或模型自动选择器。实际 HAPPO/数据组合需另行验收，
 不得用 test 挑 checkpoint，也不能把文件不同但曲线重复的样本视为有效留出。
+
+`--allow-mappo` 显式放行 VVC 的非共享 MAPPO checkpoint，默认仍只接受
+HAPPO。要求 checkpoint 的正式 resolved 配置显式记录 `share_param: false`
+及原始模型参数，不补猜 RNN 设置、不共享或复制 actor 权重；物理清单校验
+和严格加载保持不变。一般渲染和其他任务没有启用该选项。实际 MAPPO
+checkpoint 逐步验证通过前，此范围仅为待验收的兼容入口。

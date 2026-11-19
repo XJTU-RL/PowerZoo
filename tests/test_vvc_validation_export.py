@@ -110,3 +110,17 @@ def test_rejects_duplicate_indices(runtime):
     manifest, _, _ = runtime
     with pytest.raises(ValueError, match="distinct"):
         export.export_validation("model", manifest, [3, 3], seed=17)
+
+
+def test_mappo_option_is_forwarded_only_when_explicit(runtime, monkeypatch):
+    manifest, _, _ = runtime
+    load, runner = export._runtime()
+
+    def with_opt_in(checkpoint, *, allow_mappo, **kwargs):
+        assert allow_mappo is True
+        return load(checkpoint, **kwargs)
+
+    monkeypatch.setattr(export, "_runtime", lambda: (with_opt_in, runner))
+    export.export_validation("model", manifest, [3], seed=17, allow_mappo=True)
+    with pytest.raises(ValueError, match="boolean"):
+        export.export_validation("model", manifest, [3], seed=17, allow_mappo="true")
