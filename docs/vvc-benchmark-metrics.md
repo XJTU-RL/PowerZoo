@@ -94,3 +94,34 @@ HAPPO。要求 checkpoint 的正式 resolved 配置显式记录 `share_param: fa
 及原始模型参数，不补猜 RNN 设置、不共享或复制 actor 权重；物理清单校验
 和严格加载保持不变。一般渲染和其他任务没有启用该选项。实际 MAPPO
 checkpoint 逐步验证通过前，此范围仅为待验收的兼容入口。
+
+### IEEE 34Bus fixed-device and local-regulator validation
+
+Use the training run's own resolved configuration and physics sidecar; this
+command does not open any model weights:
+
+```sh
+python -m scripts.export_vvc_baselines \
+  --resolved-config /path/to/config.resolved.yaml \
+  --physics-manifest /path/to/physics.manifest.json \
+  --manifest /path/to/scenario_manifest.json \
+  --scenario-index 0 --scenario-index 3 --seed 17 > baselines.json
+```
+
+Use the same explicit validation indices and seed in the policy exporter.
+Each pair starts from a separate, normally compiled and reset VVC core.
+Intervals use the same profile/time and applied scenario data as policy
+replay. `hold_initial` never writes capacitor states or transformer taps
+and disables DSS automatic controls. `native_regulator` instead lets the
+enabled RegControls own their respective transformer windings in DSS STATIC
+mode. Both explicitly command storage idle (0 kW, 0 kvar), leave capacitors
+untouched, and check measured idle power and unowned states after solving.
+The exporter refuses unfamiliar DSS element classes or ambiguous regulator
+ownership, reports the controller inventory and the initial/last converged
+device state, and uses the same physical metric aggregation as policy replay.
+
+This is a local **regulator-only** comparator, not an all-device heuristic or
+a real-time delay model. Endpoint tap differences are not event counts.
+Neither baseline emits a policy reward; failed intervals use the same
+incomplete-day refusal rules. Other feeders (including 123Bus), SMART-DS,
+test splits and cases with additional control classes are out of scope.
