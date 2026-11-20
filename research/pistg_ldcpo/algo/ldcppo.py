@@ -94,6 +94,37 @@ class LDCPPO:
     def set_budgets(self, budgets: dict[str, float]):
         self.budgets = dict(budgets)
 
+    def state_dict(self) -> dict:
+        """完整可恢复状态：权重 + 优化器 + 乘子 + 预算（断点续训用）。"""
+        return {
+            "actor": self.actor.state_dict(),
+            "reward_critic": self.reward_critic.state_dict(),
+            "cost_critics": {k: c.state_dict()
+                             for k, c in self.cost_critics.items()},
+            "actor_opt": self.actor_opt.state_dict(),
+            "reward_opt": self.reward_opt.state_dict(),
+            "cost_opts": {k: o.state_dict()
+                          for k, o in self.cost_opts.items()},
+            "multipliers": dict(self.multipliers),
+            "budgets": dict(self.budgets),
+        }
+
+    def load_state_dict(self, sd: dict):
+        """兼容旧 checkpoint（无优化器/预算键）的恢复。"""
+        self.actor.load_state_dict(sd["actor"])
+        self.reward_critic.load_state_dict(sd["reward_critic"])
+        for k, critic in self.cost_critics.items():
+            critic.load_state_dict(sd["cost_critics"][k])
+        if "actor_opt" in sd:
+            self.actor_opt.load_state_dict(sd["actor_opt"])
+            self.reward_opt.load_state_dict(sd["reward_opt"])
+            for k, opt in self.cost_opts.items():
+                opt.load_state_dict(sd["cost_opts"][k])
+        if "multipliers" in sd:
+            self.multipliers = dict(sd["multipliers"])
+        if "budgets" in sd:
+            self.budgets = dict(sd["budgets"])
+
     @torch.no_grad()
     def act(self, state: np.ndarray, deterministic: bool = False):
         s = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -167,66 +198,94 @@ class LDCPPO:
         stats = {"kl": 0.0, "actor_loss": 0.0, "critic_loss": 0.0,
                  "entropy": 0.0}
         stop = False
+        mb = max(1, min(cfg.minibatch_size, T))
+        adv_r_t = torch.tensor(adv_r, dtype=torch.float32, device=self.device)
+        adv_costs_t = {
+            k: torch.tensor(v, dtype=torch.float32, device=self.device)
+            for k, v in adv_costs.items()
+        }
+        target_r_t = torch.tensor(
+            target_r, dtype=torch.float32, device=self.device)
+        target_costs_t = {
+            k: torch.tensor(v, dtype=torch.float32, device=self.device)
+            for k, v in target_costs.items()
+        }
+        n_mb = 0
         for _ in range(cfg.ppo_epochs):
             if stop:
                 break
-            # --- 演员（式(35)）---
-            normal = self.actor.distribution(s)
-            logp = normal.log_prob(a).sum(-1)
-            ratio = (logp - old_logp).exp()
-            adv_lag = torch.tensor(adv_r, dtype=torch.float32, device=self.device)
-            for k, lam in self.multipliers.items():
-                adv_lag = adv_lag - lam * torch.tensor(
-                    adv_costs[k], dtype=torch.float32, device=self.device
+            # 论文 p.10 "episode or mini-batch"：每 epoch 随机重排切分。
+            perm = torch.randperm(T, device=self.device)
+            for i0 in range(0, T, mb):
+                idx = perm[i0 : i0 + mb]
+                # --- 演员（式(35)）---
+                normal = self.actor.distribution(s[idx])
+                logp = normal.log_prob(a[idx]).sum(-1)
+                ratio = (logp - old_logp[idx]).exp()
+                adv_lag = adv_r_t[idx].clone()
+                for k, lam in self.multipliers.items():
+                    adv_lag = adv_lag - lam * adv_costs_t[k][idx]
+                surrogate1 = ratio * adv_lag
+                surrogate2 = (
+                    torch.clamp(ratio, 1 - cfg.clip_range, 1 + cfg.clip_range)
+                    * adv_lag
                 )
-            surrogate1 = ratio * adv_lag
-            surrogate2 = (
-                torch.clamp(ratio, 1 - cfg.clip_range, 1 + cfg.clip_range)
-                * adv_lag
-            )
-            actor_loss = -torch.minimum(surrogate1, surrogate2).mean()
-            with torch.no_grad():
-                kl = float(
-                    (old_logp - logp).mean()
-                )  # k1 近似（论文未指定 KL 估计器）
-            self.actor_opt.zero_grad()
-            actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(),
-                                           cfg.max_grad_norm)
-            self.actor_opt.step()
-            stats["actor_loss"] = float(actor_loss)
-            stats["kl"] = kl
-            if kl > cfg.target_kl:
-                stop = True
-            # --- 评论家（式(33)）---
-            critic_loss = F.mse_loss(
-                self.reward_critic(s), torch.tensor(target_r, dtype=torch.float32, device=self.device)
-            )
-            self.reward_opt.zero_grad()
-            (cfg.value_coef * critic_loss).backward()
-            torch.nn.utils.clip_grad_norm_(
-                self.reward_critic.parameters(), cfg.max_grad_norm
-            )
-            self.reward_opt.step()
-            for k, critic in self.cost_critics.items():
-                loss_k = F.mse_loss(
-                    critic(s), torch.tensor(target_costs[k], dtype=torch.float32, device=self.device)
+                actor_loss = -torch.minimum(surrogate1, surrogate2).mean()
+                with torch.no_grad():
+                    kl = float(
+                        (old_logp[idx] - logp).mean()
+                    )  # k1 近似（论文未指定 KL 估计器）
+                self.actor_opt.zero_grad()
+                actor_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.actor.parameters(),
+                                               cfg.max_grad_norm)
+                self.actor_opt.step()
+                n_mb += 1
+                stats["actor_loss"] = (
+                    stats["actor_loss"] * (n_mb - 1) + float(actor_loss)
+                ) / n_mb
+                stats["kl"] = max(stats["kl"], kl)
+                if kl > cfg.target_kl:
+                    stop = True
+                # --- 评论家（式(33)）---
+                critic_loss = F.mse_loss(
+                    self.reward_critic(s[idx]), target_r_t[idx]
                 )
-                self.cost_opts[k].zero_grad()
-                (cfg.value_coef * loss_k).backward()
-                torch.nn.utils.clip_grad_norm_(critic.parameters(), cfg.max_grad_norm)
-                self.cost_opts[k].step()
-                critic_loss = critic_loss + loss_k
-            stats["critic_loss"] = float(critic_loss)
-            stats["entropy"] = float(normal.entropy().sum(-1).mean())
+                self.reward_opt.zero_grad()
+                (cfg.value_coef * critic_loss).backward()
+                torch.nn.utils.clip_grad_norm_(
+                    self.reward_critic.parameters(), cfg.max_grad_norm
+                )
+                self.reward_opt.step()
+                for k, critic in self.cost_critics.items():
+                    loss_k = F.mse_loss(
+                        critic(s[idx]), target_costs_t[k][idx]
+                    )
+                    self.cost_opts[k].zero_grad()
+                    (cfg.value_coef * loss_k).backward()
+                    torch.nn.utils.clip_grad_norm_(critic.parameters(),
+                                                   cfg.max_grad_norm)
+                    self.cost_opts[k].step()
+                    critic_loss = critic_loss + loss_k
+                stats["critic_loss"] = (
+                    stats["critic_loss"] * (n_mb - 1) + float(critic_loss)
+                ) / n_mb
+                stats["entropy"] = (
+                    stats["entropy"] * (n_mb - 1)
+                    + float(normal.entropy().sum(-1).mean())
+                ) / n_mb
+                if stop:
+                    break
 
-        # --- 乘子对偶上升（式(36d)）---
+        # --- 乘子对偶上升（式(36d)，lambda_min 默认 0 = 逐字）---
         discount = cfg.gamma ** np.arange(T)
         for k in self.multipliers:
             stream = self._aggregate_stream(costs, self._cost_stream_keys(costs)[k])
             j_hat = float((stream * discount).sum())
             self.multipliers[k] = max(
-                0.0, self.multipliers[k] + cfg.dual_lr * (j_hat - self.budgets.get(k, 0.0))
+                cfg.lambda_min,
+                self.multipliers[k]
+                + cfg.dual_lr * (j_hat - self.budgets.get(k, 0.0)),
             )
         stats.update({f"lambda_{k}": v for k, v in self.multipliers.items()})
         return stats

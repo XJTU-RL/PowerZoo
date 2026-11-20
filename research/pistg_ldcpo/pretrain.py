@@ -27,8 +27,7 @@ from .environment.cbes_env import CBESEnv
 from .models.piae import PIAE, ReconstructionHead, S_BASE_MVA
 from .models.pistg import PISTGEncoder, physics_informed_adjacency
 
-WINDOW = 12
-DT_KW = S_BASE_MVA * 1000.0
+DT_KW = S_BASE_MVA * 1000.0  # 窗口长度取 EncoderConfig.window（W=12）
 
 
 def collect_episodes(env: CBESEnv, episodes: int, rng: np.random.Generator,
@@ -136,10 +135,11 @@ def make_piae(meta: dict, variant: str, cfg: EncoderConfig, stats, lines):
 
 def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
           device, out_path: Path, variant: str, stats, meta, lines,
-          epochs_per_pass: int = 3):
+          epochs_per_pass: int = 3, seed: int = 0):
     feats, prices, v_n, p_n, q_n, inj_pu = arrays
     n_ep, n_steps = feats.shape[0], feats.shape[1]
-    ends = np.arange(WINDOW - 1, n_steps)  # 窗口末步 11..287（277 个）
+    window = cfg.window  # W=12（论文 p.10）
+    ends = np.arange(window - 1, n_steps)  # 窗口末步 11..287（277 个）
     for module in (piae.encoder, piae.head):
         module.to(device)
     adj = norm_adj.to(device)
@@ -147,7 +147,7 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
         list(piae.encoder.parameters()) + list(piae.head.parameters()),
         lr=cfg.piae_lr,
     )
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(seed)
     total_windows = n_ep * len(ends)
     batch = min(cfg.pretrain_batch_windows, total_windows)
     steps_per_epoch = max(1, total_windows // batch)
@@ -157,14 +157,14 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
             e_idx = rng.integers(0, n_ep, batch)
             w_start = rng.integers(0, len(ends), batch)  # 窗口起始 0..T-W
             win = np.stack([
-                feats[e, s : s + WINDOW] for e, s in zip(e_idx, w_start)
+                feats[e, s : s + window] for e, s in zip(e_idx, w_start)
             ])
             bus_window = torch.tensor(win, device=device)
             price_window = torch.tensor(
-                np.stack([prices[e, s : s + WINDOW] for e, s in zip(e_idx, w_start)]),
+                np.stack([prices[e, s : s + window] for e, s in zip(e_idx, w_start)]),
                 device=device,
             )
-            target = w_start + WINDOW - 1  # 窗口末步 = 重建目标
+            target = w_start + window - 1  # 窗口末步 = 重建目标
             v_t = torch.tensor(v_n[e_idx, target], device=device)
             p_t = torch.tensor(p_n[e_idx, target], device=device)
             q_t = torch.tensor(q_n[e_idx, target], device=device)
@@ -187,7 +187,8 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
             "head": piae.head.state_dict(),
             "stats": stats,
             "config": {
-                "window": WINDOW,
+                "window": window,
+                "seed": seed,
                 "gcn_hidden": cfg.gcn_hidden,
                 "d_spatial": cfg.d_spatial,
                 "d_dn_tcn_out": cfg.d_dn_tcn_out,
@@ -203,9 +204,9 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
         e_hold = np.arange(max(0, n_ep - 2), n_ep)
         parts = {"volt_mae": [], "flow_nrmse": [], "kcl": [], "vdrop": []}
         for e in e_hold:
-            for t in np.arange(WINDOW - 1, n_steps, 8):
-                bw = torch.tensor(feats[e, t - WINDOW + 1 : t + 1][None])
-                pw = torch.tensor(prices[e, t - WINDOW + 1 : t + 1][None])
+            for t in np.arange(window - 1, n_steps, 8):
+                bw = torch.tensor(feats[e, t - window + 1 : t + 1][None])
+                pw = torch.tensor(prices[e, t - window + 1 : t + 1][None])
                 h = piae.encoder(bw, pw, adj)
                 v_hat, p_hat, q_hat = piae.head(h)
                 v_p, p_p, q_p = piae.denorm(v_hat, p_hat, q_hat)
@@ -264,7 +265,7 @@ def main():
     out_path = out_dir / f"piae_{args.variant}_ep{args.episodes}.pt"
     train(piae, norm_adj, arrays, run.encoder, args.episodes, args.device,
           out_path, args.variant, stats, meta, env.lines,
-          epochs_per_pass=args.epochs)
+          epochs_per_pass=args.epochs, seed=args.seed + 1)
     env.close()
 
 

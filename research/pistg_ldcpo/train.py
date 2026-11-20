@@ -27,15 +27,29 @@ from .data.profile_store import ProfileStore
 from .environment.cbes_env import CBESEnv
 from .models.pistg import PISTGEncoder
 
-WINDOW = 12
+WINDOW = 12  # 仅为向后兼容保留的默认；实际取 RunConfig().encoder.window
+
+
+def find_piae(output_dir: Path, method: str) -> Path | None:
+    """找该方法最新的 PIAE checkpoint（按回合数数值序，防字典序 ep1000<ep500）。"""
+    import re
+
+    cands = []
+    for p in output_dir.glob(f"piae_{method}_ep*.pt"):
+        m = re.fullmatch(rf"piae_{method}_ep(\d+)\.pt", p.name)
+        if m:
+            cands.append((int(m.group(1)), p))
+    return max(cands)[1] if cands else None
 
 
 class StateEncoder:
     """W=12 滚动窗口 → 状态向量（PISTG/STG 嵌入或平铺）。"""
 
-    def __init__(self, method: str, piae_path: Path | None, num_buses: int = 33):
+    def __init__(self, method: str, piae_path: Path | None, num_buses: int = 33,
+                 window: int = WINDOW):
         self.method = method
-        self.window = deque(maxlen=WINDOW)
+        self.window_len = window
+        self.window = deque(maxlen=window)
         self.encoder = None
         self.norm_adj = None
         self.stats = None
@@ -80,7 +94,7 @@ class StateEncoder:
             if piae_path is not None and piae_path.exists():
                 ckpt = torch.load(piae_path, map_location="cpu", weights_only=False)
                 self.stats = ckpt["stats"]
-            self.dim = WINDOW * (num_buses * 5 + 1)
+            self.dim = self.window_len * (num_buses * 5 + 1)
         else:
             raise ValueError(f"未知 method：{method}")
 
@@ -104,7 +118,7 @@ class StateEncoder:
     def encode(self) -> np.ndarray:
         # 窗口未满时重复首元素填充（论文未说明冷启动，偏离文档记录）。
         entries = list(self.window)
-        while len(entries) < WINDOW:
+        while len(entries) < self.window_len:
             entries.insert(0, entries[0])
         features = np.stack([e[0] for e in entries])  # (W,33,5)
         prices = np.array([e[1] for e in entries])  # (W,)
@@ -151,39 +165,72 @@ def main():
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--piae", type=Path, default=None)
     parser.add_argument("--tag", default=None)
+    parser.add_argument(
+        "--budget-fraction", type=float, default=None,
+        help="覆盖 d_k = fraction × 零控制折扣成本（默认 0.30；收紧如 0.10）"
+    )
+    parser.add_argument(
+        "--lambda-min", type=float, default=None,
+        help="对偶乘子下限（默认 0 = 式(36d) 逐字；正值抑制末期约束回弹）"
+    )
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="从 out_dir/checkpoint.pt 续训（权重+优化器+乘子+RNG）"
+    )
     args = parser.parse_args()
 
     torch.set_num_threads(max(1, torch.get_num_threads() // 2))
     cfg = RunConfig()
     cfg.algo.total_episodes = args.episodes
+    if args.budget_fraction is not None:
+        cfg.algo.cost_budget_fraction = {
+            k: args.budget_fraction for k in COST_KEYS
+        }
+    if args.lambda_min is not None:
+        cfg.algo.lambda_min = args.lambda_min
     store = ProfileStore(cfg.data_dir)
     env = CBESEnv(CASE_FOLDER, store, cfg.scenario)
     out_dir = cfg.output_dir / (args.tag or f"{args.method}_ep{args.episodes}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     piae_path = args.piae or (
-        cfg.output_dir / f"piae_{args.method}_ep50.pt"
+        find_piae(cfg.output_dir, args.method)
         if args.method in ("pistg", "stg") else None
     )
-    encoder = StateEncoder(args.method, piae_path)
+    encoder = StateEncoder(args.method, piae_path,
+                           window=cfg.encoder.window)
     agent = LDCPPO(encoder.dim, env.action_dim, cfg.algo,
                    critics="dedicated", device=args.device)
 
-    print("估计零控制预算 d_k …")
-    budgets = estimate_budgets(env, cfg)
-    agent.set_budgets(budgets)
-    print("预算:", {k: round(v, 3) for k, v in budgets.items()})
-
+    start_episode = 1
     rng = np.random.default_rng(args.seed)
+    if args.resume and (out_dir / "checkpoint.pt").exists():
+        ckpt = torch.load(out_dir / "checkpoint.pt", map_location=args.device,
+                          weights_only=False)
+        agent.load_state_dict(ckpt)
+        start_episode = int(ckpt.get("episode", 0)) + 1
+        if "np_rng_state" in ckpt:
+            rng.bit_generator.state = ckpt["np_rng_state"]
+        if "torch_rng_state" in ckpt:
+            torch.set_rng_state(ckpt["torch_rng_state"])
+        print(f"续训：自 ep{start_episode} 恢复（λ={agent.multipliers}）")
+    if not agent.budgets:
+        print("估计零控制预算 d_k …")
+        budgets = estimate_budgets(env, cfg)
+        agent.set_budgets(budgets)
+        print("预算:", {k: round(v, 3) for k, v in budgets.items()})
+
     log_path = out_dir / "train_log.csv"
-    log_file = open(log_path, "w", newline="")
+    log_file = open(log_path, "a", newline="")
     logger = csv.writer(log_file)
-    logger.writerow(
-        ["episode", "reward", "cost_aud", "VD", "VN", "LO",
-         "curtailed_kwh", *[f"lambda_{k}" for k in COST_KEYS], "kl", "seconds"]
-    )
+    if start_episode == 1:
+        logger.writerow(
+            ["episode", "reward", "cost_aud", "VD", "VN", "LO",
+             "curtailed_kwh", *[f"lambda_{k}" for k in COST_KEYS], "kl",
+             "seconds"]
+        )
     started = time.time()
-    for episode in range(1, args.episodes + 1):
+    for episode in range(start_episode, args.episodes + 1):
         obs = env.reset(rng, "train")
         encoder.reset(obs)
         T = env.steps_per_day
@@ -226,15 +273,14 @@ def main():
         if episode % 100 == 0 or episode == args.episodes:
             torch.save(
                 {
-                    "actor": agent.actor.state_dict(),
-                    "reward_critic": agent.reward_critic.state_dict(),
-                    "cost_critics": {k: c.state_dict()
-                                     for k, c in agent.cost_critics.items()},
-                    "multipliers": agent.multipliers,
-                    "budgets": agent.budgets,
+                    **agent.state_dict(),
                     "method": args.method,
                     "episode": episode,
                     "encoder_stats": encoder.stats,
+                    "piae": str(piae_path) if piae_path else None,
+                    "seed": args.seed,
+                    "np_rng_state": rng.bit_generator.state,
+                    "torch_rng_state": torch.get_rng_state(),
                 },
                 out_dir / "checkpoint.pt",
             )

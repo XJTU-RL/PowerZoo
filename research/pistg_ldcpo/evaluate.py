@@ -25,19 +25,17 @@ from .config import CASE_FOLDER, RunConfig
 from .data.profile_store import ProfileStore
 from .environment.cbes_env import CBESEnv
 from .models.pistg import PISTGEncoder
-from .train import StateEncoder
-
-WINDOW = 12
+from .train import StateEncoder, find_piae
 
 
 def load_agent(run_dir: Path, cfg: RunConfig, env: CBESEnv) -> tuple[LDCPPO, StateEncoder]:
     ckpt = torch.load(run_dir / "checkpoint.pt", map_location="cpu",
                       weights_only=False)
     method = ckpt["method"]
-    piae_path = cfg.output_dir / f"piae_{method}_ep50.pt"
-    if not piae_path.exists():
-        cands = sorted(cfg.output_dir.glob(f"piae_{method}_ep*.pt"))
-        piae_path = cands[-1] if cands else None
+    # 优先用训练 checkpoint 里记录的 PIAE 路径，防 ep1000/ep500 字典序选错
+    piae_path = Path(ckpt["piae"]) if ckpt.get("piae") else None
+    if piae_path is None or not piae_path.exists():
+        piae_path = find_piae(cfg.output_dir, method)
     encoder = StateEncoder(method, piae_path)
     agent = LDCPPO(encoder.dim, env.action_dim, cfg.algo)
     agent.actor.load_state_dict(ckpt["actor"])

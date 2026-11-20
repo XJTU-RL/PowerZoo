@@ -39,14 +39,12 @@ class ScenarioConfig:
     cbess_s_rating_kva: float = (250.0**2 + 50.0**2) ** 0.5
     # PV 逆变器容量 = 1.1 × PV 峰值（论文未明说，常见超配）。
     pv_inverter_oversize: float = 1.1
-    pv_penetration: float = 0.9  # PV 峰值 = 0.9 × 母线峰荷（表 I 脚注口径）
-    # 论文未明说的标定参数（M2 冻结）：
-    der_bus_daily_energy_kwh: float = 850.0  # Fig.5(b) 基荷柱 ≈850 kWh/母线/日
-    ev_daily_energy_kwh: float = 350.0  # Fig.5(b) EV 柱 ≈350 kWh/母线/日
+    # 场景标定常量（母线日能量、PV 定容、非 DER 缩放）的唯一事实源在
+    # data/prepare_profiles.py，冻结记录于其 manifest.json——此处不再
+    # 重复声明（曾有 850/350 等过期死值误导读码，已删）。
     load_power_factor: float = 0.85  # 标准 33-bus 系统功率因数 3715/√(3715²+2300²)
-    non_der_scale: float = 1.0  # 非 DER 母线 = 标准铭牌 × 日形状
     # 电价整体缩放（M2 标定冻结）：0.55 使零控制日成本 ≈1400 AUD，
-    # 与论文表 III 有控制成本 1382 AUD/日 同量级。
+    # 与论文表 III 有控制成本 1382 AUD/日同量级。
     price_level: float = 0.55
 
 
@@ -96,7 +94,13 @@ class LdcpoConfig:
     max_grad_norm: float = 0.5
     log_std_init: float = -0.5
     ppo_epochs: int = 10  # 论文未明说，PPO 惯例值
-    minibatch_size: int = 4096  # 论文未明说；288 步/回合 × 若干回合
+    # minibatch 上限（式(33)-(36) 的 "episode or mini-batch"）：单回合
+    # T=288 < 4096 时退化为整批更新（与全量运行口径一致）；调小即启用
+    # minibatch 切分（每 epoch 随机重排）。
+    minibatch_size: int = 4096
+    # 对偶乘子下限：0.0 = 式(36d) 逐字（λ 可降至 0，训练末期约束回弹的
+    # 已知根源）；>0 时按下限截断（复现实验的稳定性开关，偏离文档记录）。
+    lambda_min: float = 0.0
     total_episodes: int = 2000
     # 约束预算 d_k：论文未给数值；默认取零控制基线折扣成本的 30%，
     # 由标定实验冻结（偏离文档记录）。
