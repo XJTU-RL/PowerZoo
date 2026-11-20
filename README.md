@@ -35,6 +35,10 @@ MAPPO、SHOM、MADDPG、HASAC、OHASAC（13Bus 联合仿真已验证，尚未验
 恢复场景、实际供电/合格服务、节点有效性与故障基准见[恢复说明](docs/dsr-physics.md)。
 顺序定价的现金账本、阶段响应、独立收益训练和建模范围见[定价说明](docs/pricing-physics.md)。
 
+## 找电路、场景和实验
+
+[场景目录](scenarios/README.md)按任务列出电路、数据与验收状态。基础电路描述设备与接线，场景记录初态、映射和扰动，实验配置决定算法、种子及运行预算。新增任务优先引用已有电路，不为每种算法复制模型。
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
@@ -183,14 +187,12 @@ Windows 安装与运行另由 `.github/workflows/windows-runtime.yml` 验证，�
 
 ## 持续开发：每项任务使用 worktree 分支
 
-`main` 保持稳定，每项修改使用独立 worktree 和 `codex/<topic>` 分支：
-以下新建命令以 Windows 修复已经审查并合入 `main` 为前提；当前开发在 `codex/training-entrypoints`，继承已验证的环境与SmartGrid修复；
-未合并前，新任务应从此任务分支建立worktree。
+新任务从已核对的 `main` 创建独立的 `sheldon123z/<topic>` 分支，工作区放在仓库内的 `.claude/worktrees/`。既有分支保留原名；细节见[开发规范](docs/development.md)。
 
 ```powershell
 git -C D:\Exps\PowerZoo worktree list
-git -C D:\Exps\PowerZoo worktree add -b codex/your-topic D:\Exps\PowerZoo-worktrees\your-topic codex/training-entrypoints
-Set-Location D:\Exps\PowerZoo-worktrees\your-topic
+git -C D:\Exps\PowerZoo worktree add -b sheldon123z/your-topic D:\Exps\PowerZoo\.claude\worktrees\sheldon123z-your-topic main
+Set-Location D:\Exps\PowerZoo\.claude\worktrees\sheldon123z-your-topic
 conda activate powerzoo-win
 python -m pip install --no-deps -e .
 ```
@@ -211,7 +213,8 @@ PowerZoo/
 │   ├── envs_cfgs/        # 环境与运行配置
 │   ├── systems/          # 电力系统与设备配置
 │   └── training/         # 训练策略配置
-├── envs/             # vvc、smartgrid、dsr、stackelberg、district_dispatch
+├── envs/             # vvc、smartgrid、dsr、stackelberg、district_dispatch、lfc
+├── scenarios/        # 分任务的电路引用、场景与验收索引
 ├── examples/         # SmartGrid 集中控制入口及公共 CLI 兼容路径
 ├── models/           # 网络实现
 ├── node_systems/     # IEEE DSS 模型与部分负荷输入
