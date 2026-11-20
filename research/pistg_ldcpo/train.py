@@ -5,8 +5,9 @@
     python -m research.pistg_ldcpo.train --method flat --episodes 20
 
 --method：pistg（PIAM 编码器，需先 pretrain）/ stg（二值邻接编码器）/
-flat（平铺窗口，论文 LDCPPO 基线）。约束预算 d_k 默认取零控制基线
-折扣成本的 30%（论文未给值，标定记录于偏离文档）。
+flat（平铺窗口，论文 LDCPPO 基线）。约束预算 d_k = --budget-fraction
+× 零控制基线折扣成本（论文未给值；v1 全量 0.30 预算过松致排序失去
+区分度，v2 收紧至 0.10，依据见偏离文档 C 节）。--resume 支持断点续训。
 """
 
 from __future__ import annotations

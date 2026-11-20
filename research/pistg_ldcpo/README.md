@@ -49,9 +49,10 @@ python -m research.pistg_ldcpo.data.prepare_profiles
 # 1) Stage 1：PIAE 预训练（论文表 II 超参）
 python -m research.pistg_ldcpo.pretrain --episodes 500 --variant pistg
 
-# 2) Stage 2：LDCPPO 训练（--method pistg|stg|flat）
+# 2) Stage 2：LDCPPO 训练（--method pistg|stg|flat；v2 预算 0.10，--resume 续训）
 python -m research.pistg_ldcpo.train --method pistg --episodes 2000 \
-    --piae results/pistg_ldcpo/piae_pistg_ep500.pt --tag full_pistg
+    --piae results/pistg_ldcpo/piae_pistg_ep500.pt --tag v2_pistg \
+    --budget-fraction 0.10
 
 # 3) 评估（100 测试回合，论文表 III/VI/V 口径）
 python -m research.pistg_ldcpo.evaluate --run-dir results/pistg_ldcpo/full_pistg
