@@ -2,6 +2,7 @@
 
 import argparse
 from dataclasses import dataclass
+from hashlib import sha256
 import json
 from pathlib import Path
 import re
@@ -29,6 +30,19 @@ def day_indices(day):
     if type(day) is not int or not 0 <= day < POINTS_PER_YEAR // STEPS_PER_DAY:
         raise ValueError("day must be a zero-based index in [0, 365)")
     return range(day * STEPS_PER_DAY, (day + 1) * STEPS_PER_DAY)
+
+
+def oedi_input_digest(root):
+    """Match DSSSession's relocation-stable model-tree hash before compiling."""
+    paths = sorted(root.rglob("*"))
+    if any(path.is_symlink() for path in paths):
+        raise ValueError("symlinks are not accepted in the pinned OEDI input tree")
+    file_hashes = {
+        path.relative_to(root).as_posix(): sha256(path.read_bytes()).hexdigest()
+        for path in paths
+        if path.is_file()
+    }
+    return sha256(json.dumps(file_hashes, sort_keys=True).encode()).hexdigest()
 
 
 def shape_definitions(root):
@@ -166,6 +180,8 @@ def run(case, root, day, native_controls):
     indices = day_indices(day)
     root = Path(root).resolve()
     if case == "oedi123":
+        if oedi_input_digest(root) != OEDI_INPUT_SHA256:
+            raise ValueError("OEDI input tree does not match the pinned qsts/profiles")
         model = "qsts/master.dss"
     else:
         from utils.external_cases import locate_entry

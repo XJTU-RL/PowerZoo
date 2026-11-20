@@ -6,6 +6,7 @@ from scripts.check_external_temporal_parity import (
     aligned_endpoint,
     day_indices,
     max_phase_error,
+    oedi_input_digest,
     shape_definitions,
     verify_unshaped,
 )
@@ -73,3 +74,19 @@ def test_compares_node_identity_independent_of_iteration_order():
     assert max_phase_error({"a.1": 1, "b.2": 1.1}, {"b.2": 1, "a.1": 1}) == pytest.approx(0.1)
     with pytest.raises(ValueError, match="phase nodes"):
         max_phase_error({"a.1": 1}, {"a.2": 1})
+
+
+
+def test_oedi_hash_fails_for_changed_bytes_and_symlinks(tmp_path):
+    a = tmp_path / "source"
+    b = tmp_path / "relocated"
+    a.mkdir()
+    b.mkdir()
+    (a / "profile.csv").write_bytes(b"1\r\n")
+    (b / "profile.csv").write_bytes(b"1\r\n")
+    assert oedi_input_digest(a) == oedi_input_digest(b)
+    (b / "profile.csv").write_text("1\n")
+    assert oedi_input_digest(a) != oedi_input_digest(b)
+    (b / "linked").symlink_to(a / "profile.csv")
+    with pytest.raises(ValueError, match="symlinks"):
+        oedi_input_digest(b)

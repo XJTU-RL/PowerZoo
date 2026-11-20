@@ -59,3 +59,13 @@ profiles are not measurements from this IEEE feeder.
 Raw reports remain outside Git. The SMART-DS case has 36 compiled loads and 6
 PV systems. Other days and engines require a separate check; the diagnostic
 does not certify time-series measurements or task readiness.
+
+## SMART-DS observation smoke check
+
+On held-out `day002`, full/global observation and a two-bus projected shared
+observation (local actor mode, light state reads) were checked using the same
+deterministic action frames. All 96 intervals converged in both paths, with
+exact agreement in measured bus-phase voltage. The shared observation
+dimension was 175 without projection and 28 with projection; each local
+actor saw 23 features. This checks the observation path on the same physical
+episode; it does not establish that local policy performance matches global.
