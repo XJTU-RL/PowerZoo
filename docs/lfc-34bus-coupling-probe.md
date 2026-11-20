@@ -26,13 +26,42 @@ or changed.
   model hashes, measured clock/tail checks; no new SLX files or permanent
   topology/logging changes. No transmission bus voltage is fed back to DSS.
 
+## Evidence required before any live probe
+
+The adapter first requires externally supplied bytes of the **actual** accepted
+static native JSON report and its independently approved SHA-256. It verifies
+the exact source commit and tree, scenario/source/solver parameters, one
+admitted row, measured reference P/Q, six named regulator tap readings and the
+published winding/phase evidence. The repository’s synthetic unit-test fixture
+uses deliberately dummy phase IDs. It is not real evidence and must not be
+approved for a live run. No validated report fixture or native-reader wiring
+is included in this draft.
+
+Every input snapshot must carry runtime-read source/tree and scenario binding,
+the exact phase keys from that observed report (not just a count), the four
+named winding terminals with matching bus and model ratings, keyed ABC and
+neutral current inventory, and the six matching named regulator taps. The
+future runner must independently read and prove no active Storage/PV/Generator
+or active loadshape binding, enforce the named shunt and source configuration,
+and record both source-terminal flow and global accounting. Typed records do
+not by themselves establish that a solver produced the values.
+
+The stateful admission sequence requires neutral reset at index 0, then
+strictly next one-second slot once only. Any repeat, skip, invalid native
+measurement or downstream failure invalidates the episode. The runner must call
+`invalidate()` on engine failure (even if only one P/Q write succeeded), reset
+the actual engine to a verified baseline, and then use the adapter's reset.
+The Python gate cannot reset or attest an engine itself.
+
 ## Proposed bounded probe, not yet run
 
 1. Reproduce the static supported row using the published setup, including the
    six measured taps. Prepare independent frozen snapshots: neutral; add a
-   synthetic three-phase 20 kW / 0 kvar constant-power pulse at bus 890; add
-   0 kW with either +15 or −15 kvar via a declared signed reactive injection
-   there. Keep profiles, source and original devices fixed. This is not an
+   synthetic three-phase constant-PQ delta load at `890.1.2.3`,
+   4.16 kV, with separate arms (20 kW, 0 kvar), (0 kW, +15 kvar), and
+   (0 kW, −15 kvar) in load-import sign. Verify constant-PQ mode and terminal
+   delivery, including negative Q, rather than substituting a voltage-dependent
+   shunt or crediting the setpoint. Keep profiles, source and original devices fixed. This is not an
    RL action, field-device proposal or storage test.
 2. Check native solver convergence and controls settled, identical tap policy
    and reported tap state, all 95 phase voltages in 0.95–1.05 pu, all four
