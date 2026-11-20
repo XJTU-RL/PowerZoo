@@ -3,6 +3,7 @@
 import os
 import gymnasium as gym
 
+from envs.lfc.clock import AlignedEpisodeGate, CouplingClock
 from envs.lfc.IEEE9BusSystem.loadprofile import LoadProfile#这里有一个相对路径的问题，python不能直接引用父目录的文件，当前的地址为LFC_gym文件
 from envs.lfc.IEEE9BusSystem.opendss_python import circuit
 import numpy as np
@@ -29,6 +30,9 @@ class LFCEnv(gym.Env):
     选择采样频率为100hz即10ms0.01s(load shedding,二次调频可以选择为3-5s),假设仿真时长为10s,则最大环境步数为1000步。
     '''    
     def __init__(self,info,ranks):#初始化动作空间和观察空间
+        aligned_clock = info.get("aligned_clock", False)
+        if type(aligned_clock) is not bool:
+            raise TypeError("aligned_clock must be a boolean")
         #在定义action_space前，需要先引入opendss的模块
         #目前我还没特别想好observation_space的设定，先设定为3个电机功率，3个电机机械功率，3个节点电压，3个节点频率，3个负载功率，配网节点光伏节点的有功输出以及最大有功输出,暂时先不加电压
         self.obs = dict()
@@ -116,6 +120,9 @@ class LFCEnv(gym.Env):
         self.env_name = info['env_name']
         self.horizon = info['max_episode_steps']#确定一个episode的最大环境步数
         assert self.horizon>=1, 'invalid horizon'
+        self.coupling_clock = CouplingClock(self.horizon) if aligned_clock else None
+        self.coupling_gate = AlignedEpisodeGate() if self.coupling_clock is not None else None
+        self.coupling_timing = None
         self.t = 0
         self.f_set=60#hz
         self.load_lamda=0.01
@@ -312,7 +319,29 @@ class LFCEnv(gym.Env):
                 )
             time.sleep(0.01)
 
-    def step(self, action):#在这一部分，传入的action是各类设备的控制动作
+    def _record_coupling_time(self, target):
+        pause = float(self.eng.get_param(self.env_name, 'SimulationTime'))
+        sample_times = np.asarray(self.eng.workspace['out_t'], dtype=float).ravel()
+        if sample_times.size == 0:
+            raise RuntimeError('LFC Simulink out_t is empty')
+        self.coupling_timing = self.coupling_clock.record(target, pause, float(sample_times[-1]))
+
+    def _stop_for_clock_reset(self):
+        if self.eng.get_param(self.env_name, 'SimulationStatus') == 'stopped':
+            return
+        self.eng.set_param(self.env_name, 'SimulationCommand', 'stop', nargout=0)
+        end = time.monotonic() + 30
+        while self.eng.get_param(self.env_name, 'SimulationStatus') != 'stopped':
+            if time.monotonic() > end:
+                raise RuntimeError('LFC did not stop before an aligned reset')
+            time.sleep(0.01)
+
+    def step(self, action):
+        if self.coupling_gate is None:
+            return self._step(action)
+        return self.coupling_gate.step(lambda: self._step(action))
+
+    def _step(self, action):#在这一部分，传入的action是各类设备的控制动作
         """Steps through one step of enviroment and calls DSS solver after one control action
         Args:
             action [array]: Integer array of actions for capacitors, regulators and batteries and loads
@@ -321,6 +350,7 @@ class LFCEnv(gym.Env):
             self.wrap_obs(self.obs), reward, done, all_reward, all_diff
             next wrapped observation (array), reward (float), Done (bool), all rewards (dict), all state errors (dict)
         """
+        target = 1 + self.t if self.coupling_clock is None else self.coupling_clock.target(self.t)
         #整个动作流程分为两步：一是把动作送入opendss，获得单步的与主网连接点处的有功功率和无功功率
         #目前的action仅为所有光伏的pmpp，4
         #step第一步，把action的动作分解到每一个设备上（
@@ -444,9 +474,11 @@ class LFCEnv(gym.Env):
         self.eng.set_param(self.env_name+'/load1p', 'value',f"{-Vsource_power[0]*1000}", nargout=0)
         self.eng.set_param(self.env_name+'/load1q', 'value',f"{-Vsource_power[1]*1000}", nargout=0)
             
-        self.eng.set_param(self.env_name+'/pause_time', 'value', f"{1+self.t}", nargout=0) # 设置下次暂停时间,4s为一个暂停的间隔
+        self.eng.set_param(self.env_name+'/pause_time', 'value', str(target), nargout=0) # 设置下次暂停时间,4s为一个暂停的间隔
         self.eng.set_param(self.env_name, 'SimulationCommand', 'continue', nargout=0)#继续运行
         self._wait_until_paused()  # P0-11（原为无超时忙等）
+        if self.coupling_clock is not None:
+            self._record_coupling_time(target)
         #读取当前状态下的st+1，以及奖励r
         gen_obtemp=np.array(self.eng.workspace['gen_ob'])#读取后转为ndarray数组
         load_ob_temp=np.array(self.eng.workspace['load_ob'])
@@ -601,12 +633,27 @@ class LFCEnv(gym.Env):
         info["pv_bat_smooth_reward"]=pv_bat_smooth_reward
         info["bat_discharge_reward"]=bat_discharge_reward
         info["active_output"]=-Vsource_power[0]
+        if self.coupling_clock is not None:
+            info["coupling_timing"] = self.coupling_timing
         if done:
             self.eng.set_param(self.env_name, 'SimulationCommand', 'stop', nargout=0)
         
+        if self.coupling_clock is not None and not (
+            np.isfinite(self.state).all() and np.isfinite(reward).all()
+        ):
+            raise RuntimeError('LFC non-finite aligned observation or reward')
         return self.state, reward,done,False,info
     
-    def reset(self,seed=None):#启动matlab
+    def reset(self, seed=None):
+        if self.coupling_gate is None:
+            return self._reset(seed)
+        return self.coupling_gate.reset(lambda: self._reset(seed))
+
+    def _reset(self,seed=None):#启动matlab
+        if self.coupling_clock is not None:
+            self._stop_for_clock_reset()
+            self.coupling_clock.reset()
+            self.coupling_timing = None
         #问题1.环境初始化就启动matlab吗，还是在reset的时候启动，按理来说应该放在reset
         pvs_ob=[]
         pvs_max_ob=[]
@@ -673,10 +720,15 @@ class LFCEnv(gym.Env):
         self.eng.set_param(self.env_name+'/Step46', 'value',"0", nargout=0)
         self.eng.set_param(self.env_name+'/Step89', 'value',"0", nargout=0)
         
-        self.eng.set_param(self.env_name+'/pause_time', 'value', str(1), nargout=0) # 初始化第一个内部暂停时间为1s
-        self.eng.set_param(self.env_name, 'StopTime', str(self.horizon+1), nargout=0) # 设定仿真截止时间
+        target, stop_time = 1, self.horizon + 1
+        if self.coupling_clock is not None:
+            target, stop_time = self.coupling_clock.target(), self.coupling_clock.stop_time
+        self.eng.set_param(self.env_name+'/pause_time', 'value', str(target), nargout=0) # 初始化第一个内部暂停时间为1s
+        self.eng.set_param(self.env_name, 'StopTime', str(stop_time), nargout=0) # 设定仿真截止时间
         self.eng.set_param(self.env_name, 'SimulationCommand', 'start', nargout=0) # 开启控制，会在0.01s自动pause
         self._wait_until_paused()  # P0-11（原为无超时忙等）
+        if self.coupling_clock is not None:
+            self._record_coupling_time(target)
         # 获取当前负荷的有功无功大小,即读取当前的matlab工作区
         gen_obtemp=np.array(self.eng.workspace['gen_ob'])#读取后转为ndarray数组
         load_ob_temp=np.array(self.eng.workspace['load_ob'])
@@ -714,6 +766,8 @@ class LFCEnv(gym.Env):
         observation=np.concatenate((gen_ob,load_ob,gsp_ob,pvs_ob,pvs_max_ob,bat_ob,soc_ob))#14维的一手变量，少了tieline_ob
         self.state= observation.squeeze()#把形状变成(15,)的1维数组
         #return self.state,{}#for SB3
+        if self.coupling_clock is not None and not np.isfinite(self.state).all():
+            raise RuntimeError('LFC non-finite aligned reset observation')
         return self.state
         
     def render(self, mode='human'):

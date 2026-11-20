@@ -37,6 +37,7 @@ class LFCEnv:
         )
         info = {
             "env_name": config.env_name,
+            "aligned_clock": config.aligned_clock,
             "max_episode_steps": config.max_episode_steps,
             "reward_parameters": config.reward_parameters,
             "long_term_load_disturbance": config.long_term_load_disturbance,

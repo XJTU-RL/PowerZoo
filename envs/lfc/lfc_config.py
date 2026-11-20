@@ -23,6 +23,7 @@ class LFCConfig:
     dss_file: str = "ieee34Mod1_duty.dss"
     # 单回合最大环境步数（1 步 = 1 秒联合仿真）
     max_episode_steps: int = 30
+    aligned_clock: bool = False  # Experimental; False preserves paper timing.
     seed: int = 123456
     # ---- 论文奖励权重（含义见 LFC_gym 的 reward 拼装） ----
     f1: float = 7.5   # 电网频率偏差（比例项）
@@ -45,6 +46,9 @@ class LFCConfig:
 
     def __post_init__(self):
         import math
+
+        if type(self.aligned_clock) is not bool:
+            raise TypeError("aligned_clock must be a boolean")
 
         if self.system not in ("13Bus", "34Bus"):
             raise ValueError(f"未知 LFC 算例 {self.system!r}；当前随包提供 13Bus / 34Bus")
