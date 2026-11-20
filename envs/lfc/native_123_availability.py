@@ -260,32 +260,66 @@ def prospective(live, last_vector, proposed_vector, spec=None, *, _factory=Nativ
         and 0 <= u <= controller["controller"]["per_device_limit_kw"] for u in proposed_vector.values()
     ):
         raise RuntimeError("invalid complete prospective dispatch vector")
-    with _factory(live.calibration.target_t0) as scratch:
+    original = None
+    try:
+        # Check object, solver context and filesystem identities before taking
+        # ownership. Exiting an alias could close the live native context or
+        # delete its model copy. An injected factory must return a bare feeder.
+        scratch = _factory(live.calibration.target_t0)
         s = scratch.session
         if scratch is live or s is live.session or s.dss is live.session.dss:
             raise RuntimeError("independent DSS context required")
-        if s.source != live.session.source or s.folder == live.session.folder:
-            raise RuntimeError("scratch deck identity or copy isolation mismatch")
-        pristine = collect(scratch, spec)
-        if pristine.state != current.state:
-            raise RuntimeError("static live state cannot be reconstructed from pinned reset")
-        for device, soc in zip(ids, current.soc, strict=True):
-            s.command(f"Edit {device} %stored={100 * soc:.17g}")
-            short = device.split(".", 1)[1]
-            s.batteries[short].soc = float(s.read_property(device, "%stored")) / 100
-        restored_soc = tuple(s.batteries[device.split(".", 1)[1]].soc for device in ids)
-        s.apply({device: {"kw": last_vector[device]} for device in ids})
-        s.solve(seconds=current.clock_s, native_controls=False)
-        restored = collect(scratch, spec)
-        if restored.soc != restored_soc:
-            raise RuntimeError("scratch baseline solve advanced native SOC")
-        _assert_parity(current, restored, spec)
-        s.apply({device: {"kw": proposed_vector[device]} for device in ids})
-        s.solve(native_controls=False)
-        projected = collect(scratch, spec)
-        _probe_same_state(projected, restored, spec["parity_abs"])
-        verify_device_envelope(projected, proposed_vector, spec, controller, fixed)
-    # Active element/bus selections are read-only cursors. Check measurable
-    # energy, time and electrical state regardless before returning any result.
-    _assert_parity(current, collect(live, spec), spec)
+        scratch_path, live_path = s.folder.resolve(), live.session.folder.resolve()
+        if scratch_path.is_relative_to(live_path) or live_path.is_relative_to(scratch_path):
+            raise RuntimeError("independent DSS temporary model copy required")
+        scratch_error = None
+        try:
+            if s.source != live.session.source:
+                raise RuntimeError("scratch deck identity mismatch")
+            pristine = collect(scratch, spec)
+            if pristine.state != current.state:
+                raise RuntimeError("static live state cannot be reconstructed from pinned reset")
+            for device, soc in zip(ids, current.soc, strict=True):
+                s.command(f"Edit {device} %stored={100 * soc:.17g}")
+                short = device.split(".", 1)[1]
+                s.batteries[short].soc = float(s.read_property(device, "%stored")) / 100
+            restored_soc = tuple(s.batteries[device.split(".", 1)[1]].soc for device in ids)
+            s.apply({device: {"kw": last_vector[device]} for device in ids})
+            s.solve(seconds=current.clock_s, native_controls=False)
+            restored = collect(scratch, spec)
+            if restored.soc != restored_soc:
+                raise RuntimeError("scratch baseline solve advanced native SOC")
+            _assert_parity(current, restored, spec)
+            s.apply({device: {"kw": proposed_vector[device]} for device in ids})
+            s.solve(native_controls=False)
+            projected = collect(scratch, spec)
+            _probe_same_state(projected, restored, spec["parity_abs"])
+            verify_device_envelope(projected, proposed_vector, spec, controller, fixed)
+        except Exception as exc:
+            scratch_error = exc
+            raise
+        finally:
+            try:
+                scratch.close()
+            except Exception as close_error:
+                if scratch_error is not None:
+                    raise RuntimeError(
+                        f"scratch cleanup failed ({close_error}) after {scratch_error}"
+                    ) from scratch_error
+                raise
+    except Exception as exc:
+        original = exc
+        raise
+    finally:
+        # Verify live electrical and energy state on success AND rejection.
+        # Keep the original scratch failure in the exception chain if both fail.
+        try:
+            _assert_parity(current, collect(live, spec), spec)
+        except Exception as parity:
+            if original is not None:
+                raise RuntimeError(
+                    f"LIVE feeder parity verification failed ({parity}) after scratch "
+                    f"rejection: {original}"
+                ) from original
+            raise RuntimeError(f"LIVE feeder parity verification failed: {parity}") from parity
     return projected

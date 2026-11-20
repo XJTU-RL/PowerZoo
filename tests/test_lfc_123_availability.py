@@ -1,5 +1,4 @@
 import cmath
-from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -71,25 +70,26 @@ class TestAvailability(unittest.TestCase):
         s.read_property.return_value = "50"
         live = SimpleNamespace(session=live_s, storage_ids=self.ids,
                                calibration=SimpleNamespace(target_t0=PQ(1, 1)))
-        scratch = SimpleNamespace(session=s)
+        scratch = SimpleNamespace(session=s, close=Mock())
         zero, next_ = dict.fromkeys(self.ids, 0), dict.fromkeys(self.ids, 36)
         values = [self.point(0), self.point(0, at=0), self.point(0),
                   self.point(36), self.point(0)]
         with patch("envs.lfc.native_123_availability.collect", side_effect=values):
             p = prospective(live, zero, next_, self.spec,
-                            _factory=lambda _: nullcontext(scratch))
+                            _factory=lambda _: scratch)
         self.assertEqual(p, values[3])
         self.assertEqual(s.apply.call_args.args[0], {d: {"kw": 36} for d in self.ids})
         self.assertEqual(s.solve.call_count, 2)
         s.finish_interval.assert_not_called()
         s.begin_interval.assert_not_called()
         self.assertEqual(live_s.mock_calls, [])
+        scratch.close.assert_called_once()
         s.reset_mock()
         values[3] = self.point(36, soc=.49)
         with patch("envs.lfc.native_123_availability.collect", side_effect=values):
             with self.assertRaisesRegex(RuntimeError, "changed clock, native SOC"):
                 prospective(live, zero, next_, self.spec,
-                            _factory=lambda _: nullcontext(scratch))
+                            _factory=lambda _: scratch)
 
     def test_failed_scratch_parity_prevents_applying_candidate(self):
         live_s, s = Mock(), Mock()
@@ -99,11 +99,44 @@ class TestAvailability(unittest.TestCase):
         s.read_property.return_value = "50"
         live = SimpleNamespace(session=live_s, storage_ids=self.ids,
                                calibration=SimpleNamespace(target_t0=PQ(1, 1)))
-        scratch = SimpleNamespace(session=s)
+        scratch = SimpleNamespace(session=s, close=Mock())
         with patch("envs.lfc.native_123_availability.collect",
-                   side_effect=[self.point(0), self.point(0, at=0), self.point(1)]):
+                   side_effect=[self.point(0), self.point(0, at=0), self.point(1), self.point(0)]):
             with self.assertRaisesRegex(RuntimeError, "baseline differs"):
                 prospective(live, dict.fromkeys(self.ids, 0), dict.fromkeys(self.ids, 45),
-                            self.spec, _factory=lambda _: nullcontext(scratch))
+                            self.spec, _factory=lambda _: scratch)
         s.apply.assert_called_once()
         s.finish_interval.assert_not_called()
+
+    def test_no_alias_object_context_or_path_is_owned_or_closed(self):
+        root = Path("/tmp/live-dss")
+        ctx = object()
+        live_s = SimpleNamespace(folder=root, dss=ctx)
+        live = SimpleNamespace(session=live_s, close=Mock(), storage_ids=self.ids,
+                               calibration=SimpleNamespace(target_t0=PQ(1, 1)))
+        aliases = (
+            live, SimpleNamespace(session=live_s, close=Mock()),
+            SimpleNamespace(session=SimpleNamespace(folder=Path("/other"), dss=ctx),
+                            close=Mock()),
+            SimpleNamespace(session=SimpleNamespace(folder=root / ".." / root.name, dss=object()),
+                            close=Mock()),
+        )
+        zero = dict.fromkeys(self.ids, 0)
+        for alias in aliases:
+            with patch("envs.lfc.native_123_availability.collect", return_value=self.point(0)) as col:
+                with self.assertRaisesRegex(RuntimeError, "independent DSS"):
+                    prospective(live, zero, zero, self.spec, _factory=lambda _: alias)
+            alias.close.assert_not_called()
+            live.close.assert_not_called()
+            self.assertEqual([call.args[0] for call in col.call_args_list], [live, live])
+
+    def test_live_mutation_after_scratch_rejection_preserves_original_failure(self):
+        live = SimpleNamespace(storage_ids=self.ids,
+                               calibration=SimpleNamespace(target_t0=PQ(1, 1)))
+        zero = dict.fromkeys(self.ids, 0)
+        problem = RuntimeError("candidate already rejected")
+        with patch("envs.lfc.native_123_availability.collect",
+                   side_effect=[self.point(0), self.point(0, soc=.45)]):
+            with self.assertRaisesRegex(RuntimeError, "LIVE feeder parity") as raised:
+                prospective(live, zero, zero, self.spec, _factory=Mock(side_effect=problem))
+        self.assertIs(raised.exception.__cause__, problem)
