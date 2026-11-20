@@ -166,20 +166,26 @@ def test_profiles_shapes_and_energy_targets():
     assert p.shape == (data["day_keys"].shape[0], 288, 33)
     assert pv.shape[0] == p.shape[0] and pv.shape[2] == 26
     assert (p >= 0).all() and (pv >= 0).all() and (price > 0).all()
-    # DER 母线日能量 = 基荷 1600 + EV 300 kWh（每母线每日，能量重标定；
-    # M2 零控制标定冻结值，依据记入 docs/pistg-repro-deviations.md）。
+    # DER 母线日能量 = 基荷 1030 + EV 480 kWh（每母线每日，能量重标定；
+    # v2 标定冻结值 = 论文 Fig.5(b) "one bus" 柱像素读数，以 CBESS=1000
+    # kWh 已知柱锚定，依据记入 docs/pistg-repro-deviations.md）。
     der = np.array(manifest["der_buses"]) - 1
     energy = p[:, :, der].sum(axis=1).mean(axis=1) * (5.0 / 60.0)
-    assert energy.mean() == pytest.approx(1900.0, rel=0.01)
-    # EV 日因子截断 [0.7,1.2] → 单日能量 [1810, 1960] kWh。
-    assert (energy > 1800.0).all() and (energy < 1970.0).all()
+    assert energy.mean() == pytest.approx(1510.0, rel=0.01)
+    # EV 日因子截断 [0.7,1.2] → 单日能量 [1366, 1606] kWh
+    # （1030 + 480×[0.7,1.2]）。
+    assert (energy > 1360.0).all() and (energy < 1610.0).all()
     # 无功 = 有功 × tanφ（pf=0.85）。
     mask = p > 0
     ratio = (q[mask] / p[mask])
     assert np.allclose(ratio, np.tan(np.arccos(0.85)), atol=1e-3)
-    # PV 静态峰值 = 0.9 × PV_BOOST(1.5) × 母线典型日峰负荷（跨日一致）。
+    # PV 定容 = daily-energy 口径（Fig.5(b) PV 柱字面 1390 kWh/母线/日）：
+    # 母线日均可用能量 ≈1390 kWh；混合天气形状下日均峰 ~216-241 kW、
+    # 晴天绝对峰 ~318-371 kW。
+    pv_energy = pv.sum(axis=1) * (5.0 / 60.0)  # (D, 26) kWh/日
+    assert pv_energy.mean() == pytest.approx(1390.0, rel=0.02)
     pv_peak = pv.max(axis=(0, 1))
-    assert pv_peak.min() > 150.0 and pv_peak.max() < 230.0
+    assert pv_peak.min() > 280.0 and pv_peak.max() < 400.0
 
 
 def test_profiles_day_split_disjoint():

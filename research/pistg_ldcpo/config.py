@@ -43,9 +43,10 @@ class ScenarioConfig:
     # data/prepare_profiles.py，冻结记录于其 manifest.json——此处不再
     # 重复声明（曾有 850/350 等过期死值误导读码，已删）。
     load_power_factor: float = 0.85  # 标准 33-bus 系统功率因数 3715/√(3715²+2300²)
-    # 电价整体缩放（M2 标定冻结）：0.55 使零控制日成本 ≈1400 AUD，
-    # 与论文表 III 有控制成本 1382 AUD/日同量级。
-    price_level: float = 0.55
+    # 电价整体缩放（v2 标定冻结）：daily-energy 口径下零控制 ≈1083 AUD
+    # @0.55；0.70 时 ≈1378，对齐 M2 准则（零控制 ≈1400 ≈ 论文表 III
+    # 训后 1382 的量级锚点）。
+    price_level: float = 0.70
 
 
 @dataclass

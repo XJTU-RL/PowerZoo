@@ -32,25 +32,30 @@ STEPS = 288
 DER_BUSES = sorted(set(range(4, 19)) | {19, 20, 21, 22} | set(range(27, 34)))
 NON_DER_LOAD_BUSES = [2, 3, 23, 24, 25, 26]  # bus1 为变电站无负荷
 TAN_PHI = np.tan(np.arccos(0.85))
-# DER 母线日能量标定（M2 零控制标定冻结）：基荷 1600 + EV 300 kWh/
-# 母线/日，使负荷峰 ~200 kW、PV 峰 ~150-170 kW，白天反送 ~3 MW 出现
-# 论文量级的过压，与 Fig.5(a) 峰值口径和 Fig.9(a) 工作区间一致；
-# Fig.5(b) 的 850 与 Fig.5(a) 在论文内自相矛盾（850 kWh/日不可能有
-# 200 kW 峰），以现象口径优先，偏离文档记录。
-DER_DAILY_ENERGY_KWH = 1600.0
-EV_DAILY_ENERGY_KWH = 300.0
+# DER 母线日能量标定（v2，2026-11-20 论文核验后重标）：取论文
+# Fig.5(b) "one bus" 柱的像素读数——基荷 ≈1030、EV ≈480 kWh/母线/日
+# （以 CBESS cap.=1000 kWh 已知柱为读数锚定，误差 ~1%）。
+# 核验结论：Fig.5(a) 与 (b) 互相自洽（PV 峰 ~195 kW 钟形积分 ≈ 1390
+# kWh/日 = (b) 的 PV 柱；负荷柱合计 1510 kWh/日 ↔ (a) 双峰/深谷形态）；
+# 论文真正的内部矛盾在 Fig.5 ↔ Table VI（弃光统计反推总可用 PV ≈4.0
+# MWh/日 vs Fig.5(b) 隐含 26×1390≈36 MWh/日，差 ~9 倍），见偏离文档。
+DER_DAILY_ENERGY_KWH = 1030.0
+EV_DAILY_ENERGY_KWH = 480.0
 EV_DAY_SIGMA = 0.15
 EV_FACTOR_RANGE = (0.7, 1.2)  # 日因子截断（标定：避免极端夜压/过载日）
 PRICE_DAY_SIGMA = 0.2
+# 表 I 脚注规则（字面）：PV 装机峰 = 0.9 × 母线典型日峰负荷。
 PV_PENETRATION = 0.9
-# PV 加成（M2 标定冻结）：0.9×峰荷 的字面渗透率不足以复现论文
-# Fig.5(a)/Fig.9(a) 的白天过压现象（论文 Fig.5(a) 与 (b) 的尺度自相矛盾，
-# 取现象口径），等效渗透率 1.35，偏离文档记录。
-PV_BOOST = 1.5
+# PV 加成默认 1.0（v2 起字面口径）；如零控制标定显示字面渗透率复现
+# 不了 Fig.9(a) 的白天过压工作区间，可用 --pv-boost 显式上调并把
+# 依据写入偏离文档（v1 曾误诊 Fig.5(a)/(b) 自相矛盾而冻结 1.5）。
+PV_BOOST = 1.0
 # 非 DER 母线铭牌缩放（M2 标定冻结）：0.5 抑制夜间馈线整体压降，
 # 使夜压落在论文 Fig.9(a) 工作区间附近。
 NON_DER_SCALE = 0.5
 PV_OVERSIZE = 1.1
+# Fig.5(b) PV 柱字面日能量（≈1390 kWh/母线/日，与 CBESS=1000 锚定读数）。
+PV_DAILY_ENERGY_KWH = 1390.0
 
 # 合成批发电价形状锚点（分钟, AUD/MWh）：夜间低、早晚高、正午光伏压低。
 PRICE_ANCHORS = [
@@ -150,7 +155,12 @@ def _nameplate_from_dss(case_folder: Path) -> dict[int, tuple[float, float]]:
     return nameplate
 
 
-def build(source: Path, case_folder: Path, out: Path) -> None:
+def build(source: Path, case_folder: Path, out: Path, *,
+          der_daily_energy_kwh: float = DER_DAILY_ENERGY_KWH,
+          ev_daily_energy_kwh: float = EV_DAILY_ENERGY_KWH,
+          pv_boost: float = PV_BOOST,
+          pv_mode: str = "peak-rule",
+          pv_daily_kwh: float = PV_DAILY_ENERGY_KWH) -> None:
     rng = np.random.default_rng(SEED)
     years = ["2010-2011", "2011-2012", "2012-2013"]
     dates, customers, gc_all, gg_all = [], None, [], []
@@ -182,7 +192,7 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
             pv_shape[d, j] = _interp_half_hourly(gg_bus[d])
 
     # DER 母线基荷：每日能量重标定到目标 kWh（形状保持真实）。
-    scale = DER_DAILY_ENERGY_KWH / (interp.sum(axis=2) * (1440.0 / STEPS / 60.0))
+    scale = der_daily_energy_kwh / (interp.sum(axis=2) * (1440.0 / STEPS / 60.0))
     p_base = interp * scale[:, :, None]  # (D, 26, 288) kW
 
     # EV：固定形状 × 日因子 × 目标能量。
@@ -190,19 +200,32 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
     ev_factor = np.clip(
         rng.lognormal(0.0, EV_DAY_SIGMA, (n_days, 1)), *EV_FACTOR_RANGE
     ).astype(np.float32)
-    p_ev = ev_template * ev_factor[:, :, None] * EV_DAILY_ENERGY_KWH
+    p_ev = ev_template * ev_factor[:, :, None] * ev_daily_energy_kwh
 
     p_der = p_base + p_ev  # (D, 26, 288) kW
 
-    # PV 安装峰值 = 0.9 × 母线典型日峰负荷（全样本日均，静态容量）。
+    # PV 定容两种口径（论文内部两处线索不一致，偏离文档记录）：
+    # - peak-rule（表 I 脚注字面）：装机峰 = 0.9 × 母线典型日峰负荷；
+    # - daily-energy（Fig.5(b) PV 柱字面）：全样本母线日均可用能量
+    #   = 1390 kWh/日（隐含峰 ~195 kW，与 Fig.5(a) PV 曲线一致）。
     typical_peak = p_der.max(axis=2).mean(axis=0)  # (26,)
-    pv_peak = PV_PENETRATION * PV_BOOST * typical_peak
-    pv_max = pv_shape.max(axis=2)  # (D, 26)
-    pv_available = np.where(
-        pv_max[:, :, None] > 0,
-        pv_shape * (pv_peak[None, :, None] / np.maximum(pv_max[:, :, None], 1e-9)),
-        0.0,
-    ).astype(np.float32)
+    dt_h = 1440.0 / STEPS / 60.0
+    if pv_mode == "peak-rule":
+        pv_peak = PV_PENETRATION * pv_boost * typical_peak
+        pv_max = pv_shape.max(axis=2)  # (D, 26)
+        pv_available = np.where(
+            pv_max[:, :, None] > 0,
+            pv_shape * (pv_peak[None, :, None] / np.maximum(pv_max[:, :, None], 1e-9)),
+            0.0,
+        ).astype(np.float32)
+    elif pv_mode == "daily-energy":
+        bus_energy = (pv_shape.sum(axis=2) * dt_h).mean(axis=0)  # (26,) kWh/日
+        scale_j = pv_daily_kwh / np.maximum(bus_energy, 1e-9)
+        pv_available = (pv_shape * scale_j[None, :, None]).astype(np.float32)
+        pv_peak = (pv_available.max(axis=2) * dt_h / dt_h).max(axis=0)  # (26,) 静态等效峰
+        pv_peak = pv_available.max(axis=2).mean(axis=0)
+    else:
+        raise ValueError(f"未知 pv_mode：{pv_mode}")
 
     # 非 DER 母线：铭牌 × 全网日形状（当日全部 GC 归一到均值 1）。
     nameplate = _nameplate_from_dss(case_folder)
@@ -249,11 +272,15 @@ def build(source: Path, case_folder: Path, out: Path) -> None:
             "years": {y: _sha256(source / f"Solar home {y}.csv") for y in years},
         },
         "seed": SEED,
+        "calibration": f"v2-fig5b-literal-{pv_mode}",
         "der_buses": DER_BUSES,
         "parameters": {
-            "der_daily_energy_kwh": DER_DAILY_ENERGY_KWH,
-            "ev_daily_energy_kwh": EV_DAILY_ENERGY_KWH,
+            "der_daily_energy_kwh": der_daily_energy_kwh,
+            "ev_daily_energy_kwh": ev_daily_energy_kwh,
             "pv_penetration": PV_PENETRATION,
+            "pv_boost": pv_boost,
+            "pv_mode": pv_mode,
+            "pv_daily_kwh": pv_daily_kwh if pv_mode == "daily-energy" else None,
             "pv_inverter_oversize": PV_OVERSIZE,
             "power_factor": 0.85,
             "price": "synthetic NEM-style shape × lognormal(0,0.2) daily",
@@ -281,5 +308,19 @@ if __name__ == "__main__":
         "--case", type=Path, default=Path("node_systems/33Bus_CBESS")
     )
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--der-kwh", type=float, default=DER_DAILY_ENERGY_KWH,
+                        help="DER 母线基荷日能量（默认 Fig.5(b) 字面 1030）")
+    parser.add_argument("--ev-kwh", type=float, default=EV_DAILY_ENERGY_KWH,
+                        help="EV 日能量（默认 Fig.5(b) 字面 480）")
+    parser.add_argument("--pv-boost", type=float, default=PV_BOOST,
+                        help="peak-rule 模式的 PV 定容加成（默认 1.0 字面）")
+    parser.add_argument("--pv-mode", choices=("peak-rule", "daily-energy"),
+                        default="peak-rule",
+                        help="PV 定容口径：peak-rule=表 I 0.9×峰荷；daily-energy=Fig.5(b) 柱 1390 kWh/日")
+    parser.add_argument("--pv-daily-kwh", type=float, default=PV_DAILY_ENERGY_KWH,
+                        help="daily-energy 模式目标日能量（默认 1390）")
     args = parser.parse_args()
-    build(args.source, args.case, args.out or args.source)
+    build(args.source, args.case, args.out or args.source,
+          der_daily_energy_kwh=args.der_kwh, ev_daily_energy_kwh=args.ev_kwh,
+          pv_boost=args.pv_boost, pv_mode=args.pv_mode,
+          pv_daily_kwh=args.pv_daily_kwh)
