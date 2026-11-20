@@ -3,6 +3,8 @@
 论文（Huang et al., IEEE TSG 2026, arXiv:2610.33654）以下信息未在
 正文/表格中给出或存在内部矛盾。本复现对每一项给出决策与依据；论文明示
 值一律逐字对齐（见 research/pistg_ldcpo/README.md 映射表）。
+论文原文：`papers-repro/pistg-ldcpo/arXiv2610.33654v1.pdf`
+（[目录索引](../papers-repro/README.md)）。
 
 ## A. 场景与数据（Sec. IV-A、Fig.5）
 

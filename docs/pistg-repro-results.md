@@ -1,5 +1,8 @@
 # PISTG-LDCPPO 复现结果报告（IEEE 33-bus）
 
+论文原文：`papers-repro/pistg-ldcpo/arXiv2610.33654v1.pdf`
+（[目录索引](../papers-repro/README.md)）。
+
 运行配置：本机 CPU 单 seed，PIAE 预训练 500 回合（pistg/stg 两变体），
 三方法各 2000 训练回合（论文表 II 超参逐字对齐），100 测试回合确定性
 策略评估。数据：Ausgrid 三年 1096 天（883/110/103 按天划分）。

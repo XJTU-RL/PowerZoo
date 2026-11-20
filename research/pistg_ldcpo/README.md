@@ -10,6 +10,10 @@ LDCPPO 约束策略优化。
 明说的参数取最接近其语义的默认值，全部记录在
 `docs/pistg-repro-deviations.md`，标定依据可追溯。
 
+**论文原文**：本地 PDF `papers-repro/pistg-ldcpo/arXiv2610.33654v1.pdf`
+（[目录索引](../../papers-repro/README.md)；PDF 不入库，克隆后按
+arXiv:2610.33654 下载放回）。
+
 ## 论文公式 ↔ 代码映射
 
 | 论文位置 | 内容 | 代码 |
