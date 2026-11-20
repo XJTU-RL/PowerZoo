@@ -81,3 +81,29 @@ class OperatingPointTest(unittest.TestCase):
                                SetActiveElement=lambda name: 0, ActiveCktElement=wrong)
         with self.assertRaisesRegex(RuntimeError, "terminal/conductor inventory"):
             audit.collect_shunt_evidence(fake, 75)
+
+
+    def test_headroom_windings_include_abc_and_separate_neutral(self):
+        def item(nodes, amps):
+            return {"bus": "w", "s_kva": 50.,
+                    "conductors": [{"node": n, "terminal_current_amp": i}
+                                   for n, i in zip(nodes, amps)]}
+        valid = item([3, 0, 1, 2], [4., 10000., 1., 2.])
+        result = audit.winding_screen([valid, valid], [(100., 10.), (100., 10.)])
+        self.assertTrue(all(w["passed_model_nameplate_screen"] for w in result))
+        self.assertEqual(result[0]["phase_current_amp_abc"], [1., 2., 4.])
+        self.assertEqual(result[0]["neutral_current_amp"], 10000.)
+        with self.assertRaisesRegex(RuntimeError, "complete ABC plus neutral"):
+            audit.winding_screen([valid, item([0, 1, 2, 2], [0., 1., 2., 3.])],
+                                 [(100., 10.), (100., 10.)])
+
+    def test_headroom_keeps_pair_and_declared_boundary(self):
+        failed = {"stages": {"standard_snapshot": {"converged": False}}}
+        with patch.object(audit, "run_standard", side_effect=lambda *a, **kw: failed.copy()) as run:
+            pair = audit.run_headroom_pair(Path("repo"), Path("scratch"),
+                                           SimpleNamespace(vmin=.95, vmax=1.05))
+        self.assertEqual([c.kwargs["study_shunt_kvar"] for c in run.call_args_list], [0, 75])
+        self.assertTrue(all(c.kwargs["source_pu"] == 1.045 and c.kwargs["load_multiplier"] == .75
+                            and c.args[2].standard_tolerance == 1e-9 for c in run.call_args_list))
+        self.assertTrue(all(not row["study_model_feasible_static_candidate"]
+                            for row in pair["scenarios"]))

@@ -16,6 +16,8 @@ from types import SimpleNamespace
 FROZEN_LOAD_MATRIX = (0.50, 0.75, 1.00)
 REFERENCE_SOURCE_PU = 1.05
 FROZEN_MIDLOAD_SHUNT_KVAR = (0, 75, 150)
+HEADROOM_SOURCE_PU = 1.045
+HEADROOM_SHUNT_KVAR = (0, 75)
 STANDARD = Path("node_systems/34Bus")
 BASE = Path("envs/lfc/IEEE9BusSystem/systems/34Bus")
 DECK_BLOB = "d76a7703c4fc803b03864a4d8b8e136e1e786fa3"
@@ -154,7 +156,7 @@ def checks(record, lo, hi):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("repo", type=Path)
-    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static", "standard-boundary-matrix", "standard-midload-shunt"), required=True)
+    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static", "standard-boundary-matrix", "standard-midload-shunt", "optimized-headroom-pair"), required=True)
     p.add_argument("--standard-tolerance", type=float, help="optional native voltage convergence tolerance")
     p.add_argument("--vmin", type=float, required=True)
     p.add_argument("--vmax", type=float, required=True)
@@ -165,7 +167,7 @@ def main():
         not a.mode.startswith("standard-") or not 0 < a.standard_tolerance < 1
     ):
         p.error("--standard-tolerance requires a standard mode and a finite value in (0, 1)")
-    if a.mode in ("standard-boundary-matrix", "standard-midload-shunt") and (
+    if a.mode in ("standard-boundary-matrix", "standard-midload-shunt", "optimized-headroom-pair") and (
         (a.vmin, a.vmax) != (0.95, 1.05) or a.standard_tolerance is not None
     ):
         p.error("study freezes screening band [0.95, 1.05] and native tolerance 1e-9")
@@ -175,7 +177,8 @@ def main():
         p.error(str(exc))
     head = git(repo, "rev-parse", "HEAD")
     runtime_files = [CORE / x for x in ("opendss_python.py", "loadprofile.py")]
-    baseline_paths = ([STANDARD] if a.mode.startswith("standard-") else [BASE, *runtime_files])
+    standard_tree = a.mode not in ("raw", "no-der")
+    baseline_paths = [STANDARD] if standard_tree else [BASE, *runtime_files]
     if git(repo, "status", "--porcelain", "--ignored", "--", *map(str, baseline_paths)):
         raise RuntimeError("dirty or generated raw inputs in repository")
     if not any(all(git(repo, "rev-parse", f"{head}:{path}") ==
@@ -184,7 +187,7 @@ def main():
         raise RuntimeError("unexpected source input tree")
 
     deck = repo / BASE / "ieee34Mod1_duty.dss"
-    if not a.mode.startswith("standard-") and git(repo, "hash-object", str(deck)) != DECK_BLOB:
+    if not standard_tree and git(repo, "hash-object", str(deck)) != DECK_BLOB:
         raise RuntimeError("unexpected raw deck blob")
     with tempfile.TemporaryDirectory(prefix="powerzoo-lfc34-") as td:
         work = Path(td) / "deck"
@@ -192,6 +195,8 @@ def main():
             report = run_boundary_matrix(repo, work, a)
         elif a.mode == "standard-midload-shunt":
             report = run_midload_shunt(repo, work, a)
+        elif a.mode == "optimized-headroom-pair":
+            report = run_headroom_pair(repo, work, a)
         else:
             report = (run_standard(repo, work, a) if a.mode.startswith("standard-") else
                       run_case(repo, deck, work, a))
@@ -254,6 +259,59 @@ def run_midload_shunt(repo, work, a):
             "scenarios": scenarios}
 
 
+def winding_screen(windings, ratings):
+    if len(windings) != 2 or len(ratings) != 2:
+        raise RuntimeError("expected two model transformer windings")
+    screened = []
+    for winding, rating in zip(windings, ratings):
+        phases = {int(c["node"]): c["terminal_current_amp"] for c in winding["conductors"]}
+        if len(winding["conductors"]) != 4 or set(phases) != {0, 1, 2, 3}:
+            raise RuntimeError("expected complete ABC plus neutral winding terminal inventory")
+        kva, kv_ll = rating
+        if not (math.isfinite(kva) and math.isfinite(kv_ll) and kva > 0 and kv_ll > 0):
+            raise RuntimeError("expected finite positive model transformer ratings")
+        equivalent = kva / (math.sqrt(3) * kv_ll)
+        amps = [phases[node] for node in (1, 2, 3)]
+        screened.append({"terminal_bus": winding["bus"], "measured_kva": winding["s_kva"],
+                         "rating_kva": kva, "rating_kv_ll": kv_ll,
+                         "phase_current_amp_abc": amps, "neutral_current_amp": phases[0],
+                         "phase_terminal_current_equivalent_amp": equivalent,
+                         "passed_model_nameplate_screen": (
+                             winding["s_kva"] <= kva and max(amps) <= equivalent)})
+    return screened
+
+
+def run_headroom_pair(repo, work, a):
+    frozen_args = SimpleNamespace(mode="standard-static", standard_tolerance=1e-9,
+                                  vmin=a.vmin, vmax=a.vmax)
+    scenarios = []
+    for kvar in HEADROOM_SHUNT_KVAR:
+        row = run_standard(repo, work / f"headroom-{kvar}", frozen_args,
+                           source_pu=HEADROOM_SOURCE_PU, load_multiplier=0.75,
+                           study_shunt_kvar=kvar)
+        row["matrix_screen"] = matrix_screen(row)
+        stage = row["stages"]["standard_snapshot"]
+        windings = {}
+        if stage["converged"]:
+            subxf = stage["subxf_windings"]
+            xfm1 = row["shunt_study_evidence"]["equipment"]["Transformer.XFM1"]
+            windings = {
+                "SubXF": winding_screen(subxf, [(w["rating_kva"], w["rating_kv_ll"])
+                                                for w in subxf]),
+                "XFM1": winding_screen(xfm1["terminal_flows"], xfm1["native_winding_ratings"]),
+            }
+        row["model_winding_screens"] = windings
+        row["study_model_feasible_static_candidate"] = (
+            row["matrix_screen"]["passed"] and bool(windings) and
+            all(w["passed_model_nameplate_screen"] for pair in windings.values() for w in pair))
+        scenarios.append(row)
+    return {"mode": "optimized-headroom-pair", "load_multiplier": 0.75,
+            "source_pu": HEADROOM_SOURCE_PU, "synthetic_nameplate_kvar": HEADROOM_SHUNT_KVAR,
+            "source_boundary_scope": "hypothetical controlled sending-end, not historical",
+            "ratings_scope": "model terminal nameplate screen only; not field or thermal validation",
+            "scenarios": scenarios}
+
+
 def collect_shunt_evidence(native, nameplate):
     bus = native.Buses["890"]
     if list(bus.Nodes) != [1, 2, 3]:
@@ -279,6 +337,15 @@ def collect_shunt_evidence(native, nameplate):
         equipment[name] = {"phases": found[0], "terminals": found[1],
                            "conductors_per_terminal": found[2],
                            "terminal_flows": phases_and_terminals(e)}
+    xf = native.Transformers
+    xf.Name = "XFM1"
+    if int(xf.NumWindings) != 2:
+        raise RuntimeError("unexpected positive-sequence XFM1 winding inventory")
+    ratings = []
+    for index in (1, 2):
+        xf.Wdg = index
+        ratings.append([float(xf.kVA), float(xf.kV)])
+    equipment["Transformer.XFM1"]["native_winding_ratings"] = ratings
     cap = equipment.get("Capacitor.Study890")
     loss = np.asarray(native.Losses)
     loss = complex(loss.item()) if np.iscomplexobj(loss) else complex(*loss.reshape(2))

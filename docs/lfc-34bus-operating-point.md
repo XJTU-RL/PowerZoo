@@ -167,3 +167,37 @@ rating edits, additional capacity or source setpoints were selected. A
 separately predeclared controllable source boundary with headroom (for example
 1.045 pu) would be a different experimental assumption, not a repair or
 reproduction of the IEEE reference. It has not been run here.
+
+## Separate controlled-boundary optimized static scenario
+
+```sh
+PYTHONPATH=. python scripts/check_lfc34_operating_point.py . \
+  --mode optimized-headroom-pair --vmin .95 --vmax 1.05
+```
+
+This explicitly **non-historical** scenario asks whether a hypothetical
+controlled sending-end command of 1.045 pu, leaving 0.005 pu of headroom
+below the unchanged ceiling, can support the 75 kvar synthetic 890 delta
+shunt at 0.75 load. The frozen comparison includes only 0 and 75 kvar,
+using the same 1e-9 native tolerance, no original DER and STATIC controls.
+It does not replace or tune the historical 1.05 pu cases above.
+
+| Shunt nameplate / measured kvar | PCC kW / kvar | Feeder loss kW | Phase min/max pu | Result |
+|---|---:|---:|---|---|
+| 0 / 0 | +1482.058 / −66.897 | 147.377 | 0.948595315 (890.C) / 1.047037216 (852r.A) | 890.C below band |
+| 75 / 70.0025 | +1486.417 / −138.427 | 145.805 | 0.964375418 (890.C) / 1.045000022 (800.C) | 95/95 phases pass |
+
+Both rows converged with settled controls and global power accounting.
+Both terminals of SubXF and XFM1 have verified A/B/C conductors plus a
+separately reported neutral and met their model net kVA and nominal
+phase-terminal-current equivalent screens. In the supported row SubXF
+measured 1492.848/1492.851 kVA (each rated 25,000) and XFM1
+365.170/357.662 kVA (each rated 500). These checks do not establish
+neutral, transformer-coil, or physical field thermal limits.
+
+The 75 kvar scenario is a **study-model feasible static candidate at this
+single condition**, not an equipment recommendation, robust/dynamic
+validation, or a replacement for the original stress case. It exports
+more reactive power at the PCC while lowering calculated feeder loss
+by 1.57 kW; its PCC active import nevertheless rises by 4.36 kW. No
+MATLAB or training was performed for these results.
