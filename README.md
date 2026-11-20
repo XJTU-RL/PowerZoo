@@ -38,7 +38,7 @@ MAPPO、SHOM、MADDPG、HASAC、OHASAC（MATLAB 联合仿真正在 15k 论文口
 ## 论文复现
 
 `research/` 下按论文逐篇存放独立复现；论文原文 PDF 与索引见
-[papers-repro/](papers-repro/)（PDF 因版权不入库，按索引中的来源自行下载放回）。
+[papers-repro/](papers-repro/)。
 
 - [PISTG-LDCPPO](research/pistg_ldcpo/)（IEEE TSG 2026，arXiv:2610.33654）：
   物理信息时空图编码器 + 约束专用批评者的多 CBESS 协调，IEEE 33-bus OpenDSS 复现。

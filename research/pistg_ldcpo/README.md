@@ -11,8 +11,7 @@ LDCPPO 约束策略优化。
 `docs/pistg-repro-deviations.md`，标定依据可追溯。
 
 **论文原文**：本地 PDF `papers-repro/pistg-ldcpo/arXiv2610.33654v1.pdf`
-（[目录索引](../../papers-repro/README.md)；PDF 不入库，克隆后按
-arXiv:2610.33654 下载放回）。
+（[目录索引](../../papers-repro/README.md)；线上来源 arXiv:2610.33654）。
 
 ## 论文公式 ↔ 代码映射
 
