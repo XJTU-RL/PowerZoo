@@ -7,7 +7,7 @@ environment family or a result of the generic VVC benchmark.
 - Authors' materials: [SHOM repository at `f1339d1`](https://github.com/sheldon123z/SHOM/tree/f1339d1259b2c920b7912589ff96055638e40bb9).
 - Existing reviewed plotting entry: [PowerZoo `524b868e`](https://github.com/XJTU-RL/PowerZoo/tree/524b868e6f8f62515ba3c240dbb73c7293bbb9cc/reproduction/shom).
   That commit supplies the [guide](https://github.com/XJTU-RL/PowerZoo/blob/524b868e6f8f62515ba3c240dbb73c7293bbb9cc/reproduction/shom/README.md)
-  and the replot script; this entry does not copy them.
+  and [replot script](https://github.com/XJTU-RL/PowerZoo/blob/524b868e6f8f62515ba3c240dbb73c7293bbb9cc/reproduction/shom/plot_paper_panels.py); this entry does not copy them.
 
 ## Preserve the paper protocol
 
@@ -44,16 +44,11 @@ seeds or figure transforms from a current default or a similar run.
 | 12(b) | 34-bus one-day deployment: capacitor actions | `12b` |
 
 The mapping was checked against stored notebook outputs; it is not proof that
-replotting supplied scalars reproduces the published numbers. For Fig. 8(b), the published graphic's legend labels the disputed series
-`34BUS/SHOM` (convergence annotation ≈−23.741); the subcaption names 37 bus
-and the narrative names 34 bus. The standalone source PNG's decoded RGB
-and alpha pixels match the author PDF image exactly. Its three curves,
-ribbons, colors and annotations match the saved cross-network notebook
-output, whose source and printed trace path also label the series
-`34BUS/SHOM`. This verifies the plotted label and the saved plotting
-provenance, not whether the underlying run used a physical 34- or 37-bus
-model. The original run's event file and resolved feeder configuration are
-not verified; no electrical feeder identity or checkpoint is assigned.
+replotting supplied scalars reproduces the published numbers. For Fig. 8(b), the published plot and the preserved notebook label the
+series `34BUS/SHOM`, consistent with the paper's discussion. The historical
+subcaption's reference to 37 bus is a typographical discrepancy. The exact
+run configuration and weights have not been independently recovered, so
+the plotted label does not establish the feeder configuration or checkpoint.
 
 Historical notebook sources have optional scaling for Figs. 7 and
 8(a); it is unknown whether that scaling affected the published traces. The
