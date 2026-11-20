@@ -148,7 +148,8 @@ def load_model(model_path, env, *, require_vvc_binding=False):
     model_path = Path(model_path)
     manifest = env.core.get_physics_manifest()
     if require_vvc_binding:
-        if manifest.get("task") != "vvc" or env.mode != "discrete":
+        from envs.vvc.vvc.vvc_config import VVCConfig
+        if manifest.get("task") != VVCConfig.__name__ or env.mode != "discrete":
             raise ValueError("strict VVC binding requires a discrete VVC environment")
         try:
             metadata = json.loads(model_path.with_suffix(".sb3.json").read_text())

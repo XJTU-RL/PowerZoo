@@ -10,9 +10,11 @@ import pytest
 
 from envs.powergrid.adapters import CentralizedAdapter
 from utils.centralized_cli import load_model
+from envs.vvc.vvc.vvc_config import VVCConfig
 
 
 class Core:
+    config = VVCConfig()
     observation_space = gym.spaces.Box(-1, 1, (2,), dtype=np.float32)
     agent_spaces = [gym.spaces.Discrete(n) for n in [2, 2, *([33] * 8)]]
 
@@ -24,7 +26,7 @@ class Core:
         return np.zeros(2, dtype=np.float32), -3., False, {}
 
     def get_physics_manifest(self):
-        return {"task": "vvc", "action_schema_sha256": "ordered-devices"}
+        return {"task": type(self.config).__name__, "action_schema_sha256": "ordered-devices"}
 
     def close(self):
         pass
@@ -82,7 +84,7 @@ def write_binding(prefix, env):
     return metadata
 
 
-@pytest.mark.parametrize("task", ["dsr", "vvc", "smartgrid", "district_dispatch"])
+@pytest.mark.parametrize("task", ["DSRConfig", "VVCConfig", "SmartGridConfig", "DistrictDispatchConfig"])
 @pytest.mark.parametrize("optional_metadata", [False, True])
 def test_legacy_discrete_restore_only_requires_valid_physics(saved_model, task, optional_metadata):
     prefix, env, calls = saved_model
@@ -178,12 +180,12 @@ def test_strict_vvc_rejects_other_binding_faults(saved_model, fault):
     assert not calls
 
 
-@pytest.mark.parametrize("fault", ["non_vvc", "continuous", "non_boolean_flag"])
+@pytest.mark.parametrize("fault", ["DSRConfig", "SmartGridConfig", "vvc", "continuous", "non_boolean_flag"])
 def test_strict_binding_is_an_explicit_vvc_discrete_contract(saved_model, fault):
     prefix, env, calls = saved_model
     write_binding(prefix, env)
-    if fault == "non_vvc":
-        env.core.get_physics_manifest = lambda: {"task":"dsr"}
+    if fault in ("DSRConfig", "SmartGridConfig", "vvc"):
+        env.core.get_physics_manifest = lambda: {"task":fault}
     elif fault == "continuous":
         env.mode = "continuous"
     with pytest.raises(ValueError):
