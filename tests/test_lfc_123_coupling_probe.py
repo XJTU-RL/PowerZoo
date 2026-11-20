@@ -49,6 +49,7 @@ class TestDirectProbeGuards(unittest.TestCase):
             [],
             [(17, 1), (17.5, 1)],
             [(19, 1), (19, 1), (20, 1)],
+            [(19, 1), (18, 1), (20, 1)],
             [(19, 1), (19.5, math.nan), (20, 1)],
         ):
             with self.assertRaises(RuntimeError):
@@ -57,10 +58,11 @@ class TestDirectProbeGuards(unittest.TestCase):
     def test_missing_q_or_bad_frequency_or_realized_q_cannot_pass(self):
         anchor = PQ(7000, 10000)
         t = [18 + j / 60 for j in range(121)]
+        tm5 = [18 + j / 5 for j in range(11)]
         signals = lambda p, q, f: {
             "p_kw": [(x, p) for x in t],
             "q_kvar": [(x, q) for x in t],
-            "frequency_hz": [(x, f(x)) for x in t],
+            "frequency_hz": [(x, f(x)) for x in tm5],
         }
         policy = dict(
             p_abs_tol_kw=100,
@@ -70,7 +72,13 @@ class TestDirectProbeGuards(unittest.TestCase):
             frequency_max_span_hz=0.03,
         )
         validate = lambda log: _check_measurement(
-            anchor, log, policy, 20, 1, 0.04, settled=True
+            anchor,
+            log,
+            policy,
+            20,
+            1,
+            dict(power=0.04, frequency=0.2000001),
+            settled=True,
         )
         self.assertEqual(
             validate(signals(7001, 9999, lambda x: 60))["measured_q_kvar"], 9999
@@ -79,6 +87,10 @@ class TestDirectProbeGuards(unittest.TestCase):
             validate(signals(7001, 9000, lambda x: 60))
         with self.assertRaises(RuntimeError):
             validate(signals(7001, 9999, lambda x: 60 + 0.09 * math.sin(8 * x)))
+        lost_frequency = signals(7001, 9999, lambda x: 60)
+        del lost_frequency["frequency_hz"][-2]
+        with self.assertRaises(RuntimeError):
+            validate(lost_frequency)
         missing = signals(7001, 9999, lambda x: 60)
         missing["q_kvar"] = []
         with self.assertRaises(RuntimeError):

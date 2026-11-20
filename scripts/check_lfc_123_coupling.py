@@ -65,27 +65,43 @@ def _tail(samples, end_s, duration_s, max_gap_s):
     return values
 
 
-def _check_measurement(anchor, logs, policy, end_s, tail_s, max_gap_s, *, settled):
-    p = _tail(logs["p_kw"], end_s, tail_s, max_gap_s)
-    q = _tail(logs["q_kvar"], end_s, tail_s, max_gap_s)
-    f = _tail(logs["frequency_hz"], end_s, tail_s, max_gap_s)
-    if (
-        max(abs(x - anchor.kw) for x in p) > policy["p_abs_tol_kw"]
-        or max(abs(x - anchor.kvar) for x in q) > policy["q_abs_tol_kvar"]
-    ):
-        raise RuntimeError("realized sensor P/Q does not track the commanded boundary")
-    if settled and (
-        max(abs(x - policy["frequency_center_hz"]) for x in f)
-        > policy["frequency_abs_tol_hz"]
-        or max(f) - min(f) > policy["frequency_max_span_hz"]
-    ):
-        raise RuntimeError("baseline frequency did not settle inside the declared band")
-    return {
+def _check_measurement(anchor, logs, policy, end_s, tail_s, gaps_s, *, settled):
+    p = _tail(logs["p_kw"], end_s, tail_s, gaps_s["power"])
+    q = _tail(logs["q_kvar"], end_s, tail_s, gaps_s["power"])
+    f = _tail(logs["frequency_hz"], end_s, tail_s, gaps_s["frequency"])
+    p_error = max(abs(x - anchor.kw) for x in p)
+    q_error = max(abs(x - anchor.kvar) for x in q)
+    stats = {
+        "command_kw": anchor.kw,
+        "command_kvar": anchor.kvar,
         "measured_p_kw": p[-1],
         "measured_q_kvar": q[-1],
         "frequency_hz": f[-1],
+        "mean_p_kw": math.fsum(p) / len(p),
+        "mean_q_kvar": math.fsum(q) / len(q),
+        "mean_frequency_hz": math.fsum(f) / len(f),
+        "frequency_min_hz": min(f),
+        "frequency_max_hz": max(f),
         "frequency_span_hz": max(f) - min(f),
+        "p_max_error_kw": p_error,
+        "q_max_error_kvar": q_error,
+        "samples": {"p": len(p), "q": len(q), "frequency": len(f)},
     }
+    if p_error > policy["p_abs_tol_kw"] or q_error > policy["q_abs_tol_kvar"]:
+        raise RuntimeError(
+            "realized sensor P/Q does not track the commanded boundary: "
+            + json.dumps(stats, allow_nan=False)
+        )
+    if settled and (
+        max(abs(x - policy["frequency_center_hz"]) for x in f)
+        > policy["frequency_abs_tol_hz"]
+        or stats["frequency_span_hz"] > policy["frequency_max_span_hz"]
+    ):
+        raise RuntimeError(
+            "baseline frequency did not settle inside the declared band: "
+            + json.dumps(stats, allow_nan=False)
+        )
+    return stats
 
 
 def _set_pq(eng, model, demand):
@@ -222,7 +238,14 @@ def run_probe(coupled=False):
         raise ValueError("unexpected coupled probe scenario")
     anchor = PQ(cfg["source_anchor"]["kw"], cfg["source_anchor"]["kvar"])
     policy, clock = cfg["warmup"], cfg["clock"]
-    gap = 2.1 * clock["simulink_base_step_s"]
+    sensor = cfg["sensor"]
+    gaps = {
+        "power": sensor["power_log_sample_seconds"] * sensor["power_log_max_gap_ticks"]
+        + 1e-7,
+        "frequency": sensor["frequency_sample_seconds"]
+        * sensor["frequency_max_gap_ticks"]
+        + 1e-7,
+    }
     measured, _ = _engine_run(cfg, anchor, [])
     warm = _check_measurement(
         anchor,
@@ -230,7 +253,7 @@ def run_probe(coupled=False):
         policy,
         policy["seconds"],
         policy["tail_seconds"],
-        gap,
+        gaps,
         settled=True,
     )
     report = {
@@ -275,13 +298,13 @@ def run_probe(coupled=False):
             policy,
             policy["seconds"],
             policy["tail_seconds"],
-            gap,
+            gaps,
             settled=True,
         )
         report["steps"] = []
         for row, (actual_t, command) in zip(rows, checkpoints, strict=True):
             realized = _check_measurement(
-                command, measured, policy, actual_t, 0.2, gap, settled=False
+                command, measured, policy, actual_t, 0.2, gaps, settled=False
             )
             report["steps"].append(
                 {
