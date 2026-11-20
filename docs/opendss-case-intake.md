@@ -7,7 +7,7 @@ agreement, and a task-specific rollout with verified controllable devices.
 | Case | Intake status | Intended use |
 | --- | --- | --- |
 | Baran–Wu 69-bus | Converted from the pinned MATPOWER 8.1 source; static OpenDSS and PowerZoo DSS backend checked | Balanced radial power flow and solver regression |
-| IEEE 4-node | Pinned [native delta–wye deck][ieee4]; native and PowerZoo static solves checked; numerical reference and redistribution pending | Balanced transformer and connection checks |
+| IEEE 4-node | Pinned [native delta–wye deck][ieee4]; native/PowerZoo parity and published spot magnitudes checked; full IEEE reference and redistribution pending | Balanced transformer and connection checks |
 | IEEE 37-node | Pinned [native delta feeder][ieee37]; native and PowerZoo static solves checked; numerical reference and redistribution pending | Unbalanced load flow, line-to-line voltages and regulator checks |
 | IEEE 13, 34, 123 and 8500-node | Already tracked by PowerZoo; not imported again here | Existing models; task readiness remains case/config-specific |
 
@@ -52,7 +52,7 @@ not an independent worksheet comparison.
   line-to-line base ranged from 4.4315 to 4.9412 kV. Compare the same phase
   pairs and operating point; this range is not a voltage compliance result.
 
-These observations establish static execution only. Numerical comparison
+These observations establish static execution only. Complete comparison
 against the original IEEE worksheets and permission to redistribute either
 deck are still unverified.
 
@@ -117,3 +117,37 @@ Keep each original deck distinct from any variant with added devices or
 scenarios. Use evidenced equipment and limits only. Freeze the case manifest,
 data and device/control assumptions before final testing; do not repair a
 failed final benchmark by changing the original-case model.
+
+## Optional native regression
+
+The source files remain local and must match the pins above. Put the IEEE
+files in sibling `4Bus-DY-Bal` and `37Bus` directories below the indicated
+root. From the checked-out repository, with its PowerZoo DSS-Python runtime
+available, run:
+
+```sh
+python -m scripts.check_opendss_case_intake /path/to/ieee-cases /path/to/case69.m
+python -m unittest discover -s tests -p 'test_*case*intake.py'
+```
+
+The first command solves copies, never writes to input folders, and prints a
+JSON report to stdout. Layered checks distinguish an engine-wrapper regression
+from comparison to a physical reference:
+
+- IEEE4: compare Bus 2 AB/BC/CA and Bus 4 A/B/C to the magnitude spots published
+  by [LBNL](https://simulationresearch.lbl.gov/modelica/releases/v5.1.0/help/Buildings_Electrical_AC_ThreePhasesUnbalanced_Validation_IEEETests_Test4NodesFeeder_BalancedStepDown.html).
+  The maximum discrepancy in the validated setup is 2.63 V (rounded up),
+  inside a 3 V regression check. This is not full IEEE worksheet/phasor
+  validation, nor a voltage-compliance judgment.
+- IEEE37: keep original finite substation transformer and native controls.
+  Regress Bus 799/701/740 AB/BC/CA and taps +16/+14 against this exact
+  stock deck; do not compare directly to Kersting's 1 p.u. balanced supply at
+  the regulator input. See [OpenDSS's explanation](https://sourceforge.net/p/electricdss/discussion/861977/thread/81c08054/).
+- Case69: compare 12 separate balanced, fixed-shunt scenarios (three uniform
+  load levels of 0.50/1.00/1.25 p.u.; no capacitor or one 100 kvar nameplate
+  capacitor at Bus 61/64/65). Use disposable copies and scale nameplates only
+  there, not via an additional OpenDSS global multiplier. Validate all node
+  magnitudes and loss against an independent ideal-source AC sweep, and the
+  measured capacitor injection against its voltage-squared behavior. This is
+  a static comparison, not an approved siting, switching procedure, thermal
+  assessment, time-series benchmark, or a finding that voltage is compliant.
