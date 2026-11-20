@@ -17,6 +17,7 @@ STEPS_PER_DAY = 96
 POINTS_PER_YEAR = 35040
 OEDI_PIN = "7c8bcca06708ea2dd54b822821d637814ef08dc4"
 OEDI_INPUT_SHA256 = "b1dd51b8b5e97bd2fc924d30f5e8b351daed17a584d3ccb4f4e813f0b5c148be"
+OEDI_SENSOR_SHA256 = "b09796a2532ef5f7d6b630213951f25fa089ab705d61d0b47f60881abf9a6b63"
 OEDI_UNSHAPED = {"s48": (210.0, 150.0), "s49c": (35.0, 20.0)}
 OEDI_SCRIPTS = ("IEEE123Pv.dss", "IEEE123PvShapes.dss", "IEEE123LoadShapes.dss")
 OEDI_PV7 = {
@@ -199,10 +200,38 @@ def aligned_endpoint(index, time_s):
         raise ValueError("native Yearly clock did not finish the expected interval")
 
 
-def run(case, root, day, native_controls):
+def parse_sensor_nodes(payload):
+    labels = json.loads(payload)
+    if not isinstance(labels, list) or not labels or any(
+        not isinstance(x, str) or re.fullmatch(r"[a-z0-9_]+\.[123]", x.lower()) is None
+        for x in labels
+    ):
+        raise ValueError("expected a list of bus.phase sensor labels")
+    labels = tuple(x.lower() for x in labels)
+    if len(set(labels)) != len(labels):
+        raise ValueError("duplicate bus.phase sensor label")
+    return labels
+
+
+def sensor_projection(state, nodes):
+    absent = [n for n in nodes if n not in state]
+    if absent:
+        raise ValueError(f"sensor phases absent from compiled case: {absent}")
+    return {n: state[n] for n in nodes}
+
+
+def run(case, root, day, native_controls, sensor_json=None):
     root = Path(root).resolve()
     if case != "oedi123":
+        if sensor_json is not None:
+            raise ValueError("the pinned sensors list belongs to OEDI IEEE123 only")
         return _run_verified(case, root, day, native_controls)
+    sensor_nodes = ()
+    if sensor_json is not None:
+        payload = Path(sensor_json).read_bytes()
+        if sha256(payload).hexdigest() != OEDI_SENSOR_SHA256:
+            raise ValueError("OEDI sensors JSON does not match the pinned source")
+        sensor_nodes = parse_sensor_nodes(payload)
     if oedi_input_digest(root) != OEDI_INPUT_SHA256:
         raise ValueError("OEDI input tree does not match the pinned qsts/profiles")
     with TemporaryDirectory(prefix="powerzoo-oedi-parity-") as folder:
@@ -211,10 +240,10 @@ def run(case, root, day, native_controls):
         shutil.copytree(root, staged, symlinks=True)
         if oedi_input_digest(staged) != OEDI_INPUT_SHA256:
             raise ValueError("staged OEDI input no longer matches the pin")
-        return _run_verified(case, staged, day, native_controls)
+        return _run_verified(case, staged, day, native_controls, sensor_nodes)
 
 
-def _run_verified(case, root, day, native_controls):
+def _run_verified(case, root, day, native_controls, sensor_nodes=()):
     import dss
     from envs.powergrid.session import DSSSession
 
@@ -280,22 +309,25 @@ def _run_verified(case, root, day, native_controls):
                 if native_controls
                 else None
             )
-            rows.append(
-                {
-                    "index": idx,
-                    "max_phase_pu_error": max_phase_error(a, b),
-                    "max_regulator_tap_index_error": tap_error,
-                    "source_p_error_kw": abs(float(src_a[0] - src_b[0])),
-                    "source_q_error_kvar": abs(float(src_a[1] - src_b[1])),
-                    "max_pv_p_error_kw": max((float(x[0]) for x in deltas), default=0),
-                    "max_pv_q_error_kvar": max((float(x[1]) for x in deltas), default=0),
-                }
-            )
+            row = {
+                "index": idx,
+                "max_phase_pu_error": max_phase_error(a, b),
+                "max_regulator_tap_index_error": tap_error,
+                "source_p_error_kw": abs(float(src_a[0] - src_b[0])),
+                "source_q_error_kvar": abs(float(src_a[1] - src_b[1])),
+                "max_pv_p_error_kw": max((float(x[0]) for x in deltas), default=0),
+                "max_pv_q_error_kvar": max((float(x[1]) for x in deltas), default=0),
+            }
+            if sensor_nodes:
+                row["max_sensor_phase_pu_error"] = max_phase_error(
+                    sensor_projection(a, sensor_nodes), sensor_projection(b, sensor_nodes)
+                )
+            rows.append(row)
         limits = (1e-6, 1e-3, 1e-3, 1e-3, 1e-3)
         maxima = {
             key: max(row[key] for row in rows)
             for key in rows[0]
-            if key not in ("index", "max_regulator_tap_index_error")
+            if key not in ("index", "max_regulator_tap_index_error", "max_sensor_phase_pu_error")
         }
         ensure_finite(list(maxima.values()))
         max_tap = (
@@ -303,6 +335,13 @@ def _run_verified(case, root, day, native_controls):
             if native_controls
             else None
         )
+        if sensor_nodes:
+            details["sensor_projection"] = {
+                "node_count": len(sensor_nodes),
+                "bus_count": len({label.rsplit(".", 1)[0] for label in sensor_nodes}),
+                "sha256": OEDI_SENSOR_SHA256,
+                "max_phase_pu_error": max(row["max_sensor_phase_pu_error"] for row in rows),
+            }
         return {
             "case": case,
             "day_index": day,
@@ -330,9 +369,10 @@ def main():
     p.add_argument("--data-dir", type=Path, required=True)
     p.add_argument("--day", type=int, default=2)
     p.add_argument("--native-controls", action="store_true")
+    p.add_argument("--sensor-json", type=Path, help="optional pinned OEDI sensors.json")
     p.add_argument("--output", type=Path)
     args = p.parse_args()
-    result = run(args.case, args.data_dir, args.day, args.native_controls)
+    result = run(args.case, args.data_dir, args.day, args.native_controls, args.sensor_json)
     payload = json.dumps(result, indent=2, allow_nan=False) + "\n"
     if args.output:
         args.output.write_text(payload)

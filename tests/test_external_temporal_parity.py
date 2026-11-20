@@ -9,6 +9,8 @@ from scripts.check_external_temporal_parity import (
     max_tap_error,
     max_phase_error,
     oedi_input_digest,
+    parse_sensor_nodes,
+    sensor_projection,
     shape_definitions,
     verify_unshaped,
 )
@@ -107,3 +109,19 @@ def test_static_tap_comparison_fails_if_inventory_differs():
     assert max_tap_error({"r1": 1}, {"r1": 4}) == 3
     with pytest.raises(ValueError, match="inventory"):
         max_tap_error({"r1": 1}, {})
+
+
+
+def test_sensor_projection_respects_bus_phase_order_and_exact_identity():
+    labels = parse_sensor_nodes(b'["BusA.2","busa.1","busB.3"]')
+    assert list(sensor_projection({"busa.1": 1, "busa.2": 0.99, "busb.3": 1.01}, labels)) == [
+        "busa.2", "busa.1", "busb.3"
+    ]
+    with pytest.raises(ValueError, match="absent"):
+        sensor_projection({"busa.1": 1}, ("busa.2",))
+
+
+@pytest.mark.parametrize("payload", [b'["7.0"]', b'["7.1","7.1"]', b'["7"]', b'{}'])
+def test_rejects_invalid_sensor_list(payload):
+    with pytest.raises(ValueError):
+        parse_sensor_nodes(payload)

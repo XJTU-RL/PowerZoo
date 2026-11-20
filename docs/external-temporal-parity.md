@@ -72,3 +72,14 @@ exact agreement in measured bus-phase voltage. The shared observation
 dimension was 175 without projection and 28 with projection; each local
 actor saw 23 features. This checks the observation path on the same physical
 episode; it does not establish that local policy performance matches global.
+
+## OEDI published sensor layout
+
+Keep the pinned [sensors.json](https://github.com/openEDI/oedisi-ieee123/blob/7c8bcca06708ea2dd54b822821d637814ef08dc4/sensors.json)
+outside the input tree and pass its path with `--sensor-json` on the OEDI
+command above. The validator verifies the file hash and rejects missing,
+duplicate or invalid bus-phase labels. On the same 96-interval OEDI STATIC
+replay, all 103 phase labels at 85 buses mapped into the 278-node full
+state in both contexts. Their maximum voltage discrepancy was 8.15e-10 p.u.
+This filters simulated voltages at published locations; it does not validate
+field measurements, state estimation, or learning under partial observation.
