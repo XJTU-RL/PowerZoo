@@ -446,7 +446,8 @@ def main(argv=None):
             print(f"VVC paired replay failed: {exc}", file=sys.stderr)
             return 2
         print(json.dumps(output, sort_keys=True, allow_nan=False))
-        return 0 if all(row["all_four_full_day"] for row in output["results"]) else 1
+        coverage = "all_five_full_day" if "ppo" in output["checkpoints"] else "all_four_full_day"
+        return 0 if all(row.get(coverage) is True for row in output["results"]) else 1
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolved-config", required=True)
     parser.add_argument("--physics-manifest", required=True)

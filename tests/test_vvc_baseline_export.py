@@ -299,3 +299,20 @@ def test_paired_plan_still_binds_sb3_manifest_before_scenario_access(tmp_path, m
     path.write_text(json.dumps(plan))
     with pytest.raises(ValueError, match="PPO checkpoint or sidecar digests differ"):
         export.run_paired_plan(path)
+
+
+@pytest.mark.parametrize("has_ppo,rows,expected", [
+    (False, [{"all_four_full_day":True}], 0),
+    (False, [{"all_four_full_day":False}], 1),
+    (True, [{"all_four_full_day":True,"all_five_full_day":False}], 1),
+    (True, [{"all_four_full_day":True,"all_five_full_day":True}], 0),
+    (True, [{"all_four_full_day":True}], 1),
+    (True, [{"all_four_full_day":True,"all_five_full_day":True},
+            {"all_four_full_day":True,"all_five_full_day":False}], 1),
+])
+def test_paired_cli_exit_requires_every_selected_arm(monkeypatch, capsys, has_ppo, rows, expected):
+    from scripts import export_vvc_baselines as export
+    report = {"checkpoints":{"ppo":{}} if has_ppo else {}, "results":rows}
+    monkeypatch.setattr(export, "run_paired_plan", lambda path:report)
+    assert export.main(["--paired-plan", "unused.json"]) == expected
+    assert json.loads(capsys.readouterr().out) == report
