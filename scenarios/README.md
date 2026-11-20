@@ -18,3 +18,7 @@
 | IEEE 34 | [原生 VVC](../docs/vvc-physics.md)、[光伏 SmartGrid](../docs/smartgrid-data-runtime.md)、[三区域调度](../docs/district-physics.md)、[论文 LFC](lfc/ieee34-paper/README.md) | 不混用不同电压、设备或容量版本；LFC 校准版应单列。 |
 | IEEE 123 | [原生 VVC](../docs/vvc-physics.md)、[原生储能 LFC 候选](lfc/ieee123-native/README.md) | VVC 短训练不等于 LFC 通过；OEDI 时序是独立变体。 |
 | IEEE 4/37、Baran–Wu 69 | [静态引入与回归](https://github.com/XJTU-RL/PowerZoo/blob/benchmark/opendss-static-regression/docs/opendss-case-intake.md) | 独立分支静态验证。69 的同容量电容选址是对照场景，不替换底图。 |
+
+## LFC 的两条场景线
+
+进入 [LFC 总览](lfc/README.md)。[论文原版](lfc/paper/README.md)保留可追溯的原始行为；[优化版](lfc/optimized/README.md)收录工程修正、34 校准、123 原生储能与后续控制比较。现有每个算例的详情链接继续可用。

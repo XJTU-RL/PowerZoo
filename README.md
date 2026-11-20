@@ -39,6 +39,8 @@ MAPPO、SHOM、MADDPG、HASAC、OHASAC（13Bus 联合仿真已验证，尚未验
 
 [场景目录](scenarios/README.md)按任务列出电路、数据与验收状态。基础电路描述设备与接线，场景记录初态、映射和扰动，实验配置决定算法、种子及运行预算。新增任务优先引用已有电路，不为每种算法复制模型。
 
+LFC 分为[论文原版](scenarios/lfc/paper/README.md)与[优化版](scenarios/lfc/optimized/README.md)：原版只记录可复现的论文行为；优化版收录新馈线、接口修正和更强控制的独立实验。
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
