@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "scope": "first tranche: circuit identity and readiness, not runtime configuration",
+  "cases": [
+    {
+      "id": "ieee34",
+      "label": "IEEE 34-bus (PowerZoo adapted)",
+      "nominal_bus_count": 34,
+      "representation": "opendss",
+      "availability": "bundled",
+      "basis": "PowerZoo static operational adaptation of IEEE PES feeder; existing research Storage is part of this exact variant, not the original IEEE equipment.",
+      "source": {
+        "url": "https://github.com/XJTU-RL/PowerZoo/tree/7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62/node_systems/34Bus",
+        "revision": "7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62",
+        "distribution": "existing_repository_assets"
+      },
+      "assets": [
+        {
+          "path": "node_systems/34Bus/network.dss",
+          "hash_kind": "sha256",
+          "digest": "97fa112cb3c9b1d8a726811b37d71955b0ef0774ac98b9bfe3182ec2eaee2427"
+        },
+        {
+          "path": "node_systems/34Bus/IEEELineCodes.dss",
+          "hash_kind": "sha256",
+          "digest": "f4cef900cd68b11959ab689082e5d579f56ebacde222389bf06f5baa5f46d5fc"
+        }
+      ],
+      "entrypoint": "node_systems/34Bus/network.dss",
+      "static_evidence": {
+        "level": "powerzoo_static_validated",
+        "reference": "docs/vvc-physics.md",
+        "revision": "7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62",
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62/docs/vvc-physics.md"
+      },
+      "tasks": {
+        "vvc": {
+          "status": "smoke_validated",
+          "system_ref": "34Bus",
+          "config": "configs/systems/34Bus.yaml",
+          "evidence": "docs/vvc-physics.md",
+          "boundary": "Documented VVC smoke evidence, not benchmark performance or paper reproduction."
+        }
+      }
+    },
+    {
+      "id": "ieee123",
+      "label": "IEEE 123-bus (PowerZoo adapted)",
+      "nominal_bus_count": 123,
+      "representation": "opendss",
+      "availability": "bundled",
+      "basis": "PowerZoo static operational adaptation of IEEE PES feeder; existing research Storage is part of this exact variant, not the original IEEE equipment.",
+      "source": {
+        "url": "https://github.com/XJTU-RL/PowerZoo/tree/7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62/node_systems/123Bus",
+        "revision": "7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62",
+        "distribution": "existing_repository_assets"
+      },
+      "assets": [
+        {
+          "path": "node_systems/123Bus/network.dss",
+          "hash_kind": "sha256",
+          "digest": "ac397ce2a670af2ecd813ffc41fad75a84b345364a76b867bf702e6fb39d0f62"
+        },
+        {
+          "path": "node_systems/123Bus/IEEELineCodes.DSS",
+          "hash_kind": "sha256",
+          "digest": "cc1c17c16a3987e5bd1b470a0a2a9e2f5568f09675740a286e70db086865a56c"
+        },
+        {
+          "path": "node_systems/123Bus/IEEE123Regulators.DSS",
+          "hash_kind": "sha256",
+          "digest": "8c41d5019f5a55caedd3bab6b1f3fa3c0dc72fa0bec8a335e1042df8a4ac4b86"
+        },
+        {
+          "path": "node_systems/123Bus/IEEE123Loads_static.dss",
+          "hash_kind": "sha256",
+          "digest": "0be44605611f2a117625bc4a5523980355e6e9e03db5b478850e5e70ea2d5c07"
+        }
+      ],
+      "entrypoint": "node_systems/123Bus/network.dss",
+      "static_evidence": {
+        "level": "powerzoo_static_validated",
+        "reference": "docs/vvc-physics.md",
+        "revision": "7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62",
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62/docs/vvc-physics.md"
+      },
+      "tasks": {
+        "vvc": {
+          "status": "smoke_validated",
+          "system_ref": "123Bus",
+          "config": "configs/systems/123Bus.yaml",
+          "evidence": "docs/vvc-physics.md",
+          "boundary": "Documented VVC smoke evidence, not benchmark performance or paper reproduction."
+        }
+      }
+    },
+    {
+      "id": "ieee4",
+      "label": "IEEE 4-node balanced delta–wye",
+      "nominal_bus_count": 4,
+      "representation": "opendss",
+      "availability": "external_source",
+      "basis": "Exact mirrored OpenDSS deck; not an identical operating point to all IEEE worksheet variants.",
+      "source": {
+        "url": "https://github.com/dss-extensions/electricdss-tst/tree/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/4Bus-DY-Bal",
+        "revision": "2f65ebd3ea21546102fc96345fc0cee7bcf33537",
+        "distribution": "redistribution_unverified"
+      },
+      "assets": [
+        {
+          "path": "4Bus-DY-Bal/4Bus-DY-Bal.DSS",
+          "hash_kind": "sha256",
+          "digest": "8fae57ff4f8c2abfa0f7f6d2915996b1204d2cab2290d6a4858963b9c3ea3011"
+        }
+      ],
+      "entrypoint": "4Bus-DY-Bal/4Bus-DY-Bal.DSS",
+      "static_evidence": {
+        "level": "powerzoo_static_validated",
+        "reference": "docs/opendss-case-intake.md",
+        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "note": "Balanced D–Y static deck solved; full independent IEEE worksheet parity pending.",
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md"
+      },
+      "tasks": {
+        "vvc": {
+          "status": "unverified"
+        }
+      }
+    },
+    {
+      "id": "ieee37",
+      "label": "IEEE 37-node unbalanced delta",
+      "nominal_bus_count": 37,
+      "representation": "opendss",
+      "availability": "external_source",
+      "basis": "Exact mirrored OpenDSS deck; not an identical operating point to all IEEE worksheet variants.",
+      "source": {
+        "url": "https://github.com/dss-extensions/electricdss-tst/tree/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/37Bus",
+        "revision": "2f65ebd3ea21546102fc96345fc0cee7bcf33537",
+        "distribution": "redistribution_unverified"
+      },
+      "assets": [
+        {
+          "path": "37Bus/ieee37.dss",
+          "hash_kind": "sha256",
+          "digest": "97c2571c1698be56c164d3b4c3a1c7a536df976631d3dba4d5108b8b44498b81"
+        },
+        {
+          "path": "37Bus/IEEELineCodes.DSS",
+          "hash_kind": "sha256",
+          "digest": "4bc8e3a0b24ad7b1cb4321f1c3b6c8458b646dd3a83b3cd11cccc02444624cb2"
+        },
+        {
+          "path": "37Bus/IEEE37_BusXY.csv",
+          "hash_kind": "sha256",
+          "digest": "e1af4a2e8667938db07ad8bd5704605d77bfea70678ecf89b255b2405f65afce"
+        }
+      ],
+      "entrypoint": "37Bus/ieee37.dss",
+      "static_evidence": {
+        "level": "powerzoo_static_validated",
+        "reference": "docs/opendss-case-intake.md",
+        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "note": "Static stock deck solved; worksheet operating-point parity pending. Nominal 37-name counts differ from 39 compiled buses / 117 phase nodes.",
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md"
+      },
+      "tasks": {
+        "vvc": {
+          "status": "unverified"
+        }
+      }
+    },
+    {
+      "id": "baran-wu69",
+      "label": "Baran–Wu 69-bus (MATPOWER variant)",
+      "nominal_bus_count": 69,
+      "availability": "external_source_conversion",
+      "representation": "matpower",
+      "basis": "Balanced static case; OpenDSS deck generated locally. No controllable devices or time series assumed.",
+      "source": {
+        "url": "https://github.com/MATPOWER/matpower/blob/8.1/data/case69.m",
+        "revision": "8.1",
+        "distribution": "redistribution_unverified",
+        "citation": "https://doi.org/10.1109/61.19265",
+        "rights_note": "https://matpower.org/license/"
+      },
+      "assets": [
+        {
+          "path": "case69.m",
+          "hash_kind": "git_blob_sha1",
+          "digest": "5fbd163c0c3f2c32e3fd998e4100b2e3f786fc5e"
+        }
+      ],
+      "entrypoint": "case69.m",
+      "static_evidence": {
+        "level": "independent_balanced_static_validated",
+        "reference": "docs/opendss-case-intake.md",
+        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "note": "External data and converter were evaluated on the intake branch; not a main-branch scenario.",
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md"
+      },
+      "tasks": {
+        "vvc": {
+          "status": "unverified"
+        }
+      }
+    }
+  ]
+}
