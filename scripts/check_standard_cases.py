@@ -161,10 +161,6 @@ def validate(registry=None, *, root=ROOT, external=None):
         evidence = case["static_evidence"]
         if not re.fullmatch("[0-9a-f]{40}", evidence["revision"]):
             raise ValueError(f"static evidence revision is not pinned: {id_}")
-        if "local_validation_revision" in evidence and not re.fullmatch(
-            "[0-9a-f]{40}", evidence["local_validation_revision"]
-        ):
-            raise ValueError(f"extra local validation revision is not pinned: {id_}")
         _path(evidence["reference"])
         _https(evidence["url"])
         if not urlsplit(evidence["url"]).path.endswith(

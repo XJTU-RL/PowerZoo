@@ -117,10 +117,9 @@
       "static_evidence": {
         "level": "powerzoo_static_and_magnitude_spots_validated",
         "reference": "docs/opendss-case-intake.md",
-        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2",
         "note": "Exact balanced D–Y configuration: LBNL magnitude spot comparison maximum 2.622 V (3 V gate); no full worksheet, phasor, or voltage-compliance validation.",
-        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md",
-        "local_validation_revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2"
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/98fe198da405b2c0ce618c0812b8b2179a475fe2/docs/opendss-case-intake.md"
       },
       "tasks": {
         "vvc": {
@@ -161,10 +160,9 @@
       "static_evidence": {
         "level": "powerzoo_stock_static_regression_validated",
         "reference": "docs/opendss-case-intake.md",
-        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2",
         "note": "Native stock AB/BC/CA and +16/+14 taps reproduced. No independent worksheet parity: the stock finite substation transformer does not reproduce the canonical balanced stiff regulator-input source or reference taps.",
-        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md",
-        "local_validation_revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2"
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/98fe198da405b2c0ce618c0812b8b2179a475fe2/docs/opendss-case-intake.md"
       },
       "tasks": {
         "vvc": {
@@ -197,10 +195,9 @@
       "static_evidence": {
         "level": "independent_balanced_static_validated",
         "reference": "docs/opendss-case-intake.md",
-        "revision": "a2f0c6a7aded784b5f4ce96761dff15e8011d2ed",
+        "revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2",
         "note": "Independent balanced static comparison only, including disposable fixed-shunt trials. No approved control overlay, switching or time-series scenario.",
-        "url": "https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/docs/opendss-case-intake.md",
-        "local_validation_revision": "98fe198da405b2c0ce618c0812b8b2179a475fe2"
+        "url": "https://github.com/XJTU-RL/PowerZoo/blob/98fe198da405b2c0ce618c0812b8b2179a475fe2/docs/opendss-case-intake.md"
       },
       "tasks": {
         "vvc": {

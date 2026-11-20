@@ -29,7 +29,7 @@ class TestStandardCaseRegistry(unittest.TestCase):
         self.assertEqual(data["baran-wu69"]["static_evidence"]["level"],
                          "independent_balanced_static_validated")
         for key in ("ieee4", "ieee37", "baran-wu69"):
-            self.assertEqual(data[key]["static_evidence"]["local_validation_revision"],
+            self.assertEqual(data[key]["static_evidence"]["revision"],
                              "98fe198da405b2c0ce618c0812b8b2179a475fe2")
             self.assertEqual(data[key]["tasks"]["vvc"]["status"], "unverified")
 
