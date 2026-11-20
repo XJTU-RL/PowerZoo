@@ -278,7 +278,7 @@ if __name__ == "__main__":
         "--source", type=Path, default=Path("data/external/ausgrid-solar-home")
     )
     parser.add_argument(
-        "--case", type=Path, default=Path("research/pistg_ldcpo/case/ieee33bus")
+        "--case", type=Path, default=Path("node_systems/33Bus_CBESS")
     )
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()

@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CASE_FOLDER = REPO_ROOT / "research" / "pistg_ldcpo" / "case" / "ieee33bus"
+# 算例已按框架 case 库规则入库（configs/systems/33Bus_CBESS.yaml 同步登记）
+CASE_FOLDER = REPO_ROOT / "node_systems" / "33Bus_CBESS"
 
 
 @dataclass

@@ -17,7 +17,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from envs.powergrid.session import DSSSession  # noqa: E402
 
-CASE_FOLDER = REPO_ROOT / "research" / "pistg_ldcpo" / "case" / "ieee33bus"
+CASE_FOLDER = REPO_ROOT / "node_systems" / "33Bus_CBESS"
 NETWORK = CASE_FOLDER / "network.dss"
 OVERLAY = CASE_FOLDER / "der_overlay.dss"
 

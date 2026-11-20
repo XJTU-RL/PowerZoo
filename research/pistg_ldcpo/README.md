@@ -17,7 +17,7 @@ LDCPPO 约束策略优化。
 
 | 论文位置 | 内容 | 代码 |
 |---|---|---|
-| Sec. IV-A | IEEE 33-bus、CBESS@6/11/16/31、288×300s | `case/ieee33bus/`（生成期对拍文献值） |
+| Sec. IV-A | IEEE 33-bus、CBESS@6/11/16/31、288×300s | `node_systems/33Bus_CBESS/`（框架 case 库，生成期对拍文献值；`configs/systems/33Bus_CBESS.yaml` 登记） |
 | 式(1a-f) | CBESS 能量动态与约束 | `environment/physics.py` |
 | 式(2)(3) | PV 弃光与逆变器圆约束 | `physics.map_pv_action` |
 | 式(4)-(6) | DistFlow 网络（OpenDSS 全 AC 求解替代） | `environment/cbes_env.py` + `DSSSession` |
@@ -66,7 +66,7 @@ zsh research/pistg_ldcpo/scripts/run_full.sh
 ## 目录
 
 ```
-case/ieee33bus/     OpenDSS 模型（network.dss + der_overlay.dss + 生成脚本）
+case/               （已迁出）算例在框架 case 库 node_systems/33Bus_CBESS/
 data/               Ausgrid → 5-min 逐日剖面（prepare + 运行时存取）
 environment/        CBESS 环境（CMDP）、物理层纯函数、会话工具
 models/             PISTG 编码器与 PIAE
