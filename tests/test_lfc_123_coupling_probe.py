@@ -151,3 +151,39 @@ class TestDirectProbeGuards(unittest.TestCase):
                 (root / "helper.m").write_bytes(b"helper")
                 self.assertEqual(_copy_model(cfg, staged), "grid")
                 self.assertEqual({p.name for p in staged.iterdir()}, {"grid.slx", "helper.m"})
+
+    def test_half_open_hold_excludes_only_ambiguous_boundary_samples(self):
+        end = 21 + 2 / 60
+        start = end - 1
+        step = 1 / 60
+        logs = [(start + i * step, 7650 if i in (0, 60) else 7875)
+                for i in range(61)]
+        audit = {"excluded_boundary": []}
+        vals = _tail(logs, end, 0.2, step + 1e-7,
+                     hold=(start, end), audit=audit)
+        self.assertEqual(set(vals), {7875})
+        self.assertEqual([round(v) for _, v in audit["excluded_boundary"]],
+                         [7650, 7650])
+        self.assertAlmostEqual(audit["window_last_s"], end - step)
+        for invalid in (logs[:1] + logs, logs + logs[-1:], logs[:-2] + logs[-1:]):
+            with self.assertRaises(RuntimeError):
+                _tail(invalid, end, 0.2, step + 1e-7, hold=(start, end))
+
+    def test_wrong_physical_p_inside_hold_still_fails(self):
+        end = 21 + 2 / 60
+        start = end - 1
+        logs = {
+            "p_kw": [(start + i / 60, 7600 if i == 59 else 7875)
+                     for i in range(61)],
+            "q_kvar": [(start + i / 60, 12942) for i in range(61)],
+            "frequency_hz": [(20 + i / 5, 59.97) for i in range(6)],
+        }
+        audit = {}
+        with self.assertRaisesRegex(RuntimeError, "does not track"):
+            _check_measurement(
+                PQ(7852, 12942), logs, dict(p_abs_tol_kw=100, q_abs_tol_kvar=100),
+                end, 0.2, dict(power=1 / 60 + 1e-7, frequency=0.2000001),
+                settled=False, hold=(start, end), audit=audit,
+            )
+        self.assertEqual(audit["physical"]["p_max_error_kw"], 252)
+        self.assertEqual(audit["p_kw"]["last"], 7600)

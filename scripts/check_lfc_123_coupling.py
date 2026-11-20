@@ -14,13 +14,14 @@ from envs.lfc.native_feeder_123 import Native123Feeder, PQ, stock_probe_spec
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "scenarios/lfc/ieee123-native/coupling_v1.json"
+CLOCK_EPS_S = 1e-7
 
 
 def _validate_pause(target, actual, previous, exchange, max_lag):
     if not all(map(math.isfinite, (target, actual, previous, exchange, max_lag))):
         raise ValueError("clock inputs must be finite")
     elapsed = actual - previous
-    eps = 1e-7
+    eps = CLOCK_EPS_S
     if (
         elapsed <= 0
         or abs(elapsed - exchange) > max_lag + eps
@@ -32,7 +33,7 @@ def _validate_pause(target, actual, previous, exchange, max_lag):
         )
 
 
-def _tail(samples, end_s, duration_s, max_gap_s):
+def _tail(samples, end_s, duration_s, max_gap_s, *, hold=None, audit=None):
     """Select a synchronized measured window or fail; never substitute command data."""
     if (
         duration_s <= 0
@@ -40,6 +41,11 @@ def _tail(samples, end_s, duration_s, max_gap_s):
         or not all(map(math.isfinite, (end_s, duration_s, max_gap_s)))
     ):
         raise ValueError("invalid required measurement window")
+    if hold is not None and not (
+        math.isfinite(hold[0]) and hold[1] == end_s
+        and hold[0] < end_s - duration_s - CLOCK_EPS_S
+    ):
+        raise ValueError("measurement window must be inside the actual hold")
     values = []
     timestamps = []
     previous = -math.inf
@@ -51,9 +57,19 @@ def _tail(samples, end_s, duration_s, max_gap_s):
         ):
             raise RuntimeError("unusable measured signal (nonfinite or repeated time)")
         previous = seconds
+        if hold is not None:
+            if any(abs(seconds - boundary) <= CLOCK_EPS_S for boundary in hold):
+                if audit is not None:
+                    audit["excluded_boundary"].append([seconds, value])
+            if not hold[0] + CLOCK_EPS_S < seconds < end_s - CLOCK_EPS_S:
+                continue
         if end_s - duration_s - max_gap_s <= seconds <= end_s:
             timestamps.append(seconds)
             values.append(value)
+    if audit is not None:
+        audit["window_first_s"] = timestamps[0] if timestamps else None
+        audit["window_last_s"] = timestamps[-1] if timestamps else None
+        audit["window_samples"] = len(values)
     if (
         len(values) < 2
         or timestamps[0] > end_s - duration_s + max_gap_s
@@ -61,13 +77,32 @@ def _tail(samples, end_s, duration_s, max_gap_s):
         or max(b - a for a, b in zip(timestamps, timestamps[1:])) > max_gap_s + 1e-7
     ):
         raise RuntimeError("measured signal missing or stale in required time window")
+    if audit is not None:
+        audit.update(last=values[-1], mean=math.fsum(values) / len(values),
+                     minimum=min(values), maximum=max(values))
     return values
 
 
-def _check_measurement(anchor, logs, policy, end_s, tail_s, gaps_s, *, settled):
-    p = _tail(logs["p_kw"], end_s, tail_s, gaps_s["power"])
-    q = _tail(logs["q_kvar"], end_s, tail_s, gaps_s["power"])
-    f = _tail(logs["frequency_hz"], end_s, tail_s, gaps_s["frequency"])
+def _check_measurement(
+    anchor, logs, policy, end_s, tail_s, gaps_s, *, settled, hold=None, audit=None
+):
+    selected = []
+    signal_errors = []
+    for name, clock in (("p_kw", "power"), ("q_kvar", "power"),
+                        ("frequency_hz", "frequency")):
+        signal_audit = {"excluded_boundary": []}
+        if audit is not None:
+            audit[name] = signal_audit
+        try:
+            selected.append(
+                _tail(logs[name], end_s, tail_s, gaps_s[clock],
+                      hold=hold, audit=signal_audit)
+            )
+        except (RuntimeError, KeyError) as exc:
+            signal_errors.append(f"{name}: {exc}")
+    if signal_errors:
+        raise RuntimeError("; ".join(signal_errors))
+    p, q, f = selected
     p_error = max(abs(x - anchor.kw) for x in p)
     q_error = max(abs(x - anchor.kvar) for x in q)
     stats = {
@@ -86,6 +121,8 @@ def _check_measurement(anchor, logs, policy, end_s, tail_s, gaps_s, *, settled):
         "q_max_error_kvar": q_error,
         "samples": {"p": len(p), "q": len(q), "frequency": len(f)},
     }
+    if audit is not None:
+        audit["physical"] = stats
     if p_error > policy["p_abs_tol_kw"] or q_error > policy["q_abs_tol_kvar"]:
         raise RuntimeError(
             "realized sensor P/Q does not track the commanded boundary: "
@@ -263,7 +300,7 @@ def _engine_run(cfg, anchor, pulses):
                             raise RuntimeError("no new Simulink control boundary")
                         time.sleep(0.05)
                     _validate_pause(target_t, actual_t, previous, exchange, max_lag)
-                    checkpoints.append((actual_t, target_pq))
+                    checkpoints.append((previous, actual_t, target_pq))
                     previous = actual_t
                 eng.set_param(model, "SimulationCommand", "stop", nargout=0)
             _poll(eng, model, "stopped")
@@ -327,31 +364,63 @@ def run_probe(coupled=False):
                 partial(command_at_pause, row) for row in feeder_spec["input_pulses"]
             ]
             measured, checkpoints = _engine_run(cfg, anchor, inputs)
-    report["warmup_realized"] = _check_measurement(
-        anchor, measured, policy, policy["seconds"], policy["tail_seconds"],
-        gaps, settled=True,
-    )
+    errors = []
+    try:
+        report["warmup_realized"] = _check_measurement(
+            anchor, measured, policy, policy["seconds"], policy["tail_seconds"],
+            gaps, settled=True,
+        )
+    except RuntimeError as exc:
+        if not coupled:
+            raise
+        errors.append(f"warmup: {exc}")
     if coupled:
         report["steps"] = []
-        for row, (actual_t, command) in zip(rows, checkpoints, strict=True):
-            realized = _check_measurement(
-                command, measured, policy, actual_t, 0.2, gaps, settled=False
+        # For each hold, summarize every valid signal before making a final
+        # decision; a failed first frame must not discard later measurements.
+        pulse_gaps = {
+            "power": sensor["power_log_sample_seconds"] + CLOCK_EPS_S,
+            "frequency": gaps["frequency"],
+        }
+        for index, (row, (start_t, actual_t, command)) in enumerate(
+            zip(rows, checkpoints, strict=True), 1
+        ):
+            diagnostic = {
+                "hold_start_s": start_t,
+                "hold_end_s": actual_t,
+                "command": asdict(command),
+                "measurements": {},
+                "feeder": asdict(row),
+            }
+            report["steps"].append(diagnostic)
+            try:
+                diagnostic["actual"] = _check_measurement(
+                    command, measured, policy, actual_t, 0.2, pulse_gaps,
+                    settled=False, hold=(start_t, actual_t),
+                    audit=diagnostic["measurements"],
+                )
+            except RuntimeError as exc:
+                errors.append(f"frame {index}: {exc}")
+        try:
+            _check_pulse_order(
+                [row.feeder_import.kw for row in rows],
+                acceptance["min_feeder_separation_kw"], "OpenDSS PCC",
             )
-            report["steps"].append(
-                {
-                    "simulation_time_s": actual_t,
-                    "actual": realized,
-                    "feeder": asdict(row),
-                }
-            )
-        _check_pulse_order(
-            [row.feeder_import.kw for row in rows],
-            acceptance["min_feeder_separation_kw"], "OpenDSS PCC",
-        )
-        _check_pulse_order(
-            [entry["actual"]["mean_p_kw"] for entry in report["steps"]],
-            acceptance["min_bus8_separation_kw"], "Simulink Bus8",
-        )
+        except RuntimeError as exc:
+            errors.append(str(exc))
+        physical = [entry["measurements"].get("physical") for entry in report["steps"]]
+        if all(entry is not None for entry in physical):
+            try:
+                _check_pulse_order(
+                    [entry["mean_p_kw"] for entry in physical],
+                    acceptance["min_bus8_separation_kw"], "Simulink Bus8",
+                )
+            except RuntimeError as exc:
+                errors.append(str(exc))
+        if errors:
+            report["status"] = "sequential_one_way_transport_failed"
+            report["errors"] = errors
+            return report
         report["status"] = "sequential_one_way_transport_passed"
     return report
 
@@ -363,4 +432,7 @@ if __name__ == "__main__":
         action="store_true",
         help="run one warm-up and four 1s sequential one-way pulse exchanges",
     )
-    print(json.dumps(run_probe(parser.parse_args().coupled), indent=2, allow_nan=False))
+    result = run_probe(parser.parse_args().coupled)
+    print(json.dumps(result, indent=2, allow_nan=False))
+    if result["status"].endswith("_failed"):
+        raise SystemExit(1)
