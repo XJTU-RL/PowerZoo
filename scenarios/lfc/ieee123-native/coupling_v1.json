@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "scope": "stock_123_to_ieee9_bus8_direct_engine_probe",
+  "model": "envs/lfc/IEEE9BusSystem/IEEE9BusSystem.slx",
+  "model_sha256": "998ea2976916ab94266b575797cab89ee8285c36e1de8bd3c1583b6c1e600982",
+  "source_anchor": {
+    "provenance": "validated IEEE9 × legacy 13Bus seed17 rank0 reset input; not a steady-state assertion",
+    "observed_reset_s": 1.0333333333333332,
+    "observed_frequency_hz": 59.96500130360997,
+    "kw": 7851.739821876062,
+    "kvar": 12942.530488711882,
+    "feeder_gain": 1
+  },
+  "clock": {"simulink_base_step_s": 0.016666666666666666, "exchange_s": 1, "max_pause_lag_ticks": 2},
+  "warmup": {
+    "seconds": 20, "tail_seconds": 3, "p_abs_tol_kw": 100, "q_abs_tol_kvar": 100,
+    "frequency_center_hz": 60, "frequency_abs_tol_hz": 0.2, "frequency_max_span_hz": 0.03
+  },
+  "sensor": {
+    "block": "Power Sensor (Three-Phase)7",
+    "p_channel": "Pm",
+    "q_channel": "Qm",
+    "frequency_workspace_variable": "out_f_load1",
+    "frequency_time_workspace_variable": "out_t"
+  }
+}
