@@ -5,6 +5,7 @@ import io
 import json
 import math
 from pathlib import Path
+import re
 import subprocess
 import tarfile
 import os
@@ -98,6 +99,21 @@ def _der_profile_inventory(c):
     return tuple(sorted(active_der)), tuple(sorted(disabled)), tuple(sorted(profiles))
 
 
+def _single_stage_kvar(raw, num_steps, states, bank_kvar):
+    """Validate one energized native capacitor stage and its two nominal readouts."""
+    if num_steps != 1 or tuple(states) != (1,):
+        raise ValueError("study shunt must have exactly one enabled native stage")
+    number = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+    match = re.fullmatch(rf"(?:({number})|\[\s*({number})\s*\])", raw.strip())
+    if not match:
+        raise ValueError("expected scalar or one finite native capacitor kvar entry")
+    kvar = float(match[1] or match[2])
+    if not (math.isfinite(kvar) and kvar > 0 and math.isfinite(bank_kvar)
+            and math.isclose(kvar, bank_kvar, rel_tol=0, abs_tol=1e-9)):
+        raise ValueError("study shunt nominal kvar readouts disagree")
+    return kvar
+
+
 def _native_binding(c, deck_tree):
     s = c.Solution
     if (int(s.Mode), int(s.ControlMode)) != (0, 0):
@@ -111,13 +127,18 @@ def _native_binding(c, deck_tree):
     if bus != ("890.1.2.3",):
         raise RuntimeError("study shunt bus/conductors changed")
     conn = _prop(c, shunt, "conn").lower()
-    kva = float(_prop(c, shunt, "kvar"))
+    kvar_property = _prop(c, shunt, "kvar")
+    c.Capacitors.Name = shunt.split(".", 1)[1]
+    if str(c.Capacitors.Name).lower() != "study890":
+        raise RuntimeError("failed to bind the native study capacitor")
+    kvar = _single_stage_kvar(kvar_property, c.Capacitors.NumSteps,
+                             c.Capacitors.States, float(c.Capacitors.kvar))
     kv = float(_prop(c, shunt, "kV"))
     source = "Vsource.Source"
     if int(_active(c, source).NumTerminals) != 2:
         raise RuntimeError("expected exactly two source terminals")
     binding = Binding(STATIC_COMMIT, deck_tree, float(_prop(c, source, "pu")),
-                      float(s.LoadMult), (bus[0], conn, kv, kva),
+                      float(s.LoadMult), (bus[0], conn, kv, kvar),
                       float(s.Tolerance), "STATIC", disabled, actual_der, shapes)
     if binding != PINNED_BINDING:
         raise RuntimeError("measured runtime binding differs from pinned study")

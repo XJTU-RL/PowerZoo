@@ -3,7 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
-from scripts.check_lfc34_coupling_inputs import verify_checkout
+from scripts.check_lfc34_coupling_inputs import _single_stage_kvar, verify_checkout
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,3 +23,21 @@ class CollectorOriginTest(unittest.TestCase):
                 verify_checkout(ROOT, ROOT, **{key: SimpleNamespace(__file__="/tmp/wrong.py")})
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, "origin mismatch"):
                 verify_checkout(ROOT, ROOT, **{key: SimpleNamespace()})
+
+
+class SingletonShuntTest(unittest.TestCase):
+    def test_native_scalar_and_single_stage_serializations(self):
+        for raw in ("75", " [ 75] ", "[7.5e1]"):
+            self.assertEqual(_single_stage_kvar(raw, 1, [1], 75.), 75.)
+
+    def test_invalid_or_conflicting_kvar_rejected(self):
+        for raw, bank in (("[75, 75]", 75.), ("[75 75]", 75.), ("[[75]]", 75.),
+                          ("[NaN]", 75.), ("inf", 75.), ("1e400", 75.),
+                          ("[75]", 74.), ("[75]", float("inf"))):
+            with self.subTest(raw=raw, bank=bank), self.assertRaises(ValueError):
+                _single_stage_kvar(raw, 1, [1], bank)
+
+    def test_missing_multiple_or_disabled_native_stages_rejected(self):
+        for num, states in ((2, [1, 1]), (1, [0]), (1, []), (1, [1, 0])):
+            with self.subTest(num=num, states=states), self.assertRaisesRegex(ValueError, "enabled native stage"):
+                _single_stage_kvar("[75]", num, states, 75.)
