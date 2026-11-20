@@ -35,6 +35,10 @@ MAPPO、SHOM、MADDPG、HASAC、OHASAC（13Bus 联合仿真已验证，尚未验
 恢复场景、实际供电/合格服务、节点有效性与故障基准见[恢复说明](docs/dsr-physics.md)。
 顺序定价的现金账本、阶段响应、独立收益训练和建模范围见[定价说明](docs/pricing-physics.md)。
 
+## 场景与复现
+
+从[场景与复现索引](scenarios/README.md)查找基础电路、任务场景和论文复现入口。
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。
