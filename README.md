@@ -16,13 +16,13 @@ PowerZoo 是基于 Python、PyTorch 和 OpenDSS 的电力系统强化学习研�
 | `dsr / dsr_13bus` | `envs/dsr/` | 小网络/IEEE13派生有源恢复；真实开关、故障、供电计量及HAPPO/PPO验收 |
 | `stackelberg / stackelberg_13bus` | `envs/stackelberg/` | 真实价格先于负荷响应、逐主体结算；顺序独立PPO短训练验收 |
 | `district_dispatch` | `envs/district_dispatch/` | 真实区域DER协同调度，原生计量与成本；HAPPO/PPO短训练验收 |
-| `lfc` | `envs/lfc/` | OHASAC 论文算例：OpenDSS 配电网 + Simulink 9 机输电网联合仿真的负荷频率控制（13/34Bus）；ohasac（HASAC+次序网络）忠实移植，结构验收通过（`scripts/check_lfc.py`），MATLAB 联合仿真与 15k 论文口径复现进行中 |
+| `lfc` | `envs/lfc/` | OHASAC 论文算例：Simulink 三机九节点输电网与 OpenDSS 配电网联合仿真；13Bus 已验证，34Bus 提供模型但未在本次验收中做联合仿真。见[复现说明](docs/lfc-ieee9-reproduction.md)。 |
 
 `powerzoo` 是 `vvc` 的历史别名。历史文档中的 PowerZoo_LLM 通常指 SmartGrid
 相关实现，并不代表安装后自动具备独立的大语言模型服务。
 同步算法实现登记在`runners/__init__.py`；登记不等于经过正式适配和训练验收。
 当前运行/恢复任务验收HAPPO与集中PPO，定价任务使用公共入口分派的`sequential_ppo`。
-MAPPO、SHOM、MADDPG、HASAC、OHASAC（MATLAB 联合仿真正在 15k 论文口径复现中）、QMix等其余组合仍需单独验证，不能据旧SN-MAPPO名称推定顺序博弈正确。
+MAPPO、SHOM、MADDPG、HASAC、OHASAC（13Bus 联合仿真已验证，尚未验收 15k 训练及论文数值）、QMix等其余组合仍需单独验证，不能据旧SN-MAPPO名称推定顺序博弈正确。
 
 配置遵循“共享入口、环境专用字段、实验只写差异”。同一环境的设置与推荐训练节可放在
 同一个 YAML，仅对真正重复使用的内容提取引用；未知或未实现参数直接报错。
