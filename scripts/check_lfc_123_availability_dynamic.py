@@ -10,7 +10,7 @@ from pathlib import Path
 from envs.lfc.damped_droop_123 import load_protocol as load_damped
 from envs.lfc.droop_123_draft import load_protocol as load_fixed
 from envs.lfc.native_123_availability import (
-    SPEC, _assert_parity, _device_voltages, _near, collect, envelope, prospective,
+    DeviceDispatchMismatch, SPEC, _assert_parity, _device_voltages, _near, collect, envelope, prospective,
     verify_device_envelope,
 )
 from envs.lfc.native_feeder_123 import Native123Feeder, PQ, stock_probe_spec
@@ -112,8 +112,8 @@ def trial(live, spec, emit):
     # operating point after the 4x25 kW step. No live step on this check.
     try:
         prospective(live, zero, zero, spec)
-    except RuntimeError as err:
-        if "signed terminal P/Q delivery outside screen" not in str(err):
+    except DeviceDispatchMismatch as err:
+        if type(err) is not DeviceDispatchMismatch or err.__cause__ is not None:
             raise
         _assert_parity(before, collect(live, spec), spec)
         emit({"phase": "stale_reference_rejected", "at_s": before.clock_s,

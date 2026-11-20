@@ -17,6 +17,10 @@ from envs.lfc.native_feeder_123 import Native123Feeder, PQ, stock_probe_spec
 SPEC = Path(__file__).resolve().parents[2] / "scenarios/lfc/ieee123-native/damped_envelope_v1.json"
 
 
+class DeviceDispatchMismatch(RuntimeError):
+    """Direct terminal P/Q delivery mismatch; never a cleanup/parity wrapper."""
+
+
 @dataclass(frozen=True)
 class Conductor:
     element: str
@@ -206,7 +210,7 @@ def verify_device_envelope(point, vector, spec, controller, fixed):
             or not _near(pq.kw, requested, gates["storage_p_kw"])
             or not _near(pq.kvar, 0, gates["storage_q_kvar"])
         ):
-            raise RuntimeError(f"{id_}: signed terminal P/Q delivery outside screen")
+            raise DeviceDispatchMismatch(f"{id_}: signed terminal P/Q delivery outside screen")
         remaining = soc * params["capacity_kwh"] - (
             max(0, pq.kw) * limits["exchange_s"] / (3600 * params["discharge_efficiency"])
         )

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, call, patch
 
-from envs.lfc.native_123_availability import OperatingPoint, envelope
+from envs.lfc.native_123_availability import DeviceDispatchMismatch, OperatingPoint, envelope
 from envs.lfc.native_feeder_123 import PQ, StorageReading
 from scripts.check_lfc_123_availability_dynamic import _hold, trial
 
@@ -57,7 +57,7 @@ class TestDynamicTrial(unittest.TestCase):
     def test_bad_reference_rejected_between_joint_and_zero(self):
         spec, emit = envelope(), Mock()
         with patch(MOD+"_hold") as hold, patch(MOD+"collect", return_value=self.after), \
-             patch(MOD+"prospective", side_effect=RuntimeError(
+             patch(MOD+"prospective", side_effect=DeviceDispatchMismatch(
                  "Storage.batt1: signed terminal P/Q delivery outside screen"
              )):
             self.assertEqual(trial(self.live, spec, emit)["status"], "two_native_holds_verified")
@@ -66,3 +66,19 @@ class TestDynamicTrial(unittest.TestCase):
             call(self.live, self.joint, self.zero, spec, emit),
         ])
         self.assertEqual(emit.call_args.args[0]["phase"], "stale_reference_rejected")
+
+    def test_wrapped_direct_failure_or_transient_live_parity_stops_before_t1(self):
+        spec, emit = envelope(), Mock()
+        signed = "Storage.batt1: signed terminal P/Q delivery outside screen"
+        rejected = DeviceDispatchMismatch(signed)
+        wrapper = RuntimeError(f"LIVE feeder parity failed after scratch rejection: {signed}")
+        wrapper.__cause__ = rejected
+        for error, states in ((wrapper, (self.after, self.after)),
+                              (rejected, (self.after, replace(self.after, soc=(.42,) * 4)))):
+            with self.subTest(error=error), patch(MOD+"_hold") as hold, \
+                 patch(MOD+"collect", side_effect=states), \
+                 patch(MOD+"prospective", side_effect=error):
+                with self.assertRaisesRegex(RuntimeError, "parity|baseline differs"):
+                    trial(self.live, spec, emit)
+            hold.assert_called_once_with(self.live, self.zero, self.joint, spec, emit)
+        emit.assert_not_called()
