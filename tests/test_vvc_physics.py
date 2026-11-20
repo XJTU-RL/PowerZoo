@@ -323,3 +323,13 @@ def test_vvc_retired_files_have_recoverable_byte_exact_archive():
         )
         if not record.get("replacement"):
             assert not (ROOT / record["original"]).exists()
+
+
+def test_ieee34_discrete_validation_step_equivalence():
+    import os
+    from scripts.check_vvc import check_discrete_validation_equivalence
+    snapshot = os.environ.get("POWERZOO_VVC_VALIDATION_CONFIG")
+    if not snapshot:
+        pytest.skip("requires private frozen validation config on Nanyang")
+    report = check_discrete_validation_equivalence(snapshot)
+    assert report["steps_per_arm"] == 24

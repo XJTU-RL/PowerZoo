@@ -152,6 +152,12 @@ class CentralizedAdapter(gym.Env):
         values = np.asarray(action).reshape(-1)
         if len(values) != sum(self._sizes) or not np.isfinite(values).all():
             raise ValueError("集中控制动作形状或数值不符")
+        if self.mode == "discrete" and (
+            not np.equal(values, np.floor(values)).all()
+            or (values < 0).any()
+            or (values >= self.action_space.nvec).any()
+        ):
+            raise ValueError("MultiDiscrete 动作必须是各设备范围内的整数")
         flat, offset = [], 0
         for space, size in zip(self.core.agent_spaces, self._sizes):
             part = values[offset : offset + size]

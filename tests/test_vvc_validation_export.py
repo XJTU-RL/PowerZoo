@@ -159,3 +159,42 @@ def test_34bus_rejects_missing_measured_device_endpoints(runtime):
     config.system_name = "34Bus"
     with pytest.raises(ValueError, match="missing measured device endpoints"):
         export.export_validation("model", manifest, [8], seed=17)
+
+
+@pytest.mark.parametrize("kwargs", [{"sb3":True,"split":"test"},
+                                    {"sb3":True,"allow_mappo":True}, {"sb3":"yes"}])
+def test_sb3_refuses_test_and_ambiguous_algorithm_before_runtime(kwargs):
+    with pytest.raises(ValueError):
+        export.export_validation("absent", "absent", [0], seed=17, **kwargs)
+
+
+def test_sb3_uses_existing_validation_normalization(runtime, monkeypatch):
+    manifest, config, closed = runtime
+    selected = export._runtime()
+    monkeypatch.setattr(export, "_sb3_runtime", lambda: selected)
+    result = export.export_validation("model", manifest, [3], seed=17, sb3=True)
+    assert result["episodes"][0]["metrics"]["energy_kwh"] == 1
+    assert config.data.split == "train"
+    assert closed == [3]
+
+
+def test_sb3_runner_explicitly_requests_strict_vvc_binding(monkeypatch):
+    from envs.vvc import single_agent
+    from utils import centralized_cli
+
+    calls = []
+    core = SimpleNamespace(entry={"id":"val-0", "split":"validation"},
+                           _episode_index=0, dataset=SimpleNamespace(sha256="frozen"),
+                           circuit=object())
+    env = SimpleNamespace(core=core, reset=lambda **kw: ([0], {}), close=lambda: None)
+    monkeypatch.setattr(single_agent, "SingleAgentVVCEnv", lambda *a: env)
+    def load_model(*args, **kwargs):
+        calls.append(kwargs)
+        return object()
+    monkeypatch.setattr(centralized_cli, "load_model", load_model)
+    monkeypatch.setattr(export, "measure_devices", lambda circuit: {})
+    _, runner_class = export._sb3_runtime()
+    runner = runner_class(object(), SimpleNamespace(checkpoint="model"), scenario_index=0)
+    runner.run_episode(seed=17, max_steps=0)
+    runner.close()
+    assert calls == [{"require_vvc_binding":True}]

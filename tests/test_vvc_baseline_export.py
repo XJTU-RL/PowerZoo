@@ -195,3 +195,107 @@ def test_json_accepts_native_numpy_endpoint_scalars():
     }
     assert result["regcontrol_inventory"][0]["tap_winding"] == 2
     assert result["last_converged_device_state"]["capacitors"] == {"cap": [1, 0]}
+
+
+def test_paired_reset_policy_fingerprint_is_sensitive_to_observations_and_masks():
+    from scripts.vvc_device_metrics import reset_policy_input_sha256
+
+    core = SimpleNamespace(observation_mode="global", agent_spaces=(1, 2),
+                           get_obs=lambda: [1, 2],
+                           available_actions=lambda: ([1, 0], None))
+    digest = reset_policy_input_sha256(core)
+    assert digest == reset_policy_input_sha256(core)
+    core.available_actions = lambda: ([0, 1], None)
+    assert digest != reset_policy_input_sha256(core)
+    core.available_actions = lambda: ([1, 0], None)
+    core.get_obs = lambda: [2, 1]
+    assert digest != reset_policy_input_sha256(core)
+
+
+def test_paired_trace_identity_ignores_timestamp_relabel_and_format():
+    from scripts.export_vvc_baselines import _trace_key
+
+    source = [[0, 1, -0., 2], [3600, 1.3, 1, 2]]
+    relabel = [[86400, 1., 0, 2.], [90000, 1.3, 1., 2.]]
+    assert _trace_key(source) == _trace_key(relabel)
+    relabel[1][-1] = 3.
+    assert _trace_key(source) != _trace_key(relabel)
+
+
+@pytest.mark.parametrize("arm_count", [4, 5])
+def test_paired_gate_refuses_reset_and_different_physical_ticks(arm_count):
+    from copy import deepcopy
+    from scripts.export_vvc_baselines import _check_pair
+
+    identity = dict(split="validation", seed=17, scenario_id="valid-1", scenario_index=1,
+                    dataset_sha256="data", physics_model_sha256="stock")
+    base = dict(identity, reset_policy_input_sha256="capture", device_endpoints=[{"step": 0}],
+                records=[{"dss_converged": True, "step_seconds": 3600}],
+                metrics={"eligible_for_day_ranking": True})
+    rows = [deepcopy(base) for _ in range(arm_count)]
+    assert _check_pair(rows, identity)
+    rows[2]["reset_policy_input_sha256"] = "different"
+    with pytest.raises(ValueError, match="observation/action"):
+        _check_pair(rows, identity)
+    rows[2]["reset_policy_input_sha256"] = "capture"
+    rows[2]["records"][0]["step_seconds"] = 300
+    with pytest.raises(ValueError, match="durations"):
+        _check_pair(rows, identity)
+    rows[2]["metrics"]["eligible_for_day_ranking"] = False
+    assert not _check_pair(rows, identity)
+
+
+def test_checkpoint_binding_reports_only_verified_digests_and_budget():
+    from scripts.export_vvc_baselines import _verified_checkpoint_report
+
+    actor = {"config.resolved.yaml": "a", "physics.manifest.json": "b", "actor_agent0.pt": "c"}
+    details = (["private path"], {"train": {"num_env_steps": 48000, "episode_length": 24,
+                                           "n_rollout_threads": 1}},
+               {}, 17, actor)
+    binding = _verified_checkpoint_report(details, actor)
+    assert binding == {"training_seed": 17, "checkpoint_files_sha256": actor,
+                       "configured_training": {"num_env_steps": 48000, "episode_length": 24,
+                                               "n_rollout_threads": 1}}
+    with pytest.raises(ValueError, match="digests differ"):
+        _verified_checkpoint_report(details, {**actor, "actor_agent0.pt": "other"})
+
+
+@pytest.mark.parametrize("fault", ["missing_sb3_digest", "replaced_sb3_manifest"])
+def test_paired_plan_still_binds_sb3_manifest_before_scenario_access(tmp_path, monkeypatch, fault):
+    from hashlib import sha256
+    from scripts import export_vvc_baselines as export
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("not consumed by this gate")
+    digest = sha256(manifest.read_bytes()).hexdigest()
+    physics = {"model_sha256":"model", "action_schema_sha256":"actions",
+               "observation_schema_sha256":"observations", "overlays":[]}
+    env = {"system_name":"34Bus", "dss_folder":"node_systems/34Bus",
+           "dss_file":"network.dss", "max_episode_steps":24,
+           "data":{"split":"train", "path":str(manifest),
+                   "manifest_sha256":digest, "step_seconds":3600}}
+    config = {"env":env, "train":{"num_env_steps":24, "episode_length":24,
+                                   "n_rollout_threads":1}}
+    # Existing MARL digest gates are covered elsewhere; isolate the optional fifth arm.
+    monkeypatch.setattr(export, "_checkpoint_inputs", lambda *args: ([], config, physics, 1, {}))
+    def no_scenarios(*args):
+        raise AssertionError("must reject manifest binding before reading any scenario")
+    monkeypatch.setattr(export, "_paired_sources", no_scenarios)
+    prefix = tmp_path / "ppo"
+    for suffix in (".zip", ".environment.yaml", ".physics.json", ".sb3.json"):
+        prefix.with_suffix(suffix).write_text("original")
+    hashes = {prefix.with_suffix(s).name:sha256(prefix.with_suffix(s).read_bytes()).hexdigest()
+              for s in (".zip", ".environment.yaml", ".physics.json", ".sb3.json")}
+    if fault == "missing_sb3_digest":
+        del hashes["ppo.sb3.json"]
+    else:
+        prefix.with_suffix(".sb3.json").write_text("replacement")
+    plan = {"split":"validation", "environment_seeds":[17], "scenario_indices":[0],
+            "manifest":str(manifest), "manifest_sha256":digest,
+            "checkpoints":{"happo":{"path":str(tmp_path),"sha256":{}},
+                           "mappo":{"path":str(tmp_path),"sha256":{}},
+                           "ppo":{"path":str(prefix),"sha256":hashes}}}
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan))
+    with pytest.raises(ValueError, match="PPO checkpoint or sidecar digests differ"):
+        export.run_paired_plan(path)

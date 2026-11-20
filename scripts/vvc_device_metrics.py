@@ -95,3 +95,25 @@ def device_output(samples, records, episode_metrics):
         "device_endpoints": samples,
         "device_metrics": summarize_devices(samples, records, episode_metrics),
     }
+
+
+def reset_policy_input_sha256(env):
+    """Hash measured reset actor observations and legal-action masks in order."""
+    import hashlib
+    import json
+
+    import numpy as np
+
+    if env.observation_mode == "local":
+        obs = [env.agent_local_observation(i) for i in range(len(env.agent_spaces))]
+    else:
+        obs = [env.get_obs()] * len(env.agent_spaces)
+    masks = env.available_actions() if hasattr(env, "available_actions") else None
+    encoded = {
+        "obs_float32": [np.asarray(x, dtype=np.float32).tolist() for x in obs],
+        "masks": None if masks is None else [
+            None if m is None else np.asarray(m).tolist() for m in masks
+        ],
+    }
+    return hashlib.sha256(json.dumps(encoded, allow_nan=False, sort_keys=True,
+                                     separators=(",", ":")).encode()).hexdigest()
