@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 FROZEN_LOAD_MATRIX = (0.50, 0.75, 1.00)
 REFERENCE_SOURCE_PU = 1.05
+FROZEN_MIDLOAD_SHUNT_KVAR = (0, 75, 150)
 STANDARD = Path("node_systems/34Bus")
 BASE = Path("envs/lfc/IEEE9BusSystem/systems/34Bus")
 DECK_BLOB = "d76a7703c4fc803b03864a4d8b8e136e1e786fa3"
@@ -153,7 +154,7 @@ def checks(record, lo, hi):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("repo", type=Path)
-    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static", "standard-boundary-matrix"), required=True)
+    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static", "standard-boundary-matrix", "standard-midload-shunt"), required=True)
     p.add_argument("--standard-tolerance", type=float, help="optional native voltage convergence tolerance")
     p.add_argument("--vmin", type=float, required=True)
     p.add_argument("--vmax", type=float, required=True)
@@ -164,10 +165,10 @@ def main():
         not a.mode.startswith("standard-") or not 0 < a.standard_tolerance < 1
     ):
         p.error("--standard-tolerance requires a standard mode and a finite value in (0, 1)")
-    if a.mode == "standard-boundary-matrix" and (
+    if a.mode in ("standard-boundary-matrix", "standard-midload-shunt") and (
         (a.vmin, a.vmax) != (0.95, 1.05) or a.standard_tolerance is not None
     ):
-        p.error("matrix freezes screening band [0.95, 1.05] and native tolerance 1e-9")
+        p.error("study freezes screening band [0.95, 1.05] and native tolerance 1e-9")
     try:
         repo = require_report_repo(a.repo)
     except ValueError as exc:
@@ -189,6 +190,8 @@ def main():
         work = Path(td) / "deck"
         if a.mode == "standard-boundary-matrix":
             report = run_boundary_matrix(repo, work, a)
+        elif a.mode == "standard-midload-shunt":
+            report = run_midload_shunt(repo, work, a)
         else:
             report = (run_standard(repo, work, a) if a.mode.startswith("standard-") else
                       run_case(repo, deck, work, a))
@@ -234,7 +237,58 @@ def run_boundary_matrix(repo, work, a):
             "scenarios": scenarios}
 
 
-def run_standard(repo, work, a, *, source_pu=None, load_multiplier=None):
+def run_midload_shunt(repo, work, a):
+    frozen_args = SimpleNamespace(mode="standard-static", standard_tolerance=1e-9,
+                                  vmin=a.vmin, vmax=a.vmax)
+    scenarios = []
+    for kvar in FROZEN_MIDLOAD_SHUNT_KVAR:
+        row = run_standard(repo, work / f"shunt-{kvar}", frozen_args,
+                           source_pu=REFERENCE_SOURCE_PU, load_multiplier=0.75,
+                           study_shunt_kvar=kvar)
+        row["matrix_screen"] = matrix_screen(row)
+        scenarios.append(row)
+    return {"mode": "standard-midload-shunt", "load_multiplier": 0.75,
+            "source_pu": REFERENCE_SOURCE_PU,
+            "synthetic_nameplate_kvar": FROZEN_MIDLOAD_SHUNT_KVAR,
+            "ratings_scope": "research deck and synthetic study values only",
+            "scenarios": scenarios}
+
+
+def collect_shunt_evidence(native, nameplate):
+    bus = native.Buses["890"]
+    if list(bus.Nodes) != [1, 2, 3]:
+        raise RuntimeError("study bus 890 no longer has exactly ordered ABC nodes")
+    phasors = np.asarray(bus.Voltages)
+    if not np.iscomplexobj(phasors):
+        phasors = phasors.reshape(-1, 2) @ np.array([1, 1j])
+    if len(phasors) != 3:
+        raise RuntimeError("unexpected 890 voltage inventory")
+    ll_kv = {f"{a}{b}": float(abs(phasors[a - 1] - phasors[b - 1]) / 1000)
+             for a, b in ((1, 2), (2, 3), (3, 1))}
+    equipment = {}
+    expected = {"Line.L32": (3, 2, 3), "Transformer.XFM1": (3, 2, 4)}
+    if nameplate:
+        expected["Capacitor.Study890"] = (3, 1, 3)
+    for name, inventory in expected.items():
+        if native.SetActiveElement(name) < 0:
+            raise RuntimeError(f"missing study equipment {name}")
+        e = native.ActiveCktElement
+        found = (int(e.NumPhases), int(e.NumTerminals), int(e.NumConductors))
+        if found != inventory:
+            raise RuntimeError(f"unexpected terminal/conductor inventory: {name}: {found}")
+        equipment[name] = {"phases": found[0], "terminals": found[1],
+                           "conductors_per_terminal": found[2],
+                           "terminal_flows": phases_and_terminals(e)}
+    cap = equipment.get("Capacitor.Study890")
+    loss = np.asarray(native.Losses)
+    loss = complex(loss.item()) if np.iscomplexobj(loss) else complex(*loss.reshape(2))
+    return {"synthetic_shunt_nameplate_kvar": nameplate,
+            "measured_shunt_injection_kvar": -cap["terminal_flows"][0]["q_kvar"] if cap else 0,
+            "890_line_to_line_voltage_kv": ll_kv, "feeder_loss_kw": loss.real / 1000,
+            "feeder_loss_kvar": loss.imag / 1000, "equipment": equipment}
+
+
+def run_standard(repo, work, a, *, source_pu=None, load_multiplier=None, study_shunt_kvar=None):
     import dss
 
     source = repo / STANDARD
@@ -267,6 +321,9 @@ def run_standard(repo, work, a, *, source_pu=None, load_multiplier=None):
     solver_tolerance = float(native.Solution.Tolerance)
     if not math.isfinite(solver_tolerance) or solver_tolerance <= 0:
         raise RuntimeError("invalid native solver tolerance")
+    if study_shunt_kvar not in (None, 0):
+        context.Text.Command = (f"New Capacitor.Study890 Bus1=890.1.2.3 Phases=3 "
+                                f"Conn=Delta kV=4.16 kvar={study_shunt_kvar}")
     if control_mode == "OFF":
         native.Solution.SolveNoControl()
     else:
@@ -287,6 +344,8 @@ def run_standard(repo, work, a, *, source_pu=None, load_multiplier=None):
             "native_control_actions_done": (bool(native.Solution.ControlActionsDone)
                                             if control_mode == "STATIC" else None),
             "regulator_secondary_taps": taps,
+            "shunt_study_evidence": (collect_shunt_evidence(native, study_shunt_kvar)
+                                     if study_shunt_kvar is not None and record["converged"] else None),
             "stages": {"standard_snapshot": record},
             "checks": {"standard_snapshot": checks(record, a.vmin, a.vmax)}}
 

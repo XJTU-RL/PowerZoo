@@ -131,3 +131,39 @@ those boundary overages rather than rounding them away or relaxing the band.
 **None of the three rows clears all gates; no calibrated coupling point
 was selected.** No changes to base files, device settings or ratings were
 used to pass the screen.
+
+## Mid-load local reactive-support sensitivity
+
+```sh
+PYTHONPATH=. python scripts/check_lfc34_operating_point.py . \
+  --mode standard-midload-shunt --vmin .95 --vmax 1.05
+```
+
+Only the frozen 0.75-load, 1.05-source, STATIC, no-original-DER scenario
+is used here. The separate temporary layer holds 0/75/150 kvar of nominal
+three-phase delta shunt at bus 890, 4.16 kV, one terminal with three
+conductors. These are synthetic 0, one-third and two-thirds fractions of
+the historical 890 load's 225 kvar nominal demand, not equipment selections.
+Actual reactive injection is measured from the capacitor terminal.
+
+| Nominal shunt kvar | Injected kvar | PCC kW / kvar | Feeder loss kW | 890 min L-N pu (C) | 890 AB / BC / CA kV | Strict voltage failure |
+|---:|---:|---:|---:|---:|---|---|
+| 0 | 0 | +1480.449 / −67.904 | 146.361 | 0.947444959 | 3.9862 / 3.9411 / 3.9510 | 890.C low |
+| 75 | 69.5821 | +1481.245 / −137.497 | 144.388 | 0.957597585 | 4.0352 / 3.9928 / 3.9927 | 800.C high, 1.050000013965 |
+| 150 | 143.0618 | +1488.427 / −209.205 | 145.928 | 0.972200834 | 4.0846 / 4.0477 / 4.0555 | 800.C high, 1.050000612452 |
+
+All three cases converge and the native controls complete.
+L32 has two three-conductor terminals; XFM1 and SubXF each have two
+four-conductor terminals. The JSON retains measured phase/neutral terminal
+currents and kVA for each, along with every regulator tap. Peak L32
+phase current is 52.490/48.829/47.037 A respectively; peak XFM1
+low-side phase current is 52.474/48.824/47.037 A. This does not certify
+winding-coil current or field thermal capability. Greater shunt support
+increased reactive export at the PCC and did not monotonically reduce loss.
+
+No row met the strict voltage screen, despite small upper-limit overages
+in the two supported cases. The study stops here: no relaxed limits,
+rating edits, additional capacity or source setpoints were selected. A
+separately predeclared controllable source boundary with headroom (for example
+1.045 pu) would be a different experimental assumption, not a repair or
+reproduction of the IEEE reference. It has not been run here.

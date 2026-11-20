@@ -60,3 +60,24 @@ class OperatingPointTest(unittest.TestCase):
                             c.args[2].standard_tolerance == 1e-9 for c in run.call_args_list))
         self.assertEqual(len(matrix["scenarios"]), 3)
         self.assertTrue(all(not s["matrix_screen"]["passed"] for s in matrix["scenarios"]))
+
+
+    def test_shunt_study_keeps_all_fixed_rows(self):
+        failed = {"stages": {"standard_snapshot": {"converged": False}}}
+        with patch.object(audit, "run_standard", side_effect=lambda *a, **kw: failed.copy()) as run:
+            study = audit.run_midload_shunt(Path("repo"), Path("scratch"),
+                                           SimpleNamespace(vmin=.95, vmax=1.05))
+        self.assertEqual(study["synthetic_nameplate_kvar"], (0, 75, 150))
+        self.assertEqual([c.kwargs["study_shunt_kvar"] for c in run.call_args_list], [0, 75, 150])
+        self.assertTrue(all(c.kwargs["load_multiplier"] == .75 and c.kwargs["source_pu"] == 1.05
+                            for c in run.call_args_list))
+        self.assertEqual(len(study["scenarios"]), 3)
+        self.assertTrue(all(not s["matrix_screen"]["passed"] for s in study["scenarios"]))
+
+
+    def test_shunt_evidence_rejects_wrong_conductor_inventory(self):
+        wrong = SimpleNamespace(NumPhases=3, NumTerminals=2, NumConductors=4)
+        fake = SimpleNamespace(Buses={"890": SimpleNamespace(Nodes=[1, 2, 3], Voltages=[1j, 2j, 3j])},
+                               SetActiveElement=lambda name: 0, ActiveCktElement=wrong)
+        with self.assertRaisesRegex(RuntimeError, "terminal/conductor inventory"):
+            audit.collect_shunt_evidence(fake, 75)
