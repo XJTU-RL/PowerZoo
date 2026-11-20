@@ -35,7 +35,7 @@ seeds or figure transforms from a current default or a similar run.
 | --- | --- | --- |
 | 7 | 123-bus evaluation episode rewards | `7` |
 | 8(a) | 13-bus evaluation episode rewards | `8a` |
-| 8(b) | Cross-network evaluation episode rewards | `8b` |
+| 8(b) | Cross-network evaluation episode rewards; plotted series labeled 13/34/123 bus | `8b` |
 | 9(a) | 34-bus noisy evaluation: per-episode power-loss ratio | `9a` |
 | 9(b) | 34-bus noisy evaluation: capacitor control actions | `9b` |
 | 9(c) | 34-bus noisy evaluation: regulator control actions | `9c` |
@@ -44,10 +44,18 @@ seeds or figure transforms from a current default or a similar run.
 | 12(b) | 34-bus one-day deployment: capacitor actions | `12b` |
 
 The mapping was checked against stored notebook outputs; it is not proof that
-replotting supplied scalars reproduces the published numbers. The author
-manuscript's Fig. 8(b) panel label mentions 37 bus while its narrative
-discusses 34 bus. This entry does not resolve the discrepancy by renaming
-inputs. Historical notebook sources have optional scaling for Figs. 7 and
+replotting supplied scalars reproduces the published numbers. For Fig. 8(b), the published graphic's legend labels the disputed series
+`34BUS/SHOM` (convergence annotation ≈−23.741); the subcaption names 37 bus
+and the narrative names 34 bus. The standalone source PNG's decoded RGB
+and alpha pixels match the author PDF image exactly. Its three curves,
+ribbons, colors and annotations match the saved cross-network notebook
+output, whose source and printed trace path also label the series
+`34BUS/SHOM`. This verifies the plotted label and the saved plotting
+provenance, not whether the underlying run used a physical 34- or 37-bus
+model. The original run's event file and resolved feeder configuration are
+not verified; no electrical feeder identity or checkpoint is assigned.
+
+Historical notebook sources have optional scaling for Figs. 7 and
 8(a); it is unknown whether that scaling affected the published traces. The
 reviewed script preserves recorded values and does not apply it. Other
 figures are not claimed as mapped.
