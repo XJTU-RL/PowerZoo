@@ -1,6 +1,9 @@
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
+from scripts import check_lfc34_operating_point as audit
 from scripts.check_lfc34_operating_point import checks, phases_and_terminals
 
 
@@ -28,3 +31,18 @@ class OperatingPointTest(unittest.TestCase):
         self.assertEqual(got["invalid_soc_devices"], ["b1"])
         self.assertEqual(got["overrated_windings_net_s"], [1])
         self.assertEqual(got["out_of_band_phase_nodes"], ["800.1"])
+
+
+    def test_report_checkout_and_helper_origins(self):
+        checkout = Path(audit.__file__).resolve().parents[1]
+        expected = checkout / audit.CORE / "loadprofile.py"
+        self.assertEqual(audit.require_report_repo(checkout), checkout)
+        audit.require_helper_origin(SimpleNamespace(__file__=str(expected)), expected)
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ValueError, "checkout containing this script"):
+                audit.require_report_repo(Path(td))
+            with self.assertRaisesRegex(RuntimeError, "import origin"):
+                audit.require_helper_origin(SimpleNamespace(__file__=str(Path(td) / expected.name)),
+                                            expected)
+        with self.assertRaisesRegex(RuntimeError, "import origin"):
+            audit.require_helper_origin(SimpleNamespace(), expected)

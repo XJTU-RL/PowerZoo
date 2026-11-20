@@ -20,6 +20,20 @@ CORE = Path("envs/lfc/IEEE9BusSystem")
 PINS = {"7a2c5f44cf9e662e0d6a6f6649ed0ec8c4b35e62",
         "de8ce3c7e08306f526ee4fb6f0fc8499fcbd33af"}
 
+def require_report_repo(repo):
+    actual = repo.resolve()
+    expected = Path(__file__).resolve().parents[1]
+    if actual != expected:
+        raise ValueError("report repository must be the checkout containing this script")
+    return actual
+
+
+def require_helper_origin(module, expected):
+    origin = getattr(module, "__file__", None)
+    if origin is None or Path(origin).resolve() != expected.resolve():
+        raise RuntimeError("LFC helper import origin does not match the pinned report checkout")
+
+
 def git(repo, *args):
     return subprocess.check_output(["git", "-C", str(repo), *args]).decode().strip()
 
@@ -148,7 +162,10 @@ def main():
         not a.mode.startswith("standard-") or not 0 < a.standard_tolerance < 1
     ):
         p.error("--standard-tolerance requires a standard mode and a finite value in (0, 1)")
-    repo = a.repo.resolve()
+    try:
+        repo = require_report_repo(a.repo)
+    except ValueError as exc:
+        p.error(str(exc))
     head = git(repo, "rev-parse", "HEAD")
     runtime_files = [CORE / x for x in ("opendss_python.py", "loadprofile.py")]
     baseline_paths = ([STANDARD] if a.mode.startswith("standard-") else [BASE, *runtime_files])
@@ -220,8 +237,14 @@ def run_standard(repo, work, a):
 
 def run_case(repo, deck, work, a):
     import dss
-    from envs.lfc.IEEE9BusSystem.loadprofile import LoadProfile
-    from envs.lfc.IEEE9BusSystem.opendss_python import circuit
+    from envs.lfc.IEEE9BusSystem import loadprofile, opendss_python
+
+    require_helper_origin(loadprofile, repo / CORE / "loadprofile.py")
+    require_helper_origin(opendss_python, repo / CORE / "opendss_python.py")
+    if opendss_python.LoadProfile is not loadprofile.LoadProfile:
+        raise RuntimeError("legacy circuit imported an unexpected LoadProfile")
+    LoadProfile = loadprofile.LoadProfile
+    circuit = opendss_python.circuit
 
     head = git(repo, "rev-parse", "HEAD")
     inputs = {str(p.relative_to(deck.parent)): hashlib.sha256(p.read_bytes()).hexdigest()
