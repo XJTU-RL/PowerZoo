@@ -10,8 +10,9 @@ benchmark, or an RL training result.
 
 - **OEDI IEEE123 ZIP variant:** [OEDI deposit](https://doi.org/10.25984/2228282),
   [upstream revision](https://github.com/openEDI/oedisi-ieee123/tree/7c8bcca06708ea2dd54b822821d637814ef08dc4).
-  Place its unchanged `qsts/` and `profiles/` directories under one external
-  directory. Use `qsts/master.dss`, not `snapshot/master.dss`. The pinned QSTS
+  Place its unchanged `qsts/` and `profiles/` directories, and no other files, under one external
+  directory. The diagnostic hashes the exact tree, rejects symlinks, and
+  recompares a disposable copy before using either compiler. Use `qsts/master.dss`, not `snapshot/master.dss`. The pinned QSTS
   entry requires local line codes, regulator and load/PV definitions, and the
   sibling profile trees. Keep the source revision and rights distinct: upstream
   GitHub BSD-3-Clause notice and OEDI data deposit CC BY 4.0. Do not add the
@@ -35,6 +36,7 @@ once. Do not combine a Yearly load shape and explicit scaling in one solve.
 Both contexts use matching disabled or native STATIC controls (as requested),
 solver limits, and tolerance. Compare a keyed phase-node inventory, source
 active/reactive power, and each PV's measured terminal power, not commands.
+When STATIC is selected, compare actual regulator tap numbers at each interval.
 
 OEDI uses IEEE feeder nominal powers with ZIP coefficients and separate
 multiplier/temperature files. It has 91 compiled loads; `s48`
@@ -56,7 +58,8 @@ profiles are not measurements from this IEEE feeder.
 | OEDI / STATIC | 96 | 278 | 8.15e-10 | 6.49e-6 / 3.34e-6 | 8.99e-8 |
 | SMART-DS / OFF | 96 | 156 | 9.78e-11 | 3.83e-6 / 3.07e-6 | 7.12e-8 |
 
-Raw reports remain outside Git. The SMART-DS case has 36 compiled loads and 6
+The STATIC OEDI replay also matched every regulator tap number at all 96
+intervals. Raw reports remain outside Git. The SMART-DS case has 36 compiled loads and 6
 PV systems. Other days and engines require a separate check; the diagnostic
 does not certify time-series measurements or task readiness.
 

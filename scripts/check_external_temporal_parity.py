@@ -4,8 +4,11 @@ import argparse
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import math
 from pathlib import Path
 import re
+import shutil
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
@@ -159,7 +162,30 @@ def system_state(circuit, pv_names):
         pv[n] = -np.asarray(circuit.ActiveCktElement.TotalPowers[:2])
     if len(names) != len(set(names)) or len(names) != len(volts):
         raise ValueError("invalid native phase node inventory")
+    ensure_finite(volts, source, *pv.values())
+    if source.shape != (2,) or any(value.shape != (2,) for value in pv.values()):
+        raise ValueError("invalid native P/Q pair")
     return dict(zip(names, volts)), source, pv
+
+
+def ensure_finite(*values):
+    if any(not np.isfinite(value).all() for value in values):
+        raise ValueError("nonfinite electrical measurement")
+
+
+def regulator_taps(circuit):
+    controls = circuit.RegControls
+    taps = {}
+    for name in controls.AllNames if controls.Count else ():
+        controls.Name = name
+        taps[name] = int(controls.TapNumber)
+    return taps
+
+
+def max_tap_error(a, b):
+    if a.keys() != b.keys():
+        raise ValueError("regulator inventory differs")
+    return max((abs(a[n] - b[n]) for n in a), default=0)
 
 
 def max_phase_error(a, b):
@@ -169,19 +195,32 @@ def max_phase_error(a, b):
 
 
 def aligned_endpoint(index, time_s):
-    if abs(time_s - (index + 1) * INTERVAL_SECONDS) > 1e-6:
+    if not math.isfinite(time_s) or abs(time_s - (index + 1) * INTERVAL_SECONDS) > 1e-6:
         raise ValueError("native Yearly clock did not finish the expected interval")
 
 
 def run(case, root, day, native_controls):
+    root = Path(root).resolve()
+    if case != "oedi123":
+        return _run_verified(case, root, day, native_controls)
+    if oedi_input_digest(root) != OEDI_INPUT_SHA256:
+        raise ValueError("OEDI input tree does not match the pinned qsts/profiles")
+    with TemporaryDirectory(prefix="powerzoo-oedi-parity-") as folder:
+        staged = Path(folder) / "case"
+        # Never give either compiler the user input folder; validate the copy too.
+        shutil.copytree(root, staged, symlinks=True)
+        if oedi_input_digest(staged) != OEDI_INPUT_SHA256:
+            raise ValueError("staged OEDI input no longer matches the pin")
+        return _run_verified(case, staged, day, native_controls)
+
+
+def _run_verified(case, root, day, native_controls):
     import dss
     from envs.powergrid.session import DSSSession
 
     indices = day_indices(day)
     root = Path(root).resolve()
     if case == "oedi123":
-        if oedi_input_digest(root) != OEDI_INPUT_SHA256:
-            raise ValueError("OEDI input tree does not match the pinned qsts/profiles")
         model = "qsts/master.dss"
     else:
         from utils.external_cases import locate_entry
@@ -236,10 +275,16 @@ def run(case, root, day, native_controls):
             session.finish_interval()
             aligned_endpoint(idx, session.time_s)
             deltas = [np.abs(pv_a[n] - pv_b[n]) for n in pv_a]
+            tap_error = (
+                max_tap_error(regulator_taps(circuit), regulator_taps(session.native))
+                if native_controls
+                else None
+            )
             rows.append(
                 {
                     "index": idx,
                     "max_phase_pu_error": max_phase_error(a, b),
+                    "max_regulator_tap_index_error": tap_error,
                     "source_p_error_kw": abs(float(src_a[0] - src_b[0])),
                     "source_q_error_kvar": abs(float(src_a[1] - src_b[1])),
                     "max_pv_p_error_kw": max((float(x[0]) for x in deltas), default=0),
@@ -247,7 +292,17 @@ def run(case, root, day, native_controls):
                 }
             )
         limits = (1e-6, 1e-3, 1e-3, 1e-3, 1e-3)
-        maxima = {key: max(row[key] for row in rows) for key in rows[0] if key != "index"}
+        maxima = {
+            key: max(row[key] for row in rows)
+            for key in rows[0]
+            if key not in ("index", "max_regulator_tap_index_error")
+        }
+        ensure_finite(list(maxima.values()))
+        max_tap = (
+            max(row["max_regulator_tap_index_error"] for row in rows)
+            if native_controls
+            else None
+        )
         return {
             "case": case,
             "day_index": day,
@@ -258,7 +313,9 @@ def run(case, root, day, native_controls):
             "loads": len(session.loads),
             "pvs": len(session.pvs),
             "matched_phase_nodes": len(a),
-            "parity_passed": all(v <= tol for v, tol in zip(maxima.values(), limits)),
+            "parity_passed": all(v <= tol for v, tol in zip(maxima.values(), limits))
+            and (max_tap is None or max_tap == 0),
+            "max_regulator_tap_index_error": max_tap,
             "max_errors": maxima,
             "intervals": rows,
             **details,

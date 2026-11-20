@@ -5,6 +5,8 @@ from scripts.check_external_temporal_parity import (
     OEDI_UNSHAPED,
     aligned_endpoint,
     day_indices,
+    ensure_finite,
+    max_tap_error,
     max_phase_error,
     oedi_input_digest,
     shape_definitions,
@@ -90,3 +92,18 @@ def test_oedi_hash_fails_for_changed_bytes_and_symlinks(tmp_path):
     (b / "linked").symlink_to(a / "profile.csv")
     with pytest.raises(ValueError, match="symlinks"):
         oedi_input_digest(b)
+
+
+
+def test_reject_nonfinite_measurements_and_clock():
+    with pytest.raises(ValueError, match="nonfinite"):
+        ensure_finite([1, float("nan")])
+    with pytest.raises(ValueError, match="clock"):
+        aligned_endpoint(0, float("nan"))
+
+
+def test_static_tap_comparison_fails_if_inventory_differs():
+    assert max_tap_error({"r1": 1, "r2": -2}, {"r2": -2, "r1": 1}) == 0
+    assert max_tap_error({"r1": 1}, {"r1": 4}) == 3
+    with pytest.raises(ValueError, match="inventory"):
+        max_tap_error({"r1": 1}, {})
