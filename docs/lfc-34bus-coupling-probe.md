@@ -29,13 +29,17 @@ or changed.
 ## Evidence required before any live probe
 
 The adapter first requires externally supplied bytes of the **actual** accepted
-static native JSON report and its independently approved SHA-256. It verifies
-the exact source commit and tree, scenario/source/solver parameters, one
+static native JSON report, verified against the pinned SHA-256
+`d709b9522d21256fb6b3d2fab4e1b17c07c8c9afb07459f1b2cf12b0127fb666`.
+The unchanged report was checked read-only and identifies capture commit
+`43717ce767cea6950df632414afcfea4bbd7afc7`, not the later publication tip.
+The feeder tree is the same at both revisions. The parser verifies capture
+commit/deck tree, scenario/source/solver parameters, one
 admitted row, measured reference P/Q, six named regulator tap readings and the
 published winding/phase evidence. The repository’s synthetic unit-test fixture
 uses deliberately dummy phase IDs. It is not real evidence and must not be
-approved for a live run. No validated report fixture or native-reader wiring
-is included in this draft.
+approved for a live run. The validated report is stored externally, not in Git. No native-reader
+wiring is included in this draft.
 
 Every input snapshot must carry runtime-read source/tree and scenario binding,
 the exact phase keys from that observed report (not just a count), the four

@@ -3,10 +3,11 @@ from dataclasses import replace
 import hashlib
 import json
 import unittest
+from unittest.mock import patch
 
 from envs.lfc.diagnostics.ieee34_bus8 import (
     AnchorSequence, BUS8_ANCHOR, DECK_TREE, PINNED_BINDING, RATINGS,
-    REGULATORS, STATIC_COMMIT, Snapshot, Winding,
+    REGULATORS, CAPTURE_BASE, Snapshot, Winding,
 )
 
 PHASES = tuple((f"dummy{i}.1", 1.0) for i in range(95))
@@ -26,7 +27,7 @@ def context():
                 voltage_phase_pu={i: {"v_pu": v} for i, v in PHASES},
                 pcc_import_kw=1486.417, pcc_import_kvar=-138.427,
                 enabled_electrical_elements_in_power_accounting=["vsource.source"])
-    row = dict(study_model_feasible_static_candidate=True, source_commit=STATIC_COMMIT,
+    row = dict(study_model_feasible_static_candidate=True, source_commit=CAPTURE_BASE,
                input_tree=DECK_TREE, source_pu_command=1.045, native_load_multiplier=.75,
                shunt_study_evidence={"synthetic_shunt_nameplate_kvar": 75},
                native_voltage_convergence_tolerance=1e-9, control_mode="STATIC",
@@ -39,7 +40,18 @@ def context():
 
 def adapter(data=None):
     report = json.dumps(context() if data is None else data).encode()
-    return AnchorSequence(report, approved_report_sha256=hashlib.sha256(report).hexdigest())
+    with patch.object(AnchorSequence, "__init__", testing_init(report)):
+        return AnchorSequence(report)
+
+
+def testing_init(report):
+    # Only the synthetic tests replace the immutable accepted digest.
+    from envs.lfc.diagnostics.ieee34_bus8 import ObservedReference
+    def init(self, report_bytes):
+        self._reference = ObservedReference.read_report(
+            report_bytes, expected_sha256=hashlib.sha256(report).hexdigest())
+        self._next = None
+    return init
 
 
 def sample():
@@ -61,7 +73,7 @@ class AnchorTest(unittest.TestCase):
     def test_provenance(self):
         b = json.dumps(context()).encode()
         with self.assertRaisesRegex(ValueError, "digest"):
-            AnchorSequence(b, approved_report_sha256="0"*64)
+            AnchorSequence(b)
         d = context()
         d["scenarios"][0]["input_tree"] = "bad"
         with self.assertRaisesRegex(ValueError, "settings"):

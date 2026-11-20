@@ -5,7 +5,10 @@ import json
 import math
 import re
 
+# Publication is a later documentation tip; use the source claim in the actual report.
 STATIC_COMMIT = "fdfb8680a15e76fd87b4801c1cb5f0c85172a3ac"
+CAPTURE_BASE = "43717ce767cea6950df632414afcfea4bbd7afc7"
+ACCEPTED_REPORT_SHA256 = "d709b9522d21256fb6b3d2fab4e1b17c07c8c9afb07459f1b2cf12b0127fb666"
 DECK_TREE = "8fbc1a9a3b7a2a5da636224908298a256b4c2b43"
 ANCHOR_PROBE_COMMIT = "24dddb130f6eaae546d81bf373fabe73f6592c83"
 BUS8_ANCHOR = (7851.739821876062, 12942.530488711882)  # kW, kvar
@@ -69,7 +72,7 @@ class ObservedReference:
     feeder_import_kw_kvar: tuple[float, float]
 
     @classmethod
-    def read_report(cls, report_bytes: bytes, *, expected_sha256: str):
+    def read_report(cls, report_bytes: bytes, *, expected_sha256: str = ACCEPTED_REPORT_SHA256):
         """Require explicit independent approval of the exact external report digest."""
         digest = hashlib.sha256(report_bytes).hexdigest()
         if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256) or digest != expected_sha256:
@@ -88,7 +91,7 @@ class ObservedReference:
             row["native_load_multiplier"], ev["synthetic_shunt_nameplate_kvar"],
             row["native_voltage_convergence_tolerance"], row["control_mode"],
             tuple(row["disabled_der"]), row["native_control_actions_done"]) != (
-                STATIC_COMMIT, DECK_TREE, 1.045, .75, 75., 1e-9, "STATIC",
+                CAPTURE_BASE, DECK_TREE, 1.045, .75, 75., 1e-9, "STATIC",
                 PINNED_BINDING.original_disabled_der, True):
             raise ValueError("wrong accepted report source/deck/settings")
         r = row["stages"]["standard_snapshot"]
@@ -189,9 +192,8 @@ class Command:
 
 class AnchorSequence:
     """Single-use, strictly ordered admission; the engine runner remains responsible for reset."""
-    def __init__(self, report_bytes: bytes, *, approved_report_sha256: str):
-        self._reference = ObservedReference.read_report(
-            report_bytes, expected_sha256=approved_report_sha256)
+    def __init__(self, report_bytes: bytes):
+        self._reference = ObservedReference.read_report(report_bytes)
         self._next = None
 
     def reset(self, snapshot: Snapshot, *, initial_write_target_s: float, observed_pause_s: float):
