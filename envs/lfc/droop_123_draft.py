@@ -102,10 +102,38 @@ def _trace(arm, clock):
     return math.fsum(quiet) / len(quiet)
 
 
+def validate_storage_hold(readings, requests, previous, storage_ids, config):
+    """Audit observed SOC and signed measured energy before applying a hold."""
+    c, g, s = (config[x] for x in ("clock", "gates", "storage"))
+    eps = c["timestamp_epsilon_s"]
+    if tuple(x.device for x in readings) != storage_ids:
+        raise RuntimeError("invalid storage terminal IDs")
+    records = []
+    for i, (x, req) in enumerate(zip(readings, requests, strict=True)):
+        before = s["initial_soc"] if previous is None else previous[i].soc_after
+        delivered = x.measured_injection.kw
+        expected_kwh = -delivered * c["exchange_s"] / 3600 * (
+            1 / s["discharge_efficiency"] if delivered >= 0 else s["charge_efficiency"]
+        )
+        observed_kwh = (x.soc_after - x.soc_before) * s["energy_kwh"]
+        if not (
+            _near(delivered, req, g["storage_p_kw"])
+            and _near(x.measured_injection.kvar, 0, g["storage_q_kvar"])
+            and all(math.isfinite(z) and s["min_soc"] - eps <= z <= 1 + eps
+                    for z in (x.soc_before, x.soc_after))
+            and _near(x.soc_before, before, eps)
+            and _near(observed_kwh, expected_kwh, s["energy_abs_tol_kwh"])
+        ):
+            raise RuntimeError(f"{x.device}: terminal delivery/SOC/energy mismatch")
+        records.append({"device": x.device, "expected_delta_kwh": expected_kwh,
+                        "observed_delta_kwh": observed_kwh,
+                        "residual_kwh": observed_kwh - expected_kwh})
+    return records
+
+
 def _validate_arm(name, arm, frozen_ref, config, storage_ids):
     c, g, p = (config[x] for x in ("clock", "gates", "controller"))
     eps = c["timestamp_epsilon_s"]
-    s = config["storage"]
     if tuple(h.start_s for h in arm.holds) != tuple(range(c["first_hold_s"], c["stop_s"])):
         raise RuntimeError(f"{name}: missing or displaced holds")
     prior = None
@@ -139,23 +167,12 @@ def _validate_arm(name, arm, frozen_ref, config, storage_ids):
             _near(u, v, eps) for u, v in zip(hold.requested_kw, command)
         ):
             raise RuntimeError(f"{name} @{start}: action not fixed protocol")
-        if tuple(x.device for x in hold.terminals) != storage_ids:
-            raise RuntimeError(f"{name} @{start}: invalid storage terminal IDs")
-        for i, (x, req) in enumerate(zip(hold.terminals, command, strict=True)):
-            before = s["initial_soc"] if prior is None else prior.terminals[i].soc_after
-            delivered = x.measured_injection.kw
-            energy_delta = -delivered * c["exchange_s"] / 3600 * (
-                1 / s["discharge_efficiency"] if delivered >= 0 else s["charge_efficiency"]
-            )
-            if not (
-                _near(x.measured_injection.kw, req, g["storage_p_kw"])
-                and _near(x.measured_injection.kvar, 0, g["storage_q_kvar"])
-                and all(s["min_soc"] - eps <= z <= 1 + eps for z in (x.soc_before, x.soc_after))
-                and _near(x.soc_before, before, eps)
-                and _near((x.soc_after - x.soc_before) * s["energy_kwh"],
-                          energy_delta, s["energy_abs_tol_kwh"])
-            ):
-                raise RuntimeError(f"{name} @{start}: storage delivery/SOC mismatch")
+        try:
+            validate_storage_hold(hold.terminals, command,
+                                  prior.terminals if prior is not None else None,
+                                  storage_ids, config)
+        except RuntimeError as err:
+            raise RuntimeError(f"{name} @{start}: {err}") from err
         target = demand(arm.anchor, arm.feeder_t0, hold.pcc, step)
         if not (
             _near(hold.command.kw, target.kw, eps)

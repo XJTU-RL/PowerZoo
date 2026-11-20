@@ -9,7 +9,9 @@ import tempfile
 import time
 from pathlib import Path
 
-from envs.lfc.droop_123_draft import Arm, Frequency, Hold, assess, demand, droop, read_causal
+from envs.lfc.droop_123_draft import (
+    Arm, Frequency, Hold, assess, demand, droop, read_causal, validate_storage_hold,
+)
 from envs.lfc.droop_123_draft import SCENARIO as DROOP_SCENARIO
 from envs.lfc.native_feeder_123 import Native123Feeder, PQ
 from scripts.check_lfc_123_coupling import (
@@ -158,17 +160,21 @@ def _native_arm(name, reference, cfg, spec, append):
                             if not s["min_soc"] * s["energy_kwh"] <= new_kwh <= s["energy_kwh"]:
                                 raise RuntimeError("storage command exceeds available energy headroom")
                     row = feeder.step(storage)
-                    g = spec["gates"]
-                    if (
-                        tuple(x.device for x in row.storage) != tuple(feeder.storage_ids)
-                        or abs(row.active_balance_error_kw) > g["feeder_balance_kw"]
-                        or any(
-                            abs(x.measured_injection.kw - req) > g["storage_p_kw"]
-                            or abs(x.measured_injection.kvar) > g["storage_q_kvar"]
-                            for x, req in zip(row.storage, command, strict=True)
+                    try:
+                        ledger = validate_storage_hold(
+                            row.storage, command, staged[-1]["terminals"] if staged else None,
+                            tuple(feeder.storage_ids), spec,
                         )
-                    ):
-                        raise RuntimeError("native storage terminal or PCC pre-application gate failed")
+                        if not (math.isfinite(row.active_balance_error_kw) and
+                                abs(row.active_balance_error_kw) <= spec["gates"]["feeder_balance_kw"]):
+                            raise RuntimeError("native PCC balance pre-application gate failed")
+                    except RuntimeError as err:
+                        # Encode malformed nonfinite telemetry as explicit text,
+                        # never as a finite replacement or an invalid JSON number.
+                        append({"arm": name, "phase": "pre_application_rejected",
+                                "t": slot, "request_kw": command, "reason": str(err),
+                                "observed_native_row": repr(row)})
+                        raise
                     if (abs(row.start_s - (slot - first)) > eps
                             or abs(row.end_s - row.start_s - clock["exchange_s"]) > eps):
                         raise RuntimeError("native feeder exchange clock mismatch")
@@ -182,7 +188,8 @@ def _native_arm(name, reference, cfg, spec, append):
                     # Save progress before post-stop sensor extraction; commands
                     # and DSS telemetry are never relabelled as Bus8 measurements.
                     append({"arm": name, "phase": "hold_command", "record": record,
-                            "observed_native_hz": observed, "live_prefix_length": len(live)})
+                            "observed_native_hz": observed, "live_prefix_length": len(live),
+                            "storage_energy": ledger})
                     staged.append(record)
                     prev, actual = actual, end
                 eng.set_param(model, "SimulationCommand", "stop", nargout=0)
