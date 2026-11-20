@@ -91,3 +91,43 @@ double-counting it). Compared with the native default 1e-4, OFF closes to
 unchanged accounting gate. Their voltage classifications remain 77/95 and
 8/95 respectively. This is a global power residual check, not a per-node
 Kirchhoff-current test.
+
+## IEEE-reference boundary and frozen load screen
+
+The [June 2004 IEEE worksheet, public mirror](https://studylib.net/doc/7612638/ieee-34-node-test-feeder)
+reports bus 800 at 1.0500 pu on all phases, with 814.A at 0.9467
+and 890.A/B/C near 0.917/0.924/0.918. This is a legitimate historical
+stress operating point even when it fails this project's 0.95–1.05 pu
+screen. The 832–888 transformer is 24.9/4.16 kV, grounded-wye to
+grounded-wye, 500 kVA, and feeds the 10,560-foot 888–890 line, type 300.
+The nominal 890 load is 450 kW/225 kvar, delta constant current.
+This does not make the PowerZoo model identical to the worksheet.
+
+```sh
+PYTHONPATH=. python scripts/check_lfc34_operating_point.py . \
+  --mode standard-boundary-matrix --vmin .95 --vmax 1.05
+```
+
+This scenario unit freezes the synthetic load multipliers 0.50/0.75/1.00,
+a 1.05 pu source command, native STATIC controls, a 1e-9 solve tolerance,
+and the existing no-DER standard deck. The realized voltage at node 800
+is separately measured from the upstream source command. The JSON keeps all
+three modes, including failures, and records the actual winding currents and
+apparent power against the **research-deck** ratings.
+
+| Synthetic load | PCC kW/kvar | Primary/secondary SubXF kVA, each rated 25,000 | Min/max phase pu | Strict screen violations |
+|---|---:|---:|---:|---|
+| 0.50 | +965.355/−381.347 | 1037.947/1037.957 | 0.971710/1.050002345 | sourcebus A/B/C, 800 A/B/C high |
+| 0.75 | +1480.449/−67.904 | 1482.005/1482.006 | 0.947445/1.049999455 | 890.C low |
+| 1.00 | +2039.876/+281.881 | 2059.260/2059.253 | 0.918700/1.049996863 | 814.A, 890.A/B/C low |
+
+All 95 phase nodes were energized in each scenario; native controls
+completed and all three met the same global power residual gate. Both
+winding terminal phase currents were below their research nameplate current
+equivalents, not direct delta coil current or field thermal certifications.
+At light load the fixed boundary sits at the upper edge and slight reactive
+export accompanies a tiny voltage rise. The strict comparison reports
+those boundary overages rather than rounding them away or relaxing the band.
+**None of the three rows clears all gates; no calibrated coupling point
+was selected.** No changes to base files, device settings or ratings were
+used to pass the screen.

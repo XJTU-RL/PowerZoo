@@ -13,6 +13,8 @@ import shutil
 import tempfile
 from types import SimpleNamespace
 
+FROZEN_LOAD_MATRIX = (0.50, 0.75, 1.00)
+REFERENCE_SOURCE_PU = 1.05
 STANDARD = Path("node_systems/34Bus")
 BASE = Path("envs/lfc/IEEE9BusSystem/systems/34Bus")
 DECK_BLOB = "d76a7703c4fc803b03864a4d8b8e136e1e786fa3"
@@ -151,7 +153,7 @@ def checks(record, lo, hi):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("repo", type=Path)
-    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static"), required=True)
+    p.add_argument("--mode", choices=("raw", "no-der", "standard-off", "standard-static", "standard-boundary-matrix"), required=True)
     p.add_argument("--standard-tolerance", type=float, help="optional native voltage convergence tolerance")
     p.add_argument("--vmin", type=float, required=True)
     p.add_argument("--vmax", type=float, required=True)
@@ -162,6 +164,10 @@ def main():
         not a.mode.startswith("standard-") or not 0 < a.standard_tolerance < 1
     ):
         p.error("--standard-tolerance requires a standard mode and a finite value in (0, 1)")
+    if a.mode == "standard-boundary-matrix" and (
+        (a.vmin, a.vmax) != (0.95, 1.05) or a.standard_tolerance is not None
+    ):
+        p.error("matrix freezes screening band [0.95, 1.05] and native tolerance 1e-9")
     try:
         repo = require_report_repo(a.repo)
     except ValueError as exc:
@@ -181,11 +187,54 @@ def main():
         raise RuntimeError("unexpected raw deck blob")
     with tempfile.TemporaryDirectory(prefix="powerzoo-lfc34-") as td:
         work = Path(td) / "deck"
-        report = (run_standard(repo, work, a) if a.mode.startswith("standard-") else
-                  run_case(repo, deck, work, a))
+        if a.mode == "standard-boundary-matrix":
+            report = run_boundary_matrix(repo, work, a)
+        else:
+            report = (run_standard(repo, work, a) if a.mode.startswith("standard-") else
+                      run_case(repo, deck, work, a))
     print(json.dumps(report, sort_keys=True, allow_nan=False))
 
-def run_standard(repo, work, a):
+def matrix_screen(scenario):
+    record = scenario["stages"]["standard_snapshot"]
+    if not record["converged"]:
+        return {"passed": False, "reason": "not converged"}
+    screen = scenario["checks"]["standard_snapshot"]
+    volts = record["voltage_phase_pu"]
+    phase_min, min_node = min((v["v_pu"], k) for k, v in volts.items())
+    phase_max, max_node = max((v["v_pu"], k) for k, v in volts.items())
+    winding_currents_ok = all(
+        i["terminal_current_amp"] <= w["nominal_terminal_line_current_amp"]
+        for w in record["subxf_windings"] for i in w["conductors"] if i["node"] in (1, 2, 3)
+    )
+    gates = {
+        "native_control_actions_done": scenario["native_control_actions_done"] is True,
+        "all_95_phase_nodes_energized": len(volts) == 95 and phase_min > 0,
+        "strict_voltage_band": not screen["out_of_band_phase_nodes"],
+        "global_power_accounting": screen["power_balance_ok"],
+        "subxf_net_apparent_power_within_research_nameplate": not
+        screen["overrated_windings_net_s"],
+        "subxf_phase_terminal_current_within_current_equivalent": winding_currents_ok,
+    }
+    return {"passed": all(gates.values()), "gates": gates, "phase_node_count": len(volts),
+            "min_voltage_pu": phase_min, "min_voltage_node": min_node,
+            "max_voltage_pu": phase_max, "max_voltage_node": max_node}
+
+
+def run_boundary_matrix(repo, work, a):
+    frozen_args = SimpleNamespace(mode="standard-static", standard_tolerance=1e-9,
+                                  vmin=a.vmin, vmax=a.vmax)
+    scenarios = []
+    for multiplier in FROZEN_LOAD_MATRIX:
+        scenario = run_standard(repo, work / f"load-{multiplier:.2f}", frozen_args,
+                                source_pu=REFERENCE_SOURCE_PU, load_multiplier=multiplier)
+        scenario["matrix_screen"] = matrix_screen(scenario)
+        scenarios.append(scenario)
+    return {"mode": "standard-boundary-matrix", "source_pu": REFERENCE_SOURCE_PU,
+            "load_multipliers": FROZEN_LOAD_MATRIX, "ratings_scope": "research deck only",
+            "scenarios": scenarios}
+
+
+def run_standard(repo, work, a, *, source_pu=None, load_multiplier=None):
     import dss
 
     source = repo / STANDARD
@@ -203,6 +252,12 @@ def run_standard(repo, work, a):
         if native.ActiveCktElement.Enabled:
             raise RuntimeError(f"failed to disable {name}")
     context.Text.Command = "Set mode=snapshot"
+    if source_pu is not None:
+        context.Text.Command = f"Edit Vsource.Source pu={source_pu}"
+    if load_multiplier is not None:
+        context.Text.Command = f"Set LoadMult={load_multiplier}"
+        if not math.isclose(float(native.Solution.LoadMult), load_multiplier):
+            raise RuntimeError("native solution did not accept declared load multiplier")
     context.Text.Command = "Set Maxiterations=100"
     context.Text.Command = "Set Maxcontroliter=100"
     control_mode = a.mode.removeprefix("standard-").upper()
@@ -227,6 +282,7 @@ def run_standard(repo, work, a):
             "input_tree": git(repo, "rev-parse", f"HEAD:{STANDARD}"),
             "dss_python_version": dss.__version__, "mode": a.mode,
             "control_mode": control_mode, "disabled_der": disabled,
+            "source_pu_command": source_pu, "native_load_multiplier": float(native.Solution.LoadMult),
             "native_voltage_convergence_tolerance": solver_tolerance,
             "native_control_actions_done": (bool(native.Solution.ControlActionsDone)
                                             if control_mode == "STATIC" else None),

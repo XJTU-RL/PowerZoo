@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -46,3 +47,16 @@ class OperatingPointTest(unittest.TestCase):
                                             expected)
         with self.assertRaisesRegex(RuntimeError, "import origin"):
             audit.require_helper_origin(SimpleNamespace(), expected)
+
+
+    def test_matrix_keeps_every_frozen_scenario_in_order(self):
+        failed = {"stages": {"standard_snapshot": {"converged": False}}}
+        with patch.object(audit, "run_standard", side_effect=lambda *a, **kw: failed.copy()) as run:
+            matrix = audit.run_boundary_matrix(Path("repo"), Path("scratch"),
+                                               SimpleNamespace(vmin=.95, vmax=1.05))
+        self.assertEqual(matrix["load_multipliers"], (.50, .75, 1.00))
+        self.assertEqual([c.kwargs["load_multiplier"] for c in run.call_args_list], [.50, .75, 1.00])
+        self.assertTrue(all(c.kwargs["source_pu"] == 1.05 and
+                            c.args[2].standard_tolerance == 1e-9 for c in run.call_args_list))
+        self.assertEqual(len(matrix["scenarios"]), 3)
+        self.assertTrue(all(not s["matrix_screen"]["passed"] for s in matrix["scenarios"]))
