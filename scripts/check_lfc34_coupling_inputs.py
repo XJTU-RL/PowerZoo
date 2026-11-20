@@ -11,18 +11,36 @@ import os
 import tempfile
 from types import SimpleNamespace
 
+from envs.lfc.diagnostics import ieee34_bus8 as anchor_module
+from scripts import check_lfc34_operating_point as operating_module
 from envs.lfc.diagnostics.ieee34_bus8 import (
     ObservedReference, Binding, DECK_TREE, MAX_DELTA_KW_KVAR, PINNED_BINDING, RATINGS, REGULATORS,
     STATIC_COMMIT, Snapshot, Winding,
 )
 from scripts.check_lfc34_operating_point import (
     STANDARD, collect_shunt_evidence, git, phases_and_terminals,
-    require_report_repo, sample,
+    sample,
 )
 
 ARMS = {"hold": (0., 0.), "p_import": (20., 0.),
         "q_import": (0., 15.), "q_export": (0., -15.)}
 PULSE = "Load.CouplingProbe890"
+
+
+def verify_checkout(repo, cwd, script_file=__file__,
+                    anchor=anchor_module, operating=operating_module):
+    """Do not delegate provenance checks to a possibly shadowed import."""
+    expected = Path(script_file).resolve().parents[1]
+    if Path(repo).resolve() != expected or Path(cwd).resolve() != expected:
+        raise ValueError("collector must run from its own resolved checkout")
+    for mod, relative in (
+        (anchor, "envs/lfc/diagnostics/ieee34_bus8.py"),
+        (operating, "scripts/check_lfc34_operating_point.py"),
+    ):
+        origin = getattr(mod, "__file__", None)
+        if origin is None or Path(origin).resolve() != (expected / relative).resolve():
+            raise ValueError(f"helper import origin mismatch: {relative}")
+    return expected
 
 
 def archived_deck(repo, scratch):
@@ -192,7 +210,9 @@ def _capture(context, c, demand, index):
     )
     return snap, {
         "pulse_signed_kw_kvar": actual_pulse, "shunt_injected_kvar": shunt,
+        "total_losses_kw_kvar": (evidence["feeder_loss_kw"], evidence["feeder_loss_kvar"]),
         "l32_terminal_flows": evidence["equipment"]["Line.L32"]["terminal_flows"],
+        "l32_rating_status": "currents measured; no sourced rating, no clearance claim",
     }
 
 
@@ -204,7 +224,9 @@ def run_arm(deck, demand, index):
     try:
         context.AllowChangeDir = False
         c = _configure(context, deck, demand)
-        return _capture(context, c, demand, index)
+        snap, evidence = _capture(context, c, demand, index)
+        return snap, dict(evidence, dss_python_version=str(dss.__version__),
+                          native_engine_version=str(context.Version))
     finally:
         context.ClearAll()
         if Path.cwd() != cwd:
@@ -215,8 +237,9 @@ def run_arm(deck, demand, index):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("reference_report", type=Path, help="approved external native baseline JSON")
+    p.add_argument("--repo", type=Path, default=Path.cwd(), help="own checkout root")
     args = p.parse_args()
-    repo = require_report_repo(Path.cwd())
+    repo = verify_checkout(args.repo, Path.cwd())
     if git(repo, "status", "--porcelain", "--untracked-files=all", "--", str(STANDARD)):
         raise ValueError("dirty IEEE34 source tree")
     report = args.reference_report.read_bytes()
@@ -244,8 +267,9 @@ def main():
                 results[name] = dict(passed=True, request_kw_kvar=demand,
                                      feeder_import_kw_kvar=power, feeder_delta_kw_kvar=delta,
                                      snapshot=asdict(snap), **details)
-            except (RuntimeError, ValueError) as exc:
-                results[name] = dict(passed=False, request_kw_kvar=demand, reason=str(exc))
+            except Exception as exc:
+                results[name] = dict(passed=False, request_kw_kvar=demand,
+                                     reason=str(exc), error_type=type(exc).__name__)
                 if name == "hold":
                     break
     print(json.dumps({"scope": "OpenDSS-only", "reference_sha256": reference.sha256,
