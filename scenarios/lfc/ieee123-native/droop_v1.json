@@ -3,7 +3,7 @@
   "family": "optimized_lfc",
   "transport_runtime_commit": "b0bcbe0ff7086434e6c8450f80aea8c2346be1d3",
   "transport_evidence_commit": "24dddb130f6eaae546d81bf373fabe73f6592c83",
-  "status": "draft_online_timestamped_frequency_not_verified",
+  "status": "draft_online_frequency_verified_comparison_not_run",
   "arms": [
     "undisturbed_drift",
     "disturbed_no_control",
