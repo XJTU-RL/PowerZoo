@@ -20,6 +20,19 @@ class TestStandardCaseRegistry(unittest.TestCase):
         for case in ("ieee4", "ieee37", "baran-wu69"):
             self.assertEqual(data[case]["tasks"]["vvc"]["status"], "unverified")
 
+    def test_external_static_evidence_is_not_vvc_or_canonical_parity(self):
+        data = validate()
+        self.assertEqual(data["ieee4"]["static_evidence"]["level"],
+                         "powerzoo_static_and_magnitude_spots_validated")
+        self.assertEqual(data["ieee37"]["static_evidence"]["level"],
+                         "powerzoo_stock_static_regression_validated")
+        self.assertEqual(data["baran-wu69"]["static_evidence"]["level"],
+                         "independent_balanced_static_validated")
+        for key in ("ieee4", "ieee37", "baran-wu69"):
+            self.assertEqual(data[key]["static_evidence"]["local_validation_revision"],
+                             "98fe198da405b2c0ce618c0812b8b2179a475fe2")
+            self.assertEqual(data[key]["tasks"]["vvc"]["status"], "unverified")
+
     def test_pinned_path_and_readiness_fail_closed(self):
         for field, value, error in (
             ("entrypoint", "node_systems/../escape", "asset path"),
