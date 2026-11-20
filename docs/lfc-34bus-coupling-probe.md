@@ -84,3 +84,61 @@ The Python gate cannot reset or attest an engine itself.
    ordering. A trustworthy advancing measured response is required, not
    just successful parameter assignment. Feeder times here are exchange
    slots; DSS snapshots are not one-second energy integrations.
+
+## Bounded native OpenDSS input audit
+
+The OpenDSS-only collector at commit
+`6f76ce12774f0f737e71e4f2df370a62160b6ab6` was run on Linux
+with DSS-Python 0.15.7 and the exact archived feeder tree and external
+reference digest declared above. Rebuild from a clean checkout at that
+commit, from the repository root, with its ordinary Python dependencies
+and the separately retained original `pair-packaged.json` (do not replace
+it with a newly generated report or a synthetic fixture):
+
+```bash
+sha256sum "$PAIR_REPORT"
+PYTHONPATH="$PWD" PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 \
+  MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+  timeout --kill-after=15s 90s python -m scripts.check_lfc34_coupling_inputs \
+  "$PAIR_REPORT" --repo "$PWD" > arms.json 2> stderr.log
+```
+
+Record the exit status, commit, feeder tree SHA, reference SHA and test
+checkout status. Keep JSON/log files outside Git (or redirect to a scratch
+path). Per-arm output records input request and pass/fail; accepted arms
+include measured terminal, phase and winding records. The observed complete
+batch exited **1** with two rejected arms, not a timeout:
+
+| OpenDSS arm at bus 890 | Measured pulse kW/kvar | PCC import kW/kvar | Delta at PCC kW/kvar | Result |
+| --- | ---: | ---: | ---: | --- |
+| Hold (no pulse) | n/a | +1486.416708 / −138.426778 | 0 / 0 | Accepted |
+| +20 kW | not retained | not retained | not retained | Rejected: tap comparison |
+| +15 kvar | ≈0 / +15.000000 | +1484.571648 / −122.601355 | −1.845060 / +15.825423 | Accepted |
+| −15 kvar | not retained | not retained | not retained | Rejected: tap comparison |
+
+The 95 observed phase voltages span 0.964375–1.045000 pu in the hold and
+0.960971–1.045000 pu in the accepted +Q arm. The six named taps match the
+reference in both, and the modeled SubXF/XFM1 terminal screens pass. The shunt
+injects +70.002502 and +69.514427 kvar respectively; active losses are
+145.804854 and 145.777284 kW. Negative PCC Q still denotes feeder export:
+the accepted +Q pulse reduces that export, rather than producing positive
+total Q import. L32 currents are measured, with no thermal-clearance claim.
+For each rejected arm the collector retained the generic tap-comparison
+failure, not the identities, positions or other physical measurements.
+Thus the evidence does not establish a signed-pulse suite or Bus8 response.
+No MATLAB, policy or energy integration was run.
+
+## Proposed separate seconds-scale tap-hold variant
+
+Do not rerun or reinterpret the rejected STATIC arms as passes.
+A distinct opt-in study could first reproduce the accepted nominal STATIC
+solution, save the six named mechanical regulator tap positions, then lock
+only that mechanical control owner at those measured starting positions
+before applying independently declared seconds-scale pulses. Recheck each
+tap and its controller readback before and after every arm. Report this
+separately from the original STATIC re-settling comparison: whether an
+actual device would hold over that time is a study assumption, not a claim
+about the historical case. A future diagnostic should retain each mismatched
+tap ID, expected/actual positions, and pre/post stepping evidence on failure.
+All source/shunt/phase, terminal, accounting and no-active-DER checks must
+remain enforced. This variant is not implemented or run here.
