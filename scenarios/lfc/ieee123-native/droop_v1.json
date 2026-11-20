@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "family": "optimized_lfc",
+  "transport_runtime_commit": "b0bcbe0ff7086434e6c8450f80aea8c2346be1d3",
+  "transport_evidence_commit": "24dddb130f6eaae546d81bf373fabe73f6592c83",
+  "status": "draft_online_timestamped_frequency_not_verified",
+  "arms": [
+    "undisturbed_drift",
+    "disturbed_no_control",
+    "disturbed_fixed_droop"
+  ],
+  "clock": {
+    "first_hold_s": 20,
+    "event_start_s": 25,
+    "event_stop_s": 35,
+    "stop_s": 45,
+    "exchange_s": 1,
+    "max_pause_lag_s": 0.03333333333333333,
+    "quiet_tail_s": 3,
+    "native_frequency_period_s": 0.2,
+    "timestamp_epsilon_s": 1e-07
+  },
+  "controller": {
+    "gain_kw_per_hz": 200000,
+    "deadband_hz": 0.0001,
+    "per_storage_limit_kw": 50,
+    "feeder_gain": 1,
+    "hz_postcheck_tol": 1e-08
+  },
+  "disturbance_kw": 100,
+  "gates": {
+    "pre_p_kw": 1,
+    "pre_q_kvar": 1,
+    "pre_f_hz": 5e-05,
+    "quiet_drift_kw": 5,
+    "quiet_drift_hz": 5e-05,
+    "storage_p_kw": 0.05,
+    "storage_q_kvar": 0.05,
+    "feeder_balance_kw": 0.05,
+    "bus8_p_abs_kw": 100,
+    "bus8_q_abs_kvar": 100,
+    "min_detectable_kw": 25,
+    "paired_delta_mismatch_kw": 25,
+    "min_consecutive": 2
+  },
+  "storage": {
+    "energy_kwh": 200,
+    "initial_soc": 0.5,
+    "min_soc": 0.1,
+    "charge_efficiency": 0.95,
+    "discharge_efficiency": 0.95,
+    "energy_abs_tol_kwh": 5e-05
+  }
+}
