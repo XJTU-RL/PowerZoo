@@ -166,7 +166,8 @@ in the two supported cases. The study stops here: no relaxed limits,
 rating edits, additional capacity or source setpoints were selected. A
 separately predeclared controllable source boundary with headroom (for example
 1.045 pu) would be a different experimental assumption, not a repair or
-reproduction of the IEEE reference. It has not been run here.
+reproduction of the IEEE reference. It is not part of this sensitivity
+screen; see the separate controlled-boundary scenario below.
 
 ## Separate controlled-boundary optimized static scenario
 
