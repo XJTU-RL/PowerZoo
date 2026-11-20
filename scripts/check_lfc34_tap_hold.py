@@ -67,11 +67,54 @@ def apply_arm(context, c, demand):
                                 f"kV=4.16 Model=1 Status=Fixed kW={p} kvar={q}")
 
 
-def capture_held(context, c, demand, index, baseline):
+def read_dss_clock(solution):
+    hour, seconds, dbl_hour = int(solution.Hour), float(solution.Seconds), float(solution.dblHour)
+    if hour < 0 or not all(math.isfinite(v) and v >= 0 for v in (seconds, dbl_hour)):
+        raise RuntimeError("non-finite or negative native DSS clock")
+    if not math.isclose(hour * 3600 + seconds, dbl_hour * 3600, abs_tol=1e-7, rel_tol=0):
+        raise RuntimeError("inconsistent native DSS clock readouts")
+    return {"hour": hour, "seconds": seconds, "dbl_hour": dbl_hour,
+            "absolute_seconds": dbl_hour * 3600}
+
+
+def record_clock(c, initial_clock, audit):
+    actual = read_dss_clock(c.Solution)
+    audit["native_clock"] = actual
+    if actual != initial_clock:
+        raise RuntimeError("native DSS clock advanced or changed in snapshot hold")
+    if int(c.Solution.ControlMode) != -1:
+        raise RuntimeError("native controls are not OFF")
+    audit["native_control_mode"] = "OFF"
+    audit["native_control_actions_done_flag"] = bool(c.Solution.ControlActionsDone)
+    audit["per_arm_static_settlement"] = None
+    return actual["absolute_seconds"]
+
+
+def retain_failed_readback(c, audit):
+    # Called only after failure; retain only direct readouts, not manufactured defaults.
+    try:
+        audit.setdefault("native_clock", read_dss_clock(c.Solution))
+        audit["failure_converged"] = bool(c.Solution.Converged)
+        if c.Solution.Converged:
+            src, *_ = native.phases_and_terminals(native._active(c, "Vsource.Source"))
+            raw = [src["p_kw"], src["q_kvar"]]
+            if all(math.isfinite(v) for v in raw):
+                audit["failure_source_terminal_kw_kvar_into_element"] = raw
+    except Exception as exc:
+        audit["additional_failure_readback_error"] = str(exc)
+
+
+def capture_held(context, c, demand, index, baseline, initial_clock, audit):
     # Disabled pulse remains in the native registry after a recovery reset.
     # _capture's strict hold no-pulse check applies only before first addition.
     capture_request = demand if demand != (0., 0.) or index == 0 else None
-    snap, details = native._capture(context, c, capture_request, index, control_mode="OFF")
+    stamp = record_clock(c, initial_clock, audit)
+    snap, details = native._capture(context, c, capture_request, index,
+                                    control_mode="OFF", actual_clock_s=stamp)
+    audit["measured_snapshot"] = asdict(snap)
+    audit["measured_details"] = details
+    if not all_finite(details):
+        raise RuntimeError("non-finite held terminal/loss evidence")
     power = snap.checked_import(baseline, expected_binding=HELD_BINDING)
     delta = tuple(a-b for a,b in zip(power, baseline.feeder_import_kw_kvar))
     if demand == (0., 0.):
@@ -94,11 +137,12 @@ def run(context, deck, baseline):
     if any(abs(a-b) > 1e-6 for a,b in zip(settled, baseline.feeder_import_kw_kvar)):
         raise RuntimeError("nominal STATIC point differs from pinned reference")
     start = read_taps(c)
+    initial_clock = read_dss_clock(c.Solution)
     context.Text.Command = "Set ControlMode=OFF"
     outcome = {}
     for i, (name, demand) in enumerate(ARMS.items()):
         audit = {}
-        record = dict(passed=False, request_kw_kvar=demand, tap_readbacks=audit)
+        record = dict(passed=False, arm_ordinal=i, request_kw_kvar=demand, tap_readbacks=audit)
         outcome[name] = record
         try:
             if int(c.Solution.ControlMode) != -1:
@@ -107,23 +151,48 @@ def run(context, deck, baseline):
             apply_arm(context, c, demand)
             c.Solution.SolveNoControl()
             verify_taps(start, read_taps(c), "after", audit)
-            record.update(capture_held(context, c, demand, i, baseline))
+            record.update(capture_held(context, c, demand, i, baseline, initial_clock, audit))
             record["passed"] = True
         except Exception as exc:
             record.update(reason=str(exc), error_type=type(exc).__name__)
+            retain_failed_readback(c, audit)
         # Recover from each non-hold arm before the next; stop if recovery fails.
         if name != "hold":
             try:
                 apply_arm(context, c, (0., 0.))
                 c.Solution.SolveNoControl()
                 verify_taps(start, read_taps(c), "recovery", audit)
-                record["neutral_recovery"] = capture_held(context, c, (0., 0.), i, baseline)
+                recovery = {}
+                audit["neutral_recovery_readbacks"] = recovery
+                record["neutral_recovery"] = capture_held(
+                    context, c, (0., 0.), i, baseline, initial_clock, recovery)
             except Exception as exc:
                 record.update(passed=False, recovery_failure=str(exc))
+                retain_failed_readback(c, audit.get("neutral_recovery_readbacks", audit))
                 break
         elif not record["passed"]:
             break
-    return start, outcome
+    return start, initial_clock, outcome
+
+
+def all_finite(value):
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(all_finite(v) for v in value.values())
+    if isinstance(value, (tuple, list)):
+        return all(all_finite(v) for v in value)
+    return True
+
+
+def finite_output(value):
+    if isinstance(value, float) and not math.isfinite(value):
+        return None  # unavailable, rather than a fabricated physical number
+    if isinstance(value, dict):
+        return {k: finite_output(v) for k,v in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [finite_output(x) for x in value]
+    return value
 
 
 def main():
@@ -142,12 +211,14 @@ def main():
         c = dss.DSS.NewContext()
         c.AllowChangeDir = False
         try:
-            start, arms = run(c, deck, baseline)
+            start, initial_clock, arms = run(c, deck, baseline)
             result = dict(scope="distinct seconds-scale mechanical tap hold, snapshots only",
                           source_checkout=native.git(repo, "rev-parse", "HEAD"),
                           reference_sha256=baseline.sha256, dss_python_version=dss.__version__,
-                          native_engine_version=c.Version, initial_named_taps=start, arms=arms)
-            print(json.dumps(result, allow_nan=False, indent=2))
+                          native_engine_version=c.Version, initial_named_taps=start,
+                          initial_static_settlement=dict(controls_settled=True, native_clock=initial_clock),
+                          arms=arms)
+            print(json.dumps(finite_output(result), allow_nan=False, indent=2))
         finally:
             c.ClearAll()
             if Path.cwd() != repo:

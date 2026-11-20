@@ -2,7 +2,10 @@
 from types import SimpleNamespace
 import unittest
 
-from scripts.check_lfc34_tap_hold import PULSE, apply_arm, tap_differences, verify_taps
+from scripts.check_lfc34_tap_hold import (
+    PULSE, all_finite, apply_arm, finite_output, read_dss_clock, record_clock,
+    tap_differences, verify_taps,
+)
 
 
 class TapHoldTest(unittest.TestCase):
@@ -30,3 +33,27 @@ class TapHoldTest(unittest.TestCase):
         self.assertEqual(context.Text.Command, f"Edit {PULSE} Enabled=no")
         apply_arm(context, circuit, (20., 0.))
         self.assertEqual(context.Text.Command, f"Edit {PULSE} Enabled=yes kW=20.0 kvar=0.0")
+
+
+    def test_dss_clock_does_not_use_arm_ordinal(self):
+        sol = SimpleNamespace(Hour=0, Seconds=0., dblHour=0.,
+                              ControlMode=-1, ControlActionsDone=True)
+        c = SimpleNamespace(Solution=sol)
+        start = read_dss_clock(sol)
+        audit = {}
+        self.assertEqual(record_clock(c, start, audit), 0.)
+        self.assertIsNone(audit["per_arm_static_settlement"])
+        self.assertEqual(audit["native_control_mode"], "OFF")
+        self.assertTrue(audit["native_control_actions_done_flag"])
+        sol.Seconds, sol.dblHour = 1., 1/3600
+        with self.assertRaisesRegex(RuntimeError, "advanced"):
+            record_clock(c, start, audit)
+        self.assertEqual(audit["native_clock"]["absolute_seconds"], 1.)
+
+    def test_invalid_clock_and_failed_nonfinite_diagnostics(self):
+        bad = SimpleNamespace(Hour=0, Seconds=0., dblHour=float("nan"))
+        with self.assertRaisesRegex(RuntimeError, "non-finite"):
+            read_dss_clock(bad)
+        evidence = {"passed": False, "raw": (float("inf"), 1.2)}
+        self.assertFalse(all_finite(evidence))
+        self.assertEqual(finite_output(evidence), {"passed": False, "raw": [None, 1.2]})

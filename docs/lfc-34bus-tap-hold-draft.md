@@ -22,3 +22,12 @@ assumption for a short timescale, not proof of physical switching delays or
 a different way to pass the old STATIC test. No MATLAB/Bus8, storage SOC,
 dynamics, or energy evaluation occurs. L32 current remains a measurement, not
 a cleared rating. Only mock and pure checks have run.
+
+
+Arm ordinal is not a time reading. Native DSS Hour, Seconds and dblHour are
+reported and must remain consistent and unchanged from the admitted nominal
+STATIC snapshot. OFF has no per-arm control settlement claim even if the
+engine reports its completion flag. A failed arm remains failed; direct
+clock, tap and source readbacks are retained when possible in the local
+audit, with non-finite diagnostic values marked unavailable. Do not commit
+raw native audit output.

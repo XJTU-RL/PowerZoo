@@ -214,7 +214,9 @@ def _configure(context, deck, demand):
     return c
 
 
-def _capture(context, c, demand, index, *, control_mode="STATIC"):
+def _capture(context, c, demand, index, *, control_mode="STATIC", actual_clock_s=None):
+    if control_mode == "OFF" and actual_clock_s is None:
+        raise ValueError("OFF capture requires measured native clock")
     r = sample(SimpleNamespace(dss=context, batteries={}, diagnostic_mode="standard"))
     if not r["converged"] or (control_mode == "STATIC" and not c.Solution.ControlActionsDone):
         raise RuntimeError("solve or STATIC controls incomplete")
@@ -227,11 +229,12 @@ def _capture(context, c, demand, index, *, control_mode="STATIC"):
     if not math.isfinite(shunt) or not 0 < shunt <= 75 * 1.05**2:
         raise RuntimeError("unexpected shunt injection")
     snap = Snapshot(
-        nominal, float(index), a["p_kw"], a["q_kvar"],
+        nominal, float(index) if control_mode == "STATIC" else actual_clock_s, a["p_kw"], a["q_kvar"],
         max((s["s_kva"] for s in additional), default=0.),
         tuple((n, v["v_pu"]) for n, v in r["voltage_phase_pu"].items()),
         _winding_records(c), _phase_taps(c),
-        r["network_power_residual_kw"], r["network_power_residual_kvar"], True, True,
+        r["network_power_residual_kw"], r["network_power_residual_kvar"], True,
+        True if control_mode == "STATIC" else None,
     )
     return snap, {
         "pulse_signed_kw_kvar": actual_pulse, "shunt_injected_kvar": shunt,

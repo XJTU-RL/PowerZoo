@@ -142,7 +142,7 @@ class Snapshot:
     residual_kw: float
     residual_kvar: float
     converged: bool
-    controls_settled: bool
+    controls_settled: bool | None
 
     def checked_import(self, reference: ObservedReference, *,
                        expected_binding=PINNED_BINDING) -> tuple[float, float]:
@@ -152,8 +152,11 @@ class Snapshot:
             raise ValueError("source/deck/settings or active DER/profile binding changed")
         if not all(math.isfinite(x) for x in vals):
             raise ValueError("non-finite measurement")
-        if self.converged is not True or self.controls_settled is not True:
-            raise ValueError("solve or STATIC controls incomplete")
+        if self.converged is not True:
+            raise ValueError("native solve did not converge")
+        if (expected_binding.control_mode == "STATIC" and self.controls_settled is not True
+                or expected_binding.control_mode == "OFF" and self.controls_settled is not None):
+            raise ValueError("control settlement evidence does not match mode")
         if self.time_s < 0 or not 0 <= self.remaining_source_terminal_kva <= 1e-6:
             raise ValueError("invalid source measurement")
         phase = _keyed(self.phases_pu, "phase")

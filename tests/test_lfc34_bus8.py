@@ -153,3 +153,16 @@ class AnchorTest(unittest.TestCase):
             reset(a)
             with self.subTest(edits=edits), self.assertRaises(ValueError):
                 project(a, replace(sample(), time_s=1., **edits))
+
+
+    def test_control_settlement_is_mode_specific(self):
+        from envs.lfc.diagnostics.ieee34_bus8 import ObservedReference
+        report = json.dumps(context()).encode()
+        ref = ObservedReference.read_report(report, expected_sha256=hashlib.sha256(report).hexdigest())
+        held = replace(PINNED_BINDING, control_mode="OFF")
+        with self.assertRaisesRegex(ValueError, "settlement"):
+            replace(sample(), binding=held).checked_import(ref, expected_binding=held)
+        self.assertEqual(replace(sample(), binding=held, controls_settled=None)
+                         .checked_import(ref, expected_binding=held), (1486.417, -138.427))
+        with self.assertRaisesRegex(ValueError, "settlement"):
+            replace(sample(), controls_settled=None).checked_import(ref)
