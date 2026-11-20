@@ -7,7 +7,6 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import shutil
 import tempfile
 import time
 
@@ -164,12 +163,54 @@ def _actual_logs(eng, model, sensor):
 
 def _copy_model(cfg, temporary):
     source = ROOT / cfg["model"]
-    digest = hashlib.sha256(source.read_bytes()).hexdigest()
-    if digest != cfg["model_sha256"]:
-        raise RuntimeError("unexpected IEEE9 model bytes")
-    for path in (source, *source.parent.glob("*.m")):
-        shutil.copyfile(path, temporary / path.name)
+    inputs = [(source, cfg["model_sha256"])]
+    for name, digest in cfg["model_helpers"].items():
+        if Path(name).name != name or Path(name).suffix != ".m":
+            raise ValueError(f"invalid staged MATLAB helper: {name}")
+        inputs.append((source.parent / name, digest))
+    verified = []
+    for path, digest in inputs:
+        try:
+            data = path.read_bytes()
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"missing pinned MATLAB asset: {path.name}") from exc
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise RuntimeError(f"unexpected pinned MATLAB asset bytes: {path.name}")
+        verified.append((path.name, data))
+    for name, data in verified:
+        (temporary / name).write_bytes(data)
     return source.stem
+
+
+def _check_storage_delivery(request, readings, policy):
+    observed = {row.device: row.measured_injection for row in readings}
+    if len(readings) != len(observed) or observed.keys() != request.keys():
+        raise RuntimeError("missing, duplicate or unexpected storage terminal reading")
+    for device, expected_kw in request.items():
+        actual = observed[device]
+        if not (
+            math.isclose(actual.kw, expected_kw, rel_tol=0,
+                         abs_tol=policy["storage_abs_tol_kw"])
+            and math.isclose(actual.kvar, 0, rel_tol=0,
+                             abs_tol=policy["storage_abs_tol_kvar"])
+        ):
+            raise RuntimeError(
+                f"{device} physical terminal expected {expected_kw} kW / 0 kvar; "
+                f"measured {actual.kw} kW / {actual.kvar} kvar"
+            )
+
+
+def _check_pulse_order(values, minimum, source):
+    # Equal-width no-op windows bracket the two pulse windows in the same run.
+    idle_before, discharge, charge, idle_after = values
+    if not all(map(math.isfinite, values)) or not (
+        min(idle_before, idle_after) - discharge >= minimum
+        and charge - max(idle_before, idle_after) >= minimum
+    ):
+        raise RuntimeError(
+            f"{source} physical P must decrease on discharge and increase on charge "
+            f"relative to both no-op windows (minimum {minimum} kW): {values}"
+        )
 
 
 def _engine_run(cfg, anchor, pulses):
@@ -246,24 +287,17 @@ def run_probe(coupled=False):
         * sensor["frequency_max_gap_ticks"]
         + 1e-7,
     }
-    measured, _ = _engine_run(cfg, anchor, [])
-    warm = _check_measurement(
-        anchor,
-        measured,
-        policy,
-        policy["seconds"],
-        policy["tail_seconds"],
-        gaps,
-        settled=True,
-    )
     report = {
         "status": "warmup_passed",
         "scenario_sha256": hashlib.sha256(raw).hexdigest(),
         "slx_sha256": cfg["model_sha256"],
         "anchor_command": asdict(anchor),
-        "warmup_realized": warm,
+        "model_helpers_sha256": cfg["model_helpers"],
     }
-    if coupled:
+    if not coupled:
+        measured, _ = _engine_run(cfg, anchor, [])
+    else:
+        acceptance = cfg["transport_acceptance"]
         feeder_spec, _ = stock_probe_spec()
         with Native123Feeder(anchor) as driver:
             rows = []
@@ -282,6 +316,7 @@ def run_probe(coupled=False):
                     raise RuntimeError(
                         "123 native interval clock or source balance failed"
                     )
+                _check_storage_delivery(request, row.storage, acceptance)
                 rows.append(row)
                 return row.equivalent_transmission_load
 
@@ -292,15 +327,11 @@ def run_probe(coupled=False):
                 partial(command_at_pause, row) for row in feeder_spec["input_pulses"]
             ]
             measured, checkpoints = _engine_run(cfg, anchor, inputs)
-        _check_measurement(
-            anchor,
-            measured,
-            policy,
-            policy["seconds"],
-            policy["tail_seconds"],
-            gaps,
-            settled=True,
-        )
+    report["warmup_realized"] = _check_measurement(
+        anchor, measured, policy, policy["seconds"], policy["tail_seconds"],
+        gaps, settled=True,
+    )
+    if coupled:
         report["steps"] = []
         for row, (actual_t, command) in zip(rows, checkpoints, strict=True):
             realized = _check_measurement(
@@ -313,7 +344,15 @@ def run_probe(coupled=False):
                     "feeder": asdict(row),
                 }
             )
-        report["status"] = "coupled_physical_probe_passed"
+        _check_pulse_order(
+            [row.feeder_import.kw for row in rows],
+            acceptance["min_feeder_separation_kw"], "OpenDSS PCC",
+        )
+        _check_pulse_order(
+            [entry["actual"]["mean_p_kw"] for entry in report["steps"]],
+            acceptance["min_bus8_separation_kw"], "Simulink Bus8",
+        )
+        report["status"] = "sequential_one_way_transport_passed"
     return report
 
 
@@ -322,6 +361,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--coupled",
         action="store_true",
-        help="run four 1s pulse exchanges after warm-up passes",
+        help="run one warm-up and four 1s sequential one-way pulse exchanges",
     )
     print(json.dumps(run_probe(parser.parse_args().coupled), indent=2, allow_nan=False))

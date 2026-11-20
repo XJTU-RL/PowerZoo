@@ -36,5 +36,17 @@
     "frequency_sample_seconds": 0.2,
     "frequency_max_gap_ticks": 1,
     "cadence_source": "Pinned IEEE9BusSystem.slx: SimscapeLogDecimation=1 with FixedStep=Ts=1/60; Out_t and out_f_load1 To Workspace SampleTime=0.2."
+  },
+  "model_helpers": {
+    "fm_call.m": "72610d5e630a43d847470e5bd40ec03ed23d2fe6b9dc2b81695516676b6b7e60",
+    "IEEE9BusSystemExample.m": "f3120a96af994b415eb82834884b2adddf3b92b1b105ff6edc1abee8917105dd",
+    "IEEE9BusSystemPlotResults.m": "50f53312d229e52ce8e56f71c8f8854eaffc7aa87da616d230eb5f839e439069",
+    "simlogNeedsUpdate.m": "d4ac397c7fe852703d8670a4697c8240335a8ff45f06f256195e947c394c47de"
+  },
+  "transport_acceptance": {
+    "storage_abs_tol_kw": 0.05,
+    "storage_abs_tol_kvar": 0.05,
+    "min_feeder_separation_kw": 150,
+    "min_bus8_separation_kw": 100
   }
 }
