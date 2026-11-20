@@ -1,6 +1,6 @@
 """Draft OpenDSS-only input collector. No Bus8/engine writes."""
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import io
 import json
 import math
@@ -114,10 +114,10 @@ def _single_stage_kvar(raw, num_steps, states, bank_kvar):
     return kvar
 
 
-def _native_binding(c, deck_tree):
+def _native_binding(c, deck_tree, *, control_mode="STATIC"):
     s = c.Solution
-    if (int(s.Mode), int(s.ControlMode)) != (0, 0):
-        raise RuntimeError("expected native Snapshot/STATIC only")
+    if (int(s.Mode), int(s.ControlMode)) != (0, {"STATIC": 0, "OFF": -1}[control_mode]):
+        raise RuntimeError(f"expected native Snapshot/{control_mode} only")
     actual_der, disabled, shapes = _der_profile_inventory(c)
     shunt = "Capacitor.Study890"
     elt = _active(c, shunt)
@@ -139,8 +139,8 @@ def _native_binding(c, deck_tree):
         raise RuntimeError("expected exactly two source terminals")
     binding = Binding(STATIC_COMMIT, deck_tree, float(_prop(c, source, "pu")),
                       float(s.LoadMult), (bus[0], conn, kv, kvar),
-                      float(s.Tolerance), "STATIC", disabled, actual_der, shapes)
-    if binding != PINNED_BINDING:
+                      float(s.Tolerance), control_mode, disabled, actual_der, shapes)
+    if binding != replace(PINNED_BINDING, control_mode=control_mode):
         raise RuntimeError("measured runtime binding differs from pinned study")
     return binding
 
@@ -163,6 +163,10 @@ def _winding_records(c):
 
 
 def _pulse(c, demand):
+    if demand is None:
+        if c.SetActiveElement(PULSE) < 0 or c.ActiveCktElement.Enabled:
+            raise RuntimeError("expected a disabled pulse load at recovery")
+        return None
     if demand == (0., 0.):
         if PULSE.lower() in {n.lower() for n in c.AllElementNames}:
             raise RuntimeError("hold unexpectedly contains pulse load")
@@ -210,13 +214,13 @@ def _configure(context, deck, demand):
     return c
 
 
-def _capture(context, c, demand, index):
+def _capture(context, c, demand, index, *, control_mode="STATIC"):
     r = sample(SimpleNamespace(dss=context, batteries={}, diagnostic_mode="standard"))
-    if not r["converged"] or not c.Solution.ControlActionsDone:
+    if not r["converged"] or (control_mode == "STATIC" and not c.Solution.ControlActionsDone):
         raise RuntimeError("solve or STATIC controls incomplete")
     source = phases_and_terminals(_active(c, "Vsource.Source"))
     a, *additional = source
-    nominal = _native_binding(c, DECK_TREE)
+    nominal = _native_binding(c, DECK_TREE, control_mode=control_mode)
     actual_pulse = _pulse(c, demand)
     evidence = collect_shunt_evidence(c, 75.)
     shunt = evidence["measured_shunt_injection_kvar"]

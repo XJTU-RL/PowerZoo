@@ -144,10 +144,11 @@ class Snapshot:
     converged: bool
     controls_settled: bool
 
-    def checked_import(self, reference: ObservedReference) -> tuple[float, float]:
+    def checked_import(self, reference: ObservedReference, *,
+                       expected_binding=PINNED_BINDING) -> tuple[float, float]:
         vals = (self.time_s, self.source_terminal_kw, self.source_terminal_kvar,
                 self.remaining_source_terminal_kva, self.residual_kw, self.residual_kvar)
-        if self.binding != PINNED_BINDING:
+        if self.binding != expected_binding:
             raise ValueError("source/deck/settings or active DER/profile binding changed")
         if not all(math.isfinite(x) for x in vals):
             raise ValueError("non-finite measurement")
