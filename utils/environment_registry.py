@@ -48,6 +48,11 @@ ENVIRONMENTS = {
         "envs.district_dispatch.district_dispatch_env",
         "DistrictDispatchEnv",
     ),
+    # PISTG-LDCPPO 论文场景（arXiv:2610.33654）：33-bus + CBESS/DER。
+    # 当前仅服务集中控制/单智能体入口（MARL 向量化见 _vector_env 拦截）。
+    "cbess": EnvironmentSpec(
+        "envs.cbess.config", "CBESSConfig", "envs.cbess.task_env", "CBESSTaskEnv"
+    ),
     # OHASAC 论文算例：OpenDSS 配电网 + Simulink 输电网联合仿真。
     # 进程隔离为硬需求（每 worker 独立 MATLAB 引擎与 DSS 会话）。
     "lfc": EnvironmentSpec(

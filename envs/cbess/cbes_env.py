@@ -19,7 +19,7 @@ import numpy as np
 
 from envs.powergrid.session import DSSSession
 
-from ..data.profile_store import DayProfile, ProfileStore
+from .profile_store import DayProfile, ProfileStore
 from .physics import (
     COST_KEYS,
     CBESSParams,
