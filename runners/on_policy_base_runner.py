@@ -267,40 +267,7 @@ class OnPolicyBaseRunner:
                 print(f"检测到同质环境: {args['env']}")
                 print(f"共享动作空间: {self.envs.action_space[0]}")
 
-            share_observation_space = self.envs.share_observation_space[0]
-
-            # 评论家使用的目标状态值函数
-            self.critic = VCritic(
-                {**algo_args["model"], **algo_args["algo"]},
-                share_observation_space,
-                device=self.device,
-            )
-            if self.state_type == "EP":
-                # EP stands for Environment Provided, as phrased by MAPPO paper.
-                # In EP, the global states for all agents are the same.
-                self.critic_buffer = OnPolicyCriticBufferEP(
-                    {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
-                    share_observation_space,
-                )
-                # 使用 feature pruned特征剪裁的方法对全局状态值进行观测,特征剪裁的特定于智能体的全局状态
-            elif self.state_type == "FP":
-                # FP stands for Feature Pruned, as phrased by MAPPO paper.
-                # In FP, the global states for all agents are different,
-                # and thus needs the dimension of the number of agents.
-                # 对于异质智能体,因为每个智能体的全局状态是不同的,所以需要智能体数量这个维度
-                self.critic_buffer = OnPolicyCriticBufferFP(
-                    {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
-                    share_observation_space,
-                    self.num_agents,
-                )
-            else:
-                raise NotImplementedError
-
-            # 使用归一化
-            if self.algo_args["train"]["use_valuenorm"] is True:
-                self.value_normalizer = ValueNorm(1, device=self.device)
-            else:
-                self.value_normalizer = None
+            self._init_critics()
 
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_agents, self.writer, self.run_dir
@@ -314,6 +281,43 @@ class OnPolicyBaseRunner:
         # 添加详细的初始化日志记录
         if not self.algo_args["render"]["use_render"] and hasattr(self, "logger"):
             self._log_initialization_summary()
+
+    def _init_critics(self):
+        algo_args = self.algo_args
+        share_observation_space = self.envs.share_observation_space[0]
+
+        # 评论家使用的目标状态值函数
+        self.critic = VCritic(
+            {**algo_args["model"], **algo_args["algo"]},
+            share_observation_space,
+            device=self.device,
+        )
+        if self.state_type == "EP":
+            # EP stands for Environment Provided, as phrased by MAPPO paper.
+            # In EP, the global states for all agents are the same.
+            self.critic_buffer = OnPolicyCriticBufferEP(
+                {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
+                share_observation_space,
+            )
+            # 使用 feature pruned特征剪裁的方法对全局状态值进行观测,特征剪裁的特定于智能体的全局状态
+        elif self.state_type == "FP":
+            # FP stands for Feature Pruned, as phrased by MAPPO paper.
+            # In FP, the global states for all agents are different,
+            # and thus needs the dimension of the number of agents.
+            # 对于异质智能体,因为每个智能体的全局状态是不同的,所以需要智能体数量这个维度
+            self.critic_buffer = OnPolicyCriticBufferFP(
+                {**algo_args["train"], **algo_args["model"], **algo_args["algo"]},
+                share_observation_space,
+                self.num_agents,
+            )
+        else:
+            raise NotImplementedError
+
+        # 使用归一化
+        if self.algo_args["train"]["use_valuenorm"] is True:
+            self.value_normalizer = ValueNorm(1, device=self.device)
+        else:
+            self.value_normalizer = None
 
     def _shared_groups(self):
         """按网络实例分组的 [(代表 agent_id, [成员 ids])]。
@@ -353,7 +357,7 @@ class OnPolicyBaseRunner:
             ]:  # linear decay of learning rate
                 for representative, _ in self._shared_groups():
                     self.actor[representative].lr_decay(episode, episodes)
-                self.critic.lr_decay(episode, episodes)
+                self._prepare_critics("lr_decay", episode, episodes)
 
             self.logger.episode_init(
                 episode
@@ -415,7 +419,7 @@ class OnPolicyBaseRunner:
                     actor_train_infos,
                     critic_train_info,
                     self.actor_buffer,
-                    self.critic_buffer,
+                    self._critic_log_buffer(),
                 )
 
             # eval
@@ -495,19 +499,13 @@ class OnPolicyBaseRunner:
                 if agent_available_actions is not None:
                     self.actor_buffer[agent_id].available_actions[0] = agent_available_actions
 
-        # 如果状态类型为EP，则将share_obs的第一列复制到critic_buffer的share_obs中
+        self._warmup_critics(share_obs)
+
+    def _warmup_critics(self, share_obs):
         if self.state_type == "EP":
             self.critic_buffer.share_obs[0] = share_obs[:, 0].copy()
-        # 如果状态类型为FP，则将share_obs复制到critic_buffer的share_obs中
         elif self.state_type == "FP":
             self.critic_buffer.share_obs[0] = share_obs.copy()
-
-        # 可选：验证异构buffer的available_actions维度（调试时启用）
-        # if self.is_heterogeneous:
-        #     for agent_id in range(self.num_agents):
-        #         if hasattr(self.actor_buffer[agent_id], 'debug_available_actions_info'):
-        #             print(f"\n=== Warmup后智能体 {agent_id} 的Buffer状态 ===")
-        #             self.actor_buffer[agent_id].debug_available_actions_info()
 
     @torch.no_grad()
     def collect(
@@ -718,12 +716,13 @@ class OnPolicyBaseRunner:
 
             print("=" * 35)
 
+        values, critic_states = self._collect_critics(step)
         return (
-            self._collect_critic_values(step),
+            values,
             actions,
             action_log_probs,
             rnn_states,
-            self._collect_critic_states(step),
+            critic_states,
         )
 
     @torch.no_grad()
@@ -768,54 +767,33 @@ class OnPolicyBaseRunner:
         action_log_probs = np.stack(action_log_prob_collector, axis=1)
         rnn_states = np.stack(rnn_state_collector, axis=1)
 
+        values, critic_states = self._collect_critics(step)
         return (
-            self._collect_critic_values(step),
+            values,
             actions,
             action_log_probs,
             rnn_states,
-            self._collect_critic_states(step),
+            critic_states,
         )
 
-    def _collect_critic_values(self, step):
-        """收集Critic值"""
-
+    def _collect_critics(self, step):
+        buffer = self.critic_buffer
         if self.state_type == "EP":
-            value, _ = self.critic.get_values(
-                self.critic_buffer.share_obs[step],
-                self.critic_buffer.rnn_states_critic[step],
-                self.critic_buffer.masks[step],
+            values, states = self.critic.get_values(
+                buffer.share_obs[step], buffer.rnn_states_critic[step], buffer.masks[step]
             )
-            return _t2n(value)
-        elif self.state_type == "FP":
-            value, _ = self.critic.get_values(
-                np.concatenate(self.critic_buffer.share_obs[step]),
-                np.concatenate(self.critic_buffer.rnn_states_critic[step]),
-                np.concatenate(self.critic_buffer.masks[step]),
-            )
-            return np.array(
-                np.split(_t2n(value), self.algo_args["train"]["n_rollout_threads"])
-            )
+            return _t2n(values), _t2n(states)
 
-    def _collect_critic_states(self, step):
-        """收集Critic RNN状态"""
-        if self.state_type == "EP":
-            _, rnn_state_critic = self.critic.get_values(
-                self.critic_buffer.share_obs[step],
-                self.critic_buffer.rnn_states_critic[step],
-                self.critic_buffer.masks[step],
-            )
-            return _t2n(rnn_state_critic)
-        elif self.state_type == "FP":
-            _, rnn_state_critic = self.critic.get_values(
-                np.concatenate(self.critic_buffer.share_obs[step]),
-                np.concatenate(self.critic_buffer.rnn_states_critic[step]),
-                np.concatenate(self.critic_buffer.masks[step]),
-            )
-            return np.array(
-                np.split(
-                    _t2n(rnn_state_critic), self.algo_args["train"]["n_rollout_threads"]
-                )
-            )
+        values, states = self.critic.get_values(
+            np.concatenate(buffer.share_obs[step]),
+            np.concatenate(buffer.rnn_states_critic[step]),
+            np.concatenate(buffer.masks[step]),
+        )
+        threads = self.algo_args["train"]["n_rollout_threads"]
+        return (
+            np.array(np.split(_t2n(values), threads)),
+            np.array(np.split(_t2n(states), threads)),
+        )
 
     def insert(self, data):
         """Insert data into buffer."""
@@ -853,23 +831,6 @@ class OnPolicyBaseRunner:
                 dtype=np.float32,
             )
         )
-
-        # If env is done, then reset rnn_state_critic to all zero
-        if self.state_type == "EP":
-            rnn_states_critic[dones_env == True] = np.zeros(
-                ((dones_env == True).sum(), self.recurrent_n, self.rnn_hidden_size),
-                dtype=np.float32,
-            )
-        elif self.state_type == "FP":
-            rnn_states_critic[dones_env == True] = np.zeros(
-                (
-                    (dones_env == True).sum(),
-                    self.num_agents,
-                    self.recurrent_n,
-                    self.rnn_hidden_size,
-                ),
-                dtype=np.float32,
-            )
 
         # masks use 0 to mask out threads that just finish.
         # this is used for denoting at which point should rnn state be reset
@@ -944,30 +905,23 @@ class OnPolicyBaseRunner:
                 active_masks[:, agent_id],
                 agent_available_actions,
             )
-        # 创建一个空列表用于存储所有 'S' 对应的值
-        # TODO:设置S矩阵的筛选条件
-        S_values = []
+        self._insert_critics(
+            share_obs, rewards, infos, values, rnn_states_critic, masks, bad_masks
+        )
 
-        # 遍历列表中的每个元素
-        for item in infos:
-            # 检查当前元素是否包含键 'S'
-            if "S" in item[0]:
-                # 如果包含，将 'S' 对应的值添加到 S_values 列表中
-                S_values.append(item[0]["S"])
+    def _insert_critics(
+        self, share_obs, rewards, infos, values, rnn_states, masks, bad_masks
+    ):
+        rnn_states[masks[:, 0, 0] == 0] = 0
         if self.state_type == "EP":
+            sensitivities = [info[0]["S"] for info in infos if "S" in info[0]]
             self.critic_buffer.insert(
-                share_obs[:, 0],
-                rnn_states_critic,
-                values,
-                rewards[:, 0],
-                masks[:, 0],
-                bad_masks,
-                S_values,
+                share_obs[:, 0], rnn_states, values, rewards[:, 0],
+                masks[:, 0], bad_masks, sensitivities,
             )
-        # TODO：设置S矩阵的筛选条件
         elif self.state_type == "FP":
             self.critic_buffer.insert(
-                share_obs, rnn_states_critic, values, rewards, masks, bad_masks
+                share_obs, rnn_states, values, rewards, masks, bad_masks
             )
 
     @torch.no_grad()
@@ -976,22 +930,7 @@ class OnPolicyBaseRunner:
         Compute critic evaluation of the last state,
         and then let buffer compute returns, which will be used during training.
         """
-        if self.state_type == "EP":
-            next_value, _ = self.critic.get_values(
-                self.critic_buffer.share_obs[-1],
-                self.critic_buffer.rnn_states_critic[-1],
-                self.critic_buffer.masks[-1],
-            )
-            next_value = _t2n(next_value)
-        elif self.state_type == "FP":
-            next_value, _ = self.critic.get_values(
-                np.concatenate(self.critic_buffer.share_obs[-1]),
-                np.concatenate(self.critic_buffer.rnn_states_critic[-1]),
-                np.concatenate(self.critic_buffer.masks[-1]),
-            )
-            next_value = np.array(
-                np.split(_t2n(next_value), self.algo_args["train"]["n_rollout_threads"])
-            )
+        next_value, _ = self._collect_critics(-1)
         self.critic_buffer.compute_returns(next_value, self.value_normalizer)
 
     def train(self):
@@ -1005,7 +944,13 @@ class OnPolicyBaseRunner:
         """
         for agent_id in range(self.num_agents):
             self.actor_buffer[agent_id].after_update()
+        self._after_critic_update()
+
+    def _after_critic_update(self):
         self.critic_buffer.after_update()
+
+    def _critic_log_buffer(self):
+        return self.critic_buffer
 
     def _process_heterogeneous_eval_actions(
         self, eval_actions_collector, squeeze_single_dim=False
@@ -1287,13 +1232,16 @@ class OnPolicyBaseRunner:
         """Prepare for rollout."""
         for agent_id in range(self.num_agents):
             self.actor[agent_id].prep_rollout()
-        self.critic.prep_rollout()
+        self._prepare_critics("prep_rollout")
 
     def prep_training(self):
         """Prepare for training."""
         for agent_id in range(self.num_agents):
             self.actor[agent_id].prep_training()
-        self.critic.prep_training()
+        self._prepare_critics("prep_training")
+
+    def _prepare_critics(self, method, *args):
+        getattr(self.critic, method)(*args)
 
     def save(self, episode=None, is_best=False):
         """Save model parameters.
@@ -1321,18 +1269,7 @@ class OnPolicyBaseRunner:
                 os.path.join(save_path, f"actor_agent{agent_id}.pt"),
             )
 
-        # 保存critic模型
-        policy_critic = self.critic.critic
-        torch.save(
-            policy_critic.state_dict(), os.path.join(save_path, "critic_agent.pt")
-        )
-
-        # 保存value normalizer
-        if self.value_normalizer is not None:
-            torch.save(
-                self.value_normalizer.state_dict(),
-                os.path.join(save_path, "value_normalizer.pt"),
-            )
+        critic_files = self._save_critics(Path(save_path))
 
         # 保存训练状态信息
         training_state = {
@@ -1355,15 +1292,8 @@ class OnPolicyBaseRunner:
                     os.path.join(save_path, f"actor_agent{agent_id}.pt"),
                     os.path.join(best_dir, f"actor_agent{agent_id}.pt"),
                 )
-            shutil.copy2(
-                os.path.join(save_path, "critic_agent.pt"),
-                os.path.join(best_dir, "critic_agent.pt"),
-            )
-            if self.value_normalizer is not None:
-                shutil.copy2(
-                    os.path.join(save_path, "value_normalizer.pt"),
-                    os.path.join(best_dir, "value_normalizer.pt"),
-                )
+            for filename in critic_files:
+                shutil.copy2(Path(save_path) / filename, Path(best_dir) / filename)
             shutil.copy2(
                 os.path.join(save_path, "training_state.pt"),
                 os.path.join(best_dir, "training_state.pt"),
@@ -1373,54 +1303,62 @@ class OnPolicyBaseRunner:
                 f"新的最佳模型已保存！Episode: {episode}, Reward: {self.best_reward:.4f}"
             )
 
+    def _save_critics(self, save_path):
+        # 保存critic模型
+        policy_critic = self.critic.critic
+        torch.save(
+            policy_critic.state_dict(), os.path.join(save_path, "critic_agent.pt")
+        )
+
+        # 保存value normalizer
+        if self.value_normalizer is not None:
+            torch.save(
+                self.value_normalizer.state_dict(),
+                os.path.join(save_path, "value_normalizer.pt"),
+            )
+
+        files = ["critic_agent.pt"]
+        if self.value_normalizer is not None:
+            files.append("value_normalizer.pt")
+        return files
+
     def restore(self):
         from utils.physics_manifest import validate_checkpoint
 
-        validate_checkpoint(
-            self.algo_args["train"]["model_dir"],
-            getattr(self, "physics_manifest", None),
-        )
-        """恢复模型参数。"""
-        # 遍历每个agent
-        for agent_id in range(self.num_agents):
-            # 加载每个agent的actor参数
-            policy_actor_state_dict = torch.load(
-                str(self.algo_args["train"]["model_dir"])
-                + "/actor_agent"
-                + str(agent_id)
-                + ".pt"
+        model_dir = Path(self.algo_args["train"]["model_dir"])
+        validate_checkpoint(model_dir, getattr(self, "physics_manifest", None))
+        for agent_id, actor in enumerate(self.actor):
+            weights = torch.load(
+                model_dir / f"actor_agent{agent_id}.pt",
+                map_location=self.device,
+                weights_only=True,
             )
-            self.actor[agent_id].actor.load_state_dict(policy_actor_state_dict)
-        # 如果不是使用render，则加载critic参数
+            actor.actor.load_state_dict(weights)
+        self._restore_critics(model_dir)
+
+    def _restore_critics(self, model_dir):
         if not self.algo_args["render"]["use_render"]:
-            policy_critic_state_dict = torch.load(
-                str(self.algo_args["train"]["model_dir"]) + "/critic_agent" + ".pt"
-            )
-            self.critic.critic.load_state_dict(policy_critic_state_dict)
-            # 如果使用了value_normalizer，则加载value_normalizer参数
+            self.critic.critic.load_state_dict(torch.load(model_dir / "critic_agent.pt"))
             if self.value_normalizer is not None:
-                value_normalizer_state_dict = torch.load(
-                    str(self.algo_args["train"]["model_dir"])
-                    + "/value_normalizer"
-                    + ".pt"
+                self.value_normalizer.load_state_dict(
+                    torch.load(model_dir / "value_normalizer.pt")
                 )
-                self.value_normalizer.load_state_dict(value_normalizer_state_dict)
 
     def close(self):
         """关闭环境、writer 和 logger。"""
-        if self.algo_args["render"]["use_render"]:
+        if hasattr(self, "envs"):
             self.envs.close()
-        else:
-            self.envs.close()
-            if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
-                self.eval_envs.close()
+        eval_envs = getattr(self, "eval_envs", None)
+        if eval_envs is not None and eval_envs is not self.envs:
+            eval_envs.close()
+        if hasattr(self, "writer"):
             self.writer.export_scalars_to_json(str(self.log_dir + "/summary.json"))
-            # 清除全局诊断引用，避免下次训练重新打开已关闭的日志文件。
             from utils import happo_diagnostics
 
             if happo_diagnostics.get_diagnostics().writer is self.writer:
                 happo_diagnostics.set_writer(None)
             self.writer.close()
+        if hasattr(self, "logger"):
             self.logger.close()
 
     def get_result(self):

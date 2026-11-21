@@ -1,0 +1,37 @@
+seed: {seed_specify: true, seed: 1}
+device: {cuda: true, cuda_deterministic: true, torch_threads: 4}
+train:
+  n_rollout_threads: 1
+  train_interval: 1
+  log_interval: 1
+  eval_interval: 1
+  save_interval: 10
+  model_dir: null
+  num_env_steps: 24000
+  episode_length: 24
+eval: {use_eval: true, n_eval_rollout_threads: 1, eval_episodes: 1}
+model:
+  hidden_sizes: [128, 128]
+  activation_func: relu
+  use_feature_normalization: true
+  initialization_method: orthogonal_
+  gain: 0.01
+  use_naive_recurrent_policy: false
+  use_recurrent_policy: false
+  lr: 0.0005
+  opti_eps: 0.00001
+  weight_decay: 0.0
+render: {use_render: false}
+algo:
+  buffer_size: 12000
+  batch_size: 72
+  gamma: 0.99
+  use_huber_loss: false
+  huber_delta: 10.0
+  max_grad_norm: 10.0
+  use_double_q: true
+  tau: 0.005
+  epsilon_start: 1.0
+  epsilon_finish: 0.05
+  epsilon_anneal_time: 12000
+logger: {log_dir: "./results"}

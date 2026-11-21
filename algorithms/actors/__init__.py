@@ -22,6 +22,7 @@ from algorithms.actors.had3qn import HAD3QN
 from algorithms.actors.maddpg import MADDPG
 from algorithms.actors.matd3 import MATD3
 from algorithms.actors.mappo import MAPPO
+from algorithms.actors.on_policy_base import OnPolicyBase
 from algorithms.actors.shom import SHOM
 from algorithms.actors.sn_mappo import SN_MAPPO
 
@@ -38,6 +39,8 @@ ALGO_REGISTRY = {
     "maddpg": MADDPG,
     "matd3": MATD3,
     "mappo": MAPPO,
+    "coma": OnPolicyBase,  # The runner supplies the COMA policy gradient.
+    "ippo": MAPPO,  # Reuse the PPO loss; IPPORunner supplies independent local advantages.
     "shom": SHOM,
     "sn_mappo": SN_MAPPO,
 }
