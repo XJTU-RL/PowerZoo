@@ -289,17 +289,17 @@ def main():
     print("[3/3] PIAE 训练…")
     piae, norm_adj = make_piae(meta, args.variant, run.encoder, stats, env.lines)
     out_path = out_dir / f"piae_{args.variant}_ep{args.episodes}.pt"
-    hold_norm = [a.copy() for a in holdout]
-    for arr, mean, std in (
-        (hold_norm[0], stats["feature_mean"], stats["feature_std"]),
-        (hold_norm[1], stats["price_mean"], stats["price_std"]),
-    ):
-        arr -= mean
-        arr /= std
-    hold_norm[2] = (holdout[2] - stats["v_mean"]) / stats["v_std"]
-    hold_norm[3] = (holdout[3] - stats["p_mean"]) / stats["p_std"]
-    hold_norm[4] = (holdout[4] - stats["q_mean"]) / stats["q_std"]
-    hold_norm[5] = holdout[5] / (S_BASE_MVA * 1000.0)
+    # collect_episodes 返回 5 个数组（flows 合并 p/q）；按 train() 的
+    # eval_arrays 解包顺序（feats, prices, v, p, q, inj）重组并归一化。
+    hf, hp_, hv, hflows, hinj = holdout
+    hold_norm = [
+        ((hf - stats["feature_mean"]) / stats["feature_std"]).astype(np.float32),
+        ((hp_ - stats["price_mean"]) / stats["price_std"]).astype(np.float32),
+        ((hv - stats["v_mean"]) / stats["v_std"]).astype(np.float32),
+        ((hflows[..., 0] - stats["p_mean"]) / stats["p_std"]).astype(np.float32),
+        ((hflows[..., 1] - stats["q_mean"]) / stats["q_std"]).astype(np.float32),
+        (hinj / (S_BASE_MVA * 1000.0)).astype(np.float32),
+    ]
     train(piae, norm_adj, arrays, run.encoder, args.episodes, args.device,
           out_path, args.variant, stats, meta, env.lines,
           epochs_per_pass=args.epochs, seed=args.seed + 1,
