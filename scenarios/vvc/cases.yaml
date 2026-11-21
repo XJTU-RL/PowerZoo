@@ -1,0 +1,168 @@
+schema_version: 1
+base_revision: 97d69b8e19a830ce9ff03aeec3af50eb6997af86
+reference_experiment: configs/experiments/vvc_reference_smoke.yaml
+cases:
+  ieee34:
+    role: reference
+    availability: bundled_adaptation
+    source:
+      url: https://github.com/dss-extensions/electricdss-tst/tree/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/34Bus
+      redistribution: Existing PowerZoo files only. Upstream feeder remains separate.
+      upstream_sha256:
+        ieee34Mod1.dss: f56f4045491c1343604369caff07252c2ffcf6a8395d029d781089e186cde8f0
+        IEEELineCodes.DSS: b54774e50861c034b35836d8f93fba29b8d25d9562c216162f0c6c46a8ab9dff
+    feeder:
+      folder: node_systems/34Bus
+      master: network.dss
+      tracked_sha256:
+        network.dss: 97fa112cb3c9b1d8a726811b37d71955b0ef0774ac98b9bfe3182ec2eaee2427
+        IEEELineCodes.dss: f4cef900cd68b11959ab689082e5d579f56ebacde222389bf06f5baa5f46d5fc
+      base_master_sha256: 22f315921b52d9994997ac4c304f749087d8336a0e22346c12f62a51d34b32b3
+    scenario:
+      overlay: scenarios/vvc/34Bus/storage.dss
+      overlay_sha256: 7b5027d066e299664b165033c19b7bd0863bfcca04128ff8fba313159a8fa4fa
+      storage_buses:
+        batt1: '890.1.2.3'
+        batt2: '832.1.2.3'
+      capacitor_count: 2
+      regulator_count: 6
+      pv_count: 0
+      profiled_input: classic_synthetic
+      line_thermal_limits: unverified
+    system_ref: 34Bus
+    legacy_experiment: configs/experiments/vvc_34bus_smoke.yaml
+
+  ieee123:
+    role: reference
+    availability: bundled_adaptation
+    source:
+      url: https://github.com/dss-extensions/electricdss-tst/tree/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/123Bus
+      redistribution: Existing PowerZoo files only. Upstream feeder remains separate.
+      upstream_sha256:
+        IEEE123Master.dss: cc7c2f153ca1e57f9fb5cad8b3c3e1ecbcb20c5db59ca4d65539411a50525969
+        IEEELineCodes.DSS: be95f7afaf3e342b132ff2ef20a2b150e3b9966626cbf95eb47f5e9820953c40
+        IEEE123Regulators.DSS: cd6ad77980dc018631ce39faab528afce40b0b9a50a6bc1c9ac8049ffb8207d7
+        IEEE123Loads.DSS: fd28f52836205506a1980b52c5a7e12ca585aa626c52a6249502c1c3b2fc2255
+    feeder:
+      folder: node_systems/123Bus
+      master: network.dss
+      tracked_sha256:
+        network.dss: ac397ce2a670af2ecd813ffc41fad75a84b345364a76b867bf702e6fb39d0f62
+        IEEELineCodes.DSS: cc1c17c16a3987e5bd1b470a0a2a9e2f5568f09675740a286e70db086865a56c
+        IEEE123Regulators.DSS: 8c41d5019f5a55caedd3bab6b1f3fa3c0dc72fa0bec8a335e1042df8a4ac4b86
+        IEEE123Loads_static.dss: 0be44605611f2a117625bc4a5523980355e6e9e03db5b478850e5e70ea2d5c07
+      base_master_sha256: 7a95fa0c46da1bb96057bddb65e1f8a9ef60ef7e751d11a97a45294752e6671c
+    scenario:
+      overlay: scenarios/vvc/123Bus/storage.dss
+      overlay_sha256: 52469b2e8bc85bc7f7b840c3ad8f01a82e02d8270adfb8892d5f99abfd2d1f8f
+      storage_buses:
+        batt1: '33.1'
+        batt2: '114.1'
+        batt3: '67.1.2.3'
+        batt4: '300.1.2.3'
+      capacitor_count: 4
+      regulator_count: 7
+      pv_count: 0
+      profiled_input: classic_synthetic
+      line_thermal_limits: no_sourced_limits
+      lines_without_sourced_limits: 126
+    system_ref: 123Bus
+    legacy_experiment: configs/experiments/vvc_123bus_smoke.yaml
+
+  ieee4:
+    role: compatibility_with_voltage_violations
+    availability: external_source
+    source:
+      url: https://github.com/dss-extensions/electricdss-tst/blob/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/4Bus-DY-Bal/4Bus-DY-Bal.DSS
+      redistribution: unverified
+      upstream_sha256:
+        4Bus-DY-Bal.DSS: 8fae57ff4f8c2abfa0f7f6d2915996b1204d2cab2290d6a4858963b9c3ea3011
+    historical_scenario:
+      revision: a2c364458a5e92ba704e23922117836be8fc1319
+      actuators: [Capacitor.study_q_n3, Capacitor.study_q_n4]
+      overlay_origin: Research shunts on n3 and n4. Prior experimental input is external.
+      overlay_sha256: 9462012045c47e0ec777adf7810c40865774f030c477969004936f189db2c6a1
+
+  ieee37:
+    role: compatibility_with_voltage_violations
+    availability: external_source
+    source:
+      url: https://github.com/dss-extensions/electricdss-tst/tree/2f65ebd3ea21546102fc96345fc0cee7bcf33537/Version8/Distrib/IEEETestCases/37Bus
+      redistribution: unverified
+      upstream_sha256:
+        ieee37.dss: 97c2571c1698be56c164d3b4c3a1c7a536df976631d3dba4d5108b8b44498b81
+        IEEELineCodes.DSS: 4bc8e3a0b24ad7b1cb4321f1c3b6c8458b646dd3a83b3cd11cccc02444624cb2
+        IEEE37_BusXY.csv: e1af4a2e8667938db07ad8bd5704605d77bfea70678ecf89b255b2405f65afce
+    historical_scenario:
+      revision: a2c364458a5e92ba704e23922117836be8fc1319
+      actuators: [RegControl.creg1a, RegControl.creg1c]
+      voltage_basis: Open-delta compliance requires line-to-line phasor magnitudes on the matching base.
+      overlays: []
+
+  baran-wu69:
+    role: compatibility_with_voltage_violations
+    availability: external_source_conversion
+    source:
+      url: https://github.com/MATPOWER/matpower/blob/8.1/data/case69.m
+      citation: https://doi.org/10.1109/61.19265
+      rights_note: https://github.com/MATPOWER/matpower/blob/8.1/LICENSE
+      redistribution: unverified
+      upstream_filename: case69.m
+      git_blob_sha1: 5fbd163c0c3f2c32e3fd998e4100b2e3f786fc5e
+      converter: https://github.com/XJTU-RL/PowerZoo/blob/a2f0c6a7aded784b5f4ce96761dff15e8011d2ed/scripts/import_matpower_case69.py
+      converted_dss_sha256: f01b9dbdc81b22a3921752c1ed98e37fab2458751c596713f6243f55396e853a
+    historical_scenario:
+      revision: a2c364458a5e92ba704e23922117836be8fc1319
+      actuators: [Capacitor.study_q_b64, Capacitor.study_q_b65]
+      overlay_origin: Research shunts on buses 64 and 65. Prior experimental input is external.
+      overlay_sha256: 3e8802ccc6bd7457da6021c53f4fa49198585c867aaa33802c872e6eb4d2ed48
+
+  ieee8500:
+    role: scale_power_flow_diagnostic
+    availability: bundled_adaptation
+    source:
+      url: https://opendss.epri.com/ExamplesDocsandTestCases.html
+      local_original_entry: node_systems/8500-Node/Master.dss
+    system_ref: 8500Node
+    thermal_limits: unverified
+    historical_revision: f83ded295d544c5b974c2cf99462976d43b76207
+
+  pnnl9500-unbalanced:
+    role: scale_power_flow_diagnostic
+    availability: bundled_adaptation
+    source:
+      url: https://www.pnnl.gov/publications/introducing-9500-node-distribution-test-system-support-advanced-power-applications
+      local_original_entry: node_systems/9500-Node/Original DSS Models/Master-unbal-initial-config.dss
+    system_ref: 9500Node
+    expected_nominal: non_convergence
+    thermal_limits: unverified
+    historical_revision: f83ded295d544c5b974c2cf99462976d43b76207
+
+  pnnl9500-balanced:
+    role: scale_power_flow_diagnostic
+    availability: bundled_adaptation
+    source:
+      url: https://www.pnnl.gov/publications/introducing-9500-node-distribution-test-system-support-advanced-power-applications
+      local_original_entry: node_systems/9500-Node/Original DSS Models/Master-bal-initial-config.dss
+    system_ref: 9500Node_bal
+    expected_nominal: non_convergence
+    thermal_limits: unverified
+    historical_revision: f83ded295d544c5b974c2cf99462976d43b76207
+
+  ieee13:
+    role: legacy_vvc_smoke
+    availability: bundled_adaptation
+    source:
+      url: https://opendss.epri.com/ExamplesDocsandTestCases.html
+    experiment: configs/experiments/vvc_13bus_smoke.yaml
+
+profile_inputs:
+  classic_synthetic:
+    load_base: OpenDSS Load kW and kvar
+    pv_base: No PV devices in these two scenarios.
+    generator: envs/powergrid/scenario.py
+    mapping: DataConfig.load_groups or deterministic DSS load-name grouping.
+    splits:
+      train: policy fitting
+      validation: selection and development checks
+      test: reserved final evaluation
