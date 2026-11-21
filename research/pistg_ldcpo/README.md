@@ -83,7 +83,7 @@ scripts/run_full.sh 全量流水线
 `algorithms/centralized/`（LDCPPO + CENTRALIZED_ALGOS）。本目录保留研究入口
 （pretrain/train/evaluate，含 PISTG/PIAE 编码器与 W=12 窗口）与数据管线；
 框架标准入口：`python scripts/train_centralized.py --backend ldcppo --config
-configs/experiments/cbess_ldcppo_smoke.yaml`（平铺观测口径；PISTG 编码器
+configs/experiments/cbess_ldcppo_quickstart.yaml`（平铺观测口径；PISTG 编码器
 骨干的接入为后续项）。
 
 复现范围（本轮）：PISTG-LDCPPO + LDCPPO（flat）+ STG-LDCPPO 三配置

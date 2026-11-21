@@ -1,6 +1,6 @@
 # CBESS 协调（PISTG-LDCPPO 论文场景，arXiv:2610.33654）：33-bus + 4 CBESS +
 # 26 DER 母线，全 AC 潮流。当前服务集中控制/单智能体入口：
-#   python scripts/train_centralized.py --backend ldcppo --config configs/experiments/cbess_ldcppo_smoke.yaml
+#   python scripts/train_centralized.py --backend ldcppo --config configs/experiments/cbess_ldcppo_quickstart.yaml
 # 剖面数据需先生成（research/pistg_ldcpo/data/prepare_profiles.py，Ausgrid
 # 三年数据，manifest 记录标定），详见 research/pistg_ldcpo/README.md。
 env:

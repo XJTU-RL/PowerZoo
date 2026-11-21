@@ -26,8 +26,11 @@ from .profile_store import ProfileStore
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-class CBESSTaskEnv:
-    """CBESEnv 的单智能体任务包装（注册表 wrapper_class）。"""
+class CBESSTaskEnv(gym.Env):
+    """CBESEnv 的单智能体任务包装（注册表 wrapper_class）。
+
+    继承 gymnasium.Env（复审 P2）：SB3 等后端要求真 Env 子类，
+    普通 Python 类会在 _patch_env 处被拒。"""
 
     def __init__(self, config: CBESSConfig, rank: int = 0):
         self.config = config
@@ -56,6 +59,12 @@ class CBESSTaskEnv:
     # ------------------------------------------------------------------
     def seed(self, seed: int):
         self._rng = np.random.default_rng(seed)
+
+    def get_rng_state(self) -> dict:
+        return self._rng.bit_generator.state
+
+    def set_rng_state(self, state: dict):
+        self._rng.bit_generator.state = state
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         if seed is not None:

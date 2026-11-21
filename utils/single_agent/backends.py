@@ -146,9 +146,14 @@ def run_ldcppo(cfg, env, output: Path, steps: int, resume: bool = False):
             rng.bit_generator.state = ckpt["np_rng_state"]
         if "torch_rng_state" in ckpt:
             torch.set_rng_state(ckpt["torch_rng_state"])
+        if "env_rng_state" in ckpt and hasattr(env, "set_rng_state"):
+            env.set_rng_state(ckpt["env_rng_state"])
         print(f"续训：自 ep{start_episode} 恢复（λ={agent.multipliers}）")
-
-    torch.manual_seed(cfg.algo_args["seed"]["seed"] + start_episode)
+    else:
+        # 仅新训练播种；续训保留 checkpoint 恢复的 RNG 状态（复审 P2）
+        torch.manual_seed(cfg.algo_args["seed"]["seed"])
+        if hasattr(env, "seed"):
+            env.seed(cfg.algo_args["seed"]["seed"])
 
     budgets = dict(agent.budgets) if agent.budgets else None
     if budgets is None:
@@ -187,6 +192,7 @@ def run_ldcppo(cfg, env, output: Path, steps: int, resume: bool = False):
         rewards = np.zeros(T)
         costs = {k: np.zeros(T) for k in COST_KEYS}
         terminated = False
+        n_done = 0  # 实际完成转移数（复审 P2：提前终止不传幽灵零转移）
         for t in range(T):
             if terminated:
                 break
@@ -200,14 +206,15 @@ def run_ldcppo(cfg, env, output: Path, steps: int, resume: bool = False):
             if costs_step is not None:
                 for k in COST_KEYS:
                     costs[k][t] = costs_step.get(k, 0.0)
+            n_done = t + 1
         last_values = (
             agent.values(obs.astype(np.float32))
             if algo_cfg.bootstrap_at_episode_end
             else {"R": 0.0, **{k: 0.0 for k in agent.cost_critics}}
         )
         stats = agent.update(
-            states[: t + 1], actions[: t + 1], logps[: t + 1],
-            rewards[: t + 1], {k: v[: t + 1] for k, v in costs.items()},
+            states[:n_done], actions[:n_done], logps[:n_done],
+            rewards[:n_done], {k: v[:n_done] for k, v in costs.items()},
             last_values,
         )
         logger.writerow(
@@ -224,15 +231,15 @@ def run_ldcppo(cfg, env, output: Path, steps: int, resume: bool = False):
                 f"kl={stats['kl']:.4f}"
             )
         if episode % checkpoint_every == 0 or episode == total_episodes:
-            torch.save(
-                {**agent.state_dict(),
-                 "episode": episode,
-                 "backend": "ldcppo",
-                 "budgets": budgets,
-                 "np_rng_state": rng.bit_generator.state,
-                 "torch_rng_state": torch.get_rng_state()},
-                ckpt_path,
-            )
+            ckpt = {**agent.state_dict(),
+                    "episode": episode,
+                    "backend": "ldcppo",
+                    "budgets": budgets,
+                    "np_rng_state": rng.bit_generator.state,
+                    "torch_rng_state": torch.get_rng_state()}
+            if hasattr(env, "get_rng_state"):
+                ckpt["env_rng_state"] = env.get_rng_state()
+            torch.save(ckpt, ckpt_path)
     log_file.close()
     out_dir.joinpath("run.ldcppo.json").write_text(
         json.dumps(
