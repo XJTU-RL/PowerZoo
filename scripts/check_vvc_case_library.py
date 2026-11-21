@@ -195,6 +195,15 @@ def reference_endpoint(config, scenario):
             "engine": session.dss.Version,
             "dss_model_sha256": binding["model_sha256"],
             "action_schema": binding["action_schema"],
+            "regulator_tap_bounds": {
+                name: {
+                    "min": reg.mintap,
+                    "max": reg.maxtap,
+                    "native_intervals": reg.numtaps,
+                }
+                for name, reg in session.regulators.items()
+            },
+            "storage_ratings": binding["storage"],
             "initial_voltages": initial,
             "final_voltages": phase_voltages(session),
             "final_grid_kw_kvar": env.physical_state.grid_import,
@@ -229,7 +238,13 @@ def reference_case(case_id, case, destination, data):
         for path in (case["legacy_experiment"], staged_experiment)
     ]
     legacy, staged = (reference_endpoint(cfg, case["scenario"]) for cfg in configs)
-    for key in ("action_schema", "storage_buses", "changed_devices"):
+    for key in (
+        "action_schema",
+        "regulator_tap_bounds",
+        "storage_ratings",
+        "storage_buses",
+        "changed_devices",
+    ):
         require(legacy[key] == staged[key], f"旧版与独立叠加层的 {key} 不同")
     max_voltage_deltas = {}
     for key in ("initial_voltages", "final_voltages"):
@@ -270,6 +285,7 @@ def scale_snapshot(config, multiplier):
     with closing(DSSSession(ROOT / config.dss_folder, config.dss_file)) as session:
         solution = session.native.Solution
         report = {
+            "master": config.dss_file,
             "load_multiplier": multiplier,
             "load_model_counts": {},
             "pv_count": len(session.pvs),
