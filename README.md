@@ -153,6 +153,9 @@ python scripts/check_runtime.py --train
 这验证安装与执行链路，不代表算法已收敛或控制效果已得到验证。
 本机版本、硬件、已执行检查及限制见 [Windows 验证记录](docs/windows-runtime.md)。
 
+VVC 算法接入可先运行 `python scripts/check_capabilities.py --list` 查看公开能力。
+配置预检、逐阶段验收报告和 Parallel 适配边界见 [VVC 接入与验收](docs/vvc-acceptance-contract.md)。
+
 Windows 首次开发优先使用 `vvc + 13Bus + HAPPO`。普通训练可从下列短任务开始：
 
 ```powershell
