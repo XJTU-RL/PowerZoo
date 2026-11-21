@@ -111,6 +111,15 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
      "state": "work",
      "status": "联调中",
      "result": "联合验收已启动；将验证公共入口在仿真前拒绝不兼容组合。"
+    },
+    {
+     "id": "interface-joint-verified",
+     "date": "2026-11-21",
+     "label": "联合验收",
+     "state": "wait",
+     "status": "联调已验",
+     "result": "最终版在南洋通过 129 项回归，包括 Parallel 协议和 IEEE13 五阶段验收。",
+     "next": "可拆分提审；全环境依赖检查仍有冲突。"
     }
    ]
   },
@@ -159,6 +168,15 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
      "state": "work",
      "status": "联调中",
      "result": "复核 LDCPPO 误配、动作边界、终止及旧 PPO 兼容性。"
+    },
+    {
+     "id": "single-joint-verified",
+     "date": "2026-11-21",
+     "label": "边界已验",
+     "state": "wait",
+     "status": "联调已验",
+     "result": "LDCPPO 动作、终止及约束边界通过；新旧 PPO 重载和 CBESS 续训回放通过。",
+     "next": "未进行正式训练。"
     }
    ]
   },
@@ -206,6 +224,15 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
      "state": "work",
      "status": "联调中",
      "result": "复核 IPPO、QMIX、VDN、COMA 的入口、掩码和重载。"
+    },
+    {
+     "id": "discrete-joint-verified",
+     "date": "2026-11-21",
+     "label": "组合已验",
+     "state": "wait",
+     "status": "联调已验",
+     "result": "IEEE34 的 IPPO、QMIX、VDN、COMA 通过最小更新与重载回放；核对原生全局状态和结构掩码。",
+     "next": "不承诺精确续训或控制排名。"
     }
    ]
   },
@@ -245,6 +272,15 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
      "state": "work",
      "status": "联调中",
      "result": "复核真实连续动作和 SHOM 更新顺序，不改物理执行顺序。"
+    },
+    {
+     "id": "continuous-joint-verified",
+     "date": "2026-11-21",
+     "label": "组合已验",
+     "state": "wait",
+     "status": "联调已验",
+     "result": "MADDPG／MATD3 通过连续储能读回；SHOM 的 native、paper、legacy 均通过回归。",
+     "next": "原生排序只改变优化更新，不改变主仿真轨迹。"
     }
    ]
   },
