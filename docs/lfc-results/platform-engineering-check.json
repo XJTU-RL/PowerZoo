@@ -1,0 +1,77 @@
+{
+  "scope": "Nanyang engineering candidate only",
+  "archive_equal": true,
+  "archived": {
+    "123": {
+      "cases": 3,
+      "consecutive_deliveries": 7,
+      "raw_sha256": "d9cb23828e35ae8918ce6274f44226cc395d36ee3e20d9e2e7c3ce27cdc0d472",
+      "order": {
+        "first_active_write_s": 23.03333333333333,
+        "first_resolved_sensor_p_s": 23.05,
+        "first_resolved_frequency_s": 23.200000000000003,
+        "frequency_band_hz": 1e-05,
+        "cut_vs_no_control_max_abs_hz": 1.517719283583574e-11,
+        "cut_peak_abs_pcc_kw": 13.329931834938634,
+        "ordered_measured_return": true
+      }
+    },
+    "34": {
+      "cases": 8,
+      "consecutive_deliveries": 3,
+      "raw_sha256": "46de2fd7240ec7fbc7f71f9e22efec695070b585a28f656bb4cce23ba25b0c40",
+      "order": {
+        "first_active_write_s": 23.03333333333333,
+        "first_resolved_sensor_p_s": 23.05,
+        "first_resolved_frequency_s": 23.400000000000002,
+        "frequency_band_hz": 1e-05,
+        "cut_vs_no_control_max_abs_hz": 4.654054919228656e-12,
+        "cut_peak_abs_pcc_kw": 6.178973582326989,
+        "ordered_measured_return": true
+      }
+    }
+  },
+  "fresh_native_feedback": {
+    "123": {
+      "feeder": "123",
+      "git": "d3e043334f1485fb6d300306629ab572254df02a",
+      "holds": 15,
+      "passed": true,
+      "min_measured_pcc_support_kw": -2.0791859644182296,
+      "max_measured_pcc_support_kw": 2.0789872656923762,
+      "max_sensor_increment_residual_kw_kvar": 0.08084430275630439,
+      "source_sha256": "43f49a7af6c2981ab79faf475730338629414199224926c85455a310574be95e"
+    },
+    "34": {
+      "feeder": "34",
+      "git": "0e35c94dedeabc19948aaee9f25395769cea342e",
+      "holds": 15,
+      "passed": true,
+      "min_measured_pcc_support_kw": -2.2406688224452864,
+      "max_measured_pcc_support_kw": 2.2384377984421917,
+      "max_sensor_increment_residual_kw_kvar": 0.08094159236043197,
+      "source_sha256": "1c7737aaeb921821f4d0a4e08ad42cc9d0b0f8aa1fc3f958a59e81cc8742be81"
+    }
+  },
+  "fresh_dss_34": {
+    "cases": 6,
+    "frames": 48,
+    "raw_sha256": "81e3e31884a7da2e9670caeed967bb33ef5181c8e31d5fb24a19504c60bcf1cf"
+  },
+  "fresh_dss_123": {
+    "cases": 6,
+    "raw_sha256": "68902322eeaa1ffc035bb234b867d2a3e29f359a99db02e5b9829a30ddb8bd72",
+    "passed": true
+  },
+  "failed_first_interface_attempt": {
+    "feeder": "123",
+    "phases": [
+      "manifest",
+      "failed"
+    ],
+    "reason": "TypeError(\"exchange() got an unexpected keyword argument 'on_reference'\")",
+    "raw_sha256": "3834ace9738c9fc90a60a72f958a4703be4ffb35894c88d9f74acdecc49b688a",
+    "observed_solver_or_write_frames": 0
+  },
+  "joint_validation_arms_opened": 0
+}

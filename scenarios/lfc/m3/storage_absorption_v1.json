@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "per_device_kw": [
+    0,
+    0,
+    1.5,
+    -1.5,
+    4,
+    -4
+  ],
+  "intervals": [
+    "idle",
+    "pulse",
+    "pulse",
+    "release"
+  ],
+  "hold_s": 1,
+  "initial_soc": 0.5,
+  "max_terminal_p_error_kw": 0.05,
+  "max_terminal_q_kvar": 0.05,
+  "max_p_balance_kw": 0.05,
+  "max_energy_error_kwh": 0.00005,
+  "neutral_jitter_kw_kvar": 0.001,
+  "min_pcc_delivery_fraction": 0.8,
+  "max_pcc_delivery_fraction": 1.2,
+  "max_zero_return_kw": 0.05,
+  "physical_limits": "use pinned M2 native terminal voltage, derived phase current, inverter kVA, native reserve and charge/discharge efficiencies",
+  "stop": "record any failed arm before halting; continue independent other feeder, no closed-loop charge authority without full screen"
+}

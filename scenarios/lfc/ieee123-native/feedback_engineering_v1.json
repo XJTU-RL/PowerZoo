@@ -1,0 +1,8 @@
+{
+  "scope": "engineering open-design event; equal-share joint envelope tested each frame",
+  "event_kw": 40, "event_start_s": 22, "event_stop_s": 30, "stop_s": 36,
+  "cases": ["uncontrolled", "cut_return", "closed"],
+  "gain_kw_per_hz": 100000, "alpha": 0.4, "aggregate_ramp_kw_s": 30,
+  "per_device_max_kw": 50, "deadband_hz": 0.0001,
+  "paired_sensor_tol": 1.5, "min_delivery_kw": 1, "required_consecutive": 6
+}

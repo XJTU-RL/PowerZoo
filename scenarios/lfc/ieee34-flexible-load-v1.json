@@ -1,0 +1,6 @@
+{
+  "scope": "native IEEE34 study-only controllable demand at 890, model-1 three-phase delta",
+  "neutral_kw": 10, "maximum_kw": 20, "max_q_kvar": 5, "ramp_kw_per_s": 10,
+  "seconds": 8, "start_s": 2, "release_s": 5, "neutral_tol_kw_kvar": 0.05,
+  "pulse_kw_kvar": {"zero_a": [0,0], "zero_b": [0,0], "p_plus": [10,0], "p_minus": [-10,0], "q_plus": [0,5], "q_minus": [0,-5]}
+}

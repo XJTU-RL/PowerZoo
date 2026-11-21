@@ -1,0 +1,9 @@
+{
+  "first_active_write_s": 23.03333333333333,
+  "first_resolved_sensor_p_s": 23.05,
+  "first_resolved_frequency_s": 23.200000000000003,
+  "frequency_band_hz": 1e-05,
+  "cut_vs_no_control_max_abs_hz": 1.517719283583574e-11,
+  "cut_peak_abs_pcc_kw": 13.329931834938634,
+  "ordered_measured_return": true
+}

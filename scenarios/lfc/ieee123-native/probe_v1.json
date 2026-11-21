@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "scope": "stock_123_native_feeder_only_synthetic_pulse",
+  "system_config": "configs/systems/123Bus.yaml",
+  "feeder_directory": "node_systems/123Bus",
+  "feeder_master": "network.dss",
+  "source_device": "Vsource.source",
+  "step_seconds": 1,
+  "native_controls": "settle_once_at_t0_then_hold_taps",
+  "fixture_t0": {
+    "kw": 100000,
+    "kvar": 35000,
+    "purpose": "Arithmetic fixture, not validated Simulink equilibrium"
+  },
+  "input_pulses": [
+    {
+      "start_s": 0,
+      "storage_kw": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "start_s": 1,
+      "storage_kw": [
+        50,
+        50,
+        50,
+        50
+      ]
+    },
+    {
+      "start_s": 2,
+      "storage_kw": [
+        -50,
+        -50,
+        -50,
+        -50
+      ]
+    },
+    {
+      "start_s": 3,
+      "storage_kw": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "storage_devices": [
+    {
+      "id": "Storage.batt1",
+      "bus": "33",
+      "phases": [
+        1
+      ],
+      "kv": 2.4,
+      "connection": "wye",
+      "kw": 100,
+      "kwh": 200
+    },
+    {
+      "id": "Storage.batt2",
+      "bus": "114",
+      "phases": [
+        1
+      ],
+      "kv": 2.4,
+      "connection": "wye",
+      "kw": 100,
+      "kwh": 200
+    },
+    {
+      "id": "Storage.batt3",
+      "bus": "67",
+      "phases": [
+        1,
+        2,
+        3
+      ],
+      "kv": 4.16,
+      "connection": "delta",
+      "kw": 100,
+      "kwh": 200
+    },
+    {
+      "id": "Storage.batt4",
+      "bus": "300",
+      "phases": [
+        1,
+        2,
+        3
+      ],
+      "kv": 4.16,
+      "connection": "delta",
+      "kw": 100,
+      "kwh": 200
+    }
+  ]
+}

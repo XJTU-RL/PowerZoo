@@ -1,0 +1,61 @@
+{
+  "passed": true,
+  "arms": 6,
+  "raw_sha256": "4d8188b79c5cb74b4d05810bfb7432209044cf5efbae792ff3f6bcc107ebd292",
+  "source": {
+    "phase": "protocol",
+    "git": "12091dfaac1ff6a048c90d07afbf96b4ac2c9a59",
+    "protocol_sha256": "ea658642e18bfb585211a8f61b02d63a30c1810a775134de4150aa342c7569d9"
+  },
+  "deck_sha256": "5aef37ca79d15b07745ec1e046c9e5218293d8b77c3dac19a0e155513b47170e",
+  "ratings": {
+    "Storage.batt1": {
+      "kWRated": 100.0,
+      "kWhRated": 200.0,
+      "kVA": 100.0,
+      "%reserve": 10.0,
+      "%EffCharge": 95.0,
+      "%EffDischarge": 95.0,
+      "%IdlingkW": 0.0,
+      "%charge": 100.0,
+      "%discharge": 0.0,
+      "%stored": 50.0
+    },
+    "Storage.batt2": {
+      "kWRated": 100.0,
+      "kWhRated": 200.0,
+      "kVA": 100.0,
+      "%reserve": 10.0,
+      "%EffCharge": 95.0,
+      "%EffDischarge": 95.0,
+      "%IdlingkW": 0.0,
+      "%charge": 100.0,
+      "%discharge": 0.0,
+      "%stored": 50.0
+    },
+    "Storage.batt3": {
+      "kWRated": 100.0,
+      "kWhRated": 200.0,
+      "kVA": 100.0,
+      "%reserve": 10.0,
+      "%EffCharge": 95.0,
+      "%EffDischarge": 95.0,
+      "%IdlingkW": 0.0,
+      "%charge": 100.0,
+      "%discharge": 0.0,
+      "%stored": 50.0
+    },
+    "Storage.batt4": {
+      "kWRated": 100.0,
+      "kWhRated": 200.0,
+      "kVA": 100.0,
+      "%reserve": 10.0,
+      "%EffCharge": 95.0,
+      "%EffDischarge": 95.0,
+      "%IdlingkW": 0.0,
+      "%charge": 100.0,
+      "%discharge": 0.0,
+      "%stored": 50.0
+    }
+  }
+}
