@@ -114,6 +114,15 @@ class PIAE:
         return (torch.tensor(idx), torch.tensor(mask))
 
     # ------------------------------------------------------------------
+    def to(self, device):
+        """迁移物理层张量到目标设备（PIAE 非 nn.Module，CUDA 入口需手动迁移）。"""
+        for name in ("in_idx", "out_idx", "in_mask", "out_mask",
+                     "r_pu", "x_pu", "branch_from", "branch_to"):
+            t = getattr(self, name, None)
+            if isinstance(t, torch.Tensor):
+                setattr(self, name, t.to(device))
+        return self
+
     def denorm(self, v, p, q):
         """标准化输出 → 物理单位（V p.u.、p/q kW；统计量本身就是 kW）。"""
         v_phys = v * self.v_std + self.v_mean
@@ -142,11 +151,14 @@ class PIAE:
         p_pu = p_phys / (S_BASE_MVA * 1000.0)
         q_pu = q_phys / (S_BASE_MVA * 1000.0)
 
-        # 式(19)：L_KCL。入流支路和 − 出流支路和 = 净注入。
+        # 式(19)：L_KCL。节点平衡：入流和 + 净注入 − 出流和 = 0
+        #（净注入 = PV + CBESS 放电 − 负荷，注入为正）。
+        # 修订（PR #65 复审 P1）：此前误写为「入流 − 出流 − 净注入」，
+        # 符号反了会使真实潮流也受罚（末端负荷母线残差 ≈ 2×负荷）。
         # 松弛母线（bus1）的源注入不在式(19)已知项内，排除之（偏离文档记录）。
         inflow = (p_pu[:, self.in_idx] * self.in_mask).sum(-1)
         outflow = (p_pu[:, self.out_idx] * self.out_mask).sum(-1)
-        residual = (inflow - outflow - net_inj_pu)[:, 1:]
+        residual = (inflow - outflow + net_inj_pu)[:, 1:]
         l_kcl = residual.pow(2).sum(-1).mean()
 
         # 式(20)：L_VDrop。ℓ̂ = (p̂²+q̂²)/V̂_i²。

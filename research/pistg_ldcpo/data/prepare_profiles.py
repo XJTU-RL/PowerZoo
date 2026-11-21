@@ -87,6 +87,7 @@ def _load_year(csv_path: Path):
     if len(half_hours) != 48:
         raise ValueError(f"{csv_path.name} 半小时列数异常：{len(half_hours)}")
     frames = {}
+    missing_stats = {}
     all_dates = None
     customers = np.sort(df["Customer"].unique())
     for cat in ("GC", "GG"):
@@ -102,11 +103,34 @@ def _load_year(csv_path: Path):
         )
         sub = sub.set_index(["date", "Customer"]).reindex(full)
         values = sub[half_hours].apply(pd.to_numeric, errors="coerce")
-        frames[cat] = np.nan_to_num(
-            values.to_numpy(np.float32)
-        ).reshape(len(all_dates), len(customers), 48)
+        arr = values.to_numpy(np.float32).reshape(
+            len(all_dates), len(customers), 48
+        )
+        # 缺测显式处理（PR #65 复审 P1）：行内 ≤4 个缺测按槽位线性插值；
+        # 更多缺测的行整行置 NaN，聚合阶段按缺失排除（nansum），不再
+        # 静默填零伪造真实零值；两类计数写入 manifest 可追溯。
+        arr, imputed_rows, excluded_rows = _impute_small_gaps(arr)
+        missing_stats[cat] = {"imputed_rows": imputed_rows,
+                              "excluded_rows": excluded_rows}
+        frames[cat] = arr
     dates_out = [pd.Timestamp(d) for d in all_dates]
-    return dates_out, customers, frames["GC"], frames["GG"]
+    return dates_out, customers, frames["GC"], frames["GG"], missing_stats
+
+
+def _impute_small_gaps(arr: np.ndarray, max_gap: int = 4):
+    """行内小缺口线性插值；大缺口行置 NaN（聚合时排除）。"""
+    arr = arr.copy()
+    row_nan = np.isnan(arr).sum(axis=2)  # (D, C)
+    fixable = row_nan > 0
+    fixable_small = fixable & (row_nan <= max_gap)
+    d_idx, c_idx = np.where(fixable_small)
+    for d, c in zip(d_idx, c_idx):
+        row = arr[d, c]
+        good = ~np.isnan(row)
+        arr[d, c] = np.interp(np.arange(arr.shape[2]),
+                              np.where(good)[0], row[good])
+    arr[row_nan > max_gap] = np.nan
+    return arr, int(len(d_idx)), int((row_nan > max_gap).sum())
 
 
 def _ev_shape(steps: int = STEPS) -> np.ndarray:
@@ -164,8 +188,11 @@ def build(source: Path, case_folder: Path, out: Path, *,
     rng = np.random.default_rng(SEED)
     years = ["2010-2011", "2011-2012", "2012-2013"]
     dates, customers, gc_all, gg_all = [], None, [], []
+    missing_report = {}
     for year in years:
-        y_dates, y_customers, y_gc, y_gg = _load_year(source / f"Solar home {year}.csv")
+        y_dates, y_customers, y_gc, y_gg, y_missing = _load_year(
+            source / f"Solar home {year}.csv"
+        )
         if customers is None:
             customers = y_customers
         elif not np.array_equal(customers, y_customers):
@@ -173,6 +200,7 @@ def build(source: Path, case_folder: Path, out: Path, *,
         dates.extend(y_dates)
         gc_all.append(y_gc)
         gg_all.append(y_gg)
+        missing_report[year] = y_missing
     gc_all = np.concatenate(gc_all)  # (D, 300, 48)
     gg_all = np.concatenate(gg_all)
     n_days = len(dates)
@@ -185,8 +213,9 @@ def build(source: Path, case_folder: Path, out: Path, *,
     interp = np.empty((n_days, len(DER_BUSES), STEPS), np.float32)
     pv_shape = np.empty_like(interp)
     for j, members in enumerate(groups):
-        gc_bus = gc_all[:, members, :].sum(axis=1)  # (D, 48) kWh/半小时
-        gg_bus = gg_all[:, members, :].sum(axis=1)
+        # nansum：缺测行按缺失排除（复审 P1），不伪造零值
+        gc_bus = np.nansum(gc_all[:, members, :], axis=1)  # (D, 48)
+        gg_bus = np.nansum(gg_all[:, members, :], axis=1)
         for d in range(n_days):
             interp[d, j] = _interp_half_hourly(gc_bus[d])
             pv_shape[d, j] = _interp_half_hourly(gg_bus[d])
@@ -212,24 +241,26 @@ def build(source: Path, case_folder: Path, out: Path, *,
     dt_h = 1440.0 / STEPS / 60.0
     if pv_mode == "peak-rule":
         pv_peak = PV_PENETRATION * pv_boost * typical_peak
-        pv_max = pv_shape.max(axis=2)  # (D, 26)
+        pv_max = np.nanmax(pv_shape, axis=2)  # (D, 26)
         pv_available = np.where(
             pv_max[:, :, None] > 0,
             pv_shape * (pv_peak[None, :, None] / np.maximum(pv_max[:, :, None], 1e-9)),
             0.0,
         ).astype(np.float32)
     elif pv_mode == "daily-energy":
-        bus_energy = (pv_shape.sum(axis=2) * dt_h).mean(axis=0)  # (26,) kWh/日
+        bus_energy = np.nansum(pv_shape, axis=2).mean(axis=0) * dt_h  # (26,) kWh/日
         scale_j = pv_daily_kwh / np.maximum(bus_energy, 1e-9)
         pv_available = (pv_shape * scale_j[None, :, None]).astype(np.float32)
-        pv_peak = (pv_available.max(axis=2) * dt_h / dt_h).max(axis=0)  # (26,) 静态等效峰
-        pv_peak = pv_available.max(axis=2).mean(axis=0)
+        # 静态装机峰取全样本绝对峰（复审 P2）：逆变器额定（×1.1）须覆盖
+        # 全部可用出力日，此前用日均峰会使晴天出力越出视在额定。
+        # pv_available 形状 (日, 母线, 步)：per-bus 峰 = max over (0, 2)。
+        pv_peak = pv_available.max(axis=(0, 2))  # (26,)
     else:
         raise ValueError(f"未知 pv_mode：{pv_mode}")
 
     # 非 DER 母线：铭牌 × 全网日形状（当日全部 GC 归一到均值 1）。
     nameplate = _nameplate_from_dss(case_folder)
-    system_shape48 = gc_all.sum(axis=1)  # (D, 48)
+    system_shape48 = np.nansum(gc_all, axis=1)  # (D, 48)，缺测排除
     system_288 = np.stack([_interp_half_hourly(system_shape48[d]) for d in range(n_days)])
     system_norm = system_288 / system_288.mean(axis=1, keepdims=True)
 
@@ -273,6 +304,7 @@ def build(source: Path, case_folder: Path, out: Path, *,
         },
         "seed": SEED,
         "calibration": f"v2-fig5b-literal-{pv_mode}",
+        "missing_data": missing_report,
         "der_buses": DER_BUSES,
         "parameters": {
             "der_daily_energy_kwh": der_daily_energy_kwh,

@@ -181,6 +181,7 @@ def main():
     args = parser.parse_args()
 
     torch.set_num_threads(max(1, torch.get_num_threads() // 2))
+    torch.manual_seed(args.seed)  # 网络初始化/采样/randperm 可复现（复审 P2）
     cfg = RunConfig()
     cfg.algo.total_episodes = args.episodes
     if args.budget_fraction is not None:

@@ -42,12 +42,16 @@ def collect_episodes(env: CBESEnv, episodes: int, rng: np.random.Generator,
     der_pos = np.array(env.der_buses) - 1
     cbess_pos = np.array(env.cbess_buses) - 1
     for e in range(episodes):
-        env.reset(rng, split)
+        obs = env.reset(rng, split)
         for t in range(env.steps_per_day):
             action = rng.uniform(-1, 1, env.action_dim)
-            obs, _, _, _, info = env.step(action)
+            # 输入 = 执行动作前的观测（电压为上一解，与 Stage 2 的编码
+            # 时机一致，且不泄漏本步重建目标）；目标 = 本步执行后的解
+            #（PR #65 复审 P1：此前存的是 step 后观测，输入电压列与
+            # 重建目标 v_true 同源，属目标泄漏 + 两阶段时序错位）。
             feats[e, t] = obs["bus_features"]
             prices[e, t] = obs["price"]
+            obs, _, _, _, info = env.step(action)
             v_true[e, t] = info["v_pu"]
             flows[e, t, :, 0] = info["branch_p_kw"]
             flows[e, t, :, 1] = info["branch_q_kvar"]
@@ -135,13 +139,21 @@ def make_piae(meta: dict, variant: str, cfg: EncoderConfig, stats, lines):
 
 def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
           device, out_path: Path, variant: str, stats, meta, lines,
-          epochs_per_pass: int = 3, seed: int = 0):
+          epochs_per_pass: int = 3, seed: int = 0, eval_arrays=None):
     feats, prices, v_n, p_n, q_n, inj_pu = arrays
     n_ep, n_steps = feats.shape[0], feats.shape[1]
+    # held-out 显式分离（复审 P1）：优化采样只用 train 集；eval_arrays
+    #（main 传入的未参与拟合回合）不存在时退化为末 2 回合并警告。
+    if eval_arrays is not None:
+        eval_feats, eval_prices, eval_v, eval_p, eval_q, eval_inj = eval_arrays
+    else:
+        print("警告：未显式传入 held-out 回合，评估集仍取训练数组末 2 回合")
+        eval_feats = feats
     window = cfg.window  # W=12（论文 p.10）
     ends = np.arange(window - 1, n_steps)  # 窗口末步 11..287（277 个）
     for module in (piae.encoder, piae.head):
         module.to(device)
+    piae.to(device)  # PIAE 非 nn.Module，物理张量手动迁移（复审 P2）
     adj = norm_adj.to(device)
     optimizer = torch.optim.Adam(
         list(piae.encoder.parameters()) + list(piae.head.parameters()),
@@ -201,18 +213,27 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
     print(f"已保存 {out_path}")
     # 表 VII 式重建质量评估（最后两回合作为 held-out）。
     with torch.no_grad():
-        e_hold = np.arange(max(0, n_ep - 2), n_ep)
+        if eval_arrays is not None:
+            eval_slice = range(eval_feats.shape[0])
+        else:
+            eval_slice = np.arange(max(0, n_ep - 2), n_ep)
         parts = {"volt_mae": [], "flow_nrmse": [], "kcl": [], "vdrop": []}
-        for e in e_hold:
+        for e in eval_slice:
+            ev_feats = eval_feats if eval_arrays is not None else feats
+            ev_prices = eval_prices if eval_arrays is not None else prices
+            ev_v = eval_v if eval_arrays is not None else v_n
+            ev_p = eval_p if eval_arrays is not None else p_n
+            ev_q = eval_q if eval_arrays is not None else q_n
+            ev_inj = eval_inj if eval_arrays is not None else inj_pu
             for t in np.arange(window - 1, n_steps, 8):
-                bw = torch.tensor(feats[e, t - window + 1 : t + 1][None])
-                pw = torch.tensor(prices[e, t - window + 1 : t + 1][None])
+                bw = torch.tensor(ev_feats[e, t - window + 1 : t + 1][None], device=device)
+                pw = torch.tensor(ev_prices[e, t - window + 1 : t + 1][None], device=device)
                 h = piae.encoder(bw, pw, adj)
                 v_hat, p_hat, q_hat = piae.head(h)
                 v_p, p_p, q_p = piae.denorm(v_hat, p_hat, q_hat)
-                v_true = torch.tensor(v_n[e, t][None]) * float(stats["v_std"]) + float(stats["v_mean"])
-                p_true = torch.tensor(p_n[e, t][None]) * float(stats["p_std"]) + float(stats["p_mean"])
-                q_true = torch.tensor(q_n[e, t][None]) * float(stats["q_std"]) + float(stats["q_mean"])
+                v_true = torch.tensor(ev_v[e, t][None], device=device) * float(stats["v_std"]) + float(stats["v_mean"])
+                p_true = torch.tensor(ev_p[e, t][None], device=device) * float(stats["p_std"]) + float(stats["p_mean"])
+                q_true = torch.tensor(ev_q[e, t][None], device=device) * float(stats["q_std"]) + float(stats["q_mean"])
                 parts["volt_mae"].append(float((v_p - v_true).abs().mean()) * 1e3)
                 rmse = float((p_p - p_true).pow(2).mean() + (q_p - q_true).pow(2).mean()) ** 0.5
                 scale = float(p_true.abs().mean() + q_true.abs().mean())
@@ -221,8 +242,9 @@ def train(piae: PIAE, norm_adj, arrays, cfg: EncoderConfig, episodes: int,
                 q_pu = q_p / DT_KW
                 inflow = (p_pu[:, piae.in_idx] * piae.in_mask).sum(-1)
                 outflow = (p_pu[:, piae.out_idx] * piae.out_mask).sum(-1)
-                inj = torch.tensor(inj_pu[e, t][None])
-                parts["kcl"].append(float((inflow - outflow - inj)[:, 1:].abs().mean()))
+                inj = torch.tensor(ev_inj[e, t][None], device=device)
+                # 节点平衡：入流 + 净注入 − 出流 = 0（复审 P1 符号修正）
+                parts["kcl"].append(float((inflow - outflow + inj)[:, 1:].abs().mean()))
                 v_from = v_p[:, piae.branch_from]
                 ell = (p_pu.pow(2) + q_pu.pow(2)) / v_from.pow(2).clamp(min=1e-6)
                 drop = (v_p[:, piae.branch_to].pow(2) - v_from.pow(2)
@@ -253,19 +275,35 @@ def main():
     out_dir = run.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed)
+    torch.manual_seed(args.seed)  # actor/critic 与采样可按 --seed 复现（复审 P2）
 
     print(f"[1/3] 随机策略采集 {args.episodes} 回合…")
     started = time.time()
     arrays_raw = collect_episodes(env, args.episodes, rng)
     print(f"    采集用时 {time.time() - started:.0f}s")
     print("[2/3] 窗口化与标准化…")
-    arrays, stats = build_datasets(*arrays_raw)
+    # held-out：末 2 回合不参与标准化统计与优化采样（复审 P1）
+    holdout = [a[-2:] for a in arrays_raw]
+    train_part = [a[:-2] for a in arrays_raw]
+    arrays, stats = build_datasets(*train_part)
     print("[3/3] PIAE 训练…")
     piae, norm_adj = make_piae(meta, args.variant, run.encoder, stats, env.lines)
     out_path = out_dir / f"piae_{args.variant}_ep{args.episodes}.pt"
+    hold_norm = [a.copy() for a in holdout]
+    for arr, mean, std in (
+        (hold_norm[0], stats["feature_mean"], stats["feature_std"]),
+        (hold_norm[1], stats["price_mean"], stats["price_std"]),
+    ):
+        arr -= mean
+        arr /= std
+    hold_norm[2] = (holdout[2] - stats["v_mean"]) / stats["v_std"]
+    hold_norm[3] = (holdout[3] - stats["p_mean"]) / stats["p_std"]
+    hold_norm[4] = (holdout[4] - stats["q_mean"]) / stats["q_std"]
+    hold_norm[5] = holdout[5] / (S_BASE_MVA * 1000.0)
     train(piae, norm_adj, arrays, run.encoder, args.episodes, args.device,
           out_path, args.variant, stats, meta, env.lines,
-          epochs_per_pass=args.epochs, seed=args.seed + 1)
+          epochs_per_pass=args.epochs, seed=args.seed + 1,
+          eval_arrays=hold_norm)
     env.close()
 
 

@@ -78,12 +78,21 @@ def cbess_energy_update(
 def map_pv_action(
     alpha_kappa: float, alpha_q: float, pv_available_kw: float, s_max_kva: float
 ):
-    """式(2)(3)：κ=(α_κ+1)/2∈[0,1] 弃光比；q_inv 受视在功率圆约束。"""
+    """式(2)(3)：κ=(α_κ+1)/2∈[0,1] 弃光比；p 优先、q 受剩余圆约束。
+
+    修订（PR #65 复审 P2）：决策弃光后的有功自身也受视在额定约束，
+    此前不设上限会使可用出力超出额定时 p 越出圆。现物理截断 p 于
+    s_max 并把截断计入有效弃光比 κ_eff，保证 (p, q) 始终满足式(3)。
+    """
     kappa = (float(np.clip(alpha_kappa, -1.0, 1.0)) + 1.0) / 2.0
-    p_pv = (1.0 - kappa) * pv_available_kw
+    p_pv = min((1.0 - kappa) * pv_available_kw, float(s_max_kva))
     q_circle = np.sqrt(max(s_max_kva**2 - p_pv**2, 0.0))
     q_inv = float(np.clip(alpha_q, -1.0, 1.0)) * float(q_circle)
-    return p_pv, q_inv, kappa
+    if pv_available_kw > 0:
+        kappa_eff = 1.0 - p_pv / pv_available_kw
+    else:
+        kappa_eff = 0.0
+    return p_pv, q_inv, kappa_eff
 
 
 def economic_reward(
