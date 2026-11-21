@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "optimized-lfc-ieee123-storage-envelope-screen-v1",
+  "scope": "pinned_static_123_controls_settle_once_then_held",
+  "feeder_sha256": "5aef37ca79d15b07745ec1e046c9e5218293d8b77c3dac19a0e155513b47170e",
+  "voltage_kind": "study engineering screen, not manufacturer or field compliance",
+  "terminal_voltage_pu": [0.95, 1.05],
+  "model_ac_current_policy": "kVA/kV (1ph wye), kVA/(sqrt(3)*kV) (3ph delta line currents); model-derived planning ceiling, not measured nameplate ampacity",
+  "network_line_ampacity": "excluded: the pinned active line and line-code inputs supply no explicit ampacity ratings; raw conductor currents diagnostic only",
+  "parity_abs": {"seconds": 1e-6, "soc": 1e-9, "volts": 0.001, "amps": 0.001, "power_kw_or_kvar": 0.001},
+  "diagnostic_branch_terminals": {
+    "Transformer.reg1a": [1, 2], "Line.Sw1": [1, 2],
+    "Line.L29": [2], "Line.L113": [2], "Line.L117": [2],
+    "Line.L66": [1], "Line.L67": [1], "Line.L68": [1], "Line.L108": [2]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "clock": {
+    "first_hold_s": 20,
+    "event_start_s": 25,
+    "event_stop_s": 35,
+    "stop_s": 45,
+    "exchange_s": 1,
+    "max_pause_lag_s": 0.03333333333333333,
+    "quiet_tail_s": 3,
+    "native_frequency_period_s": 0.2,
+    "timestamp_epsilon_s": 1e-07
+  },
+  "storage": {
+    "energy_kwh": 200,
+    "initial_soc": 0.5,
+    "min_soc": 0.1,
+    "charge_efficiency": 0.95,
+    "discharge_efficiency": 0.95,
+    "energy_abs_tol_kwh": 5e-05
+  },
+  "gates": {
+    "storage_p_kw": 0.05,
+    "storage_q_kvar": 0.05,
+    "feeder_balance_kw": 0.05
+  },
+  "device_limits": {
+    "controller": {
+      "per_device_limit_kw": 50,
+      "exchange_s": 1
+    },
+    "storage": {
+      "capacity_kwh": 200,
+      "reserve_soc": 0.1,
+      "discharge_efficiency": 0.95
+    }
+  }
+}

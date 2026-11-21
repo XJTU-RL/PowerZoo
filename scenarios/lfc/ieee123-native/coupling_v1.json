@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "scope": "stock_123_to_ieee9_bus8_direct_engine_probe",
+  "model": "envs/lfc/IEEE9BusSystem/IEEE9BusSystem.slx",
+  "model_sha256": "998ea2976916ab94266b575797cab89ee8285c36e1de8bd3c1583b6c1e600982",
+  "source_anchor": {
+    "provenance": "validated IEEE9 \u00d7 legacy 13Bus seed17 rank0 reset input; not a steady-state assertion",
+    "observed_reset_s": 1.0333333333333332,
+    "observed_frequency_hz": 59.96500130360997,
+    "kw": 7851.739821876062,
+    "kvar": 12942.530488711882,
+    "feeder_gain": 1
+  },
+  "clock": {
+    "simulink_base_step_s": 0.016666666666666666,
+    "exchange_s": 1,
+    "max_pause_lag_ticks": 2
+  },
+  "warmup": {
+    "seconds": 20,
+    "tail_seconds": 3,
+    "p_abs_tol_kw": 100,
+    "q_abs_tol_kvar": 100,
+    "frequency_center_hz": 60,
+    "frequency_abs_tol_hz": 0.2,
+    "frequency_max_span_hz": 0.03
+  },
+  "sensor": {
+    "block": "Power Sensor (Three-Phase)7",
+    "p_channel": "Pm",
+    "q_channel": "Qm",
+    "frequency_workspace_variable": "out_f_load1",
+    "frequency_time_workspace_variable": "out_t",
+    "power_log_sample_seconds": 0.016666666666666666,
+    "power_log_max_gap_ticks": 2,
+    "frequency_sample_seconds": 0.2,
+    "frequency_max_gap_ticks": 1,
+    "cadence_source": "Pinned IEEE9BusSystem.slx: SimscapeLogDecimation=1 with FixedStep=Ts=1/60; Out_t and out_f_load1 To Workspace SampleTime=0.2."
+  },
+  "model_helpers": {
+    "fm_call.m": "72610d5e630a43d847470e5bd40ec03ed23d2fe6b9dc2b81695516676b6b7e60",
+    "IEEE9BusSystemExample.m": "f3120a96af994b415eb82834884b2adddf3b92b1b105ff6edc1abee8917105dd",
+    "IEEE9BusSystemPlotResults.m": "50f53312d229e52ce8e56f71c8f8854eaffc7aa87da616d230eb5f839e439069",
+    "simlogNeedsUpdate.m": "d4ac397c7fe852703d8670a4697c8240335a8ff45f06f256195e947c394c47de"
+  },
+  "transport_acceptance": {
+    "storage_abs_tol_kw": 0.05,
+    "storage_abs_tol_kvar": 0.05,
+    "min_feeder_separation_kw": 150,
+    "min_bus8_separation_kw": 100
+  }
+}

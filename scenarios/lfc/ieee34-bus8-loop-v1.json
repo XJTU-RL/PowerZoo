@@ -1,0 +1,7 @@
+{
+  "runtime": "5e95976da768d92cefec31f35cbad2078f3bd856",
+  "events_kw_kvar": {"zero_a":[0,0], "zero_b":[0,0], "plus":[40,0], "minus":[-40,0], "q_plus":[0,40], "q_minus":[0,-40], "feedback_cut_return":[40,0], "closed":[40,0]},
+  "clock": {"first_hold_s":20, "event_start_s":22, "event_stop_s":26, "stop_s":32, "exchange_s":1, "max_pause_lag_s":0.03333333333333333, "timestamp_epsilon_s":1e-7, "native_frequency_period_s":0.2},
+  "controller": {"gain_kw_per_hz":25000, "deadband_hz":0.00001, "ramp_kw_s":5, "capacity_kw":10},
+  "gates": {"zero_hz":0.00005, "zero_power":0.5, "sensor_delta_error":1.5, "frequency_floor_hz":0.00001, "delivery_min_kw":0.5, "consecutive_deliveries":3}
+}

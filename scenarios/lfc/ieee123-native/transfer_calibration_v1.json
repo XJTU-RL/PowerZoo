@@ -1,0 +1,10 @@
+{
+  "scope": "IEEE123 open calibration, independent Bus8 dynamic-branch injection; feedback disconnected",
+  "units": "positive kW/kvar increases Bus8 demand; positive storage kW injects into feeder",
+  "first_hold_s": 20, "event_start_s": 22, "event_stop_s": 26, "stop_s": 32,
+  "events": {"zero_a": [0, 0], "zero_b": [0, 0], "p_plus": [40, 0], "p_minus": [-40, 0], "q_plus": [0, 40], "q_minus": [0, -40]},
+  "absolute_noise_ceiling_hz": 0.00005, "frequency_floor_hz": 0.00001,
+  "noise_multiplier": 3, "consecutive_samples": 2, "recovery_dwell_s": 1,
+  "sensor_floor_kw_kvar": 1, "max_bus8_increment_error_kw_kvar": 5,
+  "max_pcc_drift_kw_kvar": 0.05
+}

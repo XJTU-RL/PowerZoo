@@ -1,0 +1,41 @@
+{
+  "version": "native-platform-witness-v1",
+  "purpose": "two short integrated wiring checks; no algorithm selection, accuracy ranking or independent performance claim",
+  "clock": {
+    "first_hold_s": 20,
+    "event_start_s": 23,
+    "event_stop_s": 31,
+    "stop_s": 35,
+    "exchange_s": 1,
+    "max_pause_lag_s": 0.03333333333333333,
+    "native_frequency_period_s": 0.2,
+    "timestamp_epsilon_s": 1e-7
+  },
+  "transmission_load_pulses": [
+    {
+      "from_slot": 23,
+      "until_slot": 25,
+      "kw": 17
+    },
+    {
+      "from_slot": 28,
+      "until_slot": 31,
+      "kw": -17
+    }
+  ],
+  "actuation": {
+    "bias_kw": 0,
+    "absolute_kw": 2,
+    "deadband_hz": 0.000015,
+    "reference_window_s": 2,
+    "signal": "native Bus8 frequency deviation only; no pulse window or sign supplied to relay"
+  },
+  "criteria": {
+    "max_sensor_increment_residual_kw_kvar": 1.5,
+    "min_same_sign_pcc_delivery_kw": 1.5,
+    "max_pcc_vs_command_error_kw": 0.75,
+    "require_correct_direction_for_both_stimuli": true,
+    "no_added_device_or_clock_fault": true
+  },
+  "claim": "function of the integrated checkout only; paired native cut vs closed causal separation is verified on immutable M1 evidence"
+}
