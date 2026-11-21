@@ -1,0 +1,8 @@
+# 仅保留有运行消费者的设置；设备数量和原生额定值以DSS模型为准。
+system:
+  name: 33Bus_CBESS
+  dss_folder: node_systems/33Bus_CBESS
+  dss_file: network.dss
+# 覆盖层：26 台 PV + 4 台 CBESS（恒 PQ Generator），由消费方按
+# overlays=("der_overlay.dss",) 编译；参数与母线表见 case_meta.json。
+# 消费方：research/pistg_ldcpo（PISTG-LDCPPO 论文复现）。

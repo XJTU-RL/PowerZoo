@@ -35,6 +35,15 @@ MAPPO、SHOM、MADDPG、HASAC、OHASAC（13Bus 联合仿真已验证，尚未验
 恢复场景、实际供电/合格服务、节点有效性与故障基准见[恢复说明](docs/dsr-physics.md)。
 顺序定价的现金账本、阶段响应、独立收益训练和建模范围见[定价说明](docs/pricing-physics.md)。
 
+## 论文复现
+
+`research/` 下按论文逐篇存放独立复现；论文原文 PDF 与索引见
+[papers-repro/](papers-repro/)。
+
+- [PISTG-LDCPPO](research/pistg_ldcpo/)（IEEE TSG 2026，arXiv:2610.33654）：
+  物理信息时空图编码器 + 约束专用批评者的多 CBESS 协调，IEEE 33-bus OpenDSS 复现。
+  [结果报告](docs/pistg-repro-results.md) · [复现偏离清单](docs/pistg-repro-deviations.md)
+
 ## Windows 安装
 
 基线为 **Windows x64 + Python 3.10 + NumPy 1.26.4 + PyTorch 2.6.0**。

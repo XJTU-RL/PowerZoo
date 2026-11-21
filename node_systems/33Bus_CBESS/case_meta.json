@@ -1,0 +1,301 @@
+{
+  "case": "IEEE33Bus",
+  "source": "pandapower case33bw（Baran-Wu 1989 经典编号，母线号 = 索引 + 1）",
+  "base_kv_ll": 12.66,
+  "num_buses": 33,
+  "slack_bus": 1,
+  "lines": [
+    {
+      "name": "line_1_2",
+      "from_bus": 1,
+      "to_bus": 2,
+      "r_ohm": 0.0922,
+      "x_ohm": 0.047,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_2_3",
+      "from_bus": 2,
+      "to_bus": 3,
+      "r_ohm": 0.493,
+      "x_ohm": 0.2511,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_3_4",
+      "from_bus": 3,
+      "to_bus": 4,
+      "r_ohm": 0.366,
+      "x_ohm": 0.1864,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_4_5",
+      "from_bus": 4,
+      "to_bus": 5,
+      "r_ohm": 0.3811,
+      "x_ohm": 0.1941,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_5_6",
+      "from_bus": 5,
+      "to_bus": 6,
+      "r_ohm": 0.819,
+      "x_ohm": 0.707,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_6_7",
+      "from_bus": 6,
+      "to_bus": 7,
+      "r_ohm": 0.1872,
+      "x_ohm": 0.6188,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_7_8",
+      "from_bus": 7,
+      "to_bus": 8,
+      "r_ohm": 0.7114,
+      "x_ohm": 0.2351,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_8_9",
+      "from_bus": 8,
+      "to_bus": 9,
+      "r_ohm": 1.03,
+      "x_ohm": 0.74,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_9_10",
+      "from_bus": 9,
+      "to_bus": 10,
+      "r_ohm": 1.044,
+      "x_ohm": 0.74,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_10_11",
+      "from_bus": 10,
+      "to_bus": 11,
+      "r_ohm": 0.1966,
+      "x_ohm": 0.065,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_11_12",
+      "from_bus": 11,
+      "to_bus": 12,
+      "r_ohm": 0.3744,
+      "x_ohm": 0.1238,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_12_13",
+      "from_bus": 12,
+      "to_bus": 13,
+      "r_ohm": 1.468,
+      "x_ohm": 1.155,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_13_14",
+      "from_bus": 13,
+      "to_bus": 14,
+      "r_ohm": 0.5416,
+      "x_ohm": 0.7129,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_14_15",
+      "from_bus": 14,
+      "to_bus": 15,
+      "r_ohm": 0.591,
+      "x_ohm": 0.526,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_15_16",
+      "from_bus": 15,
+      "to_bus": 16,
+      "r_ohm": 0.7463,
+      "x_ohm": 0.545,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_16_17",
+      "from_bus": 16,
+      "to_bus": 17,
+      "r_ohm": 1.289,
+      "x_ohm": 1.721,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_17_18",
+      "from_bus": 17,
+      "to_bus": 18,
+      "r_ohm": 0.732,
+      "x_ohm": 0.574,
+      "normamps": 200.0
+    },
+    {
+      "name": "line_2_19",
+      "from_bus": 2,
+      "to_bus": 19,
+      "r_ohm": 0.164,
+      "x_ohm": 0.1565,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_19_20",
+      "from_bus": 19,
+      "to_bus": 20,
+      "r_ohm": 1.5042,
+      "x_ohm": 1.3554,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_20_21",
+      "from_bus": 20,
+      "to_bus": 21,
+      "r_ohm": 0.4095,
+      "x_ohm": 0.4784,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_21_22",
+      "from_bus": 21,
+      "to_bus": 22,
+      "r_ohm": 0.7089,
+      "x_ohm": 0.9373,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_3_23",
+      "from_bus": 3,
+      "to_bus": 23,
+      "r_ohm": 0.4512,
+      "x_ohm": 0.3083,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_23_24",
+      "from_bus": 23,
+      "to_bus": 24,
+      "r_ohm": 0.898,
+      "x_ohm": 0.7091,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_24_25",
+      "from_bus": 24,
+      "to_bus": 25,
+      "r_ohm": 0.896,
+      "x_ohm": 0.7011,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_6_26",
+      "from_bus": 6,
+      "to_bus": 26,
+      "r_ohm": 0.203,
+      "x_ohm": 0.1034,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_26_27",
+      "from_bus": 26,
+      "to_bus": 27,
+      "r_ohm": 0.2842,
+      "x_ohm": 0.1447,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_27_28",
+      "from_bus": 27,
+      "to_bus": 28,
+      "r_ohm": 1.059,
+      "x_ohm": 0.9337,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_28_29",
+      "from_bus": 28,
+      "to_bus": 29,
+      "r_ohm": 0.8042,
+      "x_ohm": 0.7006,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_29_30",
+      "from_bus": 29,
+      "to_bus": 30,
+      "r_ohm": 0.5075,
+      "x_ohm": 0.2585,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_30_31",
+      "from_bus": 30,
+      "to_bus": 31,
+      "r_ohm": 0.9744,
+      "x_ohm": 0.963,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_31_32",
+      "from_bus": 31,
+      "to_bus": 32,
+      "r_ohm": 0.3105,
+      "x_ohm": 0.3619,
+      "normamps": 100.0
+    },
+    {
+      "name": "line_32_33",
+      "from_bus": 32,
+      "to_bus": 33,
+      "r_ohm": 0.341,
+      "x_ohm": 0.5302,
+      "normamps": 100.0
+    }
+  ],
+  "der_buses": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33
+  ],
+  "cbess_buses": [
+    6,
+    11,
+    16,
+    31
+  ],
+  "der_deployment_ratio": 0.7879,
+  "line_rating_note": "默认主干 400 A / 支线 200 A，M2 标定后冻结"
+}
