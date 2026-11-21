@@ -1,0 +1,5 @@
+! PowerZoo VVC research Storage; ratings are scenario assumptions.
+New Storage.batt1 bus1=33.1 phases=1 kV=2.4 conn=Wye kWRated=100 kWhRated=200 kVA=100 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %idlingkW=0 DispMode=external state=idling kvar=0
+New Storage.batt2 bus1=114.1 phases=1 kV=2.4 conn=Wye kWRated=100 kWhRated=200 kVA=100 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %idlingkW=0 DispMode=external state=idling kvar=0
+New Storage.batt3 bus1=67.1.2.3 phases=3 kV=4.16 conn=Delta kWRated=100 kWhRated=200 kVA=100 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %idlingkW=0 DispMode=external state=idling kvar=0
+New Storage.batt4 bus1=300.1.2.3 phases=3 kV=4.16 conn=Delta kWRated=100 kWhRated=200 kVA=100 %stored=50 %reserve=10 %EffCharge=95 %EffDischarge=95 %idlingkW=0 DispMode=external state=idling kvar=0

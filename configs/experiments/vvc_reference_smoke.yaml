@@ -1,0 +1,12 @@
+# 参考场景的 CPU 接入预设，供 HAPPO 和非共享 MAPPO 共用。
+run: {algo: happo, env: vvc, exp_name: vvc_reference_smoke}
+system_ref: 34Bus
+seed: {seed_specify: true, seed: 0}
+device: {cuda: false, torch_threads: 1}
+train: {n_rollout_threads: 1, num_env_steps: 240, episode_length: 24}
+eval: {use_eval: false, n_eval_rollout_threads: 1, eval_episodes: 2}
+model: {hidden_sizes: [32, 32], use_recurrent_policy: false, use_naive_recurrent_policy: false}
+algo: {share_param: false, actor_num_mini_batch: 1, critic_num_mini_batch: 1, ppo_epoch: 1, critic_epoch: 1}
+env:
+  max_episode_steps: 24
+  data: {source: synthetic, split: train, step_seconds: 3600, noise: 0.0}
