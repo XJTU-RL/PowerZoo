@@ -1,90 +1,82 @@
-"""已验收同步运行任务的SB3 PPO基线，共用正式配置和物理内核。"""
+"""集中控制/单智能体训练入口：可插拔后端（sb3_ppo | ldcppo | …）。
+
+后端注册表见 utils/single_agent/backends.py；集中控制算法本体在
+algorithms/centralized/（CENTRALIZED_ALGOS）。本入口统一承担：
+配置加载（ConfigLoader）、启动准备（prepare_run）、环境构造
+（make_power_env；cbess 家族直接用注册包装器，其余家族过
+CentralizedAdapter）与伴随文件（.environment.yaml；物理清单仅当
+环境暴露 .core 时写出）。算法语义全部在后端内。
+"""
 
 from pathlib import Path
 import argparse
 
 
+def build_env(family: str, cfg):
+    """按家族构造 gymnasium 风格单智能体环境。"""
+    from utils.envs_tools import make_power_env
+    from envs.powergrid.adapters import CentralizedAdapter
+
+    wrapper = make_power_env(family, cfg.env_args, 0, cfg.env_args["seed"])
+    if family == "cbess":
+        return wrapper  # CBESSTaskEnv：gymnasium 接口 + info["costs"]
+    action_mode = "discrete" if family == "dsr" else "continuous"
+    return CentralizedAdapter(wrapper.env, action_space_type=action_mode)
+
+
 def main(
-    default_experiment="configs/experiments/vvc_13bus_smoke.yaml", expected_family=None
+    default_experiment="configs/experiments/vvc_13bus_smoke.yaml",
+    expected_family=None,
 ):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", default=default_experiment)
     p.add_argument("--steps", type=int, default=240)
-    p.add_argument("--output", default="results/centralized/ppo")
+    p.add_argument("--output", default=None,
+                   help="模型/日志输出前缀（默认 results/centralized/<backend>）")
+    p.add_argument("--backend", default="sb3_ppo",
+                   help="训练后端（默认 sb3_ppo，原基线行为；可选 ldcppo 等）")
+    p.add_argument("--resume", action="store_true",
+                   help="断点续训（支持 episode 驱动后端，如 ldcppo）")
     args = p.parse_args()
     if args.steps < 1:
-        p.error("--steps 必须为正数")
-    from stable_baselines3 import PPO
+        p.error("--steps 必须为正")
+
+    from utils.single_agent import BACKENDS
     from utils.config_pipeline import ConfigLoader
     from utils.config_validation import environment_family
     from utils.training_setup import prepare_run
-    from utils.envs_tools import make_power_env
-    from envs.powergrid.adapters import CentralizedAdapter
+
+    if args.backend not in BACKENDS:
+        p.error(f"未知后端 {args.backend}；可用：{sorted(BACKENDS)}")
+    backend = BACKENDS[args.backend]
 
     cfg = ConfigLoader().load(experiment=args.config)
     family = environment_family(cfg.main_args["env"])
-    if family not in ("vvc", "smartgrid", "district_dispatch", "dsr") or (
+    if family not in ("vvc", "smartgrid", "district_dispatch", "dsr", "cbess") or (
         expected_family and family != expected_family
     ):
-        p.error("当前集中控制基线支持VVC/SmartGrid/District/DSR同步任务")
+        p.error("当前集中控制入口支持 VVC/SmartGrid/District/DSR/CBESS 任务")
     prepare_run(cfg)
-    wrapper = make_power_env(family, cfg.env_args, 0, cfg.env_args["seed"])
-    action_mode = "discrete" if family == "dsr" else "continuous"
-    env = CentralizedAdapter(wrapper.env, action_space_type=action_mode)
+    env = build_env(family, cfg)
     try:
-        n_steps = max(2, int(cfg.algo_args["train"]["episode_length"]))
-        model = PPO(
-            "MlpPolicy",
-            env,
-            n_steps=n_steps,
-            batch_size=n_steps,
-            n_epochs=1,
-            learning_rate=cfg.algo_args["model"]["lr"],
-            gamma=cfg.algo_args["algo"]["gamma"],
-            gae_lambda=cfg.algo_args["algo"]["gae_lambda"],
-            policy_kwargs={"net_arch": cfg.algo_args["model"]["hidden_sizes"]},
-            device="cpu",
-            seed=cfg.algo_args["seed"]["seed"],
-            verbose=1,
-        )
-        model.learn(total_timesteps=args.steps)
-        output = Path(args.output).resolve()
-        output.parent.mkdir(parents=True, exist_ok=True)
-        model.save(output)
+        output = Path(
+            args.output or f"results/centralized/{args.backend}"
+        ).resolve()
+        backend(cfg, env, output, args.steps, resume=args.resume)
         cfg.save(output.with_suffix(".environment.yaml"))
-        import json
-
-        output.with_suffix(".physics.json").write_text(
-            json.dumps(
-                env.core.get_physics_manifest(),
-                ensure_ascii=False,
-                indent=2,
-                allow_nan=False,
-            ),
-            encoding="utf-8",
+        core = getattr(env, "core", None) or getattr(
+            getattr(env, "env", None), "core", None
         )
+        if core is not None and hasattr(core, "get_physics_manifest"):
+            import json
 
-        output.with_suffix(".sb3.json").write_text(
-            json.dumps(
-                {
-                    "algorithm": "SB3 PPO",
-                    "steps": model.num_timesteps,
-                    "n_steps": n_steps,
-                    "batch_size": n_steps,
-                    "n_epochs": 1,
-                    "learning_rate": model.learning_rate,
-                    "gamma": model.gamma,
-                    "gae_lambda": model.gae_lambda,
-                    "device": "cpu",
-                    "action_adapter": (
-                        "MultiDiscrete group choices"
-                        if action_mode == "discrete"
-                        else "Box with discrete-device quantization"
-                    ),
-                },
-                indent=2,
+            output.with_suffix(".physics.json").write_text(
+                json.dumps(
+                    core.get_physics_manifest(),
+                    ensure_ascii=False, indent=2, allow_nan=False,
+                ),
+                encoding="utf-8",
             )
-        )
     finally:
         env.close()
 

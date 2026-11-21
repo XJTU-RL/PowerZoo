@@ -1,0 +1,12 @@
+# LDCPPO 后端在 cbess 家族上的冒烟实验（2 回合验证链路）。
+# 算例由 env.system（node_systems 目录名）选择；systems/33Bus_CBESS.yaml
+# 供 MARL/其它家族消费方引用，cbess 的 env 节不注入系统字段。
+run:
+  algo: ldcppo
+  env: cbess
+  exp_name: cbess33bus
+env:
+  price_level: 0.70
+train:
+  total_episodes: 2
+  checkpoint_every: 1
