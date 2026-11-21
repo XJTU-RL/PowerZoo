@@ -308,7 +308,7 @@ def test_gae_hand_computed():
     δ1 = 0 + 1×0 − 0.5 = −0.5；δ0 = 1 + 1×0.5 − 0.5 = 1；
     A1 = δ1 = −0.5；A0 = δ0 + γλ·A1 = 0.5。
     """
-    from research.pistg_ldcpo.algo.ldcppo import compute_gae
+    from algorithms.centralized.ldcppo import compute_gae
 
     adv = compute_gae(
         np.array([1.0, 0.0]), np.array([0.5, 0.5]), 0.0, gamma=1.0, lam=1.0
@@ -319,7 +319,7 @@ def test_gae_hand_computed():
 
 def test_dual_ascent_direction():
     """式(36d)：超预算 λ 增、低于预算 λ 减且非负钳制。"""
-    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from algorithms.centralized.ldcppo import LDCPPO
     from research.pistg_ldcpo.config import LdcpoConfig
 
     agent = LDCPPO(state_dim=4, action_dim=2, cfg=LdcpoConfig())
@@ -350,7 +350,7 @@ def test_ldcpo_reduces_cost_in_synthetic_cmdp():
     拉格朗日机制的教科书行为：先奖励主导（成本升），λ 积累后约束反压
     （成本回落）。论文 lr 为 288 步大任务尺度，合成小任务放大 lr/对偶步长。
     """
-    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from algorithms.centralized.ldcppo import LDCPPO
     from research.pistg_ldcpo.config import LdcpoConfig
 
     rng = np.random.default_rng(3)

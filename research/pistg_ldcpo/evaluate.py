@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .algo.ldcppo import COST_KEYS, LDCPPO
+from algorithms.centralized.ldcppo import COST_KEYS, LDCPPO
 from .config import CASE_FOLDER, RunConfig
 from envs.cbess.profile_store import ProfileStore
 from envs.cbess.cbes_env import CBESEnv
