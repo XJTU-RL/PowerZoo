@@ -22,8 +22,8 @@ import numpy as np
 import torch
 
 from .config import CASE_FOLDER, EncoderConfig, RunConfig
-from .data.profile_store import ProfileStore
-from .environment.cbes_env import CBESEnv
+from envs.cbess.profile_store import ProfileStore
+from envs.cbess.cbes_env import CBESEnv
 from .models.piae import PIAE, ReconstructionHead, S_BASE_MVA
 from .models.pistg import PISTGEncoder, physics_informed_adjacency
 

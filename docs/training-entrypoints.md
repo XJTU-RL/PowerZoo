@@ -12,6 +12,10 @@
 五类电力环境共用 `scripts/train.py`，实际实现只有 `utils/train_cli.py` 一份。
 `examples/multi_agent/scripts/train.py` 保留为兼容路径，也调用同一函数。
 SmartGrid集中控制PPO使用SB3后端，共用配置解析、启动准备和仿真；不混用MARL训练循环。
+2026-11 起集中控制入口升级为可插拔后端（`utils/single_agent/backends.py`：`sb3_ppo | ldcppo | …`），
+算法本体在 `algorithms/centralized/`（CENTRALIZED_ALGOS，与 MARL 的 algorithms/actors 并列）；
+`cbess` 家族（PISTG-LDCPPO 论文场景）经 `envs/cbess/` 注册表接入，约束成本走 `info["costs"]` 通道，
+示例：`python scripts/train_centralized.py --backend ldcppo --config configs/experiments/cbess_ldcppo_quickstart.yaml`。
 2026-11 起 LFC（OHASAC 论文算例）作为第六个环境家族接入同一入口：实验见
 `configs/experiments/lfc_13bus_ohasac_quickstart.yaml`，短训练设置为
 `configs/training/lfc_smoke.yaml`；MATLAB 联合仿真依赖与算法 `ohasac` 的运行边界见

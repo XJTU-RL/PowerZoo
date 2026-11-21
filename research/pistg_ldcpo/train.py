@@ -22,10 +22,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from .algo.ldcppo import COST_KEYS, LDCPPO
+from algorithms.centralized.ldcppo import COST_KEYS, LDCPPO
 from .config import CASE_FOLDER, RunConfig
-from .data.profile_store import ProfileStore
-from .environment.cbes_env import CBESEnv
+from envs.cbess.profile_store import ProfileStore
+from envs.cbess.cbes_env import CBESEnv
 from .models.pistg import PISTGEncoder
 
 WINDOW = 12  # 仅为向后兼容保留的默认；实际取 RunConfig().encoder.window

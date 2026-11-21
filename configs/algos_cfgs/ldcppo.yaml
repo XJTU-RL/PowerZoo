@@ -1,0 +1,38 @@
+# LDCPPO：拉格朗日专用 critic PPO（arXiv:2610.33654 式(27)-(36)，表 II 逐字）。
+# 消费方：utils/single_agent/backends.py 的 ldcppo 后端 → LdcpoConfig。
+# 八节契约按公共配置管线要求补齐（seed/device/eval/render/logger 为占位）。
+seed:
+  seed_specify: true
+  seed: 1
+device: {}
+train:
+  total_episodes: 2000          # 论文口径；smoke 预设会覆盖
+  budget_estimate_episodes: 3   # 零控制基线估计回合数
+  checkpoint_every: 100
+  episode_length: 288           # cbess：一天 288 步
+eval:
+  episodes: 100
+render: {}
+model:
+  actor_hidden: [128, 128]
+  critic_hidden: [128, 128]
+  log_std_init: -0.5
+algo:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  target_kl: 0.015
+  actor_lr: 3.0e-5
+  critic_lr: 3.0e-5
+  dual_lr: 5.0e-4
+  init_multipliers: 0.0
+  value_coef: 0.5
+  entropy_coef: 0.0
+  max_grad_norm: 0.5
+  ppo_epochs: 10            # 论文未明说，PPO 惯例（偏离文档 C 节）
+  minibatch_size: 4096      # > T=288 时整批更新（论文 "episode or mini-batch"）
+  lambda_min: 0.0           # 式(36d) 逐字；>0 抑制末期 λ→0 约束回弹
+  bootstrap_at_episode_end: true
+  cost_budget_fraction: {VD: 0.10, VN: 0.10, LO: 0.10}  # d_k 比例（论文未给值，v2 冻结 0.10）
+logger:
+  log_every: 5

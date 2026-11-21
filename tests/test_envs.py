@@ -18,6 +18,7 @@ def test_package_registry_is_the_single_spec_mapping():
         "district_dispatch",
         "stackelberg",
         "lfc",
+        "cbess",
     }
     assert ENV_REGISTRY["stackelberg"].interaction == "sequential"
 

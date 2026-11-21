@@ -78,6 +78,14 @@ evaluate.py         测试期评估
 scripts/run_full.sh 全量流水线
 ```
 
+**框架分层（2026-11-21 起）**：环境与算法已按框架规则入库——
+`envs/cbess/`（CBESSConfig/CBESEnv/CBESSTaskEnv，ENVIRONMENTS 注册 "cbess"）与
+`algorithms/centralized/`（LDCPPO + CENTRALIZED_ALGOS）。本目录保留研究入口
+（pretrain/train/evaluate，含 PISTG/PIAE 编码器与 W=12 窗口）与数据管线；
+框架标准入口：`python scripts/train_centralized.py --backend ldcppo --config
+configs/experiments/cbess_ldcppo_quickstart.yaml`（平铺观测口径；PISTG 编码器
+骨干的接入为后续项）。
+
 复现范围（本轮）：PISTG-LDCPPO + LDCPPO（flat）+ STG-LDCPPO 三配置
 （论文表 VIII 消融主线）。TD3/SAC/PISTG-CPO/PI-GR 变体与 69-bus 为
 第二阶段。

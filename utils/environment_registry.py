@@ -14,10 +14,12 @@ class EnvironmentSpec:
     interaction: str = "synchronous"
 
     def create(self, config, rank):
-        if self.interaction != "synchronous":
+        if self.interaction == "sequential":
             raise ValueError(
                 "顺序任务须使用sequential_ppo阶段采样，不能创建同步MARL worker"
             )
+        # interaction == "centralized"：可构造（集中控制入口消费），
+        # 但不提供同步 MARL worker（_vector_env 显式拦截）。
         wrapper = getattr(import_module(self.wrapper_module), self.wrapper_class)
         return wrapper(config, rank=rank)
 
@@ -47,6 +49,13 @@ ENVIRONMENTS = {
         "DistrictDispatchConfig",
         "envs.district_dispatch.district_dispatch_env",
         "DistrictDispatchEnv",
+    ),
+    # PISTG-LDCPPO 论文场景（arXiv:2610.33654）：33-bus + CBESS/DER。
+    # interaction="centralized"：仅集中控制/单智能体入口消费
+    #（utils/centralized_cli.py --backend），MARL 向量化在 _vector_env 拦截。
+    "cbess": EnvironmentSpec(
+        "envs.cbess.config", "CBESSConfig", "envs.cbess.task_env", "CBESSTaskEnv",
+        interaction="centralized",
     ),
     # OHASAC 论文算例：OpenDSS 配电网 + Simulink 输电网联合仿真。
     # 进程隔离为硬需求（每 worker 独立 MATLAB 引擎与 DSS 会话）。

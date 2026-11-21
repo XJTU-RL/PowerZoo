@@ -112,7 +112,7 @@ def test_case33_static_meta_consistency():
 
 def test_dss_session_two_step_compatibility():
     """研究环境组合 DSSSession：两步 5-min 区间求解与时钟推进正常。"""
-    from research.pistg_ldcpo.environment.session_utils import rebase_voltage
+    from envs.cbess.session_utils import rebase_voltage
 
     session = DSSSession(
         CASE_FOLDER, "network.dss", overlays=("der_overlay.dss",), step_seconds=300
@@ -202,7 +202,7 @@ def test_profiles_day_split_disjoint():
 
 def test_profile_store_roundtrip():
     _profiles_or_skip()
-    from research.pistg_ldcpo.data.profile_store import ProfileStore
+    from envs.cbess.profile_store import ProfileStore
 
     store = ProfileStore(REPO_ROOT / "data" / "external" / "ausgrid-solar-home")
     rng = np.random.default_rng(0)
@@ -308,7 +308,7 @@ def test_gae_hand_computed():
     δ1 = 0 + 1×0 − 0.5 = −0.5；δ0 = 1 + 1×0.5 − 0.5 = 1；
     A1 = δ1 = −0.5；A0 = δ0 + γλ·A1 = 0.5。
     """
-    from research.pistg_ldcpo.algo.ldcppo import compute_gae
+    from algorithms.centralized.ldcppo import compute_gae
 
     adv = compute_gae(
         np.array([1.0, 0.0]), np.array([0.5, 0.5]), 0.0, gamma=1.0, lam=1.0
@@ -319,7 +319,7 @@ def test_gae_hand_computed():
 
 def test_dual_ascent_direction():
     """式(36d)：超预算 λ 增、低于预算 λ 减且非负钳制。"""
-    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from algorithms.centralized.ldcppo import LDCPPO
     from research.pistg_ldcpo.config import LdcpoConfig
 
     agent = LDCPPO(state_dim=4, action_dim=2, cfg=LdcpoConfig())
@@ -350,7 +350,7 @@ def test_ldcpo_reduces_cost_in_synthetic_cmdp():
     拉格朗日机制的教科书行为：先奖励主导（成本升），λ 积累后约束反压
     （成本回落）。论文 lr 为 288 步大任务尺度，合成小任务放大 lr/对偶步长。
     """
-    from research.pistg_ldcpo.algo.ldcppo import LDCPPO
+    from algorithms.centralized.ldcppo import LDCPPO
     from research.pistg_ldcpo.config import LdcpoConfig
 
     rng = np.random.default_rng(3)
@@ -403,7 +403,7 @@ def test_flat_state_encoder_dimension():
 
 def test_action_mapping_bounds():
     """α=±1 恰好触及 SOC 感知界限；式(1e) 圆约束与 ±50 kVAr 硬界成立。"""
-    from research.pistg_ldcpo.environment.physics import (
+    from envs.cbess.physics import (
         CBESSParams,
         cbess_energy_update,
         map_cbess_action,
@@ -453,7 +453,7 @@ def test_action_mapping_bounds():
 
 def test_constraint_costs_and_reward_values():
     """式(24c)-(24f) 手工算例：单位与口径逐项核对。"""
-    from research.pistg_ldcpo.environment.physics import (
+    from envs.cbess.physics import (
         constraint_costs,
         economic_reward,
     )
@@ -484,8 +484,8 @@ def test_zero_control_day_reproduces_paper_phenomena():
     """
     _profiles_or_skip()
     from research.pistg_ldcpo.config import CASE_FOLDER, RunConfig
-    from research.pistg_ldcpo.data.profile_store import ProfileStore
-    from research.pistg_ldcpo.environment.cbes_env import CBESEnv
+    from envs.cbess.profile_store import ProfileStore
+    from envs.cbess.cbes_env import CBESEnv
 
     cfg = RunConfig()
     store = ProfileStore(cfg.data_dir)

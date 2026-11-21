@@ -19,8 +19,46 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from ..config import LdcpoConfig
+from dataclasses import dataclass, field
+from typing import Dict, List
+
 from .networks import Critic, GaussianActor
+
+@dataclass
+class LdcpoConfig:
+    """LDCPPO（论文表 II 与 p.10 训练细节）。"""
+
+    actor_hidden: List[int] = field(default_factory=lambda: [128, 128])
+    critic_hidden: List[int] = field(default_factory=lambda: [128, 128])
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    target_kl: float = 0.015
+    actor_lr: float = 3e-5
+    critic_lr: float = 3e-5
+    dual_lr: float = 5e-4
+    init_multipliers: float = 0.0
+    value_coef: float = 0.5
+    entropy_coef: float = 0.0  # 论文明示零熵奖励
+    max_grad_norm: float = 0.5
+    log_std_init: float = -0.5
+    ppo_epochs: int = 10  # 论文未明说，PPO 惯例值
+    # minibatch 上限（式(33)-(36) 的 "episode or mini-batch"）：单回合
+    # T=288 < 4096 时退化为整批更新（与全量运行口径一致）；调小即启用
+    # minibatch 切分（每 epoch 随机重排）。
+    minibatch_size: int = 4096
+    # 对偶乘子下限：0.0 = 式(36d) 逐字（λ 可降至 0，训练末期约束回弹的
+    # 已知根源）；>0 时按下限截断（复现实验的稳定性开关，偏离文档记录）。
+    lambda_min: float = 0.0
+    total_episodes: int = 2000
+    # 约束预算 d_k：论文未给数值；默认取零控制基线折扣成本的 30%，
+    # 由标定实验冻结（偏离文档记录）。
+    cost_budget_fraction: Dict[str, float] = field(
+        default_factory=lambda: {"VD": 0.3, "VN": 0.3, "LO": 0.3}
+    )
+    bootstrap_at_episode_end: bool = True  # 日循环任务用 V(s_T) 自举（论文未明说）
+
+
 
 COST_KEYS = ("VD", "VN", "LO")
 

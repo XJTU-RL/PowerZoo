@@ -72,6 +72,13 @@ def _vector_env(env_name, seed, n_threads, env_args, evaluation=False):
     family = environment_family(env_name)
     if family == "stackelberg":
         raise ValueError("顺序任务不能使用同步MARL worker；请用sequential_ppo")
+    from utils.environment_registry import environment_spec
+
+    if environment_spec(family).interaction == "centralized":
+        raise ValueError(
+            f"{family} 家族为集中控制形态，请走单智能体入口"
+            "（utils/centralized_cli.py --backend）；MARL 适配为后续研究线"
+        )
     if family in ("smartgrid", "vvc", "district_dispatch", "dsr"):
         import copy
 

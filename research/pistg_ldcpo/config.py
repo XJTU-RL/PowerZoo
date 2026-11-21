@@ -15,38 +15,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CASE_FOLDER = REPO_ROOT / "node_systems" / "33Bus_CBESS"
 
 
-@dataclass
-class ScenarioConfig:
-    """场景参数（论文 Sec. IV-A）。"""
-
-    # 明示值：288 步 × 300 s = 一天。
-    steps_per_day: int = 288
-    step_seconds: int = 300
-    voltage_min: float = 0.95
-    voltage_max: float = 1.05
-    # 明示值：4 台 CBESS @ 6/11/16/31，各 1000 kWh、SOC 初 50%、
-    # ±250 kW、q ±50 kVAr、η=0.95、退化 0.03 AUD/kWh。
-    cbess_buses: List[int] = field(default_factory=lambda: [6, 11, 16, 31])
-    cbess_capacity_kwh: float = 1000.0
-    cbess_soc_init: float = 0.5
-    cbess_soc_min: float = 0.1
-    cbess_soc_max: float = 0.9
-    cbess_p_limit_kw: float = 250.0
-    cbess_q_limit_kvar: float = 50.0
-    cbess_efficiency: float = 0.95  # η_ch = η_dis
-    cbess_degradation_aud_per_kwh: float = 0.03
-    # S_CB 取 √(250²+50²) kVA，使满功率放电时仍可输出 ±50 kVAr（式(1e)）。
-    cbess_s_rating_kva: float = (250.0**2 + 50.0**2) ** 0.5
-    # PV 逆变器容量 = 1.1 × PV 峰值（论文未明说，常见超配）。
-    pv_inverter_oversize: float = 1.1
-    # 场景标定常量（母线日能量、PV 定容、非 DER 缩放）的唯一事实源在
-    # data/prepare_profiles.py，冻结记录于其 manifest.json——此处不再
-    # 重复声明（曾有 850/350 等过期死值误导读码，已删）。
-    load_power_factor: float = 0.85  # 标准 33-bus 系统功率因数 3715/√(3715²+2300²)
-    # 电价整体缩放（v2 标定冻结）：daily-energy 口径下零控制 ≈1083 AUD
-    # @0.55；0.70 时 ≈1378，对齐 M2 准则（零控制 ≈1400 ≈ 论文表 III
-    # 训后 1382 的量级锚点）。
-    price_level: float = 0.70
+# 场景配置唯一事实源已入框架 envs/cbess/config.py（CBESSConfig）；
+# research 侧保留 ScenarioConfig 别名以维持文档语言与既有引用。
+from envs.cbess.config import CBESSConfig as ScenarioConfig  # noqa: E402,F401
 
 
 @dataclass
@@ -76,40 +47,8 @@ class EncoderConfig:
     pretrain_batch_windows: int = 256
 
 
-@dataclass
-class LdcpoConfig:
-    """LDCPPO（论文表 II 与 p.10 训练细节）。"""
-
-    actor_hidden: List[int] = field(default_factory=lambda: [128, 128])
-    critic_hidden: List[int] = field(default_factory=lambda: [128, 128])
-    gamma: float = 0.99
-    gae_lambda: float = 0.95
-    clip_range: float = 0.2
-    target_kl: float = 0.015
-    actor_lr: float = 3e-5
-    critic_lr: float = 3e-5
-    dual_lr: float = 5e-4
-    init_multipliers: float = 0.0
-    value_coef: float = 0.5
-    entropy_coef: float = 0.0  # 论文明示零熵奖励
-    max_grad_norm: float = 0.5
-    log_std_init: float = -0.5
-    ppo_epochs: int = 10  # 论文未明说，PPO 惯例值
-    # minibatch 上限（式(33)-(36) 的 "episode or mini-batch"）：单回合
-    # T=288 < 4096 时退化为整批更新（与全量运行口径一致）；调小即启用
-    # minibatch 切分（每 epoch 随机重排）。
-    minibatch_size: int = 4096
-    # 对偶乘子下限：0.0 = 式(36d) 逐字（λ 可降至 0，训练末期约束回弹的
-    # 已知根源）；>0 时按下限截断（复现实验的稳定性开关，偏离文档记录）。
-    lambda_min: float = 0.0
-    total_episodes: int = 2000
-    # 约束预算 d_k：论文未给数值；默认取零控制基线折扣成本的 30%，
-    # 由标定实验冻结（偏离文档记录）。
-    cost_budget_fraction: Dict[str, float] = field(
-        default_factory=lambda: {"VD": 0.3, "VN": 0.3, "LO": 0.3}
-    )
-    bootstrap_at_episode_end: bool = True  # 日循环任务用 V(s_T) 自举（论文未明说）
-
+# LDCPPO 超参唯一事实源已入框架 algorithms/centralized/ldcppo.py
+from algorithms.centralized.ldcppo import LdcpoConfig  # noqa: E402,F401
 
 @dataclass
 class RunConfig:
