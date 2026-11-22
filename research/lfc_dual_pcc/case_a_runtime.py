@@ -21,7 +21,7 @@ from .stage0 import CONFIG as WIRING,write_ports
 from .topology import check
 
 
-def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
+def native_episode(model,cfg,method,event,reference,seed,greedy,emit,*,handoff=None):
     import matlab.engine
     rng=np.random.default_rng(seed)
     wire=json.loads(WIRING.read_bytes())
@@ -91,6 +91,9 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
                     "actions":{s:[] for s in ports},"outputs":{s:[] for s in ports}}
             active=slots[0]<=slot<slots[-1]+cfg["slow_s"]
             w=slots[0]+((slot-slots[0])//cfg["slow_s"])*cfg["slow_s"]
+            release_log=None
+            if handoff is not None:
+                req,release_log=handoff.dispatch(slot,error,used,active)
             selected={}
             for s,p in plants.items():
                 if active:
@@ -115,6 +118,8 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
                     pcc={s:r["pcc"] for s,r in actual.items()},reports={s:local_report(actual[s],p) for s,p in plants.items()},
                     target=targets,request=req.copy() if active else {s:0. for s in ports},actions=selected,
                     delivered={s:r["delivered_kw"] for s,r in actual.items()},actual=actual)
+            if release_log is not None:
+                frame["handoff"]=release_log
             frames.append(frame)
             emit({"phase":"hold",**frame})
             for s in ports: histories[s].append(selected[s])
@@ -144,6 +149,8 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
                 sensors[s].append([m["mean_p_kw"],m["mean_q_kvar"]])
             emit(dict(phase="sensor_means",port=s,means=sensors[s]))
         # Attribution runs only after all policy actions, from reconstructed native states.
+        if handoff is not None:
+            return {},[],frames,trace,sensors,ref_hz
         for key,win in windows.items():
             origin=int(key)
             targets=[f for f in frames if f["used_slot"] in (origin,origin+1)]
