@@ -298,21 +298,28 @@ class Preflight:
         return {**asdict(self), "compatible": self.compatible}
 
 
-def _centralized_vvc_device_actions(values, actions):
-    """标准馈线有原生机械设备；自定义入口以实际设备清单为准。"""
+_STANDARD_VVC_SYSTEMS = {"13Bus", "34Bus", "123Bus"}
+
+
+def _vvc_device_actions(values):
+    if values.get("continuous_storage_only"):
+        return ("continuous",)
+    if values["bat_act_num"] != inf:
+        return ("discrete",)
     system = values["system_name"]
+    folder = values.get("dss_folder")
     bundled = Path("node_systems") / system
     root = Path(__file__).resolve().parents[1]
-    folder = values.get("dss_folder")
     if (
-        system in {"13Bus", "34Bus", "123Bus"}
+        system in _STANDARD_VVC_SYSTEMS
         and (not folder or Path(folder) in (bundled, root / bundled))
         and values.get("dss_file") == "network.dss"
         and not values.get("overlays")
         and not values.get("smartds_series")
     ):
+        # 标准馈线保留原生机械设备，储能切到连续后为混合动作。
         return ("mixed",)
-    return actions
+    return _HETEROGENEOUS
 
 
 def preflight(
@@ -353,6 +360,15 @@ def preflight(
             validate_discrete_vvc(algorithm, family, config.algo_args, values)
         except ConfigError as exc:
             issues.append(str(exc))
+    if (
+        family == "vvc"
+        and entrypoint == "marl"
+        and values.get("continuous_storage_only")
+        and algorithm in ("haddpg", "hatd3")
+    ):
+        issues.append(
+            f"{algorithm} 尚未支持 VVC 原生连续储能模式（仅 MADDPG/MATD3 已接入）"
+        )
     if checkpoint_contract and backend is None:
         issues.append("集中式 checkpoint 格式不适用于 MARL")
     if contract == "legacy_physics_only" and (
@@ -364,12 +380,9 @@ def preflight(
     if issues:
         return Preflight(*selection, issues=tuple(issues), checkpoint_contract=contract)
 
-    device_actions = env.device_actions
-    if family == "vvc":
-        if values["bat_act_num"] != inf:
-            device_actions = ("discrete",)
-        elif entrypoint == "centralized":
-            device_actions = _centralized_vvc_device_actions(values, device_actions)
+    device_actions = (
+        _vvc_device_actions(values) if family == "vvc" else env.device_actions
+    )
     if layout is not None:
         if layout.kind not in device_actions:
             issues.append(
@@ -417,10 +430,11 @@ def preflight(
             issues.append("全共享要求实际动作和观测空间同构")
 
     mask_order = ("none", "structural", "feasible")
-    if mask_order.index(env.mask) < max(
+    mask = "none" if family == "vvc" and device_actions == ("continuous",) else env.mask
+    if mask_order.index(mask) < max(
         mask_order.index(require_mask), mask_order.index(algo.required_mask)
     ):
-        issues.append(f"动作掩码能力不足：{family}/{entrypoint} 提供 {env.mask}")
+        issues.append(f"动作掩码能力不足：{family}/{entrypoint} 提供 {mask}")
     missing_costs = set(algo.required_costs) - set(env.costs)
     if missing_costs:
         issues.append(f"环境缺少约束成本通道 {sorted(missing_costs)}")

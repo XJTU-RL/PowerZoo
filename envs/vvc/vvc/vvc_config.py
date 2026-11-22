@@ -42,9 +42,12 @@ class VVCConfig:
     reg_w: float = 0.0303
     soc_w: float = 0.0
     dis_w: float = 0.1818
+    continuous_storage_only: bool = False
 
     def __post_init__(self):
         validate_operation(self)
+        if self.continuous_storage_only and self.bat_act_num != math.inf:
+            raise ValueError("continuous_storage_only 需要 bat_act_num=.inf")
         for key in ("power_w", "cap_w", "reg_w", "soc_w", "dis_w"):
             value = getattr(self, key)
             if not math.isfinite(value) or value < 0:
