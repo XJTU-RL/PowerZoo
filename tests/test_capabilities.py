@@ -114,6 +114,8 @@ def test_mixed_actions_wait_for_native_layout(config):
     config.main_args["algo"] = "matd3"
     assert not preflight(config).compatible
     config.env_args["bat_act_num"] = float("inf")
+    assert not preflight(config).compatible
+    config.env_args["dss_folder"] = "/custom/dss"
     static = preflight(config)
     assert static.compatible and "mixed" in static.action_kinds
     mixed = DeviceLayout(
@@ -121,9 +123,34 @@ def test_mixed_actions_wait_for_native_layout(config):
     )
     assert not preflight(config, layout=mixed).compatible
     storage_only = DeviceLayout(("Storage.y",), ("continuous",), True)
+    config.env_args["continuous_storage_only"] = True
+    assert preflight(config).device_action_kinds == ("continuous",)
+    assert not preflight(config, require_mask="structural").compatible
     resolved = preflight(config, layout=storage_only)
     assert resolved.compatible and not resolved.deferred
     assert resolved.device_ids == ("Storage.y",)
+
+
+@pytest.mark.parametrize("algorithm", ("haddpg", "hatd3"))
+def test_vvc_native_storage_rejects_legacy_ha_runner(algorithm):
+    cfg = ConfigLoader().load(
+        algo=algorithm,
+        experiment="configs/experiments/vvc_34bus_continuous_storage_quickstart.yaml",
+    )
+    layout = DeviceLayout(("Storage.y",), ("continuous",), True)
+
+    for observed_layout in (None, layout):
+        report = preflight(cfg, layout=observed_layout)
+        assert not report.compatible
+        assert any(
+            algorithm in issue and "原生连续储能模式" in issue
+            for issue in report.issues
+        )
+
+    # Do not remove the older generic continuous capability.
+    cfg.env_args["continuous_storage_only"] = False
+    cfg.env_args["dss_folder"] = "/custom/dss"
+    assert preflight(cfg, layout=layout).compatible
 
 
 def test_sharing_and_observation_requirements(config):
