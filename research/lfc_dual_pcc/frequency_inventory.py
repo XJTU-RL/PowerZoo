@@ -22,7 +22,7 @@ def main():
     model = ROOT/json.loads(SCENARIO.read_bytes())["model"]
     if sha(model)!=json.loads(WIRING.read_bytes())["model_sha256"]:
         raise ValueError("model fingerprint")
-    fields = {"FRated","fMechanical0","fElectrical0","freq","frequency","fundamental","f0","Fn"}
+    fields = {"FRated","Freq0","fMechanical0","fElectrical0","freq","frequency","frequencyindice","fundamental","f0","Fn"}
     rows = []
     with ZipFile(model) as z:
         block = ET.fromstring(z.read("simulink/blockdiagram.xml"))

@@ -13,6 +13,7 @@ from .case_a_runtime import native_episode
 from .clock_graph import ClockGraphPolicy, Coordinator, update
 from .driver import dump, gates, report, setup, sha, state_digest
 from .metrics import measure
+from .replay_collected import recover
 from .stage0 import CONFIG as WIRING
 
 
@@ -24,11 +25,14 @@ def main():
     parser.add_argument("--mechanism", type=Path, required=True)
     parser.add_argument("--reference", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--resume-collected", type=Path)
     parser.add_argument("--frequency", type=int, required=True, choices=(50, 60))
     args = parser.parse_args()
     train = args.mode == "train"
     if train == bool(args.checkpoint):
         parser.error("only evaluation requires a checkpoint")
+    if not train and args.resume_collected:
+        parser.error("only unoptimized training trajectories may be recovered")
     if args.frequency == 50:
         parser.error("50 Hz requires reinitialized machine, grid and two feeder operating points plus a new native gate")
     git = subprocess.check_output(["git","rev-parse","HEAD"], text=True).strip()
@@ -59,10 +63,15 @@ def main():
         emit(dict(phase="manifest", mode=args.mode, seed=seed, event=event, key=key, before=before,
                   argv=sys.argv, study="60 Hz engineering pretrial"))
         with torch.set_grad_enabled(train):
-            _, _, frames, trace, sensors, ref = native_episode(model,cfg,"clock_graph",event,args.reference,
-                                                                seed,not train,emit,coordinator=control)
-            if abs(ref-args.frequency)>.01:
-                raise ValueError("native reference frequency disagrees with requested timebase")
+            if args.resume_collected:
+                frames, trace, sensors, ref = recover(args.resume_collected,control,cfg,key,args.reference,event,emit)
+            else:
+                _, _, frames, trace, sensors, ref = native_episode(model,cfg,"clock_graph",event,args.reference,
+                                                                    seed,not train,emit,coordinator=control)
+            # The physical warm-up gate is already enforced by the native receiver.
+            # Verify the initialization sample here. The loaded equilibrium has droop.
+            if abs(trace[0][0])>1e-8 or abs(trace[0][1]-args.frequency)>.01:
+                raise ValueError("native initialization sample disagrees with requested nominal frequency")
             groups = control.returns(frames,trace,ref)
             opt = update(model,groups,cfg["study"]["learning_rate"]) if train else None
         counts = {k:len(v) for k,v in groups.items()}
@@ -87,6 +96,7 @@ def main():
             max(0.,sum(sensors[s][i][0]-base[s] for s in sensors))*(row["end_s"]-row["write_s"])/3600
             for i,row in enumerate(frames))
         summary = dict(key=key, mode=args.mode, seed=seed, event=event, before=before, after=after,
+                       recovered_raw_sha256=sha(args.resume_collected) if args.resume_collected else None,
                        counts=counts, optimizer=opt, metrics=metrics, formal_50hz=False,
                        checkpoint_sha256=sha(args.out/"model.pt" if train else args.checkpoint))
         emit(dict(phase="complete", **summary))
