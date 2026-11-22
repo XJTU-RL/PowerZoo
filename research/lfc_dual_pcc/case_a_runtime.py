@@ -21,7 +21,7 @@ from .stage0 import CONFIG as WIRING,write_ports
 from .topology import check
 
 
-def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
+def native_episode(model,cfg,method,event,reference,seed,greedy,emit, *, coordinator=None):
     import matlab.engine
     rng=np.random.default_rng(seed)
     wire=json.loads(WIRING.read_bytes())
@@ -38,6 +38,8 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
         deck=native.archived_deck(ROOT,tmp)
         plants={s:stack.enter_context(feeder(deck,ref,cfg,s)) for s in ports}
         base={s:p.base[:] for s,p in plants.items()}
+        if coordinator is not None:
+            coordinator.initialize(plants, emit)
         name=_copy_model(src,tmp)
         eng=matlab.engine.start_matlab()
         stack.callback(eng.quit)
@@ -79,7 +81,7 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
             age=start-used["end_s"] if used else 0.
             eligible=[x for x in pending if x[0]<start]
             if eligible: last_bids=eligible[-1][1]
-            if slot in slots:
+            if coordinator is None and slot in slots:
                 req,bids,records=slow(model,cfg,method,obs.hz,ref_now,arrived,last_bids,age,rng,greedy)
                 pending.append((start+clock["report_latency_s"],bids))
                 for r in records:
@@ -92,12 +94,14 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
             active=slots[0]<=slot<slots[-1]+cfg["slow_s"]
             w=slots[0]+((slot-slots[0])//cfg["slow_s"])*cfg["slow_s"]
             selected={}
-            for s,p in plants.items():
+            for s,p in (plants.items() if coordinator is None else ()):
                 if active:
                     idx,r=fast(model,cfg,method,s,req[s],error,local_report(p.last,p),p.candidates(),rng,greedy)
                     if r: decisions.append(dict(**r,at_s=start,window=w))
                 else: idx=0
                 selected[s]=idx
+            if coordinator is not None:
+                req, selected = coordinator.dispatch(slot, start, obs.time_s, error, plants)
             pulse=event["kw"] if event["start"]<=slot<event["stop"] else 0.
             targets={s:[a+((used["pcc"][s][j]-base[s][j]) if used else 0.)
                         +(pulse if s=="A" and j==0 else 0.) for j,a in enumerate(anchors[s])] for s in ports}
@@ -106,16 +110,18 @@ def native_episode(model,cfg,method,event,reference,seed,greedy,emit):
                 raise RuntimeError("two-port transaction advanced clock")
             end=_advance(eng,name,start,slot+1,clock)
             actual={s:p.execute(selected[s]) for s,p in plants.items()}
-            if active:
+            if active and coordinator is None:
                 for s,row in actual.items():
                     windows[str(w)]["actions"][s].append(selected[s])
                     windows[str(w)]["outputs"][s].append(row["delivered_kw"])
             frame=dict(slot=slot,write_s=start,end_s=end,arrival_s=end+clock["report_latency_s"],used_slot=used["slot"] if used else None,
                     received_s=(used["arrival_s"] if used else None),frequency=[obs.time_s,obs.hz],event_kw=pulse,
                     pcc={s:r["pcc"] for s,r in actual.items()},reports={s:local_report(actual[s],p) for s,p in plants.items()},
-                    target=targets,request=req.copy() if active else {s:0. for s in ports},actions=selected,
+                    target=targets,request=req.copy() if active or coordinator is not None else {s:0. for s in ports},actions=selected,
                     delivered={s:r["delivered_kw"] for s,r in actual.items()},actual=actual)
             frames.append(frame)
+            if coordinator is not None:
+                coordinator.receive(frame, plants)
             emit({"phase":"hold",**frame})
             for s in ports: histories[s].append(selected[s])
             previous,start=start,end

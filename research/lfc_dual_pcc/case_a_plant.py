@@ -33,7 +33,7 @@ class Feeder:
                     raise ValueError("native storage model does not match design")
         ctx.Text.Command=(f"New {p['device']} phases=3 bus1={p['bus']} conn=delta kv={p['kv']} "
                           f"kVA={p['kva']} Pmpp={p['kw']} irradiance=1 %Pmpp=50 %cutin=0 %cutout=0 pf=1")
-        self.last=self.probe(0)
+        self.last=self.probe(0, observe=True)
         if self.last["veto"] or any(abs(v-st["initial_soc"][site])>1e-8 for v in self.last["soc"]):
             raise ValueError(f"initial native state rejected: {self.last['veto']}")
         self.base=self.last["pcc"]
@@ -55,7 +55,7 @@ class Feeder:
             return "energy"
         return None
 
-    def probe(self,idx):
+    def probe(self,idx, *, observe=False):
         veto=self.precheck(idx)
         if veto:
             return {"veto":[veto]}
@@ -92,14 +92,18 @@ class Feeder:
                 amp=[x["terminal_current_amp"] for x in term["conductors"] if x["node"] in (1,2,3)]
                 if len(amp)!=3 or max(amp)>kva/(math.sqrt(3)*kv) or term["s_kva"]>kva:
                     veto.append("winding")
-        return dict(veto=veto,soc=before,pcc=[raw["pcc_import_kw"],raw["pcc_import_kvar"]],voltage=volts,
+        phase = {}
+        if observe and self.cfg.get("phase_graph"):
+            from .phase_graph import terminal_injections
+            phase["phase_pq"] = terminal_injections(dev)
+        return dict(**phase,veto=veto,soc=before,pcc=[raw["pcc_import_kw"],raw["pcc_import_kvar"]],voltage=volts,
                     battery_kw=batt,pv_kw=actual_pv,balance=[raw["network_power_residual_kw"],raw["network_power_residual_kvar"]])
 
     def candidates(self):
         return [self.probe(i) for i in range(len(self.cfg["actions_battery_pv_kw"]))]
 
     def execute(self,idx):
-        row=self.probe(idx)
+        row=self.probe(idx, observe=True)
         if row["veto"]:
             raise ValueError(f"inadmissible selected action {idx}: {row['veto']}")
         self.c.Solution.FinishTimeStep()
