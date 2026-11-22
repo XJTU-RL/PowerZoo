@@ -72,6 +72,9 @@ class EqualServiceCoordinator(Coordinator):
     def __init__(self, model, cfg, greedy, *, fixed_master=False):
         super().__init__(model, cfg, greedy, fixed_master=fixed_master, tracking_logit_weight=TRACKING_WEIGHT)
 
+    demand_for = staticmethod(service_kw)
+    deficit_scale_kw = SERVICE_KW
+
     def choose(self, role, inputs, mask, slot, source, now, *, logit_offsets=None, **details):
         if role == "master":
             return super().choose(role, inputs, mask, slot, source, now, logit_offsets=logit_offsets, **details)
@@ -102,8 +105,8 @@ class EqualServiceCoordinator(Coordinator):
                 source, measured = holding[slot], physical[slot]
                 dt = measured["end_s"]-measured["write_s"]
                 hz = [abs(v-ref) for t,v in trace if measured["write_s"] < t < measured["end_s"]]
-                gap = max(0., service_kw(origin)-sum(source["delivered"].values()))
-                score = -statistics.mean(hz)/self.cfg["frequency_scale_hz"] - gap/SERVICE_KW
+                gap = max(0., self.demand_for(origin)-sum(source["delivered"].values()))
+                score = -statistics.mean(hz)/self.cfg["frequency_scale_hz"] - gap/self.deficit_scale_kw
                 total += .95**elapsed*score*dt
                 elapsed += dt
                 self.emit(dict(phase="master_feedback", command=origin, action_slot=slot,

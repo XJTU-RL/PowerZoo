@@ -7,7 +7,7 @@ from torch.distributions import Beta
 from torch.nn import functional as F
 
 from .clock_graph import MLP, slow_input, tensor
-from .equal_service import SERVICE_KW, EqualServiceCoordinator, EqualServicePolicy, service_kw
+from .equal_service import SERVICE_KW, EqualServiceCoordinator, EqualServicePolicy
 from .master_dispatch import SITES
 
 
@@ -80,9 +80,12 @@ class ContinuousServiceCoordinator(EqualServiceCoordinator):
     def command_urgency(self, error):
         return 0. if self.ablation == "downlink" else error
 
+    def policy_interval(self, request, limits):
+        return allocation_interval(request,limits)
+
     def master_allocation(self, error, reports, limits, slot, now, freq_time, sequences):
-        request = service_kw(slot)
-        total, lo, hi = allocation_interval(request,limits)
+        request = self.demand_for(slot)
+        total, lo, hi = self.policy_interval(request,limits)
         confidence = [freshness(reports[s],s,now,self.cfg["fast_s"]) for s in SITES]
         observed_confidence = [0.,0.] if self.ablation == "uplink" else confidence
         x = torch.cat((slow_input(error,self.cfg["frequency_scale_hz"],reports,now),

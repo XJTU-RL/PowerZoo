@@ -23,6 +23,9 @@ from .equal_service import (LOWER_SOURCE, SERVICE_KW, SERVICE_SLOTS, TRACKING_WE
                             EqualServiceCoordinator, EqualServicePolicy, freeze_model, service_kw, split_candidates)
 from .master_dispatch import SITES, bid_limits
 from .metrics import measure
+from .precheck_residual import precheck_residual
+from .residual_service import ResidualServiceCoordinator, ResidualServicePolicy
+from .revision_protocol import HOLDOUT, HOLDOUT_SEED, REVISED_KW, demand as revised_demand
 from .stage0 import CONFIG as WIRING
 
 
@@ -126,10 +129,13 @@ def main():
     for opt in ("precheck","frozen-trace","checkpoint"):
         p.add_argument("--"+opt, type=Path)
     p.add_argument("--continuous",action="store_true",help="bounded Beta master and issued urgency")
+    p.add_argument("--residual",action="store_true",help="rule-anchored development opportunity revision")
     p.add_argument("--ablate",choices=("uplink","downlink"),help="remove one added feature channel in a separate comparison")
     args = p.parse_args()
     if args.ablate and not args.continuous:
         p.error("feature ablation requires the continuous controller")
+    if args.residual and (not args.continuous or args.ablate):
+        p.error("residual revision needs the full continuous information protocol")
     if subprocess.check_output(["git","status","--porcelain"]):
         raise ValueError("requires clean checkout")
     train = args.mode == "train"
@@ -147,12 +153,22 @@ def main():
     if args.continuous:
         key["controller"] = "continuous_beta_issued_urgency"
         key["ablation"] = args.ablate
-    setup(cfg["study"]["seed" if train or args.mode=="precheck" else "eval_seed"])
+    demand_for=service_kw
+    seed=cfg["study"]["seed" if train or args.mode=="precheck" else "eval_seed"]
+    event=cfg["events"]["development" if train else "evaluation"]
+    if args.residual:
+        policy_type,controller_type=ResidualServicePolicy,ResidualServiceCoordinator
+        demand_for=revised_demand
+        key.update(controller="rule_anchored_beta_issued_urgency",service_kw=REVISED_KW,
+                   independent_holdout=HOLDOUT,independent_seed=HOLDOUT_SEED)
+        if not train and args.mode!="precheck":
+            seed,event=HOLDOUT_SEED,HOLDOUT
+    setup(seed)
     model = freeze_model(args.lower,key,policy_type)
     lower_digest = model.lower_digest()
     if args.mode == "precheck":
         with torch.no_grad():
-            result = precheck(args,cfg,key,model,controller_type)
+            result = precheck_residual(args,cfg,key,model) if args.residual else precheck(args,cfg,key,model,controller_type)
         dump(args.out,result)
         if not result["passed"]:
             raise ValueError("precheck found no separable full-demand split")
@@ -169,8 +185,6 @@ def main():
         if state_digest(model) != ckpt["digest"] or model.lower_digest() != lower_digest:
             raise ValueError("evaluation checkpoint digest mismatch")
     before = state_digest(model)
-    seed = cfg["study"]["seed" if train else "eval_seed"]
-    event = cfg["events"]["development" if train else "evaluation"]
     controller = controller_type(model,cfg,not train,fixed_master=args.mode=="fixed")
     args.out.mkdir(parents=True,exist_ok=False)
     raw = args.out/"raw.jsonl"
@@ -198,7 +212,7 @@ def main():
                 raise ValueError("trained checkpoint readback mismatch")
         elif after != before:
             raise ValueError("evaluation updated weights")
-        steps = ledger(frames,sensors)
+        steps = ledger(frames,sensors,demand_for)
         metrics = measure(frames,trace,sensors,ref,event)
         for name in ("unmet","excess"):
             metrics[name+"_external_kwh"] = sum(r[name+"_kw"]*r["duration_s"] for r in steps)/3600.
