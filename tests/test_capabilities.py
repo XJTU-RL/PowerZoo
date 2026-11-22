@@ -112,6 +112,16 @@ def test_mixed_actions_wait_for_native_layout(config):
     assert resolved.device_ids == ("Storage.y",)
 
 
+def test_shom_preflight_rejects_unbound_physical_modes():
+    cfg = ConfigLoader().load(experiment="configs/experiments/vvc_34bus_shom_native_quickstart.yaml")
+    assert preflight(cfg).compatible
+    cfg.env_args["sensitivity_measurement"] = "paper"
+    assert any("sensitivity_measurement" in issue for issue in preflight(cfg).issues)
+    cfg.env_args["sensitivity_measurement"] = "native"
+    cfg.algo_args["train"]["episode_length"] -= 1
+    assert any("完整回合" in issue for issue in preflight(cfg).issues)
+
+
 def test_sharing_and_observation_requirements(config):
     config.algo_args["algo"]["share_param"] = True
     assert preflight(config).deferred

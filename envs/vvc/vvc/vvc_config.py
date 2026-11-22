@@ -42,9 +42,14 @@ class VVCConfig:
     reg_w: float = 0.0303
     soc_w: float = 0.0
     dis_w: float = 0.1818
+    sensitivity_measurement: str = "disabled"
 
     def __post_init__(self):
         validate_operation(self)
+        if self.sensitivity_measurement not in ("disabled", "paper", "native"):
+            raise ValueError("sensitivity_measurement 必须为 disabled、paper 或 native")
+        if self.sensitivity_measurement == "native" and self.smartds_series:
+            raise ValueError("SHOM native 尚不支持逐设备 SMART-DS 数据重建")
         for key in ("power_w", "cap_w", "reg_w", "soc_w", "dis_w"):
             value = getattr(self, key)
             if not math.isfinite(value) or value < 0:

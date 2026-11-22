@@ -117,6 +117,9 @@ algo:
   share_param: False
   # 是否使用sentivity 规定的优化顺序
   ordered: False
+  # legacy 保持原运行器行为；paper=native V-Q 雅可比；native=逐设备真实指令扰动
+  sensitivity_mode: legacy
+  sensitivity_reverse: false
 logger:
   # 日志目录
   log_dir: "./results"
