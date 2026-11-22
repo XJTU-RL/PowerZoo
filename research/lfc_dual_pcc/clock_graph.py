@@ -187,6 +187,15 @@ class Coordinator:
         expected = slots[0]+2*((slot-slots[0]-1)//2)
         return latest((cmd for cmd in self.commands if cmd.sequence == expected), now)
 
+    def master_allocation(self, error, reports, limits, slot, now, freq_time, sequences):
+        cfg = self.cfg
+        x = slow_input(error, cfg["frequency_scale_hz"], reports, now)
+        deterministic = self.fixed_master or error <= 0 or not any(limits.values())
+        mask = [not deterministic or a == FIXED_ACTION for a in range(9)]
+        action = self.choose("master", (x,), mask, slot, slot, now,
+                             reports=sequences, x=x.tolist(), frequency_sample_s=freq_time)
+        return allocate_support(error, action, reports, limits, cfg["max_request_kw"], cfg["droop_kw_hz"])
+
     def dispatch(self, slot, now, freq_time, error, plants):
         cfg = self.cfg
         scale = cfg["frequency_scale_hz"]
@@ -197,18 +206,11 @@ class Coordinator:
         if slot in slots:
             reports = site_reports(self.reports, now)
             limits = bid_limits(reports, cfg["fast_s"])
-            x = slow_input(error, scale, reports, now)
             sequences = {s: msg.sequence if msg else None for s, msg in reports.items()}
             for s, sequence in sequences.items():
                 if sequence is not None:
                     self.report_consumer.setdefault((sequence, s), slot)
-            deterministic = self.fixed_master or error <= 0 or not any(limits.values())
-            mask = [not deterministic or a == FIXED_ACTION for a in range(9)]
-            a = self.choose("master", (x,), mask, slot, slot, now,
-                            reports=sequences, x=x.tolist(), frequency_sample_s=freq_time)
-            allocation, request = allocate_support(
-                error, a, reports, limits, cfg["max_request_kw"], cfg["droop_kw_hz"],
-            )
+            allocation, request = self.master_allocation(error, reports, limits, slot, now, freq_time, sequences)
             cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., allocation)
             self.commands.append(cmd)
             self.emit(dict(phase="dispatch", **asdict(cmd), request_kw=request, bid_limits_kw=limits))
