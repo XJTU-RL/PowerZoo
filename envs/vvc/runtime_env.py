@@ -9,10 +9,17 @@ class Env(DeviceControlEnv):
         if not isinstance(config, VVCConfig):
             raise TypeError("VVC需要唯一加载器构造的VVCConfig")
         super().__init__(
-            folder_path, config, config.overlays,
+            folder_path,
+            config,
+            config.overlays,
+            pv_control_mode="fixed" if config.continuous_storage_only else "legacy",
+            control_mechanics=not config.continuous_storage_only,
             light_state_read=getattr(config, "light_state_read", False),
             observation_mode=getattr(config, "observation_mode", "global"),
         )
+        if config.continuous_storage_only and not self.bat_names:
+            self.close()
+            raise ValueError("continuous_storage_only 需要原生 Storage 设备")
 
     def _reward(self, capdiff, regdiff, soc_err, dis_err, pvdiff):
         c = self.config

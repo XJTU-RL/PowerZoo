@@ -4,8 +4,8 @@
 @Time      : 2025-04-08 17:41
 @Author    : Xiaodong Zheng
 @Email     : zxd_xjtu@stu.xjtu.edu.cn
-@Description: 该文件是一个用于离线策略多智能体（MA）算法的运行器脚本，借助 PyTorch 实现。
-- `OffPolicyMARunner` 类：继承自 `OffPolicyBaseRunner`，负责运行离线策略多智能体算法。
+@Description: 借助 PyTorch 实现的离策略多智能体（MA）运行器。
+- `OffPolicyMARunner` 类：继承自 `OffPolicyBaseRunner`，负责运行离策略多智能体算法。
   - `train` 方法：
     - 从缓冲区采样数据，包括共享观测、智能体观测、动作等多种数据。
     - 训练评论家网络（critic）：先开启梯度，计算下一动作，调用 `critic.train` 方法训练，再关闭梯度。
@@ -13,13 +13,53 @@
     - 执行软更新：更新行动者和评论家网络的目标网络参数。
 """
 """Runner for off-policy MA algorithms"""
-import copy
+import json
+from pathlib import Path
+
+import numpy as np
 import torch
 from runners.off_policy_base_runner import OffPolicyBaseRunner
+from utils.physics_manifest import validate_checkpoint
 
 
 class OffPolicyMARunner(OffPolicyBaseRunner):
     """Runner for off-policy MA algorithms."""
+
+    def _uses_continuous_vvc(self):
+        return self.args["env"] in ("vvc", "powerzoo") and self.env_args.get(
+            "continuous_storage_only", False
+        )
+
+    def sample_actions(self, available_actions=None):
+        """Warm up storage-only runs from their actual unmasked Box spaces."""
+        if not self._uses_continuous_vvc():
+            return super().sample_actions(available_actions)
+        return np.asarray(
+            [
+                [space.sample() for space in self.action_spaces]
+                for _ in range(self.algo_args["train"]["n_rollout_threads"])
+            ]
+        )
+
+    def _continuous_vvc_manifest(self):
+        if self._uses_continuous_vvc():
+            return self.envs.get_physics_manifest()
+        return None
+
+    def save(self):
+        manifest = self._continuous_vvc_manifest()
+        if manifest is not None:
+            (Path(self.run_dir) / "physics.manifest.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2, allow_nan=False),
+                encoding="utf-8",
+            )
+        super().save()
+
+    def restore(self):
+        validate_checkpoint(
+            self.algo_args["train"]["model_dir"], self._continuous_vvc_manifest()
+        )
+        super().restore()
 
     def train(self):
         """Train the model"""
@@ -60,15 +100,14 @@ class OffPolicyMARunner(OffPolicyBaseRunner):
         if self.total_it % self.policy_freq == 0:
             # train actors
             # actions shape: (n_agents, batch_size, dim)
+            replay_actions = torch.as_tensor(sp_actions, device=self.device).unbind()
             for agent_id in range(self.num_agents):
-                actions = copy.deepcopy(torch.tensor(sp_actions)).to(self.device)
                 self.actor[agent_id].turn_on_grad()
-                # train this agent
+                actions = list(replay_actions)
                 actions[agent_id] = self.actor[agent_id].get_actions(
                     sp_obs[agent_id], False
                 )
-                actions_list = [a for a in actions]
-                actions_t = torch.cat(actions_list, dim=-1)
+                actions_t = torch.cat(actions, dim=-1)
                 value_pred = self.critic.get_values(sp_share_obs, actions_t)
                 actor_loss = -torch.mean(value_pred)
                 self.actor[agent_id].actor_optimizer.zero_grad()

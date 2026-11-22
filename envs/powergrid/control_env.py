@@ -54,6 +54,7 @@ class DeviceControlEnv(gym.Env):
         pv_action_mode="pq",
         light_state_read=False,
         observation_mode="global",
+        control_mechanics=True,
     ):
         self.config = cfg = config
         smartds_spec = getattr(cfg, "smartds_series", None)
@@ -144,7 +145,7 @@ class DeviceControlEnv(gym.Env):
             cfg.bat_act_num,
             pv_act_num,
         )
-        if any(
+        if control_mechanics and any(
             reg.numtaps % (self.reg_act_num - 1)
             for reg in self.circuit.regulators.values()
         ):
@@ -215,6 +216,8 @@ class DeviceControlEnv(gym.Env):
         self.cap_num, self.reg_num, self.bat_num, self.pv_num = map(
             len, (self.cap_names, self.reg_names, self.bat_names, self.pv_names)
         )
+        self.controlled_caps = self.cap_names if control_mechanics else []
+        self.controlled_regs = self.reg_names if control_mechanics else []
         self.svg_names = list(self.circuit.svgs)
         self.all_bus_names, self.topology = (
             self.circuit.bus_names,
@@ -225,8 +228,8 @@ class DeviceControlEnv(gym.Env):
             getattr(cfg, "observation_neighborhood", None),
         )
         self.agent_spaces = (
-            [gym.spaces.Discrete(2) for _ in self.cap_names]
-            + [gym.spaces.Discrete(self.reg_act_num) for _ in self.reg_names]
+            [gym.spaces.Discrete(2) for _ in self.controlled_caps]
+            + [gym.spaces.Discrete(self.reg_act_num) for _ in self.controlled_regs]
             + [self._space(self.bat_act_num, 1) for _ in self.bat_names]
             # PV 动作维度：pq=2（有功分数+无功命令）；q_only=1（有功不控、
             # 保持当步可用功率，仅无功命令）。控制数量与顺序取自
@@ -352,8 +355,8 @@ class DeviceControlEnv(gym.Env):
     def _agent_devices(self):
         """动作空间构造序的 (设备类, 设备名) 列表；与 agent_spaces 对齐。"""
         return (
-            [("capacitor", name) for name in self.cap_names]
-            + [("regcontrol", name) for name in self.reg_names]
+            [("capacitor", name) for name in self.controlled_caps]
+            + [("regcontrol", name) for name in self.controlled_regs]
             + [("storage", name) for name in self.bat_names]
             + [("pvsystem", name) for name in self.pv_control_list]
             + [("generator", name) for name in self.svg_names]
@@ -601,12 +604,13 @@ class DeviceControlEnv(gym.Env):
         self._apply_data(self.t)
         capdiff, regdiff, pvdiff = [], [], []
         requests = {}
-        for name in self.cap_names:
+        for name in self.controlled_caps:
             old = self.circuit.capacitor_state(name)[0]
             value = int(next(parts)[0])
             requests["Capacitor." + name] = {"state": value}
             capdiff.append(abs(value - old))
-        for name, reg in self.circuit.regulators.items():
+        for name in self.controlled_regs:
+            reg = self.circuit.regulators[name]
             index = int(next(parts)[0])
             tap = reg.mintap + index / (self.reg_act_num - 1) * (
                 reg.maxtap - reg.mintap
@@ -675,9 +679,10 @@ class DeviceControlEnv(gym.Env):
     def _control_vector(self):
         """各控制量的实际下发设定，统一用于平滑成本；不对动作变化量再作差分。"""
         trace, values = self.circuit.trace, []
-        for name in self.cap_names:
+        for name in self.controlled_caps:
             values.append(trace["Capacitor." + name]["applied"]["state"])
-        for name, reg in self.circuit.regulators.items():
+        for name in self.controlled_regs:
+            reg = self.circuit.regulators[name]
             tap = trace["RegControl." + name]["applied"]["tap"]
             values.append((tap - reg.mintap) / (reg.maxtap - reg.mintap))
         for name, bat in self.circuit.batteries.items():
@@ -771,8 +776,8 @@ class DeviceControlEnv(gym.Env):
 
     def get_physics_manifest(self):
         elements = (
-            ["Capacitor." + n for n in self.cap_names]
-            + ["RegControl." + n for n in self.reg_names]
+            ["Capacitor." + n for n in self.controlled_caps]
+            + ["RegControl." + n for n in self.controlled_regs]
             + ["Storage." + n for n in self.bat_names]
             + ["PVSystem." + n for n in self.pv_control_list]
         )
