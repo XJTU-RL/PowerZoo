@@ -7,6 +7,7 @@ import torch
 from .clock_graph import GraphReadout
 from .horizon_witness import repeated_witnesses
 from .physical_credit import credit_budget, nested_bound
+from .run_horizon_pair import HorizonController
 
 
 class PhysicalGateTests(unittest.TestCase):
@@ -53,6 +54,23 @@ class PhysicalGateTests(unittest.TestCase):
         result,paths = repeated_witnesses(restore,2)
         self.assertEqual([result[n]["capacity_kw"] for n in (1,2,5)],[8.,8.,3.])
         self.assertEqual(paths[1],[8.,8.])
+
+    def test_horizon_execution_rechecks_veto_and_clears_the_service_window(self):
+        class Plant:
+            base=(100.,0.)
+            def candidates(self):
+                return [dict(veto=[],pcc=[100.,0.]),dict(veto=["energy"])]
+        events=[]
+        prefix={24:dict(request=dict(A=0.,B=0.),actions=dict(A=0,B=0))}
+        plan=dict(request_kw=dict(A=8.,B=2.),action=dict(A=1,B=0))
+        ctrl=HorizonController(dict(actions_battery_pv_kw=[[0,0],[8,0]]),prefix,plan,25)
+        plants=dict(A=Plant(),B=Plant())
+        ctrl.initialize(plants,events.append)
+        self.assertEqual(ctrl.dispatch(24,24.,23.9,0.,plants),(prefix[24]["request"],prefix[24]["actions"]))
+        self.assertEqual(ctrl.dispatch(25,25.,24.9,0.,plants),(plan["request_kw"],dict(A=0,B=0)))
+        self.assertEqual(events[-1]["fallback"],dict(A=0))
+        self.assertEqual(ctrl.dispatch(30,30.,29.9,0.,plants),(dict(A=0.,B=0.),dict(A=0,B=0)))
+        self.assertEqual(events[-1]["external_kw"],0.)
 
     def test_nodal_control_parameter_parity_and_no_cross_node_messages(self):
         torch.manual_seed(1701)
