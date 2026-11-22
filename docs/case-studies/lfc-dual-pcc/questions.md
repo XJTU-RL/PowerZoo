@@ -41,3 +41,30 @@ done
 ### 阶段 0 动态验收
 
 冻结的五臂在南洋分别独立完成 18 帧，两个中性重复的 P/Q 与频率逐点差均为零。A 与 B 单独有功动作时，首次稳态窗实测两口 P 增量分别为 [+9.020, +0.089] 和 [−0.040, −9.039] kW。两个端口共同动作也通过了逐帧增量判据。两只物理传感器的首个严格后写样本在 1/60 s 后，尾窗首个参与均值的样本在写后约 0.7833 s。五臂的原始时间戳均单独核验。停机时最后一帧末端少一个 1/60 s 电气步：全长 DSS/施加量能量账与实际传感器可观测时段积分分开记录；未外推最后一个样点。新实验将在计分时段之后多留护栏帧。
+
+## Case A 最小归因试验
+
+每个慢窗为两个 1 s 快步。主网策略依据原生 Bus 8 频差、严格已到达的两端报告与上次报价做分配。两个配网代表本次报价在下一慢窗才能消费。两套本地策略从六个物理动作中选择原生储能放电和 PV 增发，在线只用本地状态、实际收到的目标与安全屏蔽。两条馈线各激活两台既有 100 kW / 200 kWh 储能，增加一台 8 kW / 10 kVA 研究 PV，静置调度 4 kW。A 的初始 SOC 为 10.0018%，B 为 50%，两者储能保留线均为 10%。这是刻意设置的低可用能量机制。A/B 上升限速为 10/4 kW 每秒，下降限速均为 10 kW 每秒，各方法一致。
+
+反事实只在采集结束后重建同一初态、点位、外生输入及已执行前缀，穷举两个快步所有允许的离散动作路径。各路径取两步中较小的实际 PCC 交付，再取最大值 C；获胜路径另做两个完整原生步并核对。只认证此有限动作表和固定馈线源电压。y 为相同两个实际 PCC 快步交付的较小值，按报告编号对齐到后续两次实际输电写入。当 R≥0 时，R_c=min(R,max(0,C))，上层原超额 R−R_c，下层欠交 max(0,R_c−y)，过交 max(0,y−R_c) 先抵扣上层超额；超过 R 的部分单列。反向交付单记。不能重建或证实的窗不使用归因标签。下层动作与主网分配的学习信号对齐它们后续实际回传窗，配网代表学习信号再后移到报价被使用的慢窗。两层均保留相同频率项；关闭归因时等分相同的缺口罚量。底层为 PyTorch 类别策略梯度和价值基线。归因有无共享初始化、种子、架构、动作、安全约束和一次更新预算。
+
+以下命令从研究 checkout 执行，dry run 使用合成观测，只验证分发、梯度、存取模型与独立评估。原生训练显式要求五臂门和新资源门。每个 Case A 回合 启动一个 MATLAB 引擎与两个实际 DSS 馈线，认证仅用独立 DSS 上下文。候选预算为每臂一次原生训练回合及一次独立评估，不做超参数搜索。验证事件改变幅值与起止时刻。
+
+```sh
+py="$HOME/miniconda3/envs/HARL/bin/python"
+o=$(mktemp -d) || exit
+"$py" -m unittest research.lfc_dual_pcc.test_credit
+"$py" -m research.lfc_dual_pcc.train --dry-run --out "$o/dry"
+"$py" -m research.lfc_dual_pcc.evaluate --dry-run --models "$o/dry" --arm attribution_on --out "$o/dry-eval"
+"$py" -m research.lfc_dual_pcc.commission --stage0 "$LFC_STAGE0" --reference "$LFC34_REFERENCE" --out "$o/mechanism.json"
+set -- --stage0 "$LFC_STAGE0" --reference "$LFC34_REFERENCE" --mechanism "$o/mechanism.json"
+timeout 480s xvfb-run -a "$py" -m research.lfc_dual_pcc.evaluate "$@" --development --arm none --out "$o/dev-none"
+timeout 480s xvfb-run -a "$py" -m research.lfc_dual_pcc.evaluate "$@" --development --arm rule --out "$o/dev-rule"
+"$py" -m research.lfc_dual_pcc.compare --reference "$o/dev-none/none.jsonl" --out "$o/dev-rule-check.json" "$o/dev-rule/rule.jsonl"
+timeout 2400s xvfb-run -a "$py" -m research.lfc_dual_pcc.train "$@" --out "$o/train"
+"$py" -m research.lfc_dual_pcc.compare --training-pair --reference "$o/dev-none/none.jsonl" --out "$o/train-check.json" "$o/train/attribution_off.jsonl" "$o/train/attribution_on.jsonl"
+for a in none fixed droop rule attribution_off attribution_on; do
+  timeout 480s xvfb-run -a "$py" -m research.lfc_dual_pcc.evaluate "$@" --models "$o/train" --arm "$a" --out "$o/eval-$a" || exit
+done
+"$py" -m research.lfc_dual_pcc.compare --reference "$o/eval-none/none.jsonl" --out "$o/eval-check.json" "$o"/eval-*/*.jsonl
+```
