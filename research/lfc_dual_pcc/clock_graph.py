@@ -67,7 +67,8 @@ class PolicyValue(nn.Module):
             raise ValueError("empty feasible action set or invalid logits")
         dist = Categorical(logits=logits.masked_fill(~allowed, -torch.inf))
         action = dist.probs.argmax() if greedy else dist.sample()
-        return int(action), (dist.log_prob(action), self.critic(*args).squeeze(), dist.entropy())
+        return int(action), dict(args=args, mask=allowed, action=action, old_logp=dist.log_prob(action).detach(),
+                                 old_value=self.critic(*args).squeeze().detach())
 
 
 def dense(n, k):
@@ -77,9 +78,9 @@ def dense(n, k):
 class ClockGraphPolicy(nn.Module):
     def __init__(self):
         super().__init__()
-        self.heads = nn.ModuleDict({"master": dense(29, 9)})
+        self.heads = nn.ModuleDict({"master": dense(31, 9)})
         for s in ("A", "B"):
-            self.heads["feeder"+s] = dense(14, 3)
+            self.heads["feeder"+s] = dense(14, 6)
             for kind, k in (("battery", 3), ("pv", 2)):
                 self.heads[kind+s] = PolicyValue(GraphReadout(k), GraphReadout(1))
 
@@ -88,11 +89,13 @@ def tensor(xs):
     return torch.as_tensor(xs, dtype=torch.float32)
 
 
-def offer(plant, dt):
+def offer(plant, dt, full=True):
     """Finite safe next-step witness. Duration is exactly the verified sample period."""
     rows = plant.candidates()
     allowed = [(plant.base[0]-r["pcc"][0], i) for i, r in enumerate(rows) if not r["veto"]]
     kw, idx = max(allowed)
+    conservative = [(p,i) for p,i in allowed if p<=max(0.,kw)*.75+1e-9]
+    bid, bid_idx = (kw,idx) if full or not conservative else max(conservative)
     blocked = {reason for row in rows for reason in row["veto"]}
     battery_kw = plant.cfg["actions_battery_pv_kw"][idx][0]
     # Equal device split. This conditional SOC horizon is not a network guarantee.
@@ -101,7 +104,8 @@ def offer(plant, dt):
                 if battery_kw else None)
     return dict(p_kw=plant.last["pcc"][0], q_kvar=plant.last["pcc"][1],
                 delivered_kw=plant.base[0]-plant.last["pcc"][0], available_kw=max(0., kw),
-                duration_s=dt, energy_only_s=energy_s, witness=idx, ramp_kw_s=plant.cfg["ramp_up"][plant.site],
+                duration_s=dt, energy_only_s=energy_s, witness=idx, bid_kw=max(0.,bid), bid_witness=bid_idx,
+                ramp_kw_s=plant.cfg["ramp_up"][plant.site],
                 ramp_limited="ramp" in blocked, energy_limited="energy" in blocked,
                 network_limited=bool(blocked-{"ramp","energy"}))
 
@@ -112,12 +116,14 @@ def report_features(data):
             float(data["ramp_limited"]), float(data["energy_limited"]), float(data["network_limited"])]
 
 
-def slow_input(error, scale, report, now, old):
+def slow_input(error, scale, report, now):
     values = [error/scale, *timing(report, now)]
     for s in ("A", "B"):
         d = report.data[s]
-        values += report_features(d) + [old[s]/10, (old[s]-d["delivered_kw"])/10,
-                                         1. if d["energy_only_s"] is None else min(60.,d["energy_only_s"])/60]
+        req = d["consumed_request_kw"]
+        values += report_features(d) + [req/10, (req-d["delivered_kw"])/10,
+                                         1. if d["energy_only_s"] is None else min(60.,d["energy_only_s"])/60,
+                                         d["bid_kw"]/10]
     return tensor(values)
 
 
@@ -125,7 +131,8 @@ class Coordinator:
     def __init__(self, model, cfg, greedy):
         self.model, self.cfg, self.greedy = model, cfg, greedy
         self.commands, self.reports, self.records = [], [], []
-        self.previous = {"A": 0., "B": 0.}
+        self.offer_choices = {}
+        self.report_consumer = {}
 
     def initialize(self, plants, emit):
         self.emit = emit
@@ -149,15 +156,16 @@ class Coordinator:
             msg = latest(self.reports, now)
             if msg is None or msg.sequence != slot-2:
                 raise ValueError("incomplete past telemetry at slow tick")
-            x = slow_input(error, scale, msg, now, self.previous)
+            x = slow_input(error, scale, msg, now)
+            self.report_consumer[msg.sequence] = slot
             a = self.choose("master", (x,), [True]*9, slot, slot, now,
                             report=asdict(msg), x=x.tolist(), frequency_sample_s=freq_time)
             frac = (.2, .5, .8)[a//3]
-            residual = sum(self.previous[s]-msg.data[s]["delivered_kw"] for s in plants)
+            residual = sum(d["consumed_request_kw"]-d["delivered_kw"] for d in msg.data.values())
             total = min(cfg["max_request_kw"], max(0., error*cfg["droop_kw_hz"]*(.75,1.,1.25)[a%3]
                                                   + (0.,.15,.30)[a%3]*residual))
-            self.previous = {"A": total*frac, "B": total*(1-frac)}
-            cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., self.previous.copy())
+            allocation = {"A": total*frac, "B": total*(1-frac)}
+            cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., allocation)
             self.commands.append(cmd)
             self.emit(dict(phase="dispatch", **asdict(cmd)))
         cmd = latest(self.commands, now)
@@ -174,9 +182,12 @@ class Coordinator:
             if self.reports[-1].sampled > now:
                 raise ValueError("future local sample")
             obs = tensor([error/scale, req/10, *timing(cmd, now), *report_features(data)[:8]])
-            rep = self.choose("feeder"+s, (obs,), [True]*3, slot, cmd.sequence, now,
+            bid_consumable = slot+2 in slots
+            mask = [bid_consumable or i%2==1 for i in range(6)]
+            rep = self.choose("feeder"+s, (obs,), mask, slot, cmd.sequence, now,
                               command_times=timing(cmd, now), x=obs.tolist(), local_sample_s=self.reports[-1].sampled)
-            target = req*(.65, 1., 1.25)[rep]
+            self.offer_choices[slot,s] = bool(rep%2)
+            target = req*(.65, 1., 1.25)[rep//2]
             # Device heads see their feeder agent's effective target and command lifetime.
             x[:, -1] = target/10
             context = tensor([target/10, error/scale, *timing(cmd, now)])
@@ -196,7 +207,16 @@ class Coordinator:
 
     def receive(self, frame, plants):
         now = frame["end_s"]
-        data = {s: offer(p, self.cfg["fast_s"]) for s,p in plants.items()}
+        # Bind the meter to the command that actually drove these devices. A later
+        # issued command can already exist when the slow actor finally receives it.
+        used = latest(self.commands,frame["write_s"])
+        data = {}
+        for s,p in plants.items():
+            req = used.data[s] if used else 0.
+            if req != frame["request"][s]:
+                raise ValueError("feeder telemetry command join")
+            data[s] = dict(**offer(p,self.cfg["fast_s"],self.offer_choices.get((frame["slot"],s),True)), consumed_request_kw=req,
+                           consumed_command=used.sequence if used else None, consumed_s=frame["write_s"])
         msg = Message(frame["slot"], now, frame["arrival_s"], now, now+3., data)
         self.reports.append(msg)
         self.emit(dict(phase="telemetry", **asdict(msg)))
@@ -214,44 +234,73 @@ class Coordinator:
             hz = [abs(v-ref) for t,v in trace if out["write_s"] < t < out["end_s"]]
             src = next(f for f in frames if f["slot"] == k)
             loss = {s: abs(src["request"][s]-src["delivered"][s])/10 for s in ("A","B")}
-            records[k] = (-statistics.mean(hz)/self.cfg["frequency_scale_hz"], loss)
+            records[k] = (-statistics.mean(hz)/self.cfg["frequency_scale_hz"], loss, out["end_s"]-out["write_s"])
             self.emit(dict(phase="consumed_return", command=r["command"], action_slot=k,
                            consumed_slot=out["slot"], interval=[out["write_s"],out["end_s"]],
                            frequency_reward=records[k][0], local_error=loss))
-        grouped = {}
+        master = {}
         for r in self.records:
-            role = r["role"]
-            if role == "master":
+            if r["role"] == "master":
                 keys = sorted({q["slot"] for q in self.records if q["command"]==r["command"] and q["role"]!="master"})
                 if len(keys)!=self.cfg["slow_s"]:
                     raise ValueError("partial command window")
-                reward = statistics.mean(records[k][0]-sum(records[k][1].values())*.25 for k in keys)
+                elapsed, reward = 0., 0.
+                for k in keys:
+                    freq, loss, dt = records[k]
+                    reward += .95**elapsed * (freq-.25*sum(loss.values())) * dt
+                    elapsed += dt
+                master[r["command"]] = (reward,elapsed,keys[-1])
+        grouped = {}
+        for r in self.records:
+            role = r["role"]
+            offer_consumer = None
+            if role == "master":
+                reward, elapsed, end_slot = master[r["command"]]
             else:
-                f, loss = records[r["slot"]]
-                reward = f-.5*loss[role[-1]]
-            grouped.setdefault(role, []).append((reward, r["outputs"]))
+                end_slot = r["slot"]
+                f, loss, elapsed = records[end_slot]
+                reward = (f-.5*loss[role[-1]])*elapsed
+                if role.startswith("feeder") and end_slot in self.report_consumer:
+                    offer_consumer = self.report_consumer[end_slot]
+                    future, duration, last = master[offer_consumer]
+                    delay = physical[last]["end_s"]-physical[end_slot]["end_s"]
+                    reward += .25*.95**delay*future/duration
+            self.emit(dict(phase="learning_target",role=role,action_slot=r["slot"],command=r["command"],
+                           last_physical_consumer=physical[end_slot]["slot"],elapsed_s=elapsed,
+                           offer_consuming_master=offer_consumer,reward=reward))
+            grouped.setdefault(role, []).append((end_slot,elapsed,reward,r["outputs"]))
         return grouped
 
 
 def update(policy, grouped, lr):
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
-    loss = 0.
+    batches = {}
     for role, samples in grouped.items():
         returns = 0.
-        terms = []
-        for reward, (logp, value, _) in reversed(samples):
-            dt = 2 if role=="master" else 1
-            returns = reward + .95**dt*returns
-            advantage = returns-value
-            terms.append(-logp*advantage.detach() + .5*advantage.square())
-        loss = loss+torch.stack(terms).mean()
-    opt.zero_grad()
-    loss.backward()
+        for slot,elapsed,reward,record in reversed(samples):
+            returns = reward+.95**elapsed*returns
+            batches.setdefault(slot,[]).append((role,returns,record))
     before = {k: p.detach().clone() for k,p in policy.named_parameters()}
-    gradients = {k: float(p.grad.norm()) for k,p in policy.named_parameters() if p.grad is not None}
-    if not torch.isfinite(loss) or not all(torch.isfinite(p.grad).all() for p in policy.parameters() if p.grad is not None):
-        raise ValueError("nonfinite update")
-    torch.nn.utils.clip_grad_norm_(policy.parameters(), 5.)
-    opt.step()
-    return dict(loss=float(loss.detach()), samples={k:len(v) for k,v in grouped.items()}, gradients=gradients,
+    gradients, steps = {}, []
+    for slot, batch in sorted(batches.items()):
+        terms, evidence = [], []
+        for role,target,r in batch:
+            head = policy.heads[role]
+            logits = head.actor(*r["args"]).masked_fill(~r["mask"],-torch.inf)
+            lp = Categorical(logits=logits).log_prob(r["action"])
+            ratio = (lp-r["old_logp"]).exp()
+            adv = target-r["old_value"]
+            value = head.critic(*r["args"]).squeeze()
+            terms.append(-torch.minimum(ratio*adv,ratio.clamp(.8,1.2)*adv)+.5*(value-target).square())
+            evidence.append(dict(role=role,target=target,advantage=float(adv),ratio=float(ratio.detach())))
+        loss = torch.stack(terms).sum()
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        norm = torch.nn.utils.clip_grad_norm_(policy.parameters(),5.,error_if_nonfinite=True)
+        for k,p in policy.named_parameters():
+            if p.grad is not None:
+                gradients[k] = max(gradients.get(k,0.),float(p.grad.norm()))
+        opt.step()
+        steps.append(dict(last_action_slot=slot,loss=float(loss.detach()),gradient_norm=float(norm),samples=evidence))
+    return dict(loss=sum(s["loss"] for s in steps),steps=steps,samples={k:len(v) for k,v in grouped.items()}, gradients=gradients,
                 deltas={k:float((p.detach()-before[k]).norm()) for k,p in policy.named_parameters()})
