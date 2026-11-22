@@ -25,7 +25,7 @@ SLOT = 24
 SITES = ("A","B")
 
 
-def credit(rows, holds, deck, ref, cfg, model):
+def credit(rows, holds, deck, ref, cfg, model, origin):
     graphs = {}
     frozen_graph = next(r["graphs"] for r in rows if r["phase"]=="graphs")
     for s in SITES:
@@ -50,19 +50,19 @@ def credit(rows, holds, deck, ref, cfg, model):
             if idx != r["action"]:
                 raise ValueError("behavior policy sampling could not be recovered from frozen seed")
             count += 1
-            if r["command"]==SLOT:
+            if r["command"]==origin:
                 selected[role,k] = record
     if count !=104 or len(selected)!=13:
         raise ValueError("wrong number of recovered behavior decisions")
     sites = {}
     for s in SITES:
-        previous = holds[SLOT]["actual"][s]
+        previous = holds[origin]["actual"][s]
         initial = dict(pcc=previous["pcc"],voltage=previous["voltage"],soc=previous["soc_after"])
-        prefix = [r["actions"][s] for k,r in sorted(holds.items()) if k<=SLOT]
-        actions = [holds[k]["actions"][s] for k in (SLOT+1,SLOT+2)]
-        pcc = [holds[k]["delivered"][s] for k in (SLOT+1,SLOT+2)]
-        req = holds[SLOT+1]["request"][s]
-        if req != holds[SLOT+2]["request"][s]:
+        prefix = [r["actions"][s] for k,r in sorted(holds.items()) if k<=origin]
+        actions = [holds[k]["actions"][s] for k in (origin+1,origin+2)]
+        pcc = [holds[k]["delivered"][s] for k in (origin+1,origin+2)]
+        req = holds[origin+1]["request"][s]
+        if req != holds[origin+2]["request"][s]:
             raise ValueError("request was not held over both fast steps")
         certificate = certify(deck,ref,cfg,s,prefix,initial,actions)
         bound = certificate["capacity_kw"]
@@ -71,9 +71,9 @@ def credit(rows, holds, deck, ref, cfg, model):
         sites[s] = dict(request_kw=req, sustainable_kw=min(pcc), capacity_kw=bound, certificate=certificate)
     physical = {r["used_slot"]:r for r in holds.values() if r["used_slot"] is not None}
     freqs = next(r for r in rows if r["phase"]=="native_frequency")
-    start = physical[SLOT+1]["write_s"]
+    start = physical[origin+1]["write_s"]
     weights, rewards = {}, {}
-    for k in (SLOT+1,SLOT+2):
+    for k in (origin+1,origin+2):
         frame = physical[k]
         lo,hi = frame["write_s"],frame["end_s"]
         vals = [abs(v-freqs["reference_hz"]) for t,v in freqs["samples"] if lo<t<hi]
@@ -92,7 +92,7 @@ def credit(rows, holds, deck, ref, cfg, model):
                           optimizer=res,after=state_digest(clone))
     if not math.isclose(arms["neutral"]["total_discounted_penalty_kw_s"],arms["physical"]["total_discounted_penalty_kw_s"],abs_tol=1e-8):
         raise ValueError("different matched budgets")
-    return dict(command_slot=SLOT, recovered_decisions=count, behavior_samples=len(selected),
+    return dict(command_slot=origin, recovered_decisions=count, behavior_samples=len(selected),
                 consumed_slots={k:physical[k]["slot"] for k in weights}, sites=sites,
                 gamma_per_second=.95,arms=arms)
 
@@ -156,6 +156,7 @@ def main():
     p.add_argument("training",type=Path)
     p.add_argument("reference",type=Path)
     p.add_argument("out",type=Path)
+    p.add_argument("--first-development-gap",action="store_true",help="choose the earliest measured development gap")
     args = p.parse_args()
     summary = json.loads((args.training/"summary.json").read_bytes())
     raw = args.training/"raw.jsonl"
@@ -173,9 +174,18 @@ def main():
     model = ClockGraphPolicy()
     if state_digest(model)!=summary["before"]:
         raise ValueError("cannot reconstruct original behavior weights")
+    origin = SLOT
+    if args.first_development_gap:
+        if args.mode!="credit":
+            p.error("only the credit gate accepts a development window selection")
+        origin = next((k for k in cfg["window_slots"] if sum(
+            max(0.,holds[k+1]["request"][s]-min(holds[k+i]["delivered"][s] for i in (1,2))) for s in SITES
+        ) > cfg["gates"]["power_abs_kw"]),None)
+        if origin is None:
+            raise ValueError("no measured development shortfall above the physical threshold")
     with tempfile.TemporaryDirectory() as tmp:
         deck = native.archived_deck(ROOT,Path(tmp))
-        result = credit(rows,holds,deck,ref,cfg,model) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
+        result = credit(rows,holds,deck,ref,cfg,model,origin) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
     dump(args.out,dict(code=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
                        frequency_hz=60, source_key=key, source_raw_sha256=sha(raw), seed=summary["seed"],
                        behavior_digest=summary["before"],mode=args.mode, result=result,formal_50hz=False))

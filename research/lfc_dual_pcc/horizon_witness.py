@@ -22,7 +22,7 @@ def repeated_witnesses(restore, table_size, horizons=(1,2,5)):
         cap,idx = max(feasible)
         with restore() as plant:
             actual = [plant.execute(idx)["delivered_kw"] for _ in range(n)]
-        if abs(min(actual)-cap)>1e-5:
+        if any(abs(a-b)>1e-5 for a,b in zip(actual,paths[idx][:n],strict=True)):
             raise ValueError("independent sustained witness disagrees")
         result[n] = dict(confirmed=True,capacity_kw=min(cap,min(actual)), action=idx, independent_kw=actual)
     return result,paths

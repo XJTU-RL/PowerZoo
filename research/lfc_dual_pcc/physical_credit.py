@@ -6,18 +6,29 @@ import torch
 from .hierarchy import attribution
 
 
+ROLES_BY_SITE = {"A":("feederA","batteryA","pvA"), "B":("feederB","batteryB","pvB")}
+
+
 def credit_budget(sites, exposures, *, attributed):
     """Distribute the same discounted kW-seconds across decision samples."""
     result = {key:0. for key in exposures}
     site_ledger = {}
+    master, = [k for k in exposures if k[0]=="master"]
+    mapped = {s:[(role,slot) for role in roles for slot in (master[1]+1,master[1]+2)]
+              for s,roles in ROLES_BY_SITE.items()}
+    if set(sites)!=set(mapped) or set(exposures)!={master,*mapped["A"],*mapped["B"]}:
+        raise ValueError("invalid window or unknown role in credit exposure")
+    for keys in mapped.values():
+        for slot in (master[1]+1,master[1]+2):
+            if len({exposures[k] for k in keys if k[1]==slot})!=1:
+                raise ValueError("same-step local samples must use identical exposure")
     for site, row in sites.items():
         req, actual, cap = (row[k] for k in ("request_kw","sustainable_kw","capacity_kw"))
         gap = max(0.,req-actual)
         upper = attribution(req,cap,actual)["upper_kw"] if attributed and cap is not None else gap/2.
         lower = gap-upper
-        local = [k for k in exposures if k[0]!="master" and k[0].endswith(site)]
+        local = mapped[site]
         weight = sum(exposures[k] for k in local)
-        master, = [k for k in exposures if k[0]=="master"]
         duration = exposures[master]
         if weight<=0. or duration<=0.:
             raise ValueError("missing positive master or local exposure")

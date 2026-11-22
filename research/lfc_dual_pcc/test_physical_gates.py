@@ -13,8 +13,9 @@ class PhysicalGateTests(unittest.TestCase):
     def test_discounted_credit_is_conserved_for_matched_batch(self):
         site = dict(A=dict(request_kw=10.,capacity_kw=6.,sustainable_kw=3.),
                     B=dict(request_kw=5.,capacity_kw=None,sustainable_kw=2.))
-        factors = {("master",24):1.95,("feederA",25):1.,("batteryA",26):.95,
-                   ("feederB",25):1.,("batteryB",26):.95}
+        factors = {("master",24):1.95}
+        factors.update({(kind+s,k):v for kind in ("feeder","battery","pv") for s in ("A","B")
+                        for k,v in ((25,1.),(26,.95))})
         old, neutral = credit_budget(site,factors,attributed=False)
         new, credit = credit_budget(site,factors,attributed=True)
         self.assertAlmostEqual(sum(old.values()),sum(new.values()))
