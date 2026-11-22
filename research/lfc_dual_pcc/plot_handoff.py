@@ -35,8 +35,9 @@ def plot(neutral, issued, delivered, out):
         support = [sum(reference[s][i][1] - raw[s][i][1] for s in colors) for i in range(len(times))]
         middle.plot(times, support, color="#3e4451", linewidth=1.1, label="Paired sensor P")
         middle.hlines(8., start, stop, colors="#1463a0", linewidth=1.2, label="8 kW service target")
-        lower.plot([t for t, _ in frequency["samples"]],
-                   [(v - frequency["reference_hz"]) * 1e6 for _, v in frequency["samples"]],
+        displayed = [(t, v) for t, v in frequency["samples"] if start-5 <= t <= stop+4]
+        lower.plot([t for t, _ in displayed],
+                   [(v - frequency["reference_hz"]) * 1e6 for _, v in displayed],
                    color="#3e4451", linewidth=1.2, marker=".", markersize=2.5)
         lower.axhspan(-50, 50, color="#8995a0", alpha=.13)
         for ax in (top, middle, lower):
