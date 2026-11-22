@@ -10,10 +10,11 @@ _REPORT_NUMBERS = (
     "duration_s", "ramp_kw_s", "consumed_request_kw", "consumed_s",
 )
 _REPORT_FLAGS = ("ramp_limited", "energy_limited", "network_limited")
+_FLOAT32_MAX = 3.4028234663852886e38
 
 
 def _finite_number(value):
-    return type(value) in (int, float) and math.isfinite(value)
+    return type(value) in (int, float) and -_FLOAT32_MAX <= value <= _FLOAT32_MAX
 
 
 def _valid_payload(data, sampled):
@@ -26,7 +27,7 @@ def _valid_payload(data, sampled):
     return (
         min(data[k] for k in ("available_kw", "bid_kw", "ramp_kw_s", "consumed_request_kw")) >= 0
         and data["duration_s"] > 0
-        and data["consumed_s"] < sampled
+        and 0 <= data["consumed_s"] < sampled
         and (energy is None or (_finite_number(energy) and energy >= 0))
         and "consumed_command" in data
         and ((command is None and data["consumed_request_kw"] == 0) or (type(command) is int and command >= 0))

@@ -5,7 +5,7 @@ import unittest
 
 import torch
 
-from .clock_graph import ClockGraphPolicy, Coordinator, slow_input
+from .clock_graph import ClockGraphPolicy, Coordinator, Message, slow_input
 from .master_dispatch import allocate_support, bid_limits, feasible_actions, site_reports
 from .test_clock_graph import packet
 
@@ -32,8 +32,10 @@ class MasterDispatchTests(unittest.TestCase):
         corrupt = replace(only_a, arrival=2.4, data={"A": dict(second.data["A"], bid_kw=5.)})
         invalid = replace(second, sequence=2, data={"A": dict(second.data["A"], p_kw=float("nan"))})
         infinite = replace(only_a, sequence=3, expiry=float("inf"))
+        oversized = replace(only_a, sequence=4, data={"A": dict(second.data["A"], q_kvar=10**500)})
         self.assertEqual(site_reports([only_a, first], 2.1), dict(A=first, B=first))
-        self.assertEqual(site_reports([retransmit, first, infinite, only_a, invalid], 2.3), dict(A=only_a, B=first))
+        self.assertEqual(site_reports([retransmit, first, infinite, oversized, only_a, invalid], 2.3),
+                         dict(A=only_a, B=first))
         self.assertEqual(site_reports([corrupt, first, only_a], 2.5), dict(A=first, B=first))
         selected = site_reports([retransmit, only_a, first, invalid], 4.)
         self.assertEqual(selected, dict(A=only_a, B=None))
@@ -79,8 +81,11 @@ class MasterDispatchTests(unittest.TestCase):
         class Plant:
             def __init__(self, veto_zero):
                 self.veto_zero = veto_zero
+                self.only_action = None
 
             def probe(self, action):
+                if self.only_action is not None and action != self.only_action:
+                    return {"veto": ["network"]}
                 return {"veto": ["ramp"] if self.veto_zero and action in (0, 1) else []}
 
             def candidates(self):
@@ -101,11 +106,24 @@ class MasterDispatchTests(unittest.TestCase):
         request, actions = control.dispatch(23, 23., 22.8, .02, plants)
         self.assertEqual(request, dict(A=6., B=0.))
         self.assertEqual(actions["B"], 2)
-        control.commands.clear()
+        plants["A"].only_action = 1
         request, actions = control.dispatch(24, 24., 23.8, .02, plants)
+        self.assertEqual(request, dict(A=6., B=0.))
+        self.assertEqual(actions["A"], 1)
+        self.assertEqual(control.report_consumer, {(20, "A"): 22})
+        control.commands.clear()
+        request, actions = control.dispatch(25, 25., 24.8, .02, plants)
         self.assertEqual(request, dict(A=0., B=0.))
-        self.assertEqual(actions, dict(A=0, B=2))
+        self.assertEqual(actions, dict(A=1, B=2))
         self.assertEqual(events[-1]["phase"], "command_fallback")
+
+    def test_unexpected_overlap_does_not_hide_the_scheduled_command(self):
+        control = Coordinator(None, {"window_slots": [22, 24]}, True)
+        expected = Message(22, 22., 22.1, 23., 25., dict(A=6., B=0.))
+        overlap = Message(24, 23.1, 23.2, 23.3, 27., dict(A=0., B=4.))
+        control.commands = [overlap, expected]
+        self.assertIs(control.command_at(24, 24.), expected)
+        self.assertIs(control.command_at(25, 25.), overlap)
 
     def test_offers_only_receive_credit_from_their_own_first_consumer(self):
         control = Coordinator(None, {"frequency_scale_hz": 1., "slow_s": 2}, True)

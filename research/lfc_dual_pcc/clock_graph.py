@@ -171,15 +171,14 @@ class Coordinator:
         slots = self.cfg["window_slots"]
         if not slots[0]+1 <= slot <= slots[-1]+2:
             return None
-        cmd = latest(self.commands, now)
         expected = slots[0]+2*((slot-slots[0]-1)//2)
-        return cmd if cmd is not None and cmd.sequence == expected else None
+        return latest((cmd for cmd in self.commands if cmd.sequence == expected), now)
 
     def dispatch(self, slot, now, freq_time, error, plants):
         cfg = self.cfg
         scale = cfg["frequency_scale_hz"]
         if not math.isfinite(error) or not math.isfinite(freq_time) or not freq_time < now:
-            raise ValueError("policy consumed a future or coincident frequency")
+            raise ValueError("policy requires a finite frequency sample strictly before decision time")
         slots = cfg["window_slots"]
         table = cfg["actions_battery_pv_kw"]
         if slot in slots:
