@@ -68,3 +68,33 @@ for a in none fixed droop rule attribution_off attribution_on; do
 done
 "$py" -m research.lfc_dual_pcc.compare --reference "$o/eval-none/none.jsonl" --out "$o/eval-check.json" "$o"/eval-*/*.jsonl
 ```
+
+## 双时标与逐相图策略
+
+研究入口为 `research.lfc_dual_pcc.run_clock_graph`。它复用同一组三机九节点、两个实际 PCC 和两套 IEEE34 的原生设备，馈线源端电压固定。模型由七对独立的 actor/critic 构成。
+
+| 策略 | 决策与信息 | 动作与学习 |
+| --- | --- | --- |
+| 主网 | 每 2 s 读取严格先于决策到达的两份 PCC P/Q、已交付量、单步能力及报价、SOC 条件时长、限速与约束标志、消息年龄和真正对应的生效请求 | 九个联合动作选择支援份额和请求修正。两次实际送入主网的响应按各自时长积分和折扣，慢窗的折扣为 `0.95 ** 实际窗长秒数`。 |
+| 馈线 A、B | 每 1 s 读取当前有效指令、剩余有效期、最近本地已解算测量和已到达的主网频率 | 各自选目标系数和报送的功率档。报价来自同一 DSS 状态允许的候选；计量、时标和可行性检验由接口产生。存在下一慢窗消费者时，报价动作取得该窗的延迟反馈。 |
+| 储能 A、B 与光伏 A、B | 每个设备类型在本地读取逐相图、电压、有功／无功、SOC、光伏余量、馈线目标与指令年龄 | 储能头选两台储能的合计放电档并等分，光伏头在与已选储能档联合可行的动作中选增发档。各有独立图 actor 和图 critic，按原生频率及该馈线实际跟踪误差逐快步更新。 |
+
+原生 DSS 的线路和变压器复导纳矩阵保留不同相之间的耦合、接线与分接头，按相节点电压基准缩放后归一化。额定值特征仅取已核实的设备及绕组。每次实际动作另行验证逐相电压、已建模绕组量、逆变器、爬坡及能量平衡。能力报告中的持续时间是固定工况下单个可行快步的 1 s；由剩余能量推算的时间另存，在更长时段没有电压可行性认证。没有可信线路热额定。物理加权图的参考见 Huang、Yang 与 Wang 的 [Physics-Informed Graph-Based Safe RL](https://arxiv.org/html/2610.33654v1)。
+
+训练用一次在策略采样和一轮按反馈时序排列的裁剪策略梯度更新，概率比裁剪区间为 [0.8, 1.2]。每快步更新六个本地头，每个完整慢窗结束时同时更新主网头，价值基线来自各自 critic。训练用后续实际消费者的频率回报；部署只接收已到达的频率、报告和有效指令。旧的反事实归因实验保留独立入口。
+
+在南洋从运行提交的干净研究 worktree 执行下列命令。输出目录应为新目录。阶段 0 记录、机制文件和私有工作点须彼此匹配。此处的 60 Hz 命令只用于工程预试。
+
+```sh
+py="$HOME/miniconda3/envs/HARL/bin/python"
+export PATH="$HOME/matlab_2025b/bin:$PATH" OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
+set -- --stage0 "${LFC_STAGE0:?}" --reference "${LFC34_REFERENCE:?}" --mechanism "${LFC_MECHANISM:?}" --frequency 60
+out=$(mktemp -d) || exit
+"$py" -m unittest -v research.lfc_dual_pcc.test_clock_graph research.lfc_dual_pcc.test_credit || exit
+timeout 480s xvfb-run -a "$py" -m research.lfc_dual_pcc.run_clock_graph train "$@" --out "$out/train" || exit
+timeout 480s xvfb-run -a "$py" -m research.lfc_dual_pcc.run_clock_graph eval "$@" --checkpoint "$out/train/model.pt" --out "$out/eval" || exit
+"$py" -m research.lfc_dual_pcc.audit_clock_graph "$out/train" "$out/eval" "$out/audit.json"
+"$py" -m research.lfc_dual_pcc.audit_policy_inputs "$out/train" "$out/eval" "$LFC34_REFERENCE" "$out/inputs.json"
+```
+
+在同一工作树可用 `research.lfc_dual_pcc.frequency_inventory` 记录原模型参数，再用 `research.lfc_dual_pcc.probe_50hz` 在内存副本上检查 50 Hz。零事件尾段门为与 50 Hz 的绝对差不超过 0.01 Hz，且相邻 0.2 s 样点的变化率不超过 0.002 Hz/s。该探针单独记录端口功率与两条馈线电压。
