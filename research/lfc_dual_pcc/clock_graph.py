@@ -20,6 +20,7 @@ class Message:
     effective: float
     expiry: float
     data: dict
+    urgency_hz: float | None = None
 
     def valid(self, now):
         times = (self.sampled, self.arrival, self.effective, self.expiry, now)
@@ -27,6 +28,8 @@ class Message:
             all(type(t) in (int, float) and math.isfinite(t) for t in times)
             and type(self.sequence) is int and self.sequence >= 0
             and isinstance(self.data, dict)
+            and (self.urgency_hz is None or (type(self.urgency_hz) in (int,float)
+                                             and math.isfinite(self.urgency_hz)))
             and self.sampled <= min(self.arrival, self.effective)
             and self.arrival < now
             and self.effective <= now < self.expiry
@@ -87,6 +90,10 @@ class PolicyValue(nn.Module):
         if logit_offsets is not None:
             record["logit_offsets"] = logit_offsets
         return int(action), record
+
+    def evaluate_sample(self, sample):
+        scores = self.logits(sample["args"], sample.get("logit_offsets")).masked_fill(~sample["mask"],-torch.inf)
+        return Categorical(logits=scores).log_prob(sample["action"]), self.critic(*sample["args"]).squeeze()
 
 
 def dense(n, k):
@@ -196,6 +203,9 @@ class Coordinator:
                              reports=sequences, x=x.tolist(), frequency_sample_s=freq_time)
         return allocate_support(error, action, reports, limits, cfg["max_request_kw"], cfg["droop_kw_hz"])
 
+    def command_urgency(self, error):
+        return None
+
     def dispatch(self, slot, now, freq_time, error, plants):
         cfg = self.cfg
         scale = cfg["frequency_scale_hz"]
@@ -211,9 +221,11 @@ class Coordinator:
                 if sequence is not None:
                     self.report_consumer.setdefault((sequence, s), slot)
             allocation, request = self.master_allocation(error, reports, limits, slot, now, freq_time, sequences)
-            cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., allocation)
+            cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., allocation,
+                          self.command_urgency(error))
             self.commands.append(cmd)
-            self.emit(dict(phase="dispatch", **asdict(cmd), request_kw=request, bid_limits_kw=limits))
+            record = {k:v for k,v in asdict(cmd).items() if v is not None}
+            self.emit(dict(phase="dispatch", **record, request_kw=request, bid_limits_kw=limits))
         cmd = self.command_at(slot, now)
         if cmd is None:
             actions = {}
@@ -226,6 +238,7 @@ class Coordinator:
                 self.emit(dict(phase="command_fallback", slot=slot, consumption_s=now, actions=actions))
             return {s: 0. for s in plants}, actions
         actions = {}
+        received_error = error if cmd.urgency_hz is None else cmd.urgency_hz
         for s, p in plants.items():
             req = cmd.data[s]
             graph = self.graphs[s]
@@ -234,7 +247,7 @@ class Coordinator:
             if local is None or local.sampled > now:
                 raise ValueError("missing or future local sample")
             data = local.data[s]
-            obs = tensor([error/scale, req/10, *timing(cmd, now), *report_features(data)[:8]])
+            obs = tensor([received_error/scale, req/10, *timing(cmd, now), *report_features(data)[:8]])
             bid_consumable = any(slot+2 <= tick < slot+4 for tick in slots)
             mask = [bid_consumable or i%2==1 for i in range(6)]
             rep = self.choose("feeder"+s, (obs,), mask, slot, cmd.sequence, now,
@@ -243,7 +256,7 @@ class Coordinator:
             target = req*(.65, 1., 1.25)[rep//2]
             # Device heads see their feeder agent's effective target and command lifetime.
             x[:, -1] = target/10
-            context = tensor([target/10, error/scale, *timing(cmd, now)])
+            context = tensor([target/10, received_error/scale, *timing(cmd, now)])
             self.emit(dict(phase="device_input", site=s, slot=slot, command=cmd.sequence,
                            x=x.tolist(), context=context.tolist()))
             rows = p.candidates()
@@ -278,7 +291,7 @@ class Coordinator:
         msg = Message(frame["slot"], now, frame["arrival_s"], now, now+3., data)
         self.local_report = msg
         self.reports.append(msg)
-        self.emit(dict(phase="telemetry", **asdict(msg)))
+        self.emit(dict(phase="telemetry", **{k:v for k,v in asdict(msg).items() if v is not None}))
 
     def returns(self, frames, trace, ref):
         physical = {f["used_slot"]: f for f in frames if f["used_slot"] is not None}
@@ -345,13 +358,16 @@ def update(policy, grouped, lr):
         terms, evidence = [], []
         for role,target,r in batch:
             head = policy.heads[role]
-            logits = head.logits(r["args"], r.get("logit_offsets")).masked_fill(~r["mask"],-torch.inf)
-            lp = Categorical(logits=logits).log_prob(r["action"])
-            ratio = (lp-r["old_logp"]).exp()
+            lp, value = head.evaluate_sample(r)
             adv = target-r["old_value"]
-            value = head.critic(*r["args"]).squeeze()
-            terms.append(-torch.minimum(ratio*adv,ratio.clamp(.8,1.2)*adv)+.5*(value-target).square())
-            evidence.append(dict(role=role,target=target,advantage=float(adv),ratio=float(ratio.detach())))
+            loss = .5*(value-target).square()
+            ratio = None
+            if lp is not None:
+                ratio = (lp-r["old_logp"]).exp()
+                loss = loss-torch.minimum(ratio*adv,ratio.clamp(.8,1.2)*adv)
+            terms.append(loss)
+            evidence.append(dict(role=role,target=target,advantage=float(adv),
+                                 ratio=float(ratio.detach()) if ratio is not None else None))
         loss = torch.stack(terms).sum()
         opt.zero_grad(set_to_none=True)
         loss.backward()

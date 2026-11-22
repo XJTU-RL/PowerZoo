@@ -1,6 +1,7 @@
 """Gated master-only frozen-lower 60 Hz engineering experiment."""
 import argparse
 from contextlib import ExitStack
+from functools import partial
 from importlib.metadata import version
 import json
 import math
@@ -16,15 +17,16 @@ from scripts.check_lfc34_flexible_load import ROOT, native
 from .case_a_plant import CONFIG, feeder
 from .case_a_runtime import native_episode
 from .clock_graph import Message, update
+from .continuous_service import ContinuousServiceCoordinator, ContinuousServicePolicy, allocation_interval
 from .driver import dump, gates, report, setup, sha, state_digest
 from .equal_service import (LOWER_SOURCE, SERVICE_KW, SERVICE_SLOTS, TRACKING_WEIGHT,
-                            EqualServiceCoordinator, freeze_model, service_kw, split_candidates)
+                            EqualServiceCoordinator, EqualServicePolicy, freeze_model, service_kw, split_candidates)
 from .master_dispatch import SITES, bid_limits
 from .metrics import measure
 from .stage0 import CONFIG as WIRING
 
 
-def precheck(args, cfg, key, model):
+def precheck(args, cfg, key, model, controller_type):
     trace_dir = args.frozen_trace
     summary = json.loads((trace_dir/"summary.json").read_bytes())
     raw = trace_dir/"raw.jsonl"
@@ -40,7 +42,13 @@ def precheck(args, cfg, key, model):
     slow = next(r for r in rows if r["phase"] == "policy" and r["role"] == "master" and r["slot"] == 24)
     native_command = next(r for r in rows if r["phase"] == "dispatch" and r["sequence"] == 24)
     caps = bid_limits({s:packets[slow["reports"][s]] for s in SITES}, cfg["fast_s"])
-    choices, mask = split_candidates(service_kw(24), caps)
+    total, lo, hi = allocation_interval(service_kw(24),caps)
+    if args.continuous:
+        a = [lo+u*(hi-lo) for u in (.25,.75)]
+        choices = [dict(A=v,B=total-v) for v in a]
+        mask = [True,hi-lo>1e-9]
+    else:
+        choices, mask = split_candidates(service_kw(24), caps)
     saved = next(r["graphs"] for r in rows if r["phase"] == "graphs")
     ref = ObservedReference.read_report(args.reference.read_bytes())
     observed = holds[25]
@@ -52,7 +60,7 @@ def precheck(args, cfg, key, model):
                 continue
             with ExitStack() as stack:
                 plants = {s:stack.enter_context(feeder(deck, ref, cfg, s)) for s in SITES}
-                control = EqualServiceCoordinator(model, cfg, True)
+                control = controller_type(model, cfg, True)
                 events = []
                 control.initialize(plants, events.append)
                 if any(control.graphs[s].summary != saved[s] for s in SITES):
@@ -66,8 +74,10 @@ def precheck(args, cfg, key, model):
                                 raise ValueError("precheck native state replay mismatch")
                         p.candidates()
                 control.local_report = packets[24]
+                urgency = control.command_urgency(summary["metrics"]["reference_hz"]-holds[24]["frequency"][1])
                 control.commands.append(Message(24, native_command["sampled"], native_command["arrival"],
-                                                native_command["effective"], native_command["expiry"], allocation))
+                                                native_command["effective"], native_command["expiry"], allocation,
+                                                urgency))
                 sample_time, hz = observed["frequency"]
                 request, actions = control.dispatch(25, observed["write_s"], sample_time,
                                                     summary["metrics"]["reference_hz"]-hz, plants)
@@ -115,7 +125,11 @@ def main():
         p.add_argument("--"+opt, type=Path, required=True)
     for opt in ("precheck","frozen-trace","checkpoint"):
         p.add_argument("--"+opt, type=Path)
+    p.add_argument("--continuous",action="store_true",help="bounded Beta master and issued urgency")
+    p.add_argument("--ablate",choices=("uplink","downlink"),help="remove one added feature channel in a separate comparison")
     args = p.parse_args()
+    if args.ablate and not args.continuous:
+        p.error("feature ablation requires the continuous controller")
     if subprocess.check_output(["git","status","--porcelain"]):
         raise ValueError("requires clean checkout")
     train = args.mode == "train"
@@ -127,12 +141,18 @@ def main():
                mechanism=sha(args.mechanism), stage0=sha(args.stage0/"summary.json"), lower=sha(args.lower),
                frequency_hz=60, track_weight=TRACKING_WEIGHT, service_kw=SERVICE_KW, service_slots=list(SERVICE_SLOTS),
                versions={k:version(k) for k in ("dss-python","torch","matlabengine","numpy")})
+    policy_type = ContinuousServicePolicy if args.continuous else EqualServicePolicy
+    controller_type = (partial(ContinuousServiceCoordinator,ablation=args.ablate)
+                       if args.continuous else EqualServiceCoordinator)
+    if args.continuous:
+        key["controller"] = "continuous_beta_issued_urgency"
+        key["ablation"] = args.ablate
     setup(cfg["study"]["seed" if train or args.mode=="precheck" else "eval_seed"])
-    model = freeze_model(args.lower,key)
+    model = freeze_model(args.lower,key,policy_type)
     lower_digest = model.lower_digest()
     if args.mode == "precheck":
         with torch.no_grad():
-            result = precheck(args,cfg,key,model)
+            result = precheck(args,cfg,key,model,controller_type)
         dump(args.out,result)
         if not result["passed"]:
             raise ValueError("precheck found no separable full-demand split")
@@ -151,7 +171,7 @@ def main():
     before = state_digest(model)
     seed = cfg["study"]["seed" if train else "eval_seed"]
     event = cfg["events"]["development" if train else "evaluation"]
-    controller = EqualServiceCoordinator(model,cfg,not train,fixed_master=args.mode=="fixed")
+    controller = controller_type(model,cfg,not train,fixed_master=args.mode=="fixed")
     args.out.mkdir(parents=True,exist_ok=False)
     raw = args.out/"raw.jsonl"
     with report(raw) as emit:

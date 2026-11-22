@@ -55,7 +55,7 @@ class EqualServicePolicy(ClockGraphPolicy):
         return state_digest(lower)
 
 
-def freeze_model(path, key):
+def freeze_model(path, key, policy_type=EqualServicePolicy):
     base = torch.load(path, map_location="cpu", weights_only=True)
     original = ClockGraphPolicy()
     original.load_state_dict(base["weights"])
@@ -63,7 +63,7 @@ def freeze_model(path, key):
             or any(base["key"][k] != key[k] for k in
                    ("config", "wiring", "reference", "mechanism", "versions", "frequency_hz"))):
         raise ValueError("incompatible frozen lower checkpoint")
-    model = EqualServicePolicy()
+    model = policy_type()
     model.freeze_lower(base["weights"])
     return model
 
