@@ -59,7 +59,7 @@ def main():
     policies = [r for r in rows if r["phase"]=="policy"]
     graph_inputs = {(r["site"],r["slot"]):r for r in rows if r["phase"]=="device_input"}
     original = next(r for r in rows if r["phase"]=="graphs")["graphs"]
-    master = next(r for r in policies if r["role"]=="master")
+    master = next(r for r in policies if r["role"]=="master" and sum(r["mask"])>=2)
     x = tensor(master["x"])
     mask = x.clone()
     for start in (5,18):

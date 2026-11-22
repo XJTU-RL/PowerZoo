@@ -1,11 +1,13 @@
 """Causal two-rate actor-critic with DSS-masked heterogeneous device policies."""
 from dataclasses import asdict, dataclass
+import math
 import statistics
 
 import torch
 from torch import nn
 from torch.distributions import Categorical
 
+from .master_dispatch import FIXED_ACTION, SITES, allocate_support, bid_limits, feasible_actions, site_reports
 from .phase_graph import PhaseGraph
 
 
@@ -19,7 +21,15 @@ class Message:
     data: dict
 
     def valid(self, now):
-        return self.sampled <= self.arrival < now and self.effective <= now < self.expiry
+        times = (self.sampled, self.arrival, self.effective, self.expiry, now)
+        return (
+            all(type(t) in (int, float) and math.isfinite(t) for t in times)
+            and type(self.sequence) is int and self.sequence >= 0
+            and isinstance(self.data, dict)
+            and self.sampled <= min(self.arrival, self.effective)
+            and self.arrival < now
+            and self.effective <= now < self.expiry
+        )
 
 
 def latest(queue, now):
@@ -93,6 +103,8 @@ def offer(plant, dt, full=True):
     """Finite safe next-step witness. Duration is exactly the verified sample period."""
     rows = plant.candidates()
     allowed = [(plant.base[0]-r["pcc"][0], i) for i, r in enumerate(rows) if not r["veto"]]
+    if not allowed:
+        raise ValueError("no feasible feeder action for an offer")
     kw, idx = max(allowed)
     conservative = [(p,i) for p,i in allowed if p<=max(0.,kw)*.75+1e-9]
     bid, bid_idx = (kw,idx) if full or not conservative else max(conservative)
@@ -116,10 +128,17 @@ def report_features(data):
             float(data["ramp_limited"]), float(data["energy_limited"]), float(data["network_limited"])]
 
 
-def slow_input(error, scale, report, now):
-    values = [error/scale, *timing(report, now)]
-    for s in ("A", "B"):
-        d = report.data[s]
+def slow_input(error, scale, reports, now):
+    values = [error/scale]
+    for s in SITES:
+        packet = reports[s]
+        values += [1., now-packet.sampled] if packet else [0., 0.]
+    for s in SITES:
+        packet = reports[s]
+        if packet is None:
+            values += [0.] * 13
+            continue
+        d = packet.data[s]
         req = d["consumed_request_kw"]
         values += report_features(d) + [req/10, (req-d["delivered_kw"])/10,
                                          1. if d["energy_only_s"] is None else min(60.,d["energy_only_s"])/60,
@@ -128,9 +147,11 @@ def slow_input(error, scale, report, now):
 
 
 class Coordinator:
-    def __init__(self, model, cfg, greedy):
+    def __init__(self, model, cfg, greedy, *, fixed_master=False):
         self.model, self.cfg, self.greedy = model, cfg, greedy
+        self.fixed_master = fixed_master
         self.commands, self.reports, self.records = [], [], []
+        self.local_report = None
         self.offer_choices = {}
         self.report_consumer = {}
 
@@ -146,46 +167,64 @@ class Coordinator:
                        command=source, mask=mask, **details))
         return idx
 
+    def command_at(self, slot, now):
+        slots = self.cfg["window_slots"]
+        if not slots[0]+1 <= slot <= slots[-1]+2:
+            return None
+        cmd = latest(self.commands, now)
+        expected = slots[0]+2*((slot-slots[0]-1)//2)
+        return cmd if cmd is not None and cmd.sequence == expected else None
+
     def dispatch(self, slot, now, freq_time, error, plants):
         cfg = self.cfg
         scale = cfg["frequency_scale_hz"]
-        if not freq_time < now:
+        if not math.isfinite(error) or not math.isfinite(freq_time) or not freq_time < now:
             raise ValueError("policy consumed a future or coincident frequency")
         slots = cfg["window_slots"]
+        table = cfg["actions_battery_pv_kw"]
         if slot in slots:
-            msg = latest(self.reports, now)
-            if msg is None or msg.sequence != slot-2:
-                raise ValueError("incomplete past telemetry at slow tick")
-            x = slow_input(error, scale, msg, now)
-            self.report_consumer[msg.sequence] = slot
-            a = self.choose("master", (x,), [True]*9, slot, slot, now,
-                            report=asdict(msg), x=x.tolist(), frequency_sample_s=freq_time)
-            frac = (.2, .5, .8)[a//3]
-            residual = sum(d["consumed_request_kw"]-d["delivered_kw"] for d in msg.data.values())
-            total = min(cfg["max_request_kw"], max(0., error*cfg["droop_kw_hz"]*(.75,1.,1.25)[a%3]
-                                                  + (0.,.15,.30)[a%3]*residual))
-            allocation = {"A": total*frac, "B": total*(1-frac)}
+            reports = site_reports(self.reports, now)
+            limits = bid_limits(reports, cfg["fast_s"])
+            x = slow_input(error, scale, reports, now)
+            sequences = {s: msg.sequence if msg else None for s, msg in reports.items()}
+            for s, sequence in sequences.items():
+                if sequence is not None:
+                    self.report_consumer.setdefault((sequence, s), slot)
+            deterministic = self.fixed_master or error <= 0 or not any(limits.values())
+            mask = [not deterministic or a == FIXED_ACTION for a in range(9)]
+            a = self.choose("master", (x,), mask, slot, slot, now,
+                            reports=sequences, x=x.tolist(), frequency_sample_s=freq_time)
+            allocation, request = allocate_support(
+                error, a, reports, limits, cfg["max_request_kw"], cfg["droop_kw_hz"],
+            )
             cmd = Message(slot, now, now+cfg["clock"]["report_latency_s"], slot+1., slot+3., allocation)
             self.commands.append(cmd)
-            self.emit(dict(phase="dispatch", **asdict(cmd)))
-        cmd = latest(self.commands, now)
-        if slots[0]+1 <= slot <= slots[-1]+2 and (cmd is None or cmd.sequence != slots[0]+2*((slot-slots[0]-1)//2)):
-            raise ValueError("command absent or consumed outside intended ZOH")
+            self.emit(dict(phase="dispatch", **asdict(cmd), request_kw=request, bid_limits_kw=limits))
+        cmd = self.command_at(slot, now)
         if cmd is None:
-            return {s: 0. for s in plants}, {s: 0 for s in plants}
+            actions = {}
+            for s, p in plants.items():
+                zero = table.index([0, 0])
+                actions[s] = (
+                    feasible_actions(table, p.candidates(), 0.)[0] if p.probe(zero)["veto"] else zero
+                )
+            if slots[0]+1 <= slot <= slots[-1]+2:
+                self.emit(dict(phase="command_fallback", slot=slot, consumption_s=now, actions=actions))
+            return {s: 0. for s in plants}, actions
         actions = {}
         for s, p in plants.items():
             req = cmd.data[s]
             graph = self.graphs[s]
             x = graph.features(p, req)
-            data = self.reports[-1].data[s]  # local measurement, no uplink transit
-            if self.reports[-1].sampled > now:
-                raise ValueError("future local sample")
+            local = self.local_report  # Local measurement is independent of uplink loss.
+            if local is None or local.sampled > now:
+                raise ValueError("missing or future local sample")
+            data = local.data[s]
             obs = tensor([error/scale, req/10, *timing(cmd, now), *report_features(data)[:8]])
-            bid_consumable = slot+2 in slots
+            bid_consumable = any(slot+2 <= tick < slot+4 for tick in slots)
             mask = [bid_consumable or i%2==1 for i in range(6)]
             rep = self.choose("feeder"+s, (obs,), mask, slot, cmd.sequence, now,
-                              command_times=timing(cmd, now), x=obs.tolist(), local_sample_s=self.reports[-1].sampled)
+                              command_times=timing(cmd, now), x=obs.tolist(), local_sample_s=local.sampled)
             self.offer_choices[slot,s] = bool(rep%2)
             target = req*(.65, 1., 1.25)[rep//2]
             # Device heads see their feeder agent's effective target and command lifetime.
@@ -193,9 +232,7 @@ class Coordinator:
             context = tensor([target/10, error/scale, *timing(cmd, now)])
             self.emit(dict(phase="device_input", site=s, slot=slot, command=cmd.sequence,
                            x=x.tolist(), context=context.tolist()))
-            rows = p.candidates()
-            table = cfg["actions_battery_pv_kw"]
-            feasible = [(b,v) for (b,v),r in zip(table,rows) if not r["veto"] and (req>0 or b+v==0)]
+            feasible = [tuple(table[i]) for i in feasible_actions(table, p.candidates(), req)]
             bm = [any(b==k for b,_ in feasible) for k in (0,4,8)]
             args = (x, graph.adj, graph.pools[0], context)
             b = (0,4,8)[self.choose("battery"+s, args, bm, slot, cmd.sequence, now, target_kw=target)]
@@ -209,7 +246,7 @@ class Coordinator:
         now = frame["end_s"]
         # Bind the meter to the command that actually drove these devices. A later
         # issued command can already exist when the slow actor finally receives it.
-        used = latest(self.commands,frame["write_s"])
+        used = self.command_at(frame["slot"], frame["write_s"])
         data = {}
         for s,p in plants.items():
             req = used.data[s] if used else 0.
@@ -218,6 +255,7 @@ class Coordinator:
             data[s] = dict(**offer(p,self.cfg["fast_s"],self.offer_choices.get((frame["slot"],s),True)), consumed_request_kw=req,
                            consumed_command=used.sequence if used else None, consumed_s=frame["write_s"])
         msg = Message(frame["slot"], now, frame["arrival_s"], now, now+3., data)
+        self.local_report = msg
         self.reports.append(msg)
         self.emit(dict(phase="telemetry", **asdict(msg)))
 
@@ -260,8 +298,8 @@ class Coordinator:
                 end_slot = r["slot"]
                 f, loss, elapsed = records[end_slot]
                 reward = (f-.5*loss[role[-1]])*elapsed
-                if role.startswith("feeder") and end_slot in self.report_consumer:
-                    offer_consumer = self.report_consumer[end_slot]
+                if role.startswith("feeder") and (end_slot, role[-1]) in self.report_consumer:
+                    offer_consumer = self.report_consumer[end_slot, role[-1]]
                     future, duration, last = master[offer_consumer]
                     delay = physical[last]["end_s"]-physical[end_slot]["end_s"]
                     reward += .25*.95**delay*future/duration

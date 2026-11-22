@@ -4,12 +4,14 @@ import unittest
 import torch
 
 from .clock_graph import ClockGraphPolicy, Coordinator, Message, latest, slow_input, tensor, update
+from .master_dispatch import site_reports
 
 
 def packet(n, src, arrival, offer):
     d = dict(p_kw=1480., q_kvar=-130., delivered_kw=2., available_kw=offer,
              duration_s=1., energy_only_s=5., ramp_kw_s=4., ramp_limited=True,
-             energy_limited=False, network_limited=False, consumed_request_kw=3., bid_kw=offer)
+             energy_limited=False, network_limited=False, consumed_request_kw=3., bid_kw=offer,
+             consumed_s=src-1., consumed_command=0)
     return Message(n,src,arrival,src,src+3,{"A":d,"B":d})
 
 
@@ -48,7 +50,7 @@ class ClockGraphTests(unittest.TestCase):
         a = packet(0, 1.,1.1,2.)
         b = packet(1,2.,2.1,9.)
         def inputs(q, now):
-            return (slow_input(.00015,.0002,latest(q,now),now),)
+            return (slow_input(.00015,.0002,site_reports(q,now),now),)
         self.assertTrue(torch.equal(*[inputs(q,2.1)[0] for q in ([a],[a,b])]))
         self.assertIsNone(latest([b],5.))
         self.assertIs(latest([a,b],2.1001),b)

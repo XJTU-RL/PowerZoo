@@ -22,7 +22,8 @@ def recover(path, control, cfg, key, reference, event, emit):
             or rows[-1]!={"phase":"failed","reason":"ValueError('native reference frequency disagrees with requested timebase')"}
             or any(r["phase"] in ("complete","optimizer","consumed_return") for r in rows)):
         raise ValueError("ineligible recovery source")
-    modules = ("clock_graph.py", "phase_graph.py", "case_a_plant.py", "case_a_runtime.py", "case_a.json")
+    modules = ("clock_graph.py", "master_dispatch.py", "phase_graph.py",
+               "case_a_plant.py", "case_a_runtime.py", "case_a.json")
     subprocess.run(["git","diff","--quiet",old["git"],key["git"],"--",*[
         "research/lfc_dual_pcc/"+p for p in modules]],check=True)
     events = [r for r in rows if r["phase"]=="native_frequency"]
@@ -46,6 +47,10 @@ def recover(path, control, cfg, key, reference, event, emit):
         if r["phase"]!="policy":
             continue
         role = r["role"]
+        if role == "master":
+            for site, sequence in r["reports"].items():
+                if sequence is not None:
+                    control.report_consumer.setdefault((sequence, site), r["slot"])
         if "x" in r:
             inputs = (tensor(r["x"]),)
         else:

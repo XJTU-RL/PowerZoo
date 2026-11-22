@@ -27,12 +27,16 @@ def main():
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--resume-collected", type=Path)
     parser.add_argument("--frequency", type=int, required=True, choices=(50, 60))
+    parser.add_argument("--master-policy", choices=("learned", "fixed"), default="learned",
+                        help="compare a fixed nominal-droop allocation with the learned master in evaluation")
     args = parser.parse_args()
     train = args.mode == "train"
     if train == bool(args.checkpoint):
         parser.error("only evaluation requires a checkpoint")
     if not train and args.resume_collected:
         parser.error("only unoptimized training trajectories may be recovered")
+    if train and args.master_policy != "learned":
+        parser.error("the fixed master is an evaluation control")
     if args.frequency == 50:
         parser.error("50 Hz requires reinitialized machine, grid and two feeder operating points plus a new native gate")
     git = subprocess.check_output(["git","rev-parse","HEAD"], text=True).strip()
@@ -57,11 +61,11 @@ def main():
         if state_digest(model) != checkpoint["digest"]:
             raise ValueError("model readback")
     before = state_digest(model)
-    control = Coordinator(model, cfg, not train)
+    control = Coordinator(model, cfg, not train, fixed_master=args.master_policy == "fixed")
     args.out.mkdir(parents=True, exist_ok=False)
     with report(args.out/"raw.jsonl") as emit:
         emit(dict(phase="manifest", mode=args.mode, seed=seed, event=event, key=key, before=before,
-                  argv=sys.argv, study="60 Hz engineering pretrial"))
+                  argv=sys.argv, study="60 Hz engineering pretrial", master_policy=args.master_policy))
         with torch.set_grad_enabled(train):
             if args.resume_collected:
                 frames, trace, sensors, ref = recover(args.resume_collected,control,cfg,key,args.reference,event,emit)
@@ -95,7 +99,8 @@ def main():
         metrics["measured_grid_positive_excess_kwh"] = sum(
             max(0.,sum(sensors[s][i][0]-base[s] for s in sensors))*(row["end_s"]-row["write_s"])/3600
             for i,row in enumerate(frames))
-        summary = dict(key=key, mode=args.mode, seed=seed, event=event, before=before, after=after,
+        summary = dict(key=key, mode=args.mode, master_policy=args.master_policy,
+                       seed=seed, event=event, before=before, after=after,
                        recovered_raw_sha256=sha(args.resume_collected) if args.resume_collected else None,
                        counts=counts, optimizer=opt, metrics=metrics, formal_50hz=False,
                        checkpoint_sha256=sha(args.out/"model.pt" if train else args.checkpoint))

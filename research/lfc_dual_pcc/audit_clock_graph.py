@@ -25,13 +25,28 @@ def audit(directory):
     for d in decisions:
         now,slot,role = d["consumed_s"],d["slot"],d["role"]
         if role=="master":
-            r = reports[slot-2]
-            if not r["arrival"]<now<r["expiry"] or d["frequency_sample_s"]>=now:
-                raise ValueError("noncausal slow features")
-            for s,offset in (("A",5),("B",18)):
+            if d["frequency_sample_s"] >= now:
+                raise ValueError("noncausal slow frequency")
+            per_site = d.get("reports")
+            for i, s in enumerate(("A", "B")):
+                offset = 5 + 13*i
+                if per_site is None:
+                    sequence = d["report"]["sequence"]
+                else:
+                    sequence = per_site[s]
+                    presence, age = d["x"][1+2*i:3+2*i]
+                    if sequence is None:
+                        if presence != 0 or age != 0 or any(d["x"][offset:offset+13]):
+                            raise ValueError("missing report represented as a measurement")
+                        continue
+                    if presence != 1 or abs(age-(now-reports[sequence]["sampled"])) > 1e-5:
+                        raise ValueError("incorrect per-feeder report timing")
+                r = reports[sequence]
+                if not (r["sampled"] <= r["arrival"] < now and r["effective"] <= now < r["expiry"]):
+                    raise ValueError("noncausal slow report")
                 data = r["data"][s]
                 src = holds[r["sequence"]]
-                if (r["sequence"]!=d["report"]["sequence"] or data["consumed_s"]!=src["write_s"]
+                if (data["consumed_s"]!=src["write_s"]
                         or data["consumed_request_kw"]!=src["request"][s]
                         or [data["p_kw"],data["q_kvar"]]!=src["pcc"][s]
                         or abs(d["x"][offset+10]-(src["request"][s]-src["delivered"][s])/10)>1e-5
@@ -58,10 +73,13 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ("training","evaluation","out"):
         p.add_argument(name,type=Path)
+    p.add_argument("--fixed-eval", type=Path, help="paired evaluation with the same frozen lower policy")
     args = p.parse_args()
     train, train_count = audit(args.training)
     held, eval_count = audit(args.evaluation)
     opt = train["optimizer"]
+    if held.get("master_policy", "learned") != "learned":
+        raise ValueError("audit the frozen learned master before comparing the fixed evaluation arm")
     if (train["after"]!=held["before"] or held["before"]!=held["after"] or train["event"]==held["event"]
             or train["key"]!=held["key"] or train["before"]==train["after"]
             or train["checkpoint_sha256"]!=held["checkpoint_sha256"] or held["optimizer"] is not None):
@@ -83,9 +101,22 @@ def main():
                     k = prefix+layer
                     if min(opt["gradients"][k],opt["deltas"][k])<=0:
                         raise ValueError("graph layer absent from update")
-    dump(args.out,dict(train=train_count,held_out=eval_count,optimizer_steps=len(opt["steps"]),
-                       module_change_l2=categories,checkpoint_sha256=train["checkpoint_sha256"],
-                       source=train["key"]["git"],formal_50hz=False))
+    result = dict(train=train_count, held_out=eval_count, optimizer_steps=len(opt["steps"]),
+                  module_change_l2=categories, checkpoint_sha256=train["checkpoint_sha256"],
+                  source=train["key"]["git"], formal_50hz=False)
+    if args.fixed_eval:
+        fixed, fixed_count = audit(args.fixed_eval)
+        matched = ("mode", "event", "seed", "key", "before", "after", "checkpoint_sha256")
+        if (fixed.get("master_policy") != "fixed" or fixed["optimizer"] is not None
+                or any(fixed[k] != held[k] for k in matched) or fixed_count != eval_count):
+            raise ValueError("fixed comparison must use the same evaluation event, checkpoint and trace coverage")
+        keys = ("iae_hz_s", "nadir_hz", "net_shortfall_kwh", "measured_grid_positive_excess_kwh")
+        result["master_comparison"] = {
+            "learned": {k: held["metrics"][k] for k in keys},
+            "fixed": {k: fixed["metrics"][k] for k in keys},
+            "learned_minus_fixed": {k: held["metrics"][k]-fixed["metrics"][k] for k in keys},
+        }
+    dump(args.out, result)
 
 
 if __name__=="__main__":
