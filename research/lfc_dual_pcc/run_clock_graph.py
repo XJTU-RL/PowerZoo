@@ -32,6 +32,8 @@ def main():
                         help="compare a fixed nominal-droop allocation with the learned master in evaluation")
     parser.add_argument("--tracking-logit-weight", type=float, default=0.,
                         help="optional device logit penalty per kW of attainable tracking error")
+    parser.add_argument("--graph-mode",choices=("admittance","self"),default="admittance",
+                        help="device message operator, with matched readout parameter shapes")
     args = parser.parse_args()
     train = args.mode == "train"
     if train == bool(args.checkpoint):
@@ -57,8 +59,9 @@ def main():
     key = dict(git=git, config=sha(CONFIG), wiring=sha(WIRING), mechanism=sha(args.mechanism),
                reference=sha(args.reference), frequency_hz=args.frequency,
                tracking_logit_weight=args.tracking_logit_weight,
+               graph_mode=args.graph_mode,
                versions={k:version(k) for k in ("dss-python", "torch", "matlabengine", "numpy")})
-    model = ClockGraphPolicy()
+    model = ClockGraphPolicy(args.graph_mode)
     if not train:
         checkpoint = torch.load(args.checkpoint, weights_only=True, map_location="cpu")
         if checkpoint["key"] != key:
@@ -96,7 +99,7 @@ def main():
             with path.open("xb") as f:
                 torch.save(dict(weights=model.state_dict(),key=key,digest=after),f)
             snap = torch.load(path,weights_only=True,map_location="cpu")
-            restored = ClockGraphPolicy()
+            restored = ClockGraphPolicy(args.graph_mode)
             restored.load_state_dict(snap["weights"])
             if state_digest(restored)!=after:
                 raise ValueError("checkpoint readback")

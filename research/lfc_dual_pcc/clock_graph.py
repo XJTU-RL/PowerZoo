@@ -56,16 +56,22 @@ class MLP(nn.Module):
 
 
 class GraphReadout(nn.Module):
-    def __init__(self, outputs):
+    def __init__(self, outputs, graph_mode="admittance"):
         super().__init__()
+        if graph_mode not in ("admittance","self"):
+            raise ValueError("invalid graph operator")
+        self.graph_mode = graph_mode
         self.embed = nn.Linear(18, 16)
         self.message = nn.Linear(16*4, 16)
         self.out = MLP(32+6, outputs)
 
-    def forward(self, x, adj, pool, context):
+    def encode_nodes(self, x, adj):
         h = self.embed(x).tanh()
-        neighbors = torch.matmul(adj, h)
-        h = self.message(torch.cat([h, *neighbors.unbind(0)], dim=1)).tanh()
+        channels = torch.matmul(adj,h).unbind(0) if self.graph_mode=="admittance" else (h,h.square(),h.pow(3))
+        return self.message(torch.cat((h,*channels),dim=1)).tanh()
+
+    def forward(self, x, adj, pool, context):
+        h = self.encode_nodes(x,adj)
         return self.out(torch.cat([h[pool].mean(0), h.mean(0), context]))
 
 
@@ -101,13 +107,13 @@ def dense(n, k):
 
 
 class ClockGraphPolicy(nn.Module):
-    def __init__(self):
+    def __init__(self, graph_mode="admittance"):
         super().__init__()
         self.heads = nn.ModuleDict({"master": dense(31, 9)})
         for s in ("A", "B"):
             self.heads["feeder"+s] = dense(14, 6)
             for kind, k in (("battery", 3), ("pv", 2)):
-                self.heads[kind+s] = PolicyValue(GraphReadout(k), GraphReadout(1))
+                self.heads[kind+s] = PolicyValue(GraphReadout(k,graph_mode), GraphReadout(1,graph_mode))
 
 
 def tensor(xs):
