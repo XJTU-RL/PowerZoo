@@ -24,7 +24,7 @@ def distinct_signatures(signatures, tolerance):
     return len(representatives)
 
 
-def precheck_residual(args, cfg, key, model, *, information_only=False):
+def precheck_residual(args, cfg, key, model, *, information_only=False, capture_delivery=False):
     source=args.frozen_trace/"raw.jsonl"
     meta=json.loads((args.frozen_trace/"summary.json").read_bytes())
     if (meta["mode"]!="train" or meta["raw_sha256"]!=sha(source) or meta["checkpoint_sha256"]!=key["lower"]
@@ -145,7 +145,7 @@ def precheck_residual(args, cfg, key, model, *, information_only=False):
                         alternative=dict(A=a,B=total-a)
                         with ExitStack() as trial:
                             p2, branch = replay(trial, deck, control, replace(cmd, data=alternative))
-                            actions,outputs=[],[]
+                            actions,outputs,delivered=[],[],[]
                             for step in (slot,slot+1):
                                 req,selected=select(branch,p2,step)
                                 if req!=alternative:
@@ -153,11 +153,29 @@ def precheck_residual(args, cfg, key, model, *, information_only=False):
                                 actual=execute(branch,p2,step,req,selected)
                                 outputs.append({s:actual[s]["pcc"] for s in SITES})
                                 actions.append(selected)
+                                if capture_delivery:
+                                    delivered.append({s:actual[s]["delivered_kw"] for s in SITES})
+                                    if any(actual[s]["veto"] for s in SITES):
+                                        raise ValueError("executed trial encountered a native veto")
                         trials.append(dict(latent=latent,request_kw=alternative,pcc_kw_kvar=outputs,actions=actions))
+                        if capture_delivery:
+                            trials[-1]["delivered_kw"] = delivered
                     sig=[[r[s][0] for r in t["pcc_kw_kvar"] for s in SITES] for t in trials]
                     n=distinct_signatures(sig,cfg["gates"]["power_abs_kw"])
                     states.append(dict(slot=origin,interval_kw=[lo,hi],allocatable_kw=total,
                                        external_kw=demand(origin),distinct_native_pcc=n,alternatives=trials))
+                    if capture_delivery:
+                        admitted = site_reports(control.reports, cmd.sampled)
+                        table = cfg["actions_battery_pv_kw"]
+                        one_step = {}
+                        for site, plant in plants.items():
+                            rows = plant.candidates()
+                            candidates = feasible_actions(table, rows, cmd.data[site])
+                            one_step[site] = [plant.base[0]-rows[idx]["pcc"][0] for idx in candidates]
+                        states[-1].update(observation=evidence["x"], reports=evidence["reports"],
+                                          frequency_error_hz=cmd.urgency_hz,
+                                          caps_kw=bid_limits(admitted,cfg["fast_s"]),
+                                          native_one_step_support_kw=one_step)
             actual=execute(control,plants,slot,request,action)
             prefix.append((action,actual))
     opportunities=sum(r["distinct_native_pcc"]>=2 for r in states)

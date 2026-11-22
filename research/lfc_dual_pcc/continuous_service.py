@@ -83,13 +83,17 @@ class ContinuousServiceCoordinator(EqualServiceCoordinator):
     def policy_interval(self, request, limits):
         return allocation_interval(request,limits)
 
-    def master_allocation(self, error, reports, limits, slot, now, freq_time, sequences):
-        request = self.demand_for(slot)
-        total, lo, hi = self.policy_interval(request,limits)
+    def master_observation(self, error, reports, now, request, total, lo, hi):
         confidence = [freshness(reports[s],s,now,self.cfg["fast_s"]) for s in SITES]
         observed_confidence = [0.,0.] if self.ablation == "uplink" else confidence
         x = torch.cat((slow_input(error,self.cfg["frequency_scale_hz"],reports,now),
                        tensor([v/SERVICE_KW for v in (request,lo,hi,request-total)]+observed_confidence)))
+        return x, confidence
+
+    def master_allocation(self, error, reports, limits, slot, now, freq_time, sequences):
+        request = self.demand_for(slot)
+        total, lo, hi = self.policy_interval(request,limits)
+        x, confidence = self.master_observation(error,reports,now,request,total,lo,hi)
         a,sample = self.model.heads["master"].decide(x,lo,hi,total,self.greedy,self.fixed_master)
         b = min(limits["B"],max(0.,total-a))
         self.records.append(dict(role="master",slot=slot,command=slot,outputs=sample))

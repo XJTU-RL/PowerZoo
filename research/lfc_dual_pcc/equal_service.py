@@ -94,6 +94,9 @@ class EqualServiceCoordinator(Coordinator):
                              x=x.tolist(), frequency_sample_s=freq_time, distinct_commands=sum(distinct))
         return choices[action], request
 
+    def service_penalty_kw(self, requested, delivered):
+        return max(0., requested-delivered)
+
     def returns(self, frames, trace, ref):
         physical = {f["used_slot"]: f for f in frames if f["used_slot"] is not None}
         holding = {f["slot"]: f for f in frames}
@@ -105,11 +108,15 @@ class EqualServiceCoordinator(Coordinator):
                 source, measured = holding[slot], physical[slot]
                 dt = measured["end_s"]-measured["write_s"]
                 hz = [abs(v-ref) for t,v in trace if measured["write_s"] < t < measured["end_s"]]
-                gap = max(0., self.demand_for(origin)-sum(source["delivered"].values()))
-                score = -statistics.mean(hz)/self.cfg["frequency_scale_hz"] - gap/self.deficit_scale_kw
+                requested = self.demand_for(origin)
+                delivered = sum(source["delivered"].values())
+                gap = max(0., requested-delivered)
+                penalty = self.service_penalty_kw(requested, delivered)
+                score = -statistics.mean(hz)/self.cfg["frequency_scale_hz"] - penalty/self.deficit_scale_kw
                 total += .95**elapsed*score*dt
                 elapsed += dt
                 self.emit(dict(phase="master_feedback", command=origin, action_slot=slot,
-                               physical_slot=measured["slot"], unmet_kw=gap, duration_s=dt))
+                               physical_slot=measured["slot"], unmet_kw=gap, duration_s=dt,
+                               excess_kw=max(0.,delivered-requested), service_penalty_kw=penalty))
             samples.append((origin, elapsed, total, r["outputs"]))
         return {"master":samples}
