@@ -19,6 +19,7 @@ from utils.config_validation import (
     normalize_env,
     typed_value,
 )
+from utils.discrete_marl_config import DISCRETE_VVC_ALGORITHMS, validate_discrete_vvc
 
 ALGORITHM_SECTIONS = (
     "seed",
@@ -395,6 +396,8 @@ class ConfigLoader:
         if not replay:
             merge(defaults, algo_source)
             merge({"env": asdict(cls())}, f"{cls.__module__}.{cls.__name__} defaults")
+            if family == "vvc" and algo in DISCRETE_VVC_ALGORITHMS:
+                merge({"env": {"observation_mode": "local"}}, f"{algo} VVC default")
         if algo_config and replay:
             raise ConfigError("重放最终配置时不能重新选择算法配置；请用 --set 显式修改")
         if algo_config:
@@ -591,7 +594,10 @@ class ConfigLoader:
             if value != math.inf and (value < 2 or int(value) != value):
                 raise ConfigError(f"env.{name} 必须为 >= 2 的整数或 .inf")
         family = environment_family(config.main_args["env"])
-        sequential = config.main_args["algo"] == "sequential_ppo"
+        name = config.main_args["algo"]
+        if name in DISCRETE_VVC_ALGORITHMS:
+            validate_discrete_vvc(name, family, algo, env)
+        sequential = name == "sequential_ppo"
         if (family == "stackelberg") != sequential:
             raise ConfigError(
                 "Stackelberg顺序非合作任务只使用sequential_ppo；同步协作任务不能使用该训练器"

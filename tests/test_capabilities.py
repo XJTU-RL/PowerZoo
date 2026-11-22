@@ -60,15 +60,29 @@ def test_centralized_policy_and_device_spaces_are_separate(config):
     assert not preflight(dsr, backend="ldcppo").compatible
 
 
-def test_unknown_and_unavailable_are_explicit(config):
+def test_unknown_algorithms_are_explicit(config):
     assert "未知" in preflight(config, backend="sac_typo").issues[0]
-    config.main_args["algo"] = "qmix"
-    assert "八节" in preflight(config).issues[0]
     config.main_args["algo"] = "qmix_typo"
     assert "未知" in preflight(config).issues[0]
     config.main_args["env"] = "TYPO"
     with pytest.raises(ConfigError, match="未知环境"):
         preflight(config)
+
+
+
+@pytest.mark.parametrize("algorithm", ["ippo", "qmix", "vdn", "coma"])
+def test_discrete_baselines_preflight_matches_public_config(algorithm):
+    config = ConfigLoader().load(
+        algo=algorithm,
+        experiment="configs/experiments/vvc_34bus_discrete_marl_quickstart.yaml",
+    )
+    structural = preflight(config, require_mask="structural", checkpoint="policy_reload")
+    assert structural.compatible and structural.device_action_kinds == ("discrete",)
+    assert structural.observation == "local"
+    assert not preflight(config, require_mask="feasible").compatible
+
+    config.env_args["bat_act_num"] = float("inf")
+    assert not preflight(config).compatible
 
 
 def test_cbess_is_cost_capable_with_train_only_reset():

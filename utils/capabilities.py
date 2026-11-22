@@ -5,6 +5,7 @@ from math import inf
 from types import MappingProxyType
 
 from utils.config_validation import ConfigError, environment_family
+from utils.discrete_marl_config import DISCRETE_VVC_ALGORITHMS, validate_discrete_vvc
 from utils.environment_registry import ENVIRONMENTS
 
 # 与 CBESS info["costs"] 和 LDCPPO 约束 critic 的通道对应。
@@ -119,6 +120,15 @@ _CONTINUOUS = AlgorithmCapability(
     "team_global",
     ("independent", "all"),
 )
+_DISCRETE_VVC = AlgorithmCapability(
+    "marl",
+    ("discrete",),
+    ("local",),
+    "team_global",
+    ("independent",),
+    required_mask="structural",
+    termination="terminated_and_truncated_if_enabled",
+)
 _ALGORITHMS = MappingProxyType(
     {
         **{name: _ON_POLICY for name in ("happo", "hatrpo", "haa2c", "mappo", "shom")},
@@ -142,17 +152,7 @@ _ALGORITHMS = MappingProxyType(
             checkpoint=("training_resume",),
             evaluation="unprofiled",
         ),
-        "qmix": AlgorithmCapability(
-            "marl",
-            ("discrete",),
-            _MARL_OBS,
-            "team_global",
-            ("independent",),
-            required_mask="structural",
-            unavailable="main 的 QMIX 配置未适配公共八节入口",
-            checkpoint=(),
-            evaluation="unavailable",
-        ),
+        **{name: _DISCRETE_VVC for name in sorted(DISCRETE_VVC_ALGORITHMS)},
     }
 )
 
@@ -315,6 +315,11 @@ def preflight(
         issues.append(algo.unavailable)
     if env is None:
         issues.append(f"{family!r} 没有公开的 {entrypoint} 能力声明")
+    if algorithm in DISCRETE_VVC_ALGORITHMS and entrypoint == "marl":
+        try:
+            validate_discrete_vvc(algorithm, family, config.algo_args, values)
+        except ConfigError as exc:
+            issues.append(str(exc))
     if issues:
         return Preflight(*selection, issues=tuple(issues))
 
