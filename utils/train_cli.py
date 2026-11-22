@@ -5,6 +5,7 @@ import yaml
 
 from utils.config_pipeline import ConfigLoader, leaves, parse_assignments
 from utils.config_validation import ConfigError
+from utils.entrypoint_preflight import require_preflight, uses_marl_preflight
 
 
 def main(argv=None, *, default_env=None):
@@ -63,6 +64,9 @@ def main(argv=None, *, default_env=None):
                     raise ConfigError(f"重复 CLI 参数 {path}")
                 overrides.update(parse_assignments([f"{path}={raw}"]))
         config = loader.load(**options, overrides=overrides)
+        check_capabilities = uses_marl_preflight(config)
+        if check_capabilities:
+            require_preflight(config)
         if args.save_config:
             config.save(args.save_config)
         if args.print_config:
@@ -93,6 +97,11 @@ def main(argv=None, *, default_env=None):
         config.runner_args(), config.algo_args, config.env_args
     )
     try:
+        if check_capabilities:
+            try:
+                require_preflight(config, wrapper=runner.envs)
+            except ConfigError as exc:
+                parser.error(str(exc))
         runner.run()
     finally:
         runner.close()
