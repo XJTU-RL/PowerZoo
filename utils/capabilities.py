@@ -286,6 +286,28 @@ class Preflight:
         return {**asdict(self), "compatible": self.compatible}
 
 
+def validate_shom_order(name, family, algo_args, env_args):
+    settings = algo_args["algo"]
+    mode = settings.get("sensitivity_mode", "legacy")
+    if mode not in ("legacy", "paper", "native"):
+        raise ConfigError("sensitivity_mode 必须为 legacy、paper 或 native")
+    if mode == "legacy":
+        return
+    if (
+        name != "shom"
+        or family != "vvc"
+        or env_args.get("state_type", "EP") != "EP"
+        or settings["share_param"] is not False
+        or settings["action_aggregation"] != "prod"
+        or env_args.get("useS")
+    ):
+        raise ConfigError("SHOM 物理排序要求 VVC、独立 actor、EP 和联合概率比")
+    if mode != env_args.get("sensitivity_measurement"):
+        raise ConfigError("SHOM 的 sensitivity_measurement 必须和 sensitivity_mode 一致")
+    if algo_args["train"]["episode_length"] != env_args["max_episode_steps"]:
+        raise ConfigError("SHOM 每次排序需要各 worker 采集一个完整回合")
+
+
 def preflight(
     config,
     *,
@@ -315,6 +337,11 @@ def preflight(
         issues.append(algo.unavailable)
     if env is None:
         issues.append(f"{family!r} 没有公开的 {entrypoint} 能力声明")
+    if algorithm == "shom":
+        try:
+            validate_shom_order(algorithm, family, config.algo_args, values)
+        except ConfigError as exc:
+            issues.append(str(exc))
     if issues:
         return Preflight(*selection, issues=tuple(issues))
 

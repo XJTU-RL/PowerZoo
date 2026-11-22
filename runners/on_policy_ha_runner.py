@@ -22,18 +22,75 @@
 """Runner for on-policy PowerZoo algorithms."""
 import numpy as np
 import torch
+from algorithms.actors.shom_order import physical_agent_order, physical_agent_scores
+from utils.capabilities import validate_shom_order
+from utils.config_validation import environment_family
 from utils.trans_tools import _t2n
 from runners.on_policy_base_runner import OnPolicyBaseRunner
 
 class OnPolicyHARunner(OnPolicyBaseRunner):
     """Runner for on-policy HA algorithms."""
-    
+
+    def __init__(self, args, algo_args, env_args):
+        settings = algo_args["algo"]
+        self.sensitivity_mode = settings.get("sensitivity_mode", "legacy")
+        self.sensitivity_reverse = settings.get("sensitivity_reverse", False)
+        if "sensitivity_mode" in settings:
+            validate_shom_order(
+                args["algo"], environment_family(args["env"]), algo_args, env_args
+            )
+        self.sensitivity_rollout = []
+        super().__init__(args, algo_args, env_args)
+
+    def insert(self, data):
+        super().insert(data)
+        if self.sensitivity_mode != "legacy":
+            rewards, dones, infos = data[2:5]
+            self.sensitivity_rollout.append([
+                (float(rewards[worker, 0, 0]), bool(np.all(dones[worker])), info[0])
+                for worker, info in enumerate(infos)
+            ])
+
+    def _physical_order(self):
+        manifest = self.physics_manifest or {}
+        devices = [entry["element"] for entry in manifest.get("action_schema", [])]
+        if len(devices) != self.num_agents:
+            raise ValueError("SHOM 缺少动作空间对应的设备 ID")
+        length = self.algo_args["train"]["episode_length"]
+        if len(self.sensitivity_rollout) != length:
+            raise ValueError("SHOM 缺少完整回合的灵敏度")
+
+        worker_scores = []
+        for rollout in zip(*self.sensitivity_rollout, strict=True):
+            if any(done for _, done, _ in rollout[:-1]) or not rollout[-1][1]:
+                failure = next(
+                    (info.get("failure_reason") for _, _, info in rollout if info.get("physical_failure")),
+                    None,
+                )
+                raise ValueError(f"SHOM 缺少完整物理回合：{failure or '终止时点不匹配'}")
+            if rollout[-1][2].get("TimeLimit.truncated"):
+                raise ValueError("SHOM 物理排序需要自然终止的完整回合")
+            worker_scores.append(physical_agent_scores(
+                self.sensitivity_mode,
+                [(reward, info) for reward, _, info in rollout],
+                devices, manifest.get("model_sha256"), manifest.get("action_schema_sha256"),
+            ))
+        self.last_sensitivity_scores = dict(zip(devices, np.mean(worker_scores, axis=0)))
+        self.sensitivity_rollout.clear()
+        return physical_agent_order(
+            list(self.last_sensitivity_scores.values()),
+            self.sensitivity_reverse,
+            devices if self.sensitivity_mode == "native" else None,
+        )
+
     def _calculate_agent_order(self):
         """计算智能体的排序顺序。
         
         Returns:
             list: 智能体的排序列表
         """
+        if getattr(self, "sensitivity_mode", "legacy") != "legacy":
+            return self._physical_order()
         # 如果不使用敏感度排序，直接返回默认顺序
         if not (hasattr(self, 'useS') and self.useS):
             agent_order = list(range(self.num_agents))
@@ -107,7 +164,7 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
 
     def train(self):
         """Train the model."""
-        actor_train_infos = []
+        actor_train_infos = [None] * self.num_agents
         
         # HAPPO诊断：设置TensorBoard writer
         if hasattr(self, 'writer') and self.writer is not None:
@@ -160,6 +217,9 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
 
         # 计算agent排序
         agent_order = self._calculate_agent_order()
+        if sorted(agent_order) != list(range(self.num_agents)):
+            raise ValueError("actor 更新顺序必须恰好包含每台设备一次")
+        self.last_update_order = []
         
         for agent_id in agent_order:
             self.actor_buffer[agent_id].update_factor(factor)  # current actor save factor
@@ -237,7 +297,13 @@ class OnPolicyHARunner(OnPolicyBaseRunner):
                     1,
                 )
             )
-            actor_train_infos.append(actor_train_info)
+            actor_train_infos[agent_id] = actor_train_info
+            self.last_update_order.append(agent_id)
+
+        if getattr(self, "sensitivity_mode", "legacy") != "legacy":
+            devices = list(self.last_sensitivity_scores)
+            print(f"SHOM {self.sensitivity_mode} actor 更新顺序: "
+                  f"{[devices[agent_id] for agent_id in self.last_update_order]}")
 
         # update critic
         critic_train_info = self.critic.train(self.critic_buffer, self.value_normalizer)

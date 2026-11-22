@@ -642,6 +642,7 @@ class DeviceControlEnv(gym.Env):
             }
         self.circuit.apply(requests)
         self.circuit.solve()
+        self._after_solve()
         self.circuit.finish_interval()
         self.applied_control_vector = self._control_vector()
         soc_err, dis_err = [], []
@@ -977,6 +978,9 @@ class DeviceControlEnv(gym.Env):
         if not self._closed:
             self.circuit.close()
             self._closed = True
+
+    def _after_solve(self):
+        """Optional task measurement at the solved point before time advancement."""
 
     def _init_task(self):
         pass
