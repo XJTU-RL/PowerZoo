@@ -1,0 +1,23 @@
+{
+  "schema": "same-state-reach-then-sustain-v1",
+  "decision_states": [
+    24,
+    27,
+    29
+  ],
+  "snapshot_source": "measured-gate handoff arm",
+  "baseline": "independent native same-prefix feeder, zero battery discharge and zero incremental PV from decision onward; keep actual SOC, previous command and all exogenous inputs",
+  "direction": "baseline PCC import kW minus candidate PCC import kW at the same solved hold",
+  "reach_deadline_s": 3,
+  "report_local_step_s": 1,
+  "hold_seconds": [
+    2,
+    5,
+    10
+  ],
+  "power_resolution_kw": 0.1,
+  "power_guard_kw": 0.005,
+  "witness_parity_kw": 0.005,
+  "search": "six pre-existing causal ceiling policies; choose greatest validated quantized kW then earliest qualifying local observation then smallest nominal ceiling; at least the reaching interval and the next H complete distinct intervals must satisfy the target",
+  "visibility": "local open-loop feeder capability; observation-confirmed reach at the end of the reaching DSS hold; upper report arrival and later master transport are separate clocks; no subsecond PCC claim"
+}

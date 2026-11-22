@@ -24,11 +24,15 @@ def start(plant, state, tolerance):
         raise ValueError("unmatched as-of state")
 
 
-def run_policy(plant, state, labels, cap, cfg, protocol):
-    start(plant, state, protocol["tolerances"])
+def run_policy(plant, state, labels, cap, cfg, protocol, *, completed=0, stop=None):
+    if completed:
+        if plant.s != len(state["prefix_actions"]) + completed:
+            raise ValueError("continuation clock differs from verified prefix")
+    else:
+        start(plant, state, protocol["tolerances"])
     requested = labels.index(cap)
     trace = []
-    for index in range(max(protocol["horizons_s"])):
+    for index in range(completed, stop if stop is not None else max(protocol["horizons_s"])):
         slot_start = state["as_of_s"] + index
         previous = plant.previous
         choices = plant.candidates()
