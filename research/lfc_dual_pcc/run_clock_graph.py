@@ -32,7 +32,7 @@ def main():
                         help="compare a fixed nominal-droop allocation with the learned master in evaluation")
     parser.add_argument("--tracking-logit-weight", type=float, default=0.,
                         help="optional device logit penalty per kW of attainable tracking error")
-    parser.add_argument("--graph-mode",choices=("admittance","self"),default="admittance",
+    parser.add_argument("--graph-mode",choices=("admittance","self","topology"),default="admittance",
                         help="device message operator, with matched readout parameter shapes")
     args = parser.parse_args()
     train = args.mode == "train"

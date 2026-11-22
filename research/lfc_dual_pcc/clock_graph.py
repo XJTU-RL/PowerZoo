@@ -58,7 +58,7 @@ class MLP(nn.Module):
 class GraphReadout(nn.Module):
     def __init__(self, outputs, graph_mode="admittance"):
         super().__init__()
-        if graph_mode not in ("admittance","self"):
+        if graph_mode not in ("admittance","self","topology"):
             raise ValueError("invalid graph operator")
         self.graph_mode = graph_mode
         self.embed = nn.Linear(18, 16)
@@ -67,7 +67,13 @@ class GraphReadout(nn.Module):
 
     def encode_nodes(self, x, adj):
         h = self.embed(x).tanh()
-        channels = torch.matmul(adj,h).unbind(0) if self.graph_mode=="admittance" else (h,h.square(),h.pow(3))
+        if self.graph_mode=="self":
+            channels = h,h.square(),h.pow(3)
+        else:
+            if self.graph_mode=="topology":
+                adj = adj.ne(0).to(h.dtype)
+                adj = adj/adj[2].sum(dim=1).clamp_min(1.)[None,:,None]
+            channels = torch.matmul(adj,h).unbind(0)
         return self.message(torch.cat((h,*channels),dim=1)).tanh()
 
     def forward(self, x, adj, pool, context):

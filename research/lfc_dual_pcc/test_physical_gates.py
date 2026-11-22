@@ -68,3 +68,7 @@ class PhysicalGateTests(unittest.TestCase):
         self.assertFalse(torch.equal(graph.encode_nodes(x,adj)[0],graph.encode_nodes(changed,adj)[0]))
         grad, = torch.autograd.grad(self_only.encode_nodes(x,adj).sum(),self_only.message.weight)
         self.assertGreater(float(grad[:,16:].norm()),0.)
+        topology = GraphReadout(3,"topology")
+        topology.load_state_dict(graph.state_dict())
+        self.assertTrue(torch.equal(topology.encode_nodes(x,adj),topology.encode_nodes(x,-5.*adj)))
+        self.assertFalse(torch.equal(topology.encode_nodes(x,adj)[0],topology.encode_nodes(changed,adj)[0]))
