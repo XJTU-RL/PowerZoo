@@ -24,7 +24,7 @@ def distinct_signatures(signatures, tolerance):
     return len(representatives)
 
 
-def precheck_residual(args, cfg, key, model):
+def precheck_residual(args, cfg, key, model, *, information_only=False):
     source=args.frozen_trace/"raw.jsonl"
     meta=json.loads((args.frozen_trace/"summary.json").read_bytes())
     if (meta["mode"]!="train" or meta["raw_sha256"]!=sha(source) or meta["checkpoint_sha256"]!=key["lower"]
@@ -85,7 +85,7 @@ def precheck_residual(args, cfg, key, model):
                        for m in control.reports]
             limits = bid_limits(latest, cfg["fast_s"])
             sample, hz = holds[origin]["frequency"]
-            for label, queue in (("timely", control.reports), ("delayed_A", delayed)):
+            for label, queue in (("timely", control.reports), ("delayed_shared_packet", delayed)):
                 reports = site_reports(queue, now)
                 ids = {s: msg.sequence if msg else None for s, msg in reports.items()}
                 diagnostics = ResidualServiceCoordinator(model, cfg, True)
@@ -114,7 +114,7 @@ def precheck_residual(args, cfg, key, model):
         if downlink[0]["native_feasible"] != downlink[1]["native_feasible"]:
             raise ValueError("urgency test changed physical eligibility")
         return dict(origin=origin, fast_slot=slot, uplink=uplink, downlink=downlink,
-                    master_weights="pretraining exact rule, no test of a trained residual")
+                    master_weights="frozen trained residual" if information_only else "pretraining exact rule")
 
     information = None
     with tempfile.TemporaryDirectory() as scratch, ExitStack() as stack:
@@ -133,6 +133,9 @@ def precheck_residual(args, cfg, key, model):
                 cmd=control.command_at(slot,holds[slot]["write_s"])
                 if origin == SERVICE_SLOTS[0]:
                     information = information_control(deck, control, slot, cmd)
+                    if information_only:
+                        return dict(key=key, lower_digest=model.lower_digest(), information=information,
+                                    frozen_raw_sha256=sha(source))
                 if hi-lo<=1e-9 or not math.isclose(total,demand(origin),rel_tol=0.,abs_tol=1e-9):
                     states.append(dict(slot=origin,interval_kw=[lo,hi],allocatable_kw=total,
                                        external_kw=demand(origin),distinct_native_pcc=0,alternatives=[]))

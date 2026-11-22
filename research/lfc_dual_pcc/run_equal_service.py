@@ -123,7 +123,7 @@ def ledger(frames, sensors, demand_for=service_kw):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("mode", choices=("precheck","train","learned","fixed"))
+    p.add_argument("mode", choices=("precheck","train","learned","fixed","diagnose"))
     for opt in ("out","stage0","reference","mechanism","lower"):
         p.add_argument("--"+opt, type=Path, required=True)
     for opt in ("precheck","frozen-trace","checkpoint"):
@@ -134,6 +134,9 @@ def main():
     args = p.parse_args()
     if args.ablate and not args.continuous:
         p.error("feature ablation requires the continuous controller")
+    if args.mode == "diagnose" and (not args.residual or not all(
+            (args.frozen_trace, args.precheck, args.checkpoint))):
+        p.error("diagnose requires a residual run, frozen development source, gate and trained checkpoint")
     if args.residual and (not args.continuous or args.ablate):
         p.error("residual revision needs the full continuous information protocol")
     if subprocess.check_output(["git","status","--porcelain"]):
@@ -154,14 +157,14 @@ def main():
         key["controller"] = "continuous_beta_issued_urgency"
         key["ablation"] = args.ablate
     demand_for=service_kw
-    seed=cfg["study"]["seed" if train or args.mode=="precheck" else "eval_seed"]
+    seed=cfg["study"]["seed" if train or args.mode in ("precheck","diagnose") else "eval_seed"]
     event=cfg["events"]["development" if train else "evaluation"]
     if args.residual:
         policy_type,controller_type=ResidualServicePolicy,ResidualServiceCoordinator
         demand_for=revised_demand
         key.update(controller="rule_anchored_beta_issued_urgency",service_kw=REVISED_KW,
                    independent_holdout=HOLDOUT,independent_seed=HOLDOUT_SEED)
-        if not train and args.mode!="precheck":
+        if not train and args.mode not in ("precheck","diagnose"):
             seed,event=HOLDOUT_SEED,HOLDOUT
     setup(seed)
     model = freeze_model(args.lower,key,policy_type)
@@ -174,6 +177,23 @@ def main():
             raise ValueError("precheck found no separable full-demand split")
         return
     gate = json.loads(args.precheck.read_bytes())
+    if args.mode == "diagnose":
+        pinned_key = dict(key, git=gate["key"]["git"])
+        summary = json.loads((args.checkpoint.parent/"summary.json").read_bytes())
+        checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+        expected = dict(pinned_key, precheck=sha(args.precheck))
+        if (not gate["passed"] or gate["key"] != pinned_key or summary["mode"] != "train"
+                or checkpoint["key"] != expected or summary["key"] != expected
+                or summary["checkpoint_sha256"] != sha(args.checkpoint)
+                or checkpoint["digest"] != summary["after"] or summary["after"] == summary["before"]):
+            raise ValueError("diagnostic requires the verified residual training update")
+        model.load_state_dict(checkpoint["weights"])
+        if state_digest(model) != checkpoint["digest"] or model.lower_digest() != lower_digest:
+            raise ValueError("diagnostic weights did not load exactly")
+        with torch.no_grad():
+            result = precheck_residual(args, cfg, key, model, information_only=True)
+        dump(args.out, dict(**result, checkpoint_sha256=sha(args.checkpoint), weights=checkpoint["digest"]))
+        return
     if not gate["passed"] or gate["key"] != key or gate["lower_digest"] != lower_digest:
         raise ValueError("incompatible or failed native precheck")
     key["precheck"] = sha(args.precheck)
