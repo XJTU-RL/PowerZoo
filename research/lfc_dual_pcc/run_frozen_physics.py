@@ -25,7 +25,7 @@ SLOT = 24
 SITES = ("A","B")
 
 
-def credit(rows, holds, deck, ref, cfg, model, origin, nested):
+def credit(rows, holds, deck, ref, cfg, model, origin, nested, export=None):
     graphs = {}
     frozen_graph = next(r["graphs"] for r in rows if r["phase"]=="graphs")
     for s in SITES:
@@ -114,6 +114,18 @@ def credit(rows, holds, deck, ref, cfg, model, origin, nested):
             raise ValueError("behavior probabilities differ before the matched update")
         arms[name] = dict(total_discounted_penalty_kw_s=sum(allocation.values()),credit=ledger,
                           optimizer=res,after=state_digest(clone))
+        if export is not None:
+            folder, source = export
+            filename = folder/(name+".pt")
+            with filename.open("xb") as f:
+                torch.save(dict(weights=clone.state_dict(),digest=arms[name]["after"],arm=name,
+                                behavior_digest=state_digest(model),source=source),f)
+            restored = ClockGraphPolicy()
+            snap = torch.load(filename,map_location="cpu",weights_only=True)
+            restored.load_state_dict(snap["weights"])
+            if state_digest(restored)!=snap["digest"] or snap["digest"]!=arms[name]["after"]:
+                raise ValueError("matched-credit checkpoint could not be read back")
+            arms[name]["checkpoint_sha256"] = sha(filename)
     if not math.isclose(arms["neutral"]["total_discounted_penalty_kw_s"],arms["physical"]["total_discounted_penalty_kw_s"],abs_tol=1e-8):
         raise ValueError("different matched budgets")
     return dict(command_slot=origin, recovered_decisions=count, behavior_samples=len(selected),
@@ -182,6 +194,7 @@ def main():
     p.add_argument("out",type=Path)
     p.add_argument("--first-development-gap",action="store_true",help="choose the earliest measured development gap")
     p.add_argument("--nested",action="store_true",help="require fixed and relaxed conditional action domains")
+    p.add_argument("--checkpoint-dir",type=Path,help="export both independently checked updates")
     args = p.parse_args()
     summary = json.loads((args.training/"summary.json").read_bytes())
     raw = args.training/"raw.jsonl"
@@ -208,9 +221,15 @@ def main():
         ) > cfg["gates"]["power_abs_kw"]),None)
         if origin is None:
             raise ValueError("no measured development shortfall above the physical threshold")
+    export = None
+    if args.checkpoint_dir is not None:
+        if args.mode!="credit" or not args.nested or origin!=26:
+            p.error("checkpoint export requires the matched nested 26 s credit window")
+        args.checkpoint_dir.mkdir(parents=True,exist_ok=False)
+        export = (args.checkpoint_dir,dict(key=key,raw_sha256=sha(raw),command_slot=origin))
     with tempfile.TemporaryDirectory() as tmp:
         deck = native.archived_deck(ROOT,Path(tmp))
-        result = credit(rows,holds,deck,ref,cfg,model,origin,args.nested) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
+        result = credit(rows,holds,deck,ref,cfg,model,origin,args.nested,export) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
     dump(args.out,dict(code=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
                        frequency_hz=60, source_key=key, source_raw_sha256=sha(raw), seed=summary["seed"],
                        behavior_digest=summary["before"],mode=args.mode, result=result,formal_50hz=False))

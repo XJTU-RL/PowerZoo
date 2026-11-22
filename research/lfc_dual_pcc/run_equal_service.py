@@ -97,7 +97,7 @@ def precheck(args, cfg, key, model, controller_type):
                 projected_commands=choices, distinct_mask=mask, responses=responses)
 
 
-def ledger(frames, sensors):
+def ledger(frames, sensors, demand_for=service_kw):
     consumed = {r["used_slot"]:r for r in frames if r["used_slot"] is not None}
     measured_by_slot = {r["slot"]:{s:sensors[s][i] for s in SITES} for i,r in enumerate(frames)}
     rows = []
@@ -105,7 +105,7 @@ def ledger(frames, sensors):
         slot = r["slot"]
         origin = slot-1-(slot-1)%2
         physical = consumed.get(slot)
-        demand = service_kw(origin)
+        demand = demand_for(origin)
         actual = sum(r["delivered"].values())
         dt = r["end_s"]-r["write_s"]
         gap = demand-actual
