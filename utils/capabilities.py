@@ -134,6 +134,17 @@ _ALGORITHMS = MappingProxyType(
     {
         **{name: _ON_POLICY for name in ("happo", "hatrpo", "haa2c", "mappo", "shom")},
         **{name: _CONTINUOUS for name in ("haddpg", "hatd3", "maddpg", "matd3")},
+        **{
+            name: AlgorithmCapability(
+                "centralized",
+                ("continuous",),
+                ("global",),
+                "none",
+                ("single",),
+                evaluation="policy_predict",
+            )
+            for name in ("sb3_sac", "sb3_td3")
+        },
         "sb3_ppo": AlgorithmCapability(
             "centralized",
             ("continuous", "multidiscrete"),
@@ -149,9 +160,8 @@ _ALGORITHMS = MappingProxyType(
             "none",
             ("single",),
             required_costs=_COST_KEYS,
-            termination="legacy_done_only",
-            checkpoint=("training_resume",),
-            evaluation="unprofiled",
+            checkpoint=("policy_reload", "training_resume"),
+            evaluation="policy_predict",
         ),
         **{name: _DISCRETE_VVC for name in sorted(DISCRETE_VVC_ALGORITHMS)},
     }
@@ -189,8 +199,8 @@ _ENVIRONMENT_CAPABILITIES = MappingProxyType(
             "native_readback",
             (),
             _VVC.termination,
-            _VVC.evaluation,
-            _VVC.checkpoint_binding,
+            "same_scenario_only",
+            "binding_v1",
             "box_quantizes_discrete_devices",
         ),
         ("dsr", "marl"): EnvironmentCapability(
@@ -221,8 +231,8 @@ _ENVIRONMENT_CAPABILITIES = MappingProxyType(
             "native_readback",
             (),
             "finite_horizon",
-            "validation_split",
-            "physics_manifest",
+            "same_scenario_only",
+            "binding_v1",
             "per_group",
         ),
         ("cbess", "centralized"): EnvironmentCapability(
@@ -237,8 +247,8 @@ _ENVIRONMENT_CAPABILITIES = MappingProxyType(
             "native_readback",
             _COST_KEYS,
             "finite_horizon",
-            "train_only_reset",
-            "unavailable",
+            "validation_split",
+            "binding_v1",
             "native_box",
         ),
     }
@@ -278,6 +288,7 @@ class Preflight:
     sharing: str = ""
     deferred: tuple[str, ...] = ()
     issues: tuple[str, ...] = ()
+    checkpoint_contract: str | None = None
 
     @property
     def compatible(self):
@@ -319,6 +330,7 @@ def preflight(
     require_mask="none",
     checkpoint=None,
     independent_replay=False,
+    checkpoint_contract=None,
 ):
     """校验已解析的 ConfigLoader 配置，可选使用物理环境绑定结果复核。"""
     if require_mask not in ("none", "structural", "feasible"):
@@ -330,6 +342,9 @@ def preflight(
     family = environment_family(config.main_args["env"])
     values = config.env_args
     system = values.get("system_name", values.get("system", family))
+    if checkpoint_contract not in (None, "binding_v1", "legacy_physics_only"):
+        raise ConfigError(f"未知 checkpoint 格式 {checkpoint_contract!r}")
+    contract = (checkpoint_contract or "binding_v1") if backend else checkpoint_contract
     selection = (algorithm, family, system, entrypoint)
     algo = _ALGORITHMS.get(algorithm)
     env = _ENVIRONMENT_CAPABILITIES.get((family, entrypoint))
@@ -354,10 +369,20 @@ def preflight(
         issues.append(
             f"{algorithm} 尚未支持 VVC 原生连续储能模式（仅 MADDPG/MATD3 已接入）"
         )
+    if checkpoint_contract and backend is None:
+        issues.append("集中式 checkpoint 格式不适用于 MARL")
+    if contract == "legacy_physics_only" and (
+        backend != "sb3_ppo" or family != "vvc" or system != "13Bus"
+    ):
+        issues.append(
+            "legacy_physics_only 独立验收仅验证了 IEEE13 VVC 的 SB3 PPO 参考入口"
+        )
     if issues:
-        return Preflight(*selection, issues=tuple(issues))
+        return Preflight(*selection, issues=tuple(issues), checkpoint_contract=contract)
 
-    device_actions = _vvc_device_actions(values) if family == "vvc" else env.device_actions
+    device_actions = (
+        _vvc_device_actions(values) if family == "vvc" else env.device_actions
+    )
     if layout is not None:
         if layout.kind not in device_actions:
             issues.append(
@@ -367,8 +392,14 @@ def preflight(
     elif env.device_ids.startswith("physics_manifest"):
         deferred.append("按物理清单绑定设备 ID 及动作/观测形状")
     action_encoding = env.action_encoding
-    if family == "vvc" and backend is not None and device_actions == ("continuous",):
-        action_encoding = "native_box"
+    if family == "vvc" and backend is not None:
+        if device_actions == ("continuous",):
+            action_encoding = "native_box"
+        if backend in ("sb3_sac", "sb3_td3"):
+            if "continuous" not in device_actions:
+                issues.append(f"{backend} 需要原生连续设备，不支持 VVC 量化动作")
+            elif device_actions != ("continuous",):
+                deferred.append("复核所有设备是否均为原生连续动作")
     actions = device_actions if entrypoint == "marl" else env.actions
     if not set(actions).intersection(algo.actions):
         issues.append(f"{algorithm} 动作支持 {algo.actions}，环境提供 {actions}")
@@ -414,10 +445,19 @@ def preflight(
     ) and env.checkpoint_binding == "unavailable":
         issues.append(f"{family} 缺少公开的 checkpoint 物理绑定")
     smartds = values.get("smartds_series") or {}
-    if independent_replay and (
-        env.evaluation != "validation_split"
+    split = (
+        values.get("split")
+        if family == "cbess"
+        else values.get("data", {}).get("split")
+    )
+    if independent_replay and contract == "binding_v1" and family != "cbess":
+        issues.append(
+            f"{family} 的 binding_v1 仅允许同场景重载，不支持独立 validation 回放"
+        )
+    elif independent_replay and (
+        (env.evaluation != "validation_split" and contract != "legacy_physics_only")
         or algo.evaluation not in ("validation_worker", "policy_predict")
-        or values.get("data", {}).get("split") != "train"
+        or split != "train"
         or smartds.get("split", "train") != "train"
         or (smartds and not smartds.get("validation_days"))
     ):
@@ -433,4 +473,5 @@ def preflight(
         sharing=sharing,
         deferred=tuple(deferred),
         issues=tuple(issues),
+        checkpoint_contract=contract,
     )

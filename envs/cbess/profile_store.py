@@ -11,10 +11,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-
-import json
 
 import numpy as np
 
@@ -38,26 +37,46 @@ class DayProfile:
 class ProfileStore:
     """剖面库：按 split（train/validation/test）留出天数后抽样。"""
 
-    def __init__(self, folder: Path):
+    def __init__(self, folder: Path, *, split: str | None = None):
         folder = Path(folder)
-        data = np.load(folder / "profiles.npz", allow_pickle=False)
         self.manifest = json.loads(
             (folder / "manifest.json").read_text(encoding="utf-8")
         )
-        self.p_load_kw = data["p_load_kw"]
-        self.q_load_kvar = data["q_load_kvar"]
-        self.pv_available_kw = data["pv_available_kw"]
-        self.price_aud_per_mwh = data["price_aud_per_mwh"]
-        self.day_keys = [str(k) for k in data["day_keys"]]
         splits = self.manifest["split"]
-        if set(splits) != set(self.day_keys):
-            raise ValueError("manifest 按天划分与剖面天数不一致")
+        if split is not None and (not splits or set(splits.values()) != {split}):
+            raise ValueError(f"CBESS 需要只包含 {split} 的剖面包：{folder}")
+        with np.load(folder / "profiles.npz", allow_pickle=False) as data:
+            self.day_keys = [str(k) for k in data["day_keys"]]
+            if len(self.day_keys) != len(splits) or set(splits) != set(self.day_keys):
+                raise ValueError("manifest 按天划分与剖面天数不一致")
+            self.p_load_kw = data["p_load_kw"]
+            self.q_load_kvar = data["q_load_kvar"]
+            self.pv_available_kw = data["pv_available_kw"]
+            self.price_aud_per_mwh = data["price_aud_per_mwh"]
         self._split_index: dict[str, list[int]] = {}
         for i, key in enumerate(self.day_keys):
             self._split_index.setdefault(splits[key], []).append(i)
         unknown = set(self._split_index) - {"train", "validation", "test"}
         if unknown:
             raise ValueError(f"未知 split：{unknown}")
+
+    def fingerprint(self) -> str:
+        """为实际加载的剖面、采样顺序及静态容量生成摘要。"""
+        from hashlib import sha256
+
+        digest = sha256()
+        for value in (self.manifest, self.day_keys):
+            digest.update(json.dumps(value, sort_keys=True).encode())
+        for array in (
+            self.p_load_kw,
+            self.q_load_kvar,
+            self.pv_available_kw,
+            self.price_aud_per_mwh,
+        ):
+            dtype = array.dtype.newbyteorder("<")
+            digest.update(json.dumps([dtype.str, array.shape]).encode())
+            digest.update(array.astype(dtype, copy=False).tobytes())
+        return digest.hexdigest()
 
     def episode_count(self, split: str) -> int:
         return len(self._split_index[split])

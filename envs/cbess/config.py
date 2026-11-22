@@ -6,7 +6,6 @@ research 侧以 `ScenarioConfig` 别名复用本类（单一事实源）。
 """
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -16,6 +15,7 @@ class CBESSConfig:
     # 框架接入：node_systems 算例名与 Ausgrid 剖面目录（相对仓库根或绝对）。
     system: str = "33Bus_CBESS"
     data_dir: str = "data/external/ausgrid-solar-home"
+    split: str = "train"
     seed: int = 1
     worker_idx: int = 0
 
@@ -26,7 +26,7 @@ class CBESSConfig:
     voltage_max: float = 1.05
     # 明示值：4 台 CBESS @ 6/11/16/31，各 1000 kWh、SOC 初 50%、
     # ±250 kW、q ±50 kVAr、η=0.95、退化 0.03 AUD/kWh。
-    cbess_buses: List[int] = field(default_factory=lambda: [6, 11, 16, 31])
+    cbess_buses: list[int] = field(default_factory=lambda: [6, 11, 16, 31])
     cbess_capacity_kwh: float = 1000.0
     cbess_soc_init: float = 0.5
     cbess_soc_min: float = 0.1

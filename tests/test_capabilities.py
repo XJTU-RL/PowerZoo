@@ -32,7 +32,8 @@ def test_catalog_is_serializable_and_does_not_import_runtime():
             "-c",
             "import json, sys\n"
             "from scripts.check_capabilities import main\n"
-            "assert main(['--backend', 'sb3_ppo', '--independent-replay']) == 0\n"
+            "assert main(['--backend', 'sb3_ppo', '--independent-replay', "
+            "'--checkpoint-contract', 'legacy_physics_only']) == 0\n"
             "assert not {'torch', 'dss', 'runners', 'stable_baselines3'} & sys.modules.keys()",
         ],
         cwd=root,
@@ -45,12 +46,12 @@ def test_catalog_is_serializable_and_does_not_import_runtime():
     assert catalog["environments"]["stackelberg"]["interaction"] == "sequential"
     assert catalog["environments"]["vvc"]["profiles"]["marl"]["mask"] == "structural"
     assert catalog["environments"]["dsr"]["profiles"]["marl"]["mask"] == "feasible"
-    assert catalog["algorithms"]["ldcppo"]["termination"] == "legacy_done_only"
+    assert catalog["algorithms"]["ldcppo"]["termination"] == "terminated_and_truncated"
     json.dumps(catalog)
 
 
 def test_centralized_policy_and_device_spaces_are_separate(config):
-    result = preflight(config, backend="sb3_ppo", independent_replay=True)
+    result = preflight(config, backend="sb3_ppo", checkpoint="policy_reload")
     assert result.compatible and result.deferred
     assert result.action_kinds == ("continuous",)
     assert result.action_encoding == "box_quantizes_discrete_devices"
@@ -85,16 +86,18 @@ def test_discrete_baselines_preflight_matches_public_config(algorithm):
     assert not preflight(config).compatible
 
 
-def test_cbess_is_cost_capable_with_train_only_reset():
+def test_cbess_binding_supports_explicit_validation_from_train():
     config = ConfigLoader().load(
         experiment="configs/experiments/cbess_ldcppo_quickstart.yaml"
     )
     assert preflight(config, backend="ldcppo", checkpoint="training_resume").compatible
-    errors = preflight(
-        config, backend="ldcppo", checkpoint="policy_reload", independent_replay=True
-    ).issues
-    assert any("checkpoint" in error for error in errors)
-    assert any("独立回放" in error for error in errors)
+    for backend in ("ldcppo", "sb3_sac", "sb3_td3"):
+        result = preflight(
+            config, backend=backend, checkpoint="policy_reload", independent_replay=True
+        )
+        assert result.compatible and result.checkpoint_contract == "binding_v1"
+    config.env_args["split"] = "validation"
+    assert not preflight(config, backend="ldcppo", independent_replay=True).compatible
     assert not preflight(config).compatible
 
 
@@ -129,6 +132,25 @@ def test_mixed_actions_wait_for_native_layout(config):
     resolved = preflight(config, layout=storage_only)
     assert resolved.compatible and not resolved.deferred
     assert resolved.device_ids == ("Storage.y",)
+
+
+@pytest.mark.parametrize("backend", ("sb3_sac", "sb3_td3"))
+def test_centralized_off_policy_vvc_requires_native_storage_layout(backend):
+    cfg = ConfigLoader().load(
+        experiment="configs/experiments/vvc_34bus_continuous_storage_quickstart.yaml",
+    )
+    storage = DeviceLayout(("Storage.batt1", "Storage.batt2"), ("continuous",) * 2, True)
+    mixed = DeviceLayout(("Capacitor.x", "Storage.batt1"), ("discrete", "continuous"), False)
+
+    for layout in (None, storage):
+        report = preflight(cfg, backend=backend, layout=layout, checkpoint="policy_reload")
+        assert report.compatible and report.action_encoding == "native_box"
+        assert report.checkpoint_contract == "binding_v1"
+    assert not preflight(cfg, backend=backend, layout=mixed).compatible
+    assert not preflight(cfg, backend=backend, independent_replay=True).compatible
+
+    cfg.env_args["continuous_storage_only"] = False
+    assert not preflight(cfg, backend=backend).compatible
 
 
 @pytest.mark.parametrize("algorithm", ("haddpg", "hatd3"))
@@ -188,3 +210,40 @@ def test_runtime_layout_reads_ids_and_checks_space_alignment():
         device_layout(wrapper)
     with pytest.raises(ConfigError, match="唯一"):
         DeviceLayout(("RegControl.x", "RegControl.X"), ("discrete", "discrete"), True)
+
+
+@pytest.mark.parametrize("family", ["vvc", "dsr"])
+def test_current_checkpoint_does_not_advertise_held_out_replay(family):
+    cfg = ConfigLoader().load(env=family)
+    profile = discover_capabilities()["environments"][family]["profiles"]["centralized"]
+    assert (profile["checkpoint_binding"], profile["evaluation"]) == (
+        "binding_v1",
+        "same_scenario_only",
+    )
+    for contract in (None, "binding_v1"):
+        result = preflight(
+            cfg,
+            backend="sb3_ppo",
+            checkpoint_contract=contract,
+            checkpoint="policy_reload",
+            independent_replay=True,
+        )
+        assert not result.compatible and any(
+            "同场景" in issue for issue in result.issues
+        )
+        assert result.checkpoint_contract == "binding_v1"
+        assert preflight(cfg, backend="sb3_ppo", checkpoint="policy_reload").compatible
+
+
+def test_legacy_reference_scope(config):
+    args = {"checkpoint_contract": "legacy_physics_only", "independent_replay": True}
+    assert preflight(config, backend="sb3_ppo", **args).compatible
+    for backend, cfg in (
+        ("sb3_sac", config),
+        ("sb3_ppo", ConfigLoader().load(env="dsr")),
+        (None, config),
+        ("ldcppo", ConfigLoader().load(env="cbess", algo="ldcppo")),
+    ):
+        assert not preflight(cfg, backend=backend, **args).compatible
+    config.env_args["system_name"] = "34Bus"
+    assert not preflight(config, backend="sb3_ppo", **args).compatible

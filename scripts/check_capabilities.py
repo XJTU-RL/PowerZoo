@@ -25,6 +25,11 @@ def main(argv=None):
     parser.add_argument("--mask", choices=("structural", "feasible"), default="none")
     parser.add_argument("--checkpoint", choices=("policy_reload", "training_resume"))
     parser.add_argument("--independent-replay", action="store_true")
+    parser.add_argument(
+        "--checkpoint-contract",
+        choices=("binding_v1", "legacy_physics_only"),
+        help="集中 checkpoint 格式；默认按当前后端写出的 binding_v1 预检",
+    )
     args = parser.parse_args(argv)
     if args.list:
         print(json.dumps(discover_capabilities(), indent=2, ensure_ascii=False))
@@ -43,6 +48,7 @@ def main(argv=None):
             require_mask=args.mask,
             checkpoint=args.checkpoint,
             independent_replay=args.independent_replay,
+            checkpoint_contract=args.checkpoint_contract,
         )
     except (ConfigError, FileNotFoundError) as exc:
         parser.error(str(exc))

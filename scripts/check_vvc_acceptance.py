@@ -122,6 +122,7 @@ class ReferenceChecks:
             layout=layout,
             checkpoint="policy_reload",
             independent_replay=True,
+            checkpoint_contract="legacy_physics_only",
         )
         if not bound.compatible:
             raise ValueError("; ".join(bound.issues))
@@ -253,7 +254,11 @@ def main(argv=None):
         overrides={"seed.seed": 17, "seed.seed_specify": True, "env.data.seed": 118603},
     )
     result = preflight(
-        config, backend=BACKEND, checkpoint="policy_reload", independent_replay=True
+        config,
+        backend=BACKEND,
+        checkpoint="policy_reload",
+        independent_replay=True,
+        checkpoint_contract="legacy_physics_only",
     )
     with ExitStack() as cleanup:
         hooks = ReferenceChecks(config, output, cleanup)

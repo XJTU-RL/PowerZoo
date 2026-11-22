@@ -8,12 +8,13 @@
 ```sh
 python scripts/check_capabilities.py --list
 python scripts/check_capabilities.py --config configs/experiments/vvc_13bus_smoke.yaml \
-  --backend sb3_ppo --checkpoint policy_reload --independent-replay
+  --backend sb3_ppo --checkpoint policy_reload --independent-replay \
+  --checkpoint-contract legacy_physics_only
 python scripts/check_capabilities.py --env vvc --algo matd3
 python scripts/check_capabilities.py --env vvc --mask feasible
 ```
 
-后两条命令应以非零状态退出。预检使用 `ConfigLoader` 解析同一套实验配置。
+后两条命令应以非零状态退出。集中式检查点默认按当前训练入口的 `binding_v1` 预检：VVC、DSR 允许相同场景重载，不支持验证集独立回放。上例显式选择 IEEE13 参考验收程序实际保存的旧式 PPO（仅物理伴随文件）。这一选项只描述工件，不改变加载器校验。预检使用 `ConfigLoader` 解析同一套实验配置。
 Python 调用使用 `utils.capabilities.discover_capabilities()` 查询声明，
 以及 `preflight(config, backend=..., layout=...)` 预检已解析配置。
 `backend` 选择集中控制入口的后端，省略时从配置读取 MARL 算法。
@@ -28,13 +29,15 @@ Python 调用使用 `utils.capabilities.discover_capabilities()` 查询声明，
 | 策略共享 | `independent`、`group`、`all` 表示逐设备、同构组和全队共享。全队共享复核每个设备的动作及观测空间。集中控制使用 `single`。 |
 | 掩码与物理限值 | `structural` 描述离散索引槽位。VVC 的全 1 掩码不包含 SOC、实际分接档位、潮流结果或电压限制。物理限值以原生引擎的请求、限幅下发和读回为准。DSR 的 `feasible` 掩码检查逐组单一选择的当前操作约束，联合动作仍经过环境校验和求解。 |
 | 成本通道 | LDCPPO 的约束能力要求 CBESS 原生提供 `VD`、`VN`、`LO`。VVC 的奖励分项不声明为这些成本。 |
-| 终止与截断 | VVC 的任务末步和原生求解失败均为终止。PettingZoo 边界分别传递 `terminated` 和 `truncated`。LDCPPO 在基线中按旧 done 处理，当前适用声明限于无外部截断的 CBESS 有限时域。 |
-| 检查点与评估 | `policy_reload` 用于恢复策略，`training_resume` 表示有训练续跑入口。独立评估需要分开的 validation 工况和 checkpoint 物理绑定。基线 CBESS 的公开 reset 只使用 train，LDCPPO 暂无统一的公开策略重载接口。 |
+| 终止与截断 | VVC 的任务末步和原生求解失败均为终止。PettingZoo 边界分别传递 `terminated` 和 `truncated`。LDCPPO 分别处理终止与截断；自然终止不从终点自举。 |
+| 检查点与评估 | `policy_reload` 用于恢复策略，`training_resume` 表示有训练续跑入口。独立评估需要分开的 validation 工况和 checkpoint 物理绑定。CBESS 的新格式支持在 train 检查点上回放事先指定摘要的 validation 剖面包。包摘要和划分校验不代替训练/验证日及内容去重的验收证据。 |
 
 当前能力声明覆盖 VVC、DSR 和 CBESS 中表列的入口。其它已注册环境在发现结果中保留其交互类型，
 预检对未声明的环境/算法组合给出明确错误。主线旧 QMIX 显示为未接入公共八节配置。
 算法分支可在合入时为各自真实入口补声明，随后接入同一预检函数。
-现有训练 CLI 保留原入口行为，能力检查可作为 CI、界面和训练入口的独立前置调用。
+集中 CLI 对已声明的 VVC、DSR、CBESS 组合，在解析最终配置后、冻结数据前执行静态预检；
+VVC/DSR 以当前包装器的实际物理设备和空间复核后再构造集中控制适配器，CBESS 继续使用原生后端校验。
+没有集中能力声明的旧入口不受该接点限制。配置预检不代替检查点散列或运行期兼容性校验。
 
 ## 阶段验收
 
@@ -81,8 +84,7 @@ OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python scripts/check_vvc_acceptance.py /path
 
 ## 并行接入依赖
 
-- 单智能体后端可将实际支持的动作编码、成本、终止处理、重载及评估声明纳入目录。SAC/TD3
-  应在真实且适用的连续动作入口就绪后登记，避免将 VVC 离散量化当作原生连续设备。
+- 单智能体目录区分 PPO 的量化 Box 和 SAC/TD3 要求的原生连续设备，不将量化动作当作连续调节。
 - MARL 接入在各自分支添加公开配置和采集器后，登记 IPPO、QMIX、VDN、COMA 的实际空间、团队状态及掩码要求。
   MADDPG/MATD3 需要具有原生连续动作的已绑定设备；IEEE13 默认离散配置会在静态阶段拒绝。
 - 各 lane 可把现有短训、真机物理读回、检查点和独立工况回放包装成验收回调。候选分支在本轮仅作只读对照。
