@@ -16,6 +16,7 @@ from .driver import dump, gates, report, setup, sha, state_digest
 from .equal_service import SERVICE_SLOTS, TRACKING_WEIGHT, freeze_model
 from .metrics import measure
 from .precheck_residual import precheck_residual
+from .residual_service import ResidualServicePolicy
 from .revision_protocol import REVISED_KW, demand
 from .run_equal_service import ledger
 from .service_tradeoff import (HOLDOUT, HOLDOUT_SEED, IAE_MARGIN_HZ_S, MIN_EXCESS_REDUCTION_KWH, NADIR_MARGIN_HZ,
@@ -112,7 +113,8 @@ def main():
     seed = cfg["study"]["seed"] if dev else HOLDOUT_SEED
     event = cfg["events"]["development"] if dev else HOLDOUT
     setup(seed)
-    model = freeze_model(args.lower,key,TradeoffPolicy)
+    policy = ResidualServicePolicy if args.mode == "frontier" else TradeoffPolicy
+    model = freeze_model(args.lower,key,policy)
     lower = model.lower_digest()
     if args.mode == "frontier":
         with torch.no_grad():
