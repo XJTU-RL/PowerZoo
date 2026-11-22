@@ -1,0 +1,12 @@
+# 公开入口的短链路检查。离散值分解可用 --algo qmix 或 --algo vdn --set algo.batch_size=8。
+run: {algo: ippo, env: vvc, exp_name: vvc_34bus_discrete_marl_smoke}
+system_ref: 34Bus
+env:
+  observation_mode: local
+  max_episode_steps: 24
+  data: {step_seconds: 3600, split: train, scenario_names: [sunny]}
+seed: {seed_specify: true, seed: 0}
+device: {cuda: false, torch_threads: 1}
+train: {n_rollout_threads: 1, num_env_steps: 48, episode_length: 24, save_interval: 1}
+eval: {use_eval: false}
+model: {hidden_sizes: [32, 32]}

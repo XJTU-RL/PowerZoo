@@ -1,0 +1,95 @@
+# This is the configuration file for COMA algorithm.
+seed:
+  # whether to use the specified seed
+  seed_specify: True
+  # seed
+  seed: 1
+device:
+  # whether to use CUDA
+  cuda: True
+  # whether to set CUDA deterministic
+  cuda_deterministic: True
+  # arg to torch.set_num_threads
+  torch_threads: 4
+train:
+  # number of parallel environments for training data collection
+  n_rollout_threads: 1
+  # number of total training steps
+  num_env_steps: 24000
+  # number of steps per environment per training data collection
+  episode_length: 24
+  # logging interval
+  log_interval: 1
+  save_interval: 10
+  # evaluation interval
+  eval_interval: 1
+  # whether to use ValueNorm
+  use_valuenorm: False
+  # whether to use linear learning rate decay
+  use_linear_lr_decay: False
+  # whether to consider the case of truncation when an episode is done
+  use_proper_time_limits: True
+  # if set, load models from this directory; otherwise, randomly initialise the models
+  model_dir: ~
+eval:
+  # whether to use evaluation
+  use_eval: True
+  # number of parallel environments for evaluation
+  n_eval_rollout_threads: 3
+  # number of episodes per evaluation
+  eval_episodes: 4
+render:
+  # whether to use render
+  use_render: False
+  # number of episodes to render
+  render_episodes: 10
+model:
+  # network parameters
+  # hidden sizes for mlp module in the network
+  hidden_sizes: [128, 128]
+  # activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  activation_func: relu
+  # whether to use feature normalization
+  use_feature_normalization: True
+  # initialization method for network parameters, choose from xavier_uniform_, orthogonal_, ...
+  initialization_method: orthogonal_
+  # gain of the output layer of the network.
+  gain: 0.01
+  # recurrent parameters
+  # whether to use rnn policy (data is not chunked for training)
+  use_naive_recurrent_policy: False
+  # whether to use rnn policy (data is chunked for training)
+  use_recurrent_policy: False
+  # number of recurrent layers
+  recurrent_n: 1
+  # length of data chunk; only useful when use_recurrent_policy is True; episode_length has to be a multiple of data_chunk_length
+  data_chunk_length: 10
+  # optimizer parameters
+  # actor learning rate
+  lr: 0.0005
+  # critic learning rate
+  critic_lr: 0.0005
+  # eps in Adam
+  opti_eps: 0.00001
+  # weight_decay in Adam
+  weight_decay: 0
+  # parameters of diagonal Gaussian distribution
+  std_x_coef: 1
+  # parameters of diagonal Gaussian distribution
+  std_y_coef: 0.5
+algo:
+  share_param: false
+  action_aggregation: prod
+  gamma: 0.99
+  td_lambda: 0.8
+  target_tau: 0.01
+  entropy_coef: 0.01
+  max_grad_norm: 10.0
+  # Inherited actor/evaluation setup; COMA uses the policy-gradient update.
+  use_policy_active_masks: true
+  # Fields used by the existing trajectory buffer.
+  use_gae: false
+  gae_lambda: 0.95
+logger:
+  # logging directory
+  log_dir: "./results"

@@ -5,6 +5,7 @@ import gradio as gr
 import yaml
 from utils.config_pipeline import read_yaml, UniqueKeyLoader, ALGORITHM_SECTIONS
 from utils.config_validation import ConfigError
+from utils.discrete_marl_config import DISCRETE_VVC_ALGORITHMS
 from utils.environment_registry import environment_spec
 from training_ui.core.config_builder import (
     resolve_config,
@@ -29,6 +30,7 @@ class BaseEnvironmentTab:
             path.stem
             for path in (root / "configs/algos_cfgs").glob("*.yaml")
             if (path.stem == "sequential_ppo") == sequential
+            if self.env_name == "vvc" or path.stem not in DISCRETE_VVC_ALGORITHMS
             if all(
                 isinstance(read_yaml(path).get(key), dict) for key in ALGORITHM_SECTIONS
             )
