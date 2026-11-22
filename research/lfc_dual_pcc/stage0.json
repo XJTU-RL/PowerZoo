@@ -1,0 +1,89 @@
+{
+  "protocol": "dual-pcc-stage0-v1",
+  "model_sha256": "998ea2976916ab94266b575797cab89ee8285c36e1de8bd3c1583b6c1e600982",
+  "base_mva": 100,
+  "ports": {
+    "A": {
+      "bus": 8,
+      "blocks": [
+        "load1p",
+        "load1q"
+      ],
+      "sensor": "Power Sensor (Three-Phase)7",
+      "anchor_kw_kvar": [
+        7851.739821876062,
+        12942.530488711882
+      ]
+    },
+    "B": {
+      "bus": 6,
+      "blocks": [
+        "loadbus6p",
+        "loadbus6q"
+      ],
+      "sensor": "Power Sensor (Three-Phase)2",
+      "anchor_kw_kvar": [
+        90000,
+        30000
+      ]
+    }
+  },
+  "clock": {
+    "first_hold_s": 20,
+    "stop_s": 38,
+    "exchange_s": 1,
+    "max_pause_lag_s": 0.03333333333333333,
+    "timestamp_epsilon_s": 1e-7,
+    "native_frequency_period_s": 0.2,
+    "report_latency_s": 0.1
+  },
+  "cases": [
+    "zero_a",
+    "zero_b",
+    "a_only",
+    "b_only",
+    "joint"
+  ],
+  "events": [
+    {
+      "from_s": 22,
+      "until_s": 25,
+      "A": [
+        8,
+        0
+      ],
+      "B": [
+        -8,
+        0
+      ]
+    },
+    {
+      "from_s": 30,
+      "until_s": 33,
+      "A": [
+        0,
+        4
+      ],
+      "B": [
+        0,
+        -4
+      ]
+    }
+  ],
+  "gates": {
+    "physical_delta_abs_kw_kvar": 1.5,
+    "minimum_diagonal_fraction": 0.65,
+    "pcc_idle_kw_kvar": 0.01,
+    "neutral_sensor_kw_kvar": 0.1,
+    "neutral_frequency_hz": 0.00005,
+    "frequency_detection_hz": 0.00001,
+    "absolute_sensor_floor_kw_kvar": 100,
+    "absolute_sensor_fraction": 0.01,
+    "feeder_balance_kw_kvar": 0.01,
+    "voltage_pu": [
+      0.95,
+      1.05
+    ]
+  },
+  "scope": "fixed distribution voltage source, measured load increments at two existing transmission branches; common frequency observation at Bus8 only"
+}
