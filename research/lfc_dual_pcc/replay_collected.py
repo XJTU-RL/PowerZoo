@@ -22,7 +22,7 @@ def recover(path, control, cfg, key, reference, event, emit):
             or rows[-1]!={"phase":"failed","reason":"ValueError('native reference frequency disagrees with requested timebase')"}
             or any(r["phase"] in ("complete","optimizer","consumed_return") for r in rows)):
         raise ValueError("ineligible recovery source")
-    modules = ("clock_graph.py", "master_dispatch.py", "phase_graph.py",
+    modules = ("clock_graph.py", "master_dispatch.py", "candidate_tracking.py", "phase_graph.py",
                "case_a_plant.py", "case_a_runtime.py", "case_a.json")
     subprocess.run(["git","diff","--quiet",old["git"],key["git"],"--",*[
         "research/lfc_dual_pcc/"+p for p in modules]],check=True)
@@ -58,7 +58,9 @@ def recover(path, control, cfg, key, reference, event, emit):
             data = states[role[-1],r["slot"]]
             pool = g.pools[int(role.startswith("pv"))]
             inputs = (tensor(data["x"]), g.adj, pool, tensor(data["context"]))
-        idx, outputs = control.model.heads[role].decision(inputs,r["mask"],False)
+        idx, outputs = control.model.heads[role].decision(
+            inputs, r["mask"], False, logit_offsets=r.get("logit_offsets"),
+        )
         if idx!=r["action"]:
             raise ValueError("on-policy action replay diverged")
         control.records.append(dict(role=role,slot=r["slot"],command=r["command"],outputs=outputs))

@@ -2,6 +2,7 @@
 import argparse
 from importlib.metadata import version
 import json
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -29,6 +30,8 @@ def main():
     parser.add_argument("--frequency", type=int, required=True, choices=(50, 60))
     parser.add_argument("--master-policy", choices=("learned", "fixed"), default="learned",
                         help="compare a fixed nominal-droop allocation with the learned master in evaluation")
+    parser.add_argument("--tracking-logit-weight", type=float, default=0.,
+                        help="optional device logit penalty per kW of attainable tracking error")
     args = parser.parse_args()
     train = args.mode == "train"
     if train == bool(args.checkpoint):
@@ -37,6 +40,8 @@ def main():
         parser.error("only unoptimized training trajectories may be recovered")
     if train and args.master_policy != "learned":
         parser.error("the fixed master is an evaluation control")
+    if not math.isfinite(args.tracking_logit_weight) or args.tracking_logit_weight < 0:
+        parser.error("tracking logit weight must be nonnegative and finite")
     if args.frequency == 50:
         parser.error("50 Hz requires reinitialized machine, grid and two feeder operating points plus a new native gate")
     git = subprocess.check_output(["git","rev-parse","HEAD"], text=True).strip()
@@ -51,6 +56,7 @@ def main():
     setup(seed)
     key = dict(git=git, config=sha(CONFIG), wiring=sha(WIRING), mechanism=sha(args.mechanism),
                reference=sha(args.reference), frequency_hz=args.frequency,
+               tracking_logit_weight=args.tracking_logit_weight,
                versions={k:version(k) for k in ("dss-python", "torch", "matlabengine", "numpy")})
     model = ClockGraphPolicy()
     if not train:
@@ -61,7 +67,8 @@ def main():
         if state_digest(model) != checkpoint["digest"]:
             raise ValueError("model readback")
     before = state_digest(model)
-    control = Coordinator(model, cfg, not train, fixed_master=args.master_policy == "fixed")
+    control = Coordinator(model, cfg, not train, fixed_master=args.master_policy == "fixed",
+                          tracking_logit_weight=args.tracking_logit_weight)
     args.out.mkdir(parents=True, exist_ok=False)
     with report(args.out/"raw.jsonl") as emit:
         emit(dict(phase="manifest", mode=args.mode, seed=seed, event=event, key=key, before=before,

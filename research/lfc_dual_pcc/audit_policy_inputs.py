@@ -19,7 +19,7 @@ from .phase_graph import PhaseGraph
 def effect(head,args,alternative,decision):
     allowed = torch.tensor(decision["mask"])
     def get(xs):
-        lp = head.actor(*xs)
+        lp = head.logits(xs, decision.get("logit_offsets"))
         v = head.critic(*xs).squeeze()
         feasible = lp.masked_fill(~allowed,-torch.inf)
         ga, = torch.autograd.grad(feasible.log_softmax(0)[decision["action"]],head.actor.layers[0].weight

@@ -80,13 +80,15 @@ class MasterDispatchTests(unittest.TestCase):
 
         class Plant:
             def __init__(self, veto_zero):
+                self.base = (100., 0.)
                 self.veto_zero = veto_zero
                 self.only_action = None
 
             def probe(self, action):
                 if self.only_action is not None and action != self.only_action:
                     return {"veto": ["network"]}
-                return {"veto": ["ramp"] if self.veto_zero and action in (0, 1) else []}
+                return {"veto": ["ramp"] if self.veto_zero and action in (0, 1) else [],
+                        "pcc": [100.-sum(table[action]), 0.]}
 
             def candidates(self):
                 return [self.probe(i) for i in range(len(table))]
@@ -106,11 +108,16 @@ class MasterDispatchTests(unittest.TestCase):
         request, actions = control.dispatch(23, 23., 22.8, .02, plants)
         self.assertEqual(request, dict(A=6., B=0.))
         self.assertEqual(actions["B"], 2)
+        self.assertNotIn("logit_offsets", next(r for r in events if r.get("role") == "batteryA"))
+        control.tracking_logit_weight = 1.
         plants["A"].only_action = 1
         request, actions = control.dispatch(24, 24., 23.8, .02, plants)
         self.assertEqual(request, dict(A=6., B=0.))
         self.assertEqual(actions["A"], 1)
         self.assertEqual(control.report_consumer, {(20, "A"): 22})
+        a_pv = next(r for r in events if r.get("role") == "pvA" and r["slot"] == 24)
+        self.assertEqual(a_pv["mask"], [False, True])
+        self.assertEqual(a_pv["logit_offsets"], [0., 0.])
         control.commands.clear()
         request, actions = control.dispatch(25, 25., 24.8, .02, plants)
         self.assertEqual(request, dict(A=0., B=0.))

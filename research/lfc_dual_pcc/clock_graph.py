@@ -7,6 +7,7 @@ import torch
 from torch import nn
 from torch.distributions import Categorical
 
+from .candidate_tracking import BATTERY_LEVELS, PV_LEVELS, tracking_offsets
 from .master_dispatch import FIXED_ACTION, SITES, allocate_support, bid_limits, feasible_actions, site_reports
 from .phase_graph import PhaseGraph
 
@@ -70,15 +71,22 @@ class PolicyValue(nn.Module):
         super().__init__()
         self.actor, self.critic = actor, critic
 
-    def decision(self, args, mask, greedy):
+    def logits(self, args, offsets=None):
         logits = self.actor(*args)
+        return logits if offsets is None else logits + logits.new_tensor(offsets)
+
+    def decision(self, args, mask, greedy, *, logit_offsets=None):
+        logits = self.logits(args, logit_offsets)
         allowed = torch.as_tensor(mask, dtype=torch.bool)
         if not allowed.any() or not torch.isfinite(logits).all():
             raise ValueError("empty feasible action set or invalid logits")
         dist = Categorical(logits=logits.masked_fill(~allowed, -torch.inf))
         action = dist.probs.argmax() if greedy else dist.sample()
-        return int(action), dict(args=args, mask=allowed, action=action, old_logp=dist.log_prob(action).detach(),
-                                 old_value=self.critic(*args).squeeze().detach())
+        record = dict(args=args, mask=allowed, action=action, old_logp=dist.log_prob(action).detach(),
+                      old_value=self.critic(*args).squeeze().detach())
+        if logit_offsets is not None:
+            record["logit_offsets"] = logit_offsets
+        return int(action), record
 
 
 def dense(n, k):
@@ -147,9 +155,12 @@ def slow_input(error, scale, reports, now):
 
 
 class Coordinator:
-    def __init__(self, model, cfg, greedy, *, fixed_master=False):
+    def __init__(self, model, cfg, greedy, *, fixed_master=False, tracking_logit_weight=0.):
+        if not math.isfinite(tracking_logit_weight) or tracking_logit_weight < 0:
+            raise ValueError("tracking logit weight must be nonnegative and finite")
         self.model, self.cfg, self.greedy = model, cfg, greedy
         self.fixed_master = fixed_master
+        self.tracking_logit_weight = tracking_logit_weight
         self.commands, self.reports, self.records = [], [], []
         self.local_report = None
         self.offer_choices = {}
@@ -160,9 +171,11 @@ class Coordinator:
         self.graphs = {s: PhaseGraph(p) for s, p in plants.items()}
         emit(dict(phase="graphs", graphs={s: g.summary for s, g in self.graphs.items()}))
 
-    def choose(self, role, inputs, mask, slot, source, now, **details):
-        idx, outputs = self.model.heads[role].decision(inputs, mask, self.greedy)
+    def choose(self, role, inputs, mask, slot, source, now, *, logit_offsets=None, **details):
+        idx, outputs = self.model.heads[role].decision(inputs, mask, self.greedy, logit_offsets=logit_offsets)
         self.records.append(dict(role=role, slot=slot, command=source, outputs=outputs))
+        if logit_offsets is not None:
+            details["logit_offsets"] = logit_offsets
         self.emit(dict(phase="policy", role=role, slot=slot, consumed_s=now, action=idx,
                        command=source, mask=mask, **details))
         return idx
@@ -231,13 +244,20 @@ class Coordinator:
             context = tensor([target/10, error/scale, *timing(cmd, now)])
             self.emit(dict(phase="device_input", site=s, slot=slot, command=cmd.sequence,
                            x=x.tolist(), context=context.tolist()))
-            feasible = [tuple(table[i]) for i in feasible_actions(table, p.candidates(), req)]
-            bm = [any(b==k for b,_ in feasible) for k in (0,4,8)]
+            rows = p.candidates()
+            eligible = feasible_actions(table, rows, req)
+            feasible = [tuple(table[i]) for i in eligible]
+            weight = self.tracking_logit_weight
+            bm = [any(b==k for b,_ in feasible) for k in BATTERY_LEVELS]
+            offsets = tracking_offsets(table, rows, eligible, p.base[0], target, weight) if weight else None
             args = (x, graph.adj, graph.pools[0], context)
-            b = (0,4,8)[self.choose("battery"+s, args, bm, slot, cmd.sequence, now, target_kw=target)]
-            pm = [(b,k) in feasible for k in (0,2)]
+            b = BATTERY_LEVELS[self.choose("battery"+s, args, bm, slot, cmd.sequence, now,
+                                          target_kw=target, logit_offsets=offsets)]
+            pm = [(b,k) in feasible for k in PV_LEVELS]
+            offsets = tracking_offsets(table, rows, eligible, p.base[0], target, weight, battery=b) if weight else None
             args = (x, graph.adj, graph.pools[1], context)
-            v = (0,2)[self.choose("pv"+s, args, pm, slot, cmd.sequence, now, target_kw=target)]
+            v = PV_LEVELS[self.choose("pv"+s, args, pm, slot, cmd.sequence, now,
+                                     target_kw=target, logit_offsets=offsets)]
             actions[s] = table.index([b,v])
         return cmd.data.copy(), actions
 
@@ -323,7 +343,7 @@ def update(policy, grouped, lr):
         terms, evidence = [], []
         for role,target,r in batch:
             head = policy.heads[role]
-            logits = head.actor(*r["args"]).masked_fill(~r["mask"],-torch.inf)
+            logits = head.logits(r["args"], r.get("logit_offsets")).masked_fill(~r["mask"],-torch.inf)
             lp = Categorical(logits=logits).log_prob(r["action"])
             ratio = (lp-r["old_logp"]).exp()
             adv = target-r["old_value"]
