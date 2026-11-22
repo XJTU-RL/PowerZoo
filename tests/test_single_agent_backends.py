@@ -257,10 +257,12 @@ def test_ldcppo_sample_logp_matches_policy_before_command_clipping():
     np.testing.assert_allclose(logps, expected)
     assert np.abs(actions[0, 0]) > env.action_space.high[0]
     np.testing.assert_array_equal(
-        env.applied_action, np.clip(actions[0], env.action_space.low, env.action_space.high)
+        env.applied_action,
+        np.clip(actions[0], env.action_space.low, env.action_space.high),
     )
     assert rewards.tolist() == [3.0]
     assert all(values.tolist() == [2.0] for values in costs.values())
+
 
 def test_legacy_ppo_accepts_a_resolved_config(tmp_path, monkeypatch):
     from utils.single_agent import backends
@@ -285,3 +287,48 @@ def test_binding_hash_accepts_continuous_action_marker():
     assert fingerprint(continuous) != fingerprint(discrete)
     with pytest.raises(ValueError):
         fingerprint({"env": {"bat_act_num": float("nan")}})
+
+
+@pytest.mark.parametrize("family", ["vvc", "dsr"])
+@pytest.mark.parametrize("split,digest", [("validation", "other"), ("train", "other")])
+def test_new_ppo_refuses_different_actual_scenario_even_with_its_digest(
+    family, split, digest, tmp_path, monkeypatch
+):
+    from utils.single_agent import backends
+
+    cfg = ConfigLoader().load(env=family)
+    env = bound_env()
+    current = {"action_schema_sha256": "same device order"}
+    env.get_physics_manifest = lambda: current
+    checkpoint = tmp_path / "model.zip"
+    checkpoint.write_bytes(b"not deserialized")
+    write_binding(checkpoint, make_binding("sb3_ppo", cfg, env, current))
+    # An unrelated legacy companion cannot override a present binding.
+    checkpoint.with_suffix(".physics.json").write_text(json.dumps(current))
+    env.split, env.scenario_sha256 = split, digest
+    monkeypatch.setattr(backends, "sb3_class", lambda _: pytest.fail("must not load"))
+    with pytest.raises(ValueError, match="仅支持同场景"):
+        load_model(checkpoint, env, cfg=cfg, eval_scenario_sha256=digest)
+
+
+def test_ppo_archive_without_binding_cannot_use_stale_legacy_sidecar(
+    tmp_path, monkeypatch
+):
+    from zipfile import ZipFile
+
+    from utils.single_agent import backends
+    from utils.single_agent.binding import save_bound_sb3
+
+    checkpoint = tmp_path / "model.zip"
+
+    def save(stream):
+        with ZipFile(stream, "w") as archive:
+            archive.writestr("data", "{}")
+
+    save_bound_sb3(checkpoint, SimpleNamespace(save=save))
+    manifest = {"action_schema_sha256": "same"}
+    checkpoint.with_suffix(".physics.json").write_text(json.dumps(manifest))
+    env = SimpleNamespace(get_physics_manifest=lambda: manifest)
+    monkeypatch.setattr(backends, "sb3_class", lambda _: pytest.fail("must not load"))
+    with pytest.raises(ValueError, match="缺少 checkpoint 绑定"):
+        load_model(checkpoint, env)

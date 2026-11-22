@@ -7,8 +7,11 @@ from hashlib import sha256
 from math import inf
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from zipfile import BadZipFile, ZipFile
 
 from gymnasium import spaces
+
+from utils.config_validation import environment_family
 
 
 def _binding_value(value):
@@ -109,6 +112,25 @@ def checkpoint_path(output, backend):
     return output if output.suffix else output.with_suffix(".zip")
 
 
+# 标记随模型原子写入；外部伴随文件丢失或残留时，不能把新策略当老 PPO。
+_SB3_BINDING_MEMBER = "powerzoo/binding_version"
+
+
+def save_bound_sb3(path, model):
+    with path.open("wb") as stream:
+        model.save(stream)
+    with ZipFile(path, "a") as archive:
+        archive.writestr(_SB3_BINDING_MEMBER, "1")
+
+
+def requires_binding(checkpoint):
+    try:
+        with ZipFile(checkpoint) as archive:
+            return _SB3_BINDING_MEMBER in archive.namelist()
+    except BadZipFile as exc:
+        raise ValueError("无效的 SB3 checkpoint") from exc
+
+
 def binding_path(checkpoint):
     return checkpoint.with_name(checkpoint.name + ".binding.json")
 
@@ -156,13 +178,17 @@ def validate_binding(checkpoint, current, *, resume=False, eval_scenario_sha256=
 def validate_metadata(saved, current, *, resume=False, eval_scenario_sha256=None):
     if not isinstance(saved, dict):
         raise TypeError("checkpoint 缺少绑定元数据")
+    source, target = saved.get("scenario"), current["scenario"]
+    if environment_family(current["family"]) in ("vvc", "dsr") and source != target:
+        raise ValueError(
+            "VVC/DSR binding_v1 仅支持同场景重载；指定验证摘要不能替换训练场景"
+        )
     mode_specific = "eval_config_sha256" if resume else "resume_config_sha256"
     for key, value in current.items():
         if key in ("config_sha256", "scenario", mode_specific):
             continue
         if saved.get(key) != value:
             raise ValueError(f"checkpoint 的 {key} 与当前运行不一致")
-    source, target = saved.get("scenario"), current["scenario"]
     if saved.get("family") == "cbess" and "validation" == target["split"]:
         if resume or not source or source.get("split") != "train":
             raise ValueError("CBESS validation 仅用于评估 train checkpoint")

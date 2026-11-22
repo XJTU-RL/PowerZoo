@@ -15,6 +15,7 @@ from utils.single_agent.binding import (
     action_semantics,
     atomic_write,
     checkpoint_path,
+    save_bound_sb3,
     validate_metadata,
     write_binding,
 )
@@ -86,11 +87,7 @@ def run_sb3(backend, cfg, env, output: Path, steps: int, resume=False, *, bindin
     output.parent.mkdir(parents=True, exist_ok=True)
     checkpoint = checkpoint_path(output, backend)
 
-    def save_model(path):
-        with path.open("wb") as stream:
-            model.save(stream)
-
-    atomic_write(checkpoint, save_model)
+    atomic_write(checkpoint, lambda path: save_bound_sb3(path, model))
     write_binding(checkpoint, binding)
     semantics = action_semantics(env)
     output.with_suffix(".sb3.json").write_text(

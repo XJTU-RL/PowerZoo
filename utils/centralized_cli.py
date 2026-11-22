@@ -206,6 +206,7 @@ def load_model(
         make_binding,
         physics_manifest,
         validate_binding,
+        requires_binding,
     )
 
     checkpoint = checkpoint_path(model_path, backend)
@@ -213,10 +214,14 @@ def load_model(
         from utils.physics_manifest import validate_sidecar
 
         sidecar = Path(model_path).with_suffix(".physics.json")
-        if sidecar.is_file() and json.loads(sidecar.read_text(encoding="utf-8")).get(
-            "single_agent_binding_version"
-        ):
+        if (
+            sidecar.is_file()
+            and "single_agent_binding_version"
+            in json.loads(sidecar.read_text(encoding="utf-8"))
+        ) or (checkpoint.is_file() and requires_binding(checkpoint)):
             raise ValueError("集中模型缺少 checkpoint 绑定清单")
+        if eval_scenario_sha256 is not None:
+            raise ValueError("旧 PPO 物理伴随文件不能验证指定的场景摘要")
         validate_sidecar(model_path, physics_manifest(env))
         return sb3_class(backend).load(checkpoint, env=env, device="cpu")
     if cfg is None:

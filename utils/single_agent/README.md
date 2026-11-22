@@ -10,6 +10,8 @@ SAC 和 TD3 使用 Stable-Baselines3 的实现及默认超参数。可在实验�
 `run.algo` 设为同名后端，并覆盖 `algo.buffer_size`、`algo.learning_starts`、
 `algo.batch_size` 等配置。启动时仍以 `--backend` 选择集中控制后端。
 
+VVC/DSR 的新格式 checkpoint 仅支持同一实际场景的策略重载；即使传入另一划分的正确摘要，也不支持跨划分回放。IEEE13 参考验收脚本自行写出的旧 PPO 只校验物理伴随文件，由验收脚本另行核对训练/验证工况是否重复。新 SB3 模型在 ZIP 内标记需要绑定清单：即便残留旧 `.physics.json`，丢失 `.binding.json` 也会拒绝重载。
+
 CBESS 的 `env.data_dir` 下按划分存放 `train/` 和可单独准备的 `validation/`。
 每个目录包含 `profiles.npz` 和 `manifest.json`。NPZ 使用现有的
 `day_keys`、`p_load_kw`、`q_load_kvar`、`pv_available_kw`、
