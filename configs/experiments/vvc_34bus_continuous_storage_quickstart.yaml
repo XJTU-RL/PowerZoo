@@ -1,0 +1,17 @@
+run: {algo: maddpg, env: vvc, exp_name: vvc_34bus_continuous_storage_quickstart}
+system_ref: 34Bus
+device: {cuda: false, torch_threads: 1}
+train:
+  n_rollout_threads: 2
+  num_env_steps: 8
+  warmup_steps: 4
+  train_interval: 1
+  eval_interval: 4
+eval: {use_eval: false}
+model: {hidden_sizes: [32, 32]}
+algo: {buffer_size: 64, batch_size: 4}
+env:
+  continuous_storage_only: true
+  bat_act_num: .inf
+  max_episode_steps: 4
+  data: {split: train, step_seconds: 300, noise: 0.0}

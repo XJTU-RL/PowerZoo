@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, dataclass
 from math import inf
+from pathlib import Path
 from types import MappingProxyType
 
 from utils.config_validation import ConfigError, environment_family
@@ -286,6 +287,30 @@ class Preflight:
         return {**asdict(self), "compatible": self.compatible}
 
 
+_STANDARD_VVC_SYSTEMS = {"13Bus", "34Bus", "123Bus"}
+
+
+def _vvc_device_actions(values):
+    if values.get("continuous_storage_only"):
+        return ("continuous",)
+    if values["bat_act_num"] != inf:
+        return ("discrete",)
+    system = values["system_name"]
+    folder = values.get("dss_folder")
+    bundled = Path("node_systems") / system
+    root = Path(__file__).resolve().parents[1]
+    if (
+        system in _STANDARD_VVC_SYSTEMS
+        and (not folder or Path(folder) in (bundled, root / bundled))
+        and values.get("dss_file") == "network.dss"
+        and not values.get("overlays")
+        and not values.get("smartds_series")
+    ):
+        # 标准馈线保留原生机械设备，储能切到连续后为混合动作。
+        return ("mixed",)
+    return _HETEROGENEOUS
+
+
 def preflight(
     config,
     *,
@@ -315,12 +340,19 @@ def preflight(
         issues.append(algo.unavailable)
     if env is None:
         issues.append(f"{family!r} 没有公开的 {entrypoint} 能力声明")
+    if (
+        family == "vvc"
+        and entrypoint == "marl"
+        and values.get("continuous_storage_only")
+        and algorithm in ("haddpg", "hatd3")
+    ):
+        issues.append(
+            f"{algorithm} 尚未支持 VVC 原生连续储能模式（仅 MADDPG/MATD3 已接入）"
+        )
     if issues:
         return Preflight(*selection, issues=tuple(issues))
 
-    device_actions = env.device_actions
-    if family == "vvc" and values["bat_act_num"] != inf:
-        device_actions = ("discrete",)
+    device_actions = _vvc_device_actions(values) if family == "vvc" else env.device_actions
     if layout is not None:
         if layout.kind not in device_actions:
             issues.append(
@@ -329,6 +361,9 @@ def preflight(
         device_actions = (layout.kind,)
     elif env.device_ids.startswith("physics_manifest"):
         deferred.append("按物理清单绑定设备 ID 及动作/观测形状")
+    action_encoding = env.action_encoding
+    if family == "vvc" and backend is not None and device_actions == ("continuous",):
+        action_encoding = "native_box"
     actions = device_actions if entrypoint == "marl" else env.actions
     if not set(actions).intersection(algo.actions):
         issues.append(f"{algorithm} 动作支持 {algo.actions}，环境提供 {actions}")
@@ -359,10 +394,11 @@ def preflight(
             issues.append("全共享要求实际动作和观测空间同构")
 
     mask_order = ("none", "structural", "feasible")
-    if mask_order.index(env.mask) < max(
+    mask = "none" if family == "vvc" and device_actions == ("continuous",) else env.mask
+    if mask_order.index(mask) < max(
         mask_order.index(require_mask), mask_order.index(algo.required_mask)
     ):
-        issues.append(f"动作掩码能力不足：{family}/{entrypoint} 提供 {env.mask}")
+        issues.append(f"动作掩码能力不足：{family}/{entrypoint} 提供 {mask}")
     missing_costs = set(algo.required_costs) - set(env.costs)
     if missing_costs:
         issues.append(f"环境缺少约束成本通道 {sorted(missing_costs)}")
@@ -387,7 +423,7 @@ def preflight(
         actions,
         device_actions,
         observation=observation,
-        action_encoding=env.action_encoding,
+        action_encoding=action_encoding,
         device_ids=layout.device_ids if layout is not None else (),
         sharing=sharing,
         deferred=tuple(deferred),
