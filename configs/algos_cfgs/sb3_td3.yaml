@@ -1,0 +1,17 @@
+# 仅用于单智能体入口 --backend sb3_td3（连续动作）。
+seed:
+  seed_specify: true
+  seed: 1
+device: {}
+train: {}
+eval: {}
+render: {}
+model:
+  lr: 0.0003
+  hidden_sizes: [64, 64]
+algo:
+  gamma: 0.99
+  buffer_size: 1000000
+  learning_starts: 100
+  batch_size: 256
+logger: {}

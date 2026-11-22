@@ -1,19 +1,25 @@
-"""约束成本通道提取：从 gym info 字典到 LDCPPO 的 {VD,VN,LO} 流。"""
+"""检查每次约束 RL 转移是否提供全部成本通道。"""
 
-from __future__ import annotations
+from collections.abc import Mapping
+from math import isfinite
 
-COST_KEYS = ("VD", "VN", "LO")
+from envs.cbess.physics import COST_KEYS
 
 
-def extract_costs(info: dict) -> dict | None:
-    """优先 info["costs"]（cbess 家族）；兼容 info["cost_voltage"] 单流。
-
-    返回 None 表示该环境无成本通道（调用方退化为纯 PPO 模式）。
-    """
+def extract_costs(info: dict) -> dict[str, float]:
     costs = info.get("costs")
-    if isinstance(costs, dict):
-        return {k: float(costs.get(k, 0.0)) for k in COST_KEYS}
-    if "cost_voltage" in info:
-        value = float(info["cost_voltage"])
-        return {"VD": value, "VN": 0.0, "LO": 0.0}
-    return None
+    missing = [
+        key for key in COST_KEYS if not isinstance(costs, Mapping) or key not in costs
+    ]
+    if missing:
+        raise ValueError(f"LDCPPO 缺少 info['costs'] 约束通道：{', '.join(missing)}")
+    result = {}
+    for key in COST_KEYS:
+        try:
+            value = float(costs[key])
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"LDCPPO 约束成本 {key} 不是有效数值") from exc
+        if not isfinite(value):
+            raise ValueError(f"LDCPPO 约束成本 {key} 必须为有限数值")
+        result[key] = value
+    return result
