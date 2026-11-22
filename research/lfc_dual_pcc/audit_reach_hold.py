@@ -19,6 +19,7 @@ def verify(gate, directory):
         raise ValueError("unmatched restoration")
     rule=result["rules"]
     rows=[]
+    prefixes=[]
     for s in result["states"]:
         state,=[i for i in inputs if i["key"]==s["key"] and i["site"]==s["site"]]
         for label in s["labels"]:
@@ -62,12 +63,31 @@ def verify(gate, directory):
                         energy_error=max(energy_error,abs((post-pre)*cfg["storage"]["kwh"]+kw/(3600*cfg["storage"]["eta"])))
             if energy_error>cfg["gates"]["energy_abs_kwh"] or abs(sum(achieved[due:])/3600-label["sustain_energy_kwh"])>1e-10:
                 raise ValueError("energy mismatch")
+            if duration==10:
+                # The same reached level/time anchors both shorter prefixes.
+                checks=[]
+                for h in (2,5):
+                    short,=[r for r in s["labels"] if r["sustain_s"]==h]
+                    checks.append({"duration_s":h,"confirmed_reach_s":label["confirmed_reach_s"],
+                         "target_kw":label["target_kw"],"min_support_after_reach_kw":min(achieved[due:due+h]),
+                         "matches_separately_selected_target_and_reach":(
+                             short["target_kw"]==label["target_kw"] and short["confirmed_reach_s"]==label["confirmed_reach_s"])})
+                kept=steps[due:]
+                battery=sum(sum(z["candidate"]["battery_kw"]) for z in kept)/3600
+                pv=sum(z["candidate"]["pv_kw"]-z["no_regulation"]["pv_kw"] for z in kept)/3600
+                used=sum(sum(x-y for x,y in zip(z["candidate"]["soc"],z["candidate"]["soc_after"],strict=True))
+                         for z in kept)*cfg["storage"]["kwh"]
+                prefixes.append({"state":s["key"],"site":s["site"],"ten_s_target_kw":label["target_kw"],
+                     "same_reach_prefixes":checks,
+                     "initial_usable_storage_dc_kwh":sum((soc-cfg["storage"]["reserve"])*cfg["storage"]["kwh"] for soc in state["local_soc"]),
+                     "ten_s_hold_battery_ac_kwh":battery,"ten_s_hold_battery_internal_draw_kwh":used,
+                     "ten_s_hold_incremental_pv_kwh":pv,"ten_s_hold_incremental_pcc_kwh":sum(achieved[due:])/3600})
             rows.append({"state":s["key"],"site":s["site"],"target_kw":label["target_kw"],
                          "reach_s":due,"sustain_s":duration,"min_delivery_headroom_kw":min(achieved[due-1:])-label["target_kw"],
                          "min_phase_pu":min(voltages),"max_phase_pu":max(voltages),"min_soc_pu":min_soc,
                          "max_energy_ledger_error_kwh":energy_error})
     if len(rows)!=18: raise ValueError("incomplete pilot")
-    return {"passed":True,"labels_sha256":sha(directory/"reach-hold-labels.json"),"witnesses":rows,
+    return {"passed":True,"labels_sha256":sha(directory/"reach-hold-labels.json"),"witnesses":rows,"ten_second_prefix_and_energy":prefixes,
             "uncertainty":"deterministic evidence only, no calibrated probabilistic or out-of-scenario uncertainty",
             "modelled_limits":"native solver veto includes device apparent power and sourced transformer winding limits; no line thermal certification"}
 
