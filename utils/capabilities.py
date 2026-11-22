@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, dataclass
 from math import inf
+from pathlib import Path
 from types import MappingProxyType
 
 from utils.config_validation import ConfigError, environment_family
@@ -297,6 +298,23 @@ class Preflight:
         return {**asdict(self), "compatible": self.compatible}
 
 
+def _centralized_vvc_device_actions(values, actions):
+    """标准馈线有原生机械设备；自定义入口以实际设备清单为准。"""
+    system = values["system_name"]
+    bundled = Path("node_systems") / system
+    root = Path(__file__).resolve().parents[1]
+    folder = values.get("dss_folder")
+    if (
+        system in {"13Bus", "34Bus", "123Bus"}
+        and (not folder or Path(folder) in (bundled, root / bundled))
+        and values.get("dss_file") == "network.dss"
+        and not values.get("overlays")
+        and not values.get("smartds_series")
+    ):
+        return ("mixed",)
+    return actions
+
+
 def preflight(
     config,
     *,
@@ -347,8 +365,11 @@ def preflight(
         return Preflight(*selection, issues=tuple(issues), checkpoint_contract=contract)
 
     device_actions = env.device_actions
-    if family == "vvc" and values["bat_act_num"] != inf:
-        device_actions = ("discrete",)
+    if family == "vvc":
+        if values["bat_act_num"] != inf:
+            device_actions = ("discrete",)
+        elif entrypoint == "centralized":
+            device_actions = _centralized_vvc_device_actions(values, device_actions)
     if layout is not None:
         if layout.kind not in device_actions:
             issues.append(

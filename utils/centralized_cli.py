@@ -1,6 +1,7 @@
 """集中控制训练与评估，支持 SB3 PPO/SAC/TD3 和 LDCPPO。"""
 
 import argparse
+from contextlib import suppress
 import json
 from pathlib import Path
 
@@ -17,13 +18,82 @@ class SingleAgentAdapter(CentralizedAdapter):
         return obs, reward, terminated, truncated, info
 
 
-def build_env(family: str, cfg):
+def _uses_catalog_preflight(family, backend):
+    """只检查已声明的集中入口，不改变未纳入目录的旧流程。"""
+    from utils.capabilities import discover_capabilities
+
+    if backend is None:
+        return False
+    catalog = discover_capabilities()
+    profile = catalog["algorithms"].get(backend)
+    return (
+        profile is not None
+        and profile["entrypoint"] == "centralized"
+        and "centralized" in catalog["environments"].get(family, {}).get("profiles", {})
+    )
+
+
+def _require_centralized_preflight(cfg, *, backend, wrapper=None, checkpoint=None):
+    """静态配置与当前设备布局共用同一集中入口能力目录。"""
+    from utils.capabilities import device_layout, preflight
+    from utils.config_validation import ConfigError
+
+    layout = device_layout(wrapper) if wrapper is not None else None
+    report = preflight(cfg, backend=backend, layout=layout, checkpoint=checkpoint)
+    if not report.compatible:
+        raise ConfigError("；".join(report.issues))
+    return report
+
+
+def _check_evaluation_split(cfg, backend, checkpoint, split):
+    """提前拒绝已知的跨划分绑定；实际摘要及旧 PPO 判定仍由加载器核验。"""
+    from utils.config_validation import ConfigError, environment_family
+    from utils.single_agent.binding import binding_path
+
+    family = environment_family(cfg.main_args["env"])
+    if family not in ("vvc", "dsr"):
+        return
+    try:
+        saved = json.loads(binding_path(checkpoint).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        # 无法识别不代表是旧格式，不能据此绕过后续绑定或 archive 标记检查。
+        return
+    if not isinstance(saved, dict) or (
+        saved.get("version"),
+        saved.get("backend"),
+        saved.get("family"),
+    ) != (1, backend, cfg.main_args["env"]):
+        return
+    scenario = saved.get("scenario")
+    if isinstance(scenario, dict):
+        source_split = scenario.get("split")
+        if source_split in ("train", "validation") and source_split != split:
+            raise ConfigError(
+                f"{family} binding_v1 仅支持同场景重载，"
+                f"不允许从 {source_split} 切换到 {split}"
+            )
+
+
+def build_env(family: str, cfg, *, backend=None, checkpoint=None):
     """按家族构造 Gymnasium 单智能体环境。"""
     from utils.envs_tools import make_power_env
 
     wrapper = make_power_env(family, cfg.env_args, 0, cfg.env_args["seed"])
     if family == "cbess":
         return wrapper
+    if (
+        family in ("vvc", "dsr")
+        and _uses_catalog_preflight(family, backend)
+        and callable(getattr(wrapper, "get_physics_manifest", None))
+    ):
+        try:
+            _require_centralized_preflight(
+                cfg, backend=backend, wrapper=wrapper, checkpoint=checkpoint
+            )
+        except Exception:
+            with suppress(Exception):
+                wrapper.close()
+            raise
     action_mode = "discrete" if family == "dsr" else "continuous"
     return SingleAgentAdapter(wrapper.env, action_space_type=action_mode)
 
@@ -132,8 +202,18 @@ def main(
     checkpoint = checkpoint_path(output, args.backend)
     if (args.resume or args.evaluate) and not checkpoint.is_file():
         p.error(f"checkpoint 不存在：{checkpoint}")
+    checkpoint_mode = (
+        "training_resume" if args.resume else "policy_reload" if args.evaluate else None
+    )
+    if _uses_catalog_preflight(family, args.backend):
+        try:
+            _require_centralized_preflight(cfg, backend=args.backend, checkpoint=checkpoint_mode)
+            if args.evaluate:
+                _check_evaluation_split(cfg, args.backend, checkpoint, split)
+        except ValueError as exc:
+            p.error(str(exc))
     prepare_run(cfg)
-    env = build_env(family, cfg)
+    env = build_env(family, cfg, backend=args.backend, checkpoint=checkpoint_mode)
     try:
         validate_backend(args.backend, family, env)
         physics = physics_manifest(env)

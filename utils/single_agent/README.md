@@ -12,6 +12,11 @@ SAC 和 TD3 使用 Stable-Baselines3 的实现及默认超参数。可在实验�
 
 VVC/DSR 的新格式 checkpoint 仅支持同一实际场景的策略重载；即使传入另一划分的正确摘要，也不支持跨划分回放。IEEE13 参考验收脚本自行写出的旧 PPO 只校验物理伴随文件，由验收脚本另行核对训练/验证工况是否重复。新 SB3 模型在 ZIP 内标记需要绑定清单：即便残留旧 `.physics.json`，丢失 `.binding.json` 也会拒绝重载。
 
+集中入口在准备运行前按最终配置预检：`--evaluate` 检查策略重载，
+`--resume` 检查训练续跑。已识别的 VVC/DSR 新格式元数据若声明不同划分，
+在启动仿真前拒绝；同划分仍须在加载时核对实际场景和模型摘要。缺少绑定清单
+不会在预检中被认定为旧格式，旧 PPO 兼容仍由加载器验证。
+
 CBESS 的 `env.data_dir` 下按划分存放 `train/` 和可单独准备的 `validation/`。
 每个目录包含 `profiles.npz` 和 `manifest.json`。NPZ 使用现有的
 `day_keys`、`p_load_kw`、`q_load_kvar`、`pv_available_kw`、
