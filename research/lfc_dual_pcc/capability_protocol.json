@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "origin_git": "4f0597cf650c723fefc1d6d73bfb6e885ce245ac",
+  "source_arm": "delivered",
+  "key_slots": {
+    "before_pickup": 24,
+    "b_first_at_target": 27,
+    "a_limited_after_b_ready": 29
+  },
+  "same_action_steps": 2,
+  "horizons_s": [
+    2,
+    5,
+    10
+  ],
+  "caps_kw": [
+    0,
+    2,
+    4,
+    6,
+    8,
+    10
+  ],
+  "tolerances": {
+    "time_s": 1e-7,
+    "pq_kw_kvar": 0.005,
+    "voltage_pu": 0.000001,
+    "soc_pu": 1e-8,
+    "device_kw": 0.005,
+    "witness_kw": 0.025
+  },
+  "direction": "Upward support in kW = initial feeder import minus solved net import. Q positive for import in kvar. One step is one second.",
+  "probe": "Six causal ceiling policies. At each step choose highest safe solved PCC support among rows with nominal action <= ceiling. Score min over H actual one-second outputs. Independent witness replay. Limited catalogue yields feasible lower bound only."
+}
