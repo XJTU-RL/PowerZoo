@@ -18,14 +18,14 @@ from .driver import dump, setup, sha, state_digest
 from .equal_service import LOWER_SOURCE
 from .horizon_witness import repeated_witnesses
 from .phase_graph import PhaseGraph
-from .physical_credit import credit_budget, matched_update
+from .physical_credit import credit_budget, matched_update, nested_bound
 
 
 SLOT = 24
 SITES = ("A","B")
 
 
-def credit(rows, holds, deck, ref, cfg, model, origin):
+def credit(rows, holds, deck, ref, cfg, model, origin, nested):
     graphs = {}
     frozen_graph = next(r["graphs"] for r in rows if r["phase"]=="graphs")
     for s in SITES:
@@ -64,11 +64,35 @@ def credit(rows, holds, deck, ref, cfg, model, origin):
         req = holds[origin+1]["request"][s]
         if req != holds[origin+2]["request"][s]:
             raise ValueError("request was not held over both fast steps")
-        certificate = certify(deck,ref,cfg,s,prefix,initial,actions)
-        bound = certificate["capacity_kw"]
-        if any(abs(x-y)>cfg["gates"]["parity_kw"] for x,y in zip(pcc,certificate["actual_action_replay_kw"],strict=True)):
-            raise ValueError("native alternative reconstruction differs")
-        sites[s] = dict(request_kw=req, sustainable_kw=min(pcc), capacity_kw=bound, certificate=certificate)
+        try:
+            certificate = certify(deck,ref,cfg,s,prefix,initial,actions,collect_paths=nested)
+            if any(abs(x-y)>cfg["gates"]["parity_kw"] for x,y in zip(pcc,certificate["actual_action_replay_kw"],strict=True)):
+                raise ValueError("native alternative reconstruction differs")
+            bound = certificate["capacity_kw"]
+        except ValueError as exc:
+            certificate,bound = dict(uncertified=str(exc)),None
+        sites[s] = dict(request_kw=req, sustainable_kw=min(pcc), capacity_kw=bound,
+                        actions=actions, certificate=certificate)
+    nesting = None
+    if nested:
+        command = next(r for r in rows if r["phase"]=="dispatch" and r["sequence"]==origin)
+        try:
+            if any(v["capacity_kw"] is None for v in sites.values()):
+                raise ValueError("one or more sites lack a common native certificate")
+            nesting = nested_bound(sites,command["bid_limits_kw"],cfg["gates"]["parity_kw"])
+            for gate in ("fixed","relaxed"):
+                for s,w in nesting[gate]["witnesses"].items():
+                    with feeder(deck,ref,cfg,s) as plant:
+                        for k,row in sorted(holds.items()):
+                            if k<=origin:
+                                plant.execute(row["actions"][s])
+                        support = min(plant.execute(i)["delivered_kw"] for i in w["actions"])
+                    if abs(support-w["support_kw"])>cfg["gates"]["parity_kw"]:
+                        raise ValueError("conditional winner did not reproduce")
+        except ValueError as exc:
+            nesting=dict(uncertified=str(exc))
+            for s in sites:
+                sites[s]["capacity_kw"]=None
     physical = {r["used_slot"]:r for r in holds.values() if r["used_slot"] is not None}
     freqs = next(r for r in rows if r["phase"]=="native_frequency")
     start = physical[origin+1]["write_s"]
@@ -94,7 +118,7 @@ def credit(rows, holds, deck, ref, cfg, model, origin):
         raise ValueError("different matched budgets")
     return dict(command_slot=origin, recovered_decisions=count, behavior_samples=len(selected),
                 consumed_slots={k:physical[k]["slot"] for k in weights}, sites=sites,
-                gamma_per_second=.95,arms=arms)
+                gamma_per_second=.95,nesting=nesting,arms=arms)
 
 
 def horizon(holds, deck, ref, cfg):
@@ -157,6 +181,7 @@ def main():
     p.add_argument("reference",type=Path)
     p.add_argument("out",type=Path)
     p.add_argument("--first-development-gap",action="store_true",help="choose the earliest measured development gap")
+    p.add_argument("--nested",action="store_true",help="require fixed and relaxed conditional action domains")
     args = p.parse_args()
     summary = json.loads((args.training/"summary.json").read_bytes())
     raw = args.training/"raw.jsonl"
@@ -185,7 +210,7 @@ def main():
             raise ValueError("no measured development shortfall above the physical threshold")
     with tempfile.TemporaryDirectory() as tmp:
         deck = native.archived_deck(ROOT,Path(tmp))
-        result = credit(rows,holds,deck,ref,cfg,model,origin) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
+        result = credit(rows,holds,deck,ref,cfg,model,origin,args.nested) if args.mode=="credit" else horizon(holds,deck,ref,cfg)
     dump(args.out,dict(code=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
                        frequency_hz=60, source_key=key, source_raw_sha256=sha(raw), seed=summary["seed"],
                        behavior_digest=summary["before"],mode=args.mode, result=result,formal_50hz=False))

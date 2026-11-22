@@ -9,6 +9,47 @@ from .hierarchy import attribution
 ROLES_BY_SITE = {"A":("feederA","batteryA","pvA"), "B":("feederB","batteryB","pvB")}
 
 
+def nested_bound(sites, caps, tolerance):
+    """Same total target and objective for observed, fixed-share and relaxed-share paths."""
+    original = {s:sites[s]["request_kw"] for s in ROLES_BY_SITE}
+    if any(original[s]<0. or original[s]>caps[s]+tolerance for s in original):
+        raise ValueError("observed assignment outside the shared capacity evidence")
+    total = sum(original.values())
+    lo,hi = max(0.,total-caps["B"]),min(total,caps["A"])
+    for s in original:
+        match = next((r for r in sites[s]["certificate"]["action_paths"]
+                      if r["actions"]==sites[s]["actions"] and (original[s]>0 or r["zero_request_allowed"])),None)
+        if match is None or abs(match["support_kw"]-sites[s]["sustainable_kw"])>tolerance:
+            raise ValueError("observed execution outside the fixed evidence domain")
+
+    def best(split):
+        witnesses,loss = {},{}
+        for s,req in split.items():
+            options = [r for r in sites[s]["certificate"]["action_paths"] if req>0 or r["zero_request_allowed"]]
+            if not options:
+                raise ValueError("missing conditional witness at the assignment")
+            witnesses[s] = max(options,key=lambda r:r["support_kw"])
+            loss[s] = max(0.,req-witnesses[s]["support_kw"])
+        return dict(request_kw=split,witnesses=witnesses,site_loss_kw=loss,loss_kw=sum(loss.values()))
+
+    fixed = best(original)
+    # The exact original assignment is included explicitly, including endpoint rounding.
+    samples = [fixed]+[best({"A":a,"B":total-a}) for a in (lo+(hi-lo)*u for u in (0.,.25,.5,.75,1.))]
+    relaxed = min(samples,key=lambda r:r["loss_kw"])
+    observed = {s:max(0.,req-sites[s]["sustainable_kw"]) for s,req in original.items()}
+    if relaxed["loss_kw"]>fixed["loss_kw"]+tolerance or any(
+            fixed["site_loss_kw"][s]>observed[s]+tolerance for s in observed):
+        raise ValueError("conditional loss nesting violated")
+    fixed_total = sum(min(fixed["site_loss_kw"][s],observed[s]) for s in observed)
+    unavoidable = min(fixed_total,relaxed["loss_kw"])
+    for s in observed:
+        share = min(fixed["site_loss_kw"][s],observed[s])
+        sites[s]["nested_upper_kw"] = share*(1.-.5*unavoidable/fixed_total) if fixed_total else 0.
+    return dict(fixed=fixed,relaxed=relaxed,observed_kw=sum(observed.values()),sampled_assignments=len(samples),
+                potentially_dispatch_avoidable_kw=fixed_total-unavoidable,
+                device_avoidable_kw=sum(observed.values())-fixed_total,conditional_residual_kw=unavoidable)
+
+
 def credit_budget(sites, exposures, *, attributed):
     """Distribute the same discounted kW-seconds across decision samples."""
     result = {key:0. for key in exposures}
@@ -25,7 +66,9 @@ def credit_budget(sites, exposures, *, attributed):
     for site, row in sites.items():
         req, actual, cap = (row[k] for k in ("request_kw","sustainable_kw","capacity_kw"))
         gap = max(0.,req-actual)
-        upper = attribution(req,cap,actual)["upper_kw"] if attributed and cap is not None else gap/2.
+        upper = gap/2.
+        if attributed and cap is not None:
+            upper = row["nested_upper_kw"] if "nested_upper_kw" in row else attribution(req,cap,actual)["upper_kw"]
         lower = gap-upper
         local = mapped[site]
         weight = sum(exposures[k] for k in local)

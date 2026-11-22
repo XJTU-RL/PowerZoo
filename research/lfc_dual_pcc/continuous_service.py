@@ -52,15 +52,16 @@ class ContinuousMaster(nn.Module):
                 raise ValueError("latent outside open Beta support")
             logp = dist.log_prob(latent).detach()
             a = lo+float(latent)*(hi-lo)
-        return a, dict(args=(x,), latent=latent, interval_kw=(lo,hi), old_logp=logp,
+        return a, dict(args=(x,), latent=latent, interval_kw=(lo,hi), allocation_a_kw=a, old_logp=logp,
                        old_value=self.critic(x).squeeze().detach())
 
     def evaluate_sample(self, record):
         x, = record["args"]
         latent = record["latent"]
         lo,hi = record["interval_kw"]
-        if latent is not None and hi-lo <= 1e-9:
-            raise ValueError("point interval cannot carry a behavior sample")
+        if latent is not None and (hi-lo <= 1e-9 or not 0.<float(latent)<1.
+                or not math.isclose(record["allocation_a_kw"],lo+float(latent)*(hi-lo),abs_tol=1e-9)):
+            raise ValueError("invalid latent or mismatched recorded allocation map")
         lp = self.distribution(x).log_prob(latent) if latent is not None else None
         return lp, self.critic(x).squeeze()
 

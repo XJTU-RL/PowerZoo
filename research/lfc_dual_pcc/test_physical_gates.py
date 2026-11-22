@@ -6,10 +6,25 @@ import torch
 
 from .clock_graph import GraphReadout
 from .horizon_witness import repeated_witnesses
-from .physical_credit import credit_budget
+from .physical_credit import credit_budget, nested_bound
 
 
 class PhysicalGateTests(unittest.TestCase):
+    def test_nested_domains_and_missing_observed_path(self):
+        def site(req,actual,best):
+            return dict(request_kw=req,sustainable_kw=actual,actions=[0,0],certificate={
+                "action_paths":[dict(actions=[0,0],support_kw=actual,zero_request_allowed=True),
+                                dict(actions=[2,2],support_kw=best,zero_request_allowed=False)]})
+        sites = dict(A=site(8.,3.,4.),B=site(2.,1.,6.))
+        caps = dict(A=8.,B=6.)
+        result = nested_bound(sites,caps,.005)
+        self.assertEqual([result["relaxed"]["loss_kw"],result["fixed"]["loss_kw"],result["observed_kw"]],[0.,4.,6.])
+        self.assertEqual(result["potentially_dispatch_avoidable_kw"],4.)
+        self.assertEqual(result["device_avoidable_kw"],2.)
+        sites["A"]["actions"] = [5,5]
+        with self.assertRaisesRegex(ValueError,"outside the fixed evidence"):
+            nested_bound(sites,caps,.005)
+
     def test_discounted_credit_is_conserved_for_matched_batch(self):
         site = dict(A=dict(request_kw=10.,capacity_kw=6.,sustainable_kw=3.),
                     B=dict(request_kw=5.,capacity_kw=None,sustainable_kw=2.))

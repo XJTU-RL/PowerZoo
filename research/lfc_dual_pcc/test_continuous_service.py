@@ -32,6 +32,11 @@ class ContinuousServiceTests(unittest.TestCase):
         lp = head.distribution(x).log_prob(torch.tensor(.4))
         self.assertTrue(torch.all(torch.autograd.grad(lp,bias)[0].abs()>0))
         a, behavior = head.decide(x,6.,10.,10.,False,False)
+        for corrupted in (dict(behavior,latent=torch.tensor(1.)),
+                          dict(behavior,interval_kw=(6.,11.)),
+                          dict(behavior,interval_kw=(6.,6.))):
+            with self.assertRaisesRegex(ValueError,"recorded allocation map"):
+                head.evaluate_sample(corrupted)
         stats = update(model,{"master":[(24,2.,-5.,behavior)]},.003)
         self.assertEqual(stats["steps"][0]["samples"][0]["ratio"],1.)
         self.assertTrue(any(d>0. for k,d in stats["deltas"].items() if k.startswith("heads.master.actor.")))

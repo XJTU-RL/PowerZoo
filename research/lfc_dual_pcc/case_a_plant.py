@@ -9,6 +9,7 @@ from envs.lfc.diagnostics.ieee34_bus8 import ObservedReference, RATINGS
 from scripts.check_lfc34_flexible_load import DESIGN, FlexibleLoad, native
 from scripts.check_lfc34_operating_point import sample, phases_and_terminals
 from scripts.check_lfc34_tap_hold import read_taps
+from .master_dispatch import feasible_actions
 
 
 CONFIG=Path(__file__).with_name("case_a.json")
@@ -133,7 +134,7 @@ def feeder(deck,reference,cfg,site):
         ctx.ClearAll()
 
 
-def certify(deck,reference,cfg,site,prefix,initial_state,executed):
+def certify(deck,reference,cfg,site,prefix,initial_state,executed, *, collect_paths=False):
     """Exhaust all feasible two-step paths for this finite action library only."""
     if cfg["slow_s"]!=2 or len(executed)!=2:
         raise ValueError("certification requires exactly two completed fast steps")
@@ -141,6 +142,7 @@ def certify(deck,reference,cfg,site,prefix,initial_state,executed):
     best_actions=None
     paths=0
     replay=None
+    admissible=[]
     for first in range(len(cfg["actions_battery_pv_kw"])):
         with feeder(deck,reference,cfg,site) as f:
             for idx in prefix:
@@ -153,13 +155,22 @@ def certify(deck,reference,cfg,site,prefix,initial_state,executed):
                 raise ValueError("counterfactual reconstruction differs from observed window start")
             if f.probe(first)["veto"]:
                 continue
+            if collect_paths:
+                table=cfg["actions_battery_pv_kw"]
+                zero_first=first in feasible_actions(table,f.candidates(),0.)
             one=f.execute(first)["delivered_kw"]
-            for second,row in enumerate(f.candidates()):
+            candidates=f.candidates()
+            if collect_paths:
+                zero_second=feasible_actions(table,candidates,0.)
+            for second,row in enumerate(candidates):
                 if row["veto"]:
                     continue
                 two=f.base[0]-row["pcc"][0]
                 sustainable=min(one,two)
                 paths+=1
+                if collect_paths:
+                    admissible.append(dict(actions=[first,second],support_kw=sustainable,
+                                           zero_request_allowed=zero_first and second in zero_second))
                 if [first,second]==executed:
                     replay=[one,two]
                 if sustainable>best:
@@ -173,5 +184,8 @@ def certify(deck,reference,cfg,site,prefix,initial_state,executed):
         witness=[f.execute(idx)["delivered_kw"] for idx in best_actions]
     if abs(min(witness)-best)>cfg["gates"]["cert_kw"]:
         raise ValueError("finite upper bound did not match safe reference execution")
-    return dict(certified=True,capacity_kw=best,paths=paths,witness=best_actions,witness_kw=witness,
-                actual_action_replay_kw=replay,scope="finite discrete two-step upward support only")
+    result = dict(certified=True,capacity_kw=best,paths=paths,witness=best_actions,witness_kw=witness,
+                  actual_action_replay_kw=replay,scope="finite discrete two-step upward support only")
+    if collect_paths:
+        result["action_paths"]=admissible
+    return result
