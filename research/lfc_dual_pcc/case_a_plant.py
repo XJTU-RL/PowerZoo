@@ -19,6 +19,11 @@ class Feeder:
         self.ctx,self.cfg,self.site=ctx,cfg,site
         neutral=FlexibleLoad(ctx,deck,reference,json.loads(DESIGN.read_bytes()))
         self.c,self.taps=neutral.circuit,neutral.taps
+        self.exogenous=cfg.get("local_exogenous")
+        if self.exogenous:
+            self.c.Solution.LoadMult=self.exogenous["load_mult"]
+            if abs(self.c.Solution.LoadMult-self.exogenous["load_mult"])>1e-9:
+                raise ValueError("group load multiplier was not applied")
         self.storage,self.pv=cfg["storage"],cfg["pv"]
         self.previous=0.
         self.history=[]
@@ -33,6 +38,10 @@ class Feeder:
                     raise ValueError("native storage model does not match design")
         ctx.Text.Command=(f"New {p['device']} phases=3 bus1={p['bus']} conn=delta kv={p['kv']} "
                           f"kVA={p['kva']} Pmpp={p['kw']} irradiance=1 %Pmpp=50 %cutin=0 %cutout=0 pf=1")
+        if self.exogenous:
+            ctx.Text.Command=f"Edit {p['device']} irradiance={self.exogenous['irradiance']:.12g}"
+            if abs(float(native._prop(self.c,p["device"],"irradiance"))-self.exogenous["irradiance"])>1e-8:
+                raise ValueError("group irradiance was not applied")
         self.last=self.probe(0)
         if self.last["veto"] or any(abs(v-st["initial_soc"][site])>1e-8 for v in self.last["soc"]):
             raise ValueError(f"initial native state rejected: {self.last['veto']}")
@@ -92,7 +101,13 @@ class Feeder:
                 amp=[x["terminal_current_amp"] for x in term["conductors"] if x["node"] in (1,2,3)]
                 if len(amp)!=3 or max(amp)>kva/(math.sqrt(3)*kv) or term["s_kva"]>kva:
                     veto.append("winding")
-        return dict(veto=veto,soc=before,pcc=[raw["pcc_import_kw"],raw["pcc_import_kvar"]],voltage=volts,
+        extra={}
+        if self.exogenous:
+            if "terminal" in veto and actual_pv < pv["base_kw"]+p-self.cfg["gates"]["power_abs_kw"] and pv["base_kw"]+p>self.exogenous["irradiance"]*pv["kw"]:
+                veto.append("pv_availability")
+            extra["terminals"]={d:{k:dev[d.lower()][0][k] for k in ("p_kw","q_kvar","s_kva")}
+                                 for d in [*st["devices"],pv["device"]]}
+        return dict(**extra,veto=veto,soc=before,pcc=[raw["pcc_import_kw"],raw["pcc_import_kvar"]],voltage=volts,
                     battery_kw=batt,pv_kw=actual_pv,balance=[raw["network_power_residual_kw"],raw["network_power_residual_kvar"]])
 
     def candidates(self):

@@ -1,0 +1,127 @@
+{
+  "id": "case-a-independent-conditions-v1",
+  "parent": "7173bd975bbbe4a03ea96e3d4c9bceee2fe3f6e1",
+  "levels": {
+    "soc_a_pu": {
+      "L": 0.100012,
+      "M": 0.100032,
+      "H": 0.1001
+    },
+    "soc_b_pu": {
+      "L": 0.2,
+      "M": 0.35,
+      "H": 0.5
+    },
+    "load_mult": {
+      "L": 0.73,
+      "M": 0.75,
+      "H": 0.77
+    },
+    "irradiance": {
+      "L": 0.5,
+      "M": 0.72,
+      "H": 1
+    }
+  },
+  "groups": {
+    "train": [
+      "LLM",
+      "LMH",
+      "MML",
+      "MHH",
+      "HHL",
+      "HLM"
+    ],
+    "validation": [
+      "MLH",
+      "HML"
+    ],
+    "test": [
+      "LHL",
+      "HMH",
+      "MMM"
+    ]
+  },
+  "order": "three letters = storage / feeder load multiplier / PV irradiance",
+  "source": "one reset native Simulink plus two native IEEE34 per complete group; same delivered-gate, +28 kW event and sampling; original group-specific imports are subtracted at interface, fixed DSS voltages",
+  "seed": 4471,
+  "native_seed": 2781,
+  "sites": [
+    "A",
+    "B"
+  ],
+  "asof_slots": [
+    24,
+    27
+  ],
+  "request_kw": [
+    2,
+    4,
+    6,
+    8,
+    10
+  ],
+  "hold_s": [
+    2,
+    5,
+    10
+  ],
+  "reach_deadline_s": 3,
+  "quantum_kw": 0.1,
+  "power_guard_kw": 0.005,
+  "ceiling_kw": [
+    0,
+    2,
+    4,
+    6,
+    8,
+    10
+  ],
+  "gates": {
+    "expected_groups": [
+      6,
+      2,
+      3
+    ],
+    "max_restore_pq_kw_kvar": 0.005,
+    "max_restore_v_pu": 0.000001,
+    "max_restore_soc": 1e-8,
+    "min_distinct_train_capacity": 3,
+    "audit": "independent same-state neutral/winner restart for all selected power labels; validate every fast step, same-reach H10 prefixes; each group, condition and source digest belongs to exactly one split"
+  },
+  "fit": {
+    "hidden": 12,
+    "epochs": 160,
+    "learning_rate": 0.01,
+    "optimizer": "Adam",
+    "full_batch": true,
+    "seed": 4471,
+    "power_scale_kw": 12,
+    "reach_weight": 0.35,
+    "derate_grid_kw": [
+      0,
+      0.5,
+      1,
+      2
+    ],
+    "maximum_validation_overpromise_rate": 0.1,
+    "rule_neighbors": 2
+  },
+  "audit": {
+    "primary": "power MAE; arrival-to-request MAE on mutually witnessed claims plus false/missed arrivals; certified duration class 0/2/5/10; 5-to-10 overclaim; frequency/size of power overclaim against finite witness, actual native violations separately; metrics also grouped by complete condition",
+    "selection": "freeze architecture and updates; both raw and validation-only conservative derating: smallest adjustment meeting overpromise fraction threshold, else smallest fraction then smallest offset; held-out decisions once",
+    "scope": "no extrapolation proof, no additional sweeps"
+  },
+  "budget": {
+    "native_groups": 11,
+    "native_timeout_s_per_group": 420,
+    "possible_group_states": 44,
+    "label_paths_per_state": 6,
+    "holds_per_policy": 13,
+    "labels_horizon": 132,
+    "requested_service_rows": 660,
+    "matlab_expected_minutes": "25-32 serial",
+    "dss_expected_minutes": "3-6 serial",
+    "mlp_updates": 160
+  }
+}
