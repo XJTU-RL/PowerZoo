@@ -250,3 +250,14 @@ do
     python -m research.lfc_dual_pcc.replay_capacity_transmission --physics "$study/$arm/physics.json" --calibration "$study/calibration.json" --out "$study/$arm/transmission.json"
 done
 ```
+
+另以独立双脉冲做在线 60 Hz 频率验证。保持容量计划固定，启动、撤出和再启动由 Bus8 外加负荷决定。最近的事前频率样本相对扰动前基准的偏差控制本秒调用比例，0.00020 Hz 对应满调用；每站本秒实际的 P/Q 增量于下一秒进入对应输电母线。两站及三站各自从同一初态运行无援助、规则和仅训练慢层三个对照。
+
+```bash
+for n in 2 3
+do
+    python -m research.lfc_dual_pcc.run_capacity_closed_loop --n-sites "$n" --reference "$LFC_REFERENCE" --weights "$study/ordinary/weights.json" --episodes "$study/ordinary/replay.json" --calibration "$study/calibration.json" --out "$study/ordinary/closed-$n.json"
+done
+```
+
+以相同时间的无扰动频率轨迹为基准，无援助双脉冲的频差绝对值积分为 0.907924 mHz·s。双站规则与仅训练慢层分别为 0.902506 和 0.895076 mHz·s，12 个有效快步中 5 步的动作不同，对应当步调用的馈线欠交由 0.487 增至 0.711 Wh。三站两臂的容量分配仅有浮点舍入差异，36 个站点动作、每个原生频率样本完全相同，积分均为 0.876598 mHz·s。该部署候选按前述跟踪实验选择，数字来自一个新双脉冲，支持的是这次闭环的动作与响应比较。
