@@ -1,0 +1,384 @@
+{
+  "2": {
+    "11": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -13.998128092957728
+        },
+        {
+          "update": 25,
+          "stochastic_return": -14.565594514432732
+        },
+        {
+          "update": 50,
+          "stochastic_return": -14.388987135948412
+        },
+        {
+          "update": 75,
+          "stochastic_return": -13.778833007359914
+        },
+        {
+          "update": 100,
+          "stochastic_return": -13.615126164638445
+        },
+        {
+          "update": 125,
+          "stochastic_return": -13.35135210336741
+        },
+        {
+          "update": 150,
+          "stochastic_return": -12.98128039166919
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -29.07321180369918
+        },
+        {
+          "update": 25,
+          "stochastic_return": -25.90533401754712
+        },
+        {
+          "update": 50,
+          "stochastic_return": -22.443279324351685
+        },
+        {
+          "update": 75,
+          "stochastic_return": -21.097929838366063
+        },
+        {
+          "update": 100,
+          "stochastic_return": -20.28672758738493
+        },
+        {
+          "update": 125,
+          "stochastic_return": -18.415756839115456
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.630995535162537
+        }
+      ]
+    },
+    "23": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -14.655298707138332
+        },
+        {
+          "update": 25,
+          "stochastic_return": -14.538828610420403
+        },
+        {
+          "update": 50,
+          "stochastic_return": -15.088787675051897
+        },
+        {
+          "update": 75,
+          "stochastic_return": -14.074770214686598
+        },
+        {
+          "update": 100,
+          "stochastic_return": -14.048648574341986
+        },
+        {
+          "update": 125,
+          "stochastic_return": -13.56575532597532
+        },
+        {
+          "update": 150,
+          "stochastic_return": -11.965045960539118
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -31.068684003673976
+        },
+        {
+          "update": 25,
+          "stochastic_return": -26.097605074653018
+        },
+        {
+          "update": 50,
+          "stochastic_return": -23.26113071158066
+        },
+        {
+          "update": 75,
+          "stochastic_return": -21.69391263867987
+        },
+        {
+          "update": 100,
+          "stochastic_return": -19.691468207062925
+        },
+        {
+          "update": 125,
+          "stochastic_return": -18.06283271328428
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.451547481765996
+        }
+      ]
+    },
+    "37": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -15.492905702847029
+        },
+        {
+          "update": 25,
+          "stochastic_return": -15.15204764354325
+        },
+        {
+          "update": 50,
+          "stochastic_return": -14.42226546113551
+        },
+        {
+          "update": 75,
+          "stochastic_return": -14.204583687456594
+        },
+        {
+          "update": 100,
+          "stochastic_return": -14.040026096302919
+        },
+        {
+          "update": 125,
+          "stochastic_return": -12.862669056073388
+        },
+        {
+          "update": 150,
+          "stochastic_return": -12.564847087329312
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -30.245738254584204
+        },
+        {
+          "update": 25,
+          "stochastic_return": -24.271665757716487
+        },
+        {
+          "update": 50,
+          "stochastic_return": -22.051020930603144
+        },
+        {
+          "update": 75,
+          "stochastic_return": -21.201175623052382
+        },
+        {
+          "update": 100,
+          "stochastic_return": -20.51669652823589
+        },
+        {
+          "update": 125,
+          "stochastic_return": -17.899543805990355
+        },
+        {
+          "update": 150,
+          "stochastic_return": -18.01300273658685
+        }
+      ]
+    }
+  },
+  "3": {
+    "11": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -19.489834760232167
+        },
+        {
+          "update": 25,
+          "stochastic_return": -18.493779815720742
+        },
+        {
+          "update": 50,
+          "stochastic_return": -18.713511805122753
+        },
+        {
+          "update": 75,
+          "stochastic_return": -17.914934573340027
+        },
+        {
+          "update": 100,
+          "stochastic_return": -18.049809366724688
+        },
+        {
+          "update": 125,
+          "stochastic_return": -17.690372567179487
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.40869323941672
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -40.53697845233673
+        },
+        {
+          "update": 25,
+          "stochastic_return": -33.24473700211209
+        },
+        {
+          "update": 50,
+          "stochastic_return": -30.740375829510945
+        },
+        {
+          "update": 75,
+          "stochastic_return": -27.968116057167457
+        },
+        {
+          "update": 100,
+          "stochastic_return": -26.66446729595024
+        },
+        {
+          "update": 125,
+          "stochastic_return": -25.1695742149351
+        },
+        {
+          "update": 150,
+          "stochastic_return": -24.32782633768274
+        }
+      ]
+    },
+    "23": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -20.40348941940633
+        },
+        {
+          "update": 25,
+          "stochastic_return": -18.968785909625588
+        },
+        {
+          "update": 50,
+          "stochastic_return": -18.02308717570179
+        },
+        {
+          "update": 75,
+          "stochastic_return": -18.28721856424969
+        },
+        {
+          "update": 100,
+          "stochastic_return": -17.974435687185427
+        },
+        {
+          "update": 125,
+          "stochastic_return": -17.84177595998597
+        },
+        {
+          "update": 150,
+          "stochastic_return": -18.109733543881255
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -41.589394634182526
+        },
+        {
+          "update": 25,
+          "stochastic_return": -34.94242437743854
+        },
+        {
+          "update": 50,
+          "stochastic_return": -30.568852014444808
+        },
+        {
+          "update": 75,
+          "stochastic_return": -27.163204631136168
+        },
+        {
+          "update": 100,
+          "stochastic_return": -26.554285047478388
+        },
+        {
+          "update": 125,
+          "stochastic_return": -25.55309989233963
+        },
+        {
+          "update": 150,
+          "stochastic_return": -25.174758191462544
+        }
+      ]
+    },
+    "37": {
+      "rule": [],
+      "fixed_lower": [
+        {
+          "update": 1,
+          "stochastic_return": -19.995015544720644
+        },
+        {
+          "update": 25,
+          "stochastic_return": -19.90711475871552
+        },
+        {
+          "update": 50,
+          "stochastic_return": -18.779928795452292
+        },
+        {
+          "update": 75,
+          "stochastic_return": -18.654927427128648
+        },
+        {
+          "update": 100,
+          "stochastic_return": -18.58784700590572
+        },
+        {
+          "update": 125,
+          "stochastic_return": -17.964564220731546
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.620597492493104
+        }
+      ],
+      "joint": [
+        {
+          "update": 1,
+          "stochastic_return": -41.97596195147483
+        },
+        {
+          "update": 25,
+          "stochastic_return": -35.31685825453125
+        },
+        {
+          "update": 50,
+          "stochastic_return": -31.29176598348912
+        },
+        {
+          "update": 75,
+          "stochastic_return": -27.680202904974088
+        },
+        {
+          "update": 100,
+          "stochastic_return": -25.849526837129584
+        },
+        {
+          "update": 125,
+          "stochastic_return": -25.63382553263247
+        },
+        {
+          "update": 150,
+          "stochastic_return": -23.057988700765986
+        }
+      ]
+    }
+  }
+}

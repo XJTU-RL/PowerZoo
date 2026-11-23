@@ -54,7 +54,7 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
 <!-- 单一事实源：按时间在对应泳道末尾追加节点；不要覆盖已发生的节点。详见仓库 AGENTS.md。 -->
 <script id="roadmap-data" type="application/json">
 {
- "updated": "2026-11-21",
+ "updated": "2026-11-23",
  "lanes": [
   {
    "name": "公共接口",
@@ -433,6 +433,14 @@ dialog p{margin:.6rem 0}dialog a{color:var(--aqua)}
      "state": "wait",
      "status": "原生短训，按门停止",
      "result": "六窗候选在 2.5 kW 附近均有实交空档。超交奖励改变权重，贪心仍全选中档。停止在开发验收，留出保留。"
+    },
+    {
+     "id": "lfc-capacity-two-multiple",
+     "date": "2026-11-23",
+     "label": "双站分配与多站容量申报",
+     "state": "wait",
+     "status": "配对留出与原生馈线验证",
+     "result": "双站集中策略与三站协同申报分别训练，三站权重迁移到四、六站。四种规模首轮跟踪误差均以仅学习慢层最低；双、三站另在原生馈线上核验。"
     }
    ]
   }

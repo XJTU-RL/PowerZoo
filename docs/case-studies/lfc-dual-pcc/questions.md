@@ -211,3 +211,42 @@ python -m unittest -v research.lfc_dual_pcc.test_master_dispatch \
 在第三轮修订奖励的原 PPO 权重上只更新末层三项偏置，一批一次梯度步，步长 0.5。候选对的损失为偏好方向的软排序，权重为代价差绝对值除以外部服务需求并限于 1。不传入规则的选择标签。第三轮原 PPO 是对照，另保留同报价和物理可行证据的规则。若学习和规则选择一致，只能确认配对机制和规则等效性。
 
 至少两个冻结开发窗的贪心动作应改变原生 PCC 签名。通过后以同一原生开发事件对拍 PPO 和配对版，沿用第三轮风险门。只有通过该门才在已登记但未运行的 +30 kW、25–36 s、种子 4701 留出上比较 PPO、配对版及规则。统一记录二次频跌和从实际输电消费停援后起算的四秒摆幅。所有保护、初始状态、外部需求、下层权重和风险阈值保持相同。
+
+### 双配网集中分配与多配网协同申报
+
+每个容量承诺维持两秒。在第一个算例中，主网选定 A 在可行区间中的位置，B 承担余额。在第二个算例中，各配网用共享参数、各自的局部观测选择申报乘数。分配器按申报权重和站点上限出清。两个算例的快层均每秒从原有六个储能和光伏动作组合中选择可行动作。全系统考核保留容量短缺带来的误差，以逐秒外部调用减去实际总交付计算。
+
+缩减训练使用 OpenDSS 的六档 PCC 实交标定，显式更新储能余量和爬坡约束。合作回报包括聚合绝对误差和 0.35 倍的各站绝对误差之和。普通策略梯度使用各自决策后的累计回报。配对训练在同一初态、外生调用和其他随机数下，重采一个站的一次申报或执行动作，沿两条分支重新作出后续决策。普通联合与配对更新均使用每批 128 条轨迹；前者取 128 个初态，后者取 64 个初态各分叉一次。
+
+| 站数及评估层级 | 同信息规则，kW | 仅训练慢层，kW | 同时训练两层，kW |
+| --- | ---: | ---: | ---: |
+| 双站，留出 | 0.774 | 0.638 | 0.666 |
+| 三站，留出 | 0.915 | 0.869 | 1.087 |
+| 四站，三站权重直接迁移 | 1.197 | 1.133 | 1.388 |
+| 六站，三站权重直接迁移 | 1.617 | 1.539 | 1.814 |
+
+表中为聚合功率跟踪 MAE。每个规模 32 个留出事件、三个训练种子；同一事件的三次评估共享外生输入。双站与三站改变了容量需求分布和上层决策机制，须在相同规模内比较算法。另取 32 个留出事件、匹配总轨迹数后，双站普通联合与配对更新的 MAE 为 0.687 和 0.853 kW，三站为 1.043 和 1.009 kW。三站配对更新仍高于同批次规则的 0.965 kW。
+
+可从研究分支根目录复跑缩减实验。参数、逐事件结果、留出动作和权重分别位于 `research/lfc_dual_pcc/results/capacity_cases` 与 `research/lfc_dual_pcc/results/capacity_paired`。下列输出选择新的运行目录。
+
+```bash
+study=$(mktemp -d)
+python -m research.lfc_dual_pcc.run_capacity_cases --out "$study/ordinary"
+python -m research.lfc_dual_pcc.diagnose_capacity_transfer --source "$study/ordinary" --out "$study/ordinary/interventions.json"
+python -m research.lfc_dual_pcc.evaluate_capacity_scale --weights "$study/ordinary/weights.json" --out "$study/ordinary/scale_transfer.json"
+python -m research.lfc_dual_pcc.train_capacity_counterfactual --out "$study/paired"
+```
+
+在具备原生依赖的环境，将 `LFC_REFERENCE` 指向前述阶段 0 使用的工作点。在线馈线验证在每一步从 OpenDSS 状态重新决策。两组训练各有四个留出事件的原生结果。以下指令重跑两组的首个事件和闭环输入固定后的输电回放。回放使用实际馈线有功、无功增量，测量 60 Hz IEEE9 的 Bus8 频率；独立 Bus5 有功扰动和无扰动轨迹用于验证第三端口及测量基准。
+
+```bash
+for arm in ordinary paired
+do
+    python -m research.lfc_dual_pcc.capacity_feeders --reference "$LFC_REFERENCE" --episodes "$study/$arm/replay.json" --weights "$study/$arm/weights.json" --out "$study/$arm/physics.json"
+done
+python -m research.lfc_dual_pcc.replay_capacity_transmission --out "$study/calibration.json"
+for arm in ordinary paired
+do
+    python -m research.lfc_dual_pcc.replay_capacity_transmission --physics "$study/$arm/physics.json" --calibration "$study/calibration.json" --out "$study/$arm/transmission.json"
+done
+```

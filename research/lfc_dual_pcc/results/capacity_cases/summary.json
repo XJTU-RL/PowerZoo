@@ -1,0 +1,290 @@
+{
+  "updates": 150,
+  "batch_size": 64,
+  "train_seeds": [
+    11,
+    23,
+    37
+  ],
+  "holdout": [
+    8100,
+    8101,
+    8102,
+    8103,
+    8104,
+    8105,
+    8106,
+    8107,
+    8108,
+    8109,
+    8110,
+    8111,
+    8112,
+    8113,
+    8114,
+    8115,
+    8116,
+    8117,
+    8118,
+    8119,
+    8120,
+    8121,
+    8122,
+    8123,
+    8124,
+    8125,
+    8126,
+    8127,
+    8128,
+    8129,
+    8130,
+    8131
+  ],
+  "steps_per_episode": 12,
+  "metrics": {
+    "2": {
+      "rule": {
+        "mean": {
+          "system_mae_kw": 0.7743968398742934,
+          "local_mae_kw": 0.5675771742573206,
+          "unmet_wh": 1.5818932290998486,
+          "excess_wh": 0.9994295704811299,
+          "uncommitted_mean_kw": 0.050665990256648,
+          "battery_used_wh": 7.743055555555553,
+          "episode_return": -14.060410342253016
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 0.7743968398742934,
+            "local_mae_kw": 0.5675771742573206,
+            "unmet_wh": 1.5818932290998489,
+            "excess_wh": 0.9994295704811299,
+            "uncommitted_mean_kw": 0.050665990256648,
+            "battery_used_wh": 7.743055555555552,
+            "episode_return": -14.060410342253016
+          },
+          "23": {
+            "system_mae_kw": 0.7743968398742934,
+            "local_mae_kw": 0.5675771742573206,
+            "unmet_wh": 1.5818932290998489,
+            "excess_wh": 0.9994295704811299,
+            "uncommitted_mean_kw": 0.050665990256648,
+            "battery_used_wh": 7.743055555555552,
+            "episode_return": -14.060410342253016
+          },
+          "37": {
+            "system_mae_kw": 0.7743968398742934,
+            "local_mae_kw": 0.5675771742573206,
+            "unmet_wh": 1.5818932290998489,
+            "excess_wh": 0.9994295704811299,
+            "uncommitted_mean_kw": 0.050665990256648,
+            "battery_used_wh": 7.743055555555552,
+            "episode_return": -14.060410342253016
+          }
+        }
+      },
+      "fixed_lower": {
+        "mean": {
+          "system_mae_kw": 0.6383502290068948,
+          "local_mae_kw": 0.4199204535856433,
+          "unmet_wh": 1.1301058476501655,
+          "excess_wh": 0.9977282490394842,
+          "uncommitted_mean_kw": 0.012286360161369822,
+          "battery_used_wh": 11.666666666666663,
+          "episode_return": -11.187534558202145
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 0.6383502290068948,
+            "local_mae_kw": 0.4199204535856433,
+            "unmet_wh": 1.1301058476501655,
+            "excess_wh": 0.9977282490394843,
+            "uncommitted_mean_kw": 0.012286360161369822,
+            "battery_used_wh": 11.66666666666666,
+            "episode_return": -11.187534558202145
+          },
+          "23": {
+            "system_mae_kw": 0.6383502290068948,
+            "local_mae_kw": 0.4199204535856433,
+            "unmet_wh": 1.1301058476501655,
+            "excess_wh": 0.9977282490394843,
+            "uncommitted_mean_kw": 0.012286360161369822,
+            "battery_used_wh": 11.66666666666666,
+            "episode_return": -11.187534558202145
+          },
+          "37": {
+            "system_mae_kw": 0.6383502290068948,
+            "local_mae_kw": 0.4199204535856433,
+            "unmet_wh": 1.1301058476501655,
+            "excess_wh": 0.9977282490394843,
+            "uncommitted_mean_kw": 0.012286360161369822,
+            "battery_used_wh": 11.66666666666666,
+            "episode_return": -11.187534558202145
+          }
+        }
+      },
+      "joint": {
+        "mean": {
+          "system_mae_kw": 0.6656968153492002,
+          "local_mae_kw": 0.4546325285270436,
+          "unmet_wh": 1.2375183813719055,
+          "excess_wh": 0.9814710031254289,
+          "uncommitted_mean_kw": 0.02064919995490021,
+          "battery_used_wh": 10.428240740740735,
+          "episode_return": -11.807275023817573
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 0.6873985301804447,
+            "local_mae_kw": 0.4840862219234014,
+            "unmet_wh": 1.2917756919861227,
+            "excess_wh": 0.9995527419486929,
+            "uncommitted_mean_kw": 0.026420846204951803,
+            "battery_used_wh": 9.722222222222218,
+            "episode_return": -12.315106626321908
+          },
+          "23": {
+            "system_mae_kw": 0.6452479068402301,
+            "local_mae_kw": 0.4453718627489055,
+            "unmet_wh": 1.1335275410599783,
+            "excess_wh": 1.0172988150741225,
+            "uncommitted_mean_kw": 0.017763376829874417,
+            "battery_used_wh": 10.833333333333329,
+            "episode_return": -11.484098529173568
+          },
+          "37": {
+            "system_mae_kw": 0.664444009026926,
+            "local_mae_kw": 0.434439500908824,
+            "unmet_wh": 1.2872519110696155,
+            "excess_wh": 0.9275614523534714,
+            "uncommitted_mean_kw": 0.017763376829874417,
+            "battery_used_wh": 10.729166666666663,
+            "episode_return": -11.622619915957236
+          }
+        }
+      }
+    },
+    "3": {
+      "rule": {
+        "mean": {
+          "system_mae_kw": 0.9154636444617195,
+          "local_mae_kw": 0.5827947752890668,
+          "unmet_wh": 1.5301151171502003,
+          "excess_wh": 1.5214303643888638,
+          "uncommitted_mean_kw": 0.01643061273470654,
+          "battery_used_wh": 12.465277777777779,
+          "episode_return": -18.32877790218287
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 0.9154636444617195,
+            "local_mae_kw": 0.5827947752890668,
+            "unmet_wh": 1.5301151171502003,
+            "excess_wh": 1.521430364388864,
+            "uncommitted_mean_kw": 0.01643061273470654,
+            "battery_used_wh": 12.465277777777779,
+            "episode_return": -18.32877790218287
+          },
+          "23": {
+            "system_mae_kw": 0.9154636444617195,
+            "local_mae_kw": 0.5827947752890668,
+            "unmet_wh": 1.5301151171502003,
+            "excess_wh": 1.521430364388864,
+            "uncommitted_mean_kw": 0.01643061273470654,
+            "battery_used_wh": 12.465277777777779,
+            "episode_return": -18.32877790218287
+          },
+          "37": {
+            "system_mae_kw": 0.9154636444617195,
+            "local_mae_kw": 0.5827947752890668,
+            "unmet_wh": 1.5301151171502003,
+            "excess_wh": 1.521430364388864,
+            "uncommitted_mean_kw": 0.01643061273470654,
+            "battery_used_wh": 12.465277777777779,
+            "episode_return": -18.32877790218287
+          }
+        }
+      },
+      "fixed_lower": {
+        "mean": {
+          "system_mae_kw": 0.8690610991994966,
+          "local_mae_kw": 0.5538535252658568,
+          "unmet_wh": 1.5129305795044283,
+          "excess_wh": 1.3839397511605604,
+          "uncommitted_mean_kw": 0.016525124016587244,
+          "battery_used_wh": 13.090277777777777,
+          "episode_return": -17.407287608743758
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 0.85868668954998,
+            "local_mae_kw": 0.5468585988152584,
+            "unmet_wh": 1.4638966835158727,
+            "excess_wh": 1.3983922816507273,
+            "uncommitted_mean_kw": 0.01614086759030466,
+            "battery_used_wh": 13.159722222222221,
+            "episode_return": -17.19465861967202
+          },
+          "23": {
+            "system_mae_kw": 0.8813608627207565,
+            "local_mae_kw": 0.5642672307539617,
+            "unmet_wh": 1.5686897470259975,
+            "excess_wh": 1.3691797953765246,
+            "uncommitted_mean_kw": 0.017293636869152428,
+            "battery_used_wh": 12.98611111111111,
+            "episode_return": -17.686097460149
+          },
+          "37": {
+            "system_mae_kw": 0.8671357453277534,
+            "local_mae_kw": 0.5504347462283503,
+            "unmet_wh": 1.5062053079714148,
+            "excess_wh": 1.3842471764544302,
+            "uncommitted_mean_kw": 0.01614086759030465,
+            "battery_used_wh": 13.125,
+            "episode_return": -17.341106746410258
+          }
+        }
+      },
+      "joint": {
+        "mean": {
+          "system_mae_kw": 1.0870576695784484,
+          "local_mae_kw": 0.5986526913442088,
+          "unmet_wh": 2.0869576355585164,
+          "excess_wh": 1.5365679297029777,
+          "uncommitted_mean_kw": 0.031415157672858664,
+          "battery_used_wh": 11.076388888888888,
+          "episode_return": -20.58771594587841
+        },
+        "by_train_seed": {
+          "11": {
+            "system_mae_kw": 1.063860097691289,
+            "local_mae_kw": 0.5981245172632353,
+            "unmet_wh": 2.0249139012232313,
+            "excess_wh": 1.5212864244143989,
+            "uncommitted_mean_kw": 0.031415157672858664,
+            "battery_used_wh": 11.215277777777777,
+            "episode_return": -20.30269008981223
+          },
+          "23": {
+            "system_mae_kw": 1.1014363183096012,
+            "local_mae_kw": 0.5990514529970289,
+            "unmet_wh": 2.117979502726159,
+            "excess_wh": 1.553474891639178,
+            "uncommitted_mean_kw": 0.031415157672858664,
+            "battery_used_wh": 11.006944444444443,
+            "episode_return": -20.765284127477777
+          },
+          "37": {
+            "system_mae_kw": 1.0958765927344547,
+            "local_mae_kw": 0.5987821037723623,
+            "unmet_wh": 2.117979502726159,
+            "excess_wh": 1.5349424730553565,
+            "uncommitted_mean_kw": 0.031415157672858664,
+            "battery_used_wh": 11.006944444444443,
+            "episode_return": -20.695173620345223
+          }
+        }
+      }
+    }
+  }
+}

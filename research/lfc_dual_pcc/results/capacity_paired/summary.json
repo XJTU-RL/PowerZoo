@@ -1,0 +1,105 @@
+{
+  "updates": 150,
+  "paired_batch_size": 64,
+  "matched_batch_size": 128,
+  "trajectories_per_update": 128,
+  "holdout": [
+    9200,
+    9201,
+    9202,
+    9203,
+    9204,
+    9205,
+    9206,
+    9207,
+    9208,
+    9209,
+    9210,
+    9211,
+    9212,
+    9213,
+    9214,
+    9215,
+    9216,
+    9217,
+    9218,
+    9219,
+    9220,
+    9221,
+    9222,
+    9223,
+    9224,
+    9225,
+    9226,
+    9227,
+    9228,
+    9229,
+    9230,
+    9231
+  ],
+  "train_seeds": [
+    11,
+    23,
+    37
+  ],
+  "means": {
+    "2": {
+      "rule": {
+        "system_mae_kw": 0.845865186025204,
+        "local_mae_kw": 0.5887911465439138,
+        "unmet_wh": 1.5365324773103495,
+        "excess_wh": 1.2830181427736636,
+        "uncommitted_mean_kw": 0.06878911333729648,
+        "battery_used_wh": 8.75,
+        "episode_return": -15.096227863271324
+      },
+      "joint_matched": {
+        "system_mae_kw": 0.6865071684957685,
+        "local_mae_kw": 0.43115993239004685,
+        "unmet_wh": 1.1241356015685096,
+        "excess_wh": 1.1642216267507186,
+        "uncommitted_mean_kw": 0.010271403822472788,
+        "battery_used_wh": 11.85185185185185,
+        "episode_return": -11.859829454025615
+      },
+      "paired": {
+        "system_mae_kw": 0.8533042399923018,
+        "local_mae_kw": 0.6057823129032666,
+        "unmet_wh": 1.6713802811891079,
+        "excess_wh": 1.1729671854518984,
+        "uncommitted_mean_kw": 0.05104099194957961,
+        "battery_used_wh": 8.101851851851851,
+        "episode_return": -15.32822230829506
+      }
+    },
+    "3": {
+      "rule": {
+        "system_mae_kw": 0.964643663915583,
+        "local_mae_kw": 0.5687031839180139,
+        "unmet_wh": 1.7057427285209183,
+        "excess_wh": 1.5097361511976912,
+        "uncommitted_mean_kw": 0.046256770490266524,
+        "battery_used_wh": 12.361111111111109,
+        "episode_return": -18.74138408435397
+      },
+      "joint_matched": {
+        "system_mae_kw": 1.0430753081859254,
+        "local_mae_kw": 0.5737273668770856,
+        "unmet_wh": 2.022455026460534,
+        "excess_wh": 1.4544626674925498,
+        "uncommitted_mean_kw": 0.0462567704902667,
+        "battery_used_wh": 11.331018518518519,
+        "episode_return": -19.745868520882382
+      },
+      "paired": {
+        "system_mae_kw": 1.0087208205371854,
+        "local_mae_kw": 0.5707894720838745,
+        "unmet_wh": 1.8068996457641011,
+        "excess_wh": 1.5555030893598503,
+        "uncommitted_mean_kw": 0.0336000995608351,
+        "battery_used_wh": 11.88657407407407,
+        "episode_return": -19.296597194703043
+      }
+    }
+  }
+}

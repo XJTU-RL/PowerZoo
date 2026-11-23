@@ -1,0 +1,384 @@
+{
+  "2": {
+    "11": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -30.304157096218013
+        },
+        {
+          "update": 25,
+          "stochastic_return": -26.151288807767255
+        },
+        {
+          "update": 50,
+          "stochastic_return": -23.18961311158553
+        },
+        {
+          "update": 75,
+          "stochastic_return": -20.53138413191234
+        },
+        {
+          "update": 100,
+          "stochastic_return": -18.811348897817894
+        },
+        {
+          "update": 125,
+          "stochastic_return": -17.661306467582804
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.327578686573936
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -30.203931526259012
+        },
+        {
+          "update": 25,
+          "stochastic_return": -27.118598795904315
+        },
+        {
+          "update": 50,
+          "stochastic_return": -24.59599980847744
+        },
+        {
+          "update": 75,
+          "stochastic_return": -22.82338689919097
+        },
+        {
+          "update": 100,
+          "stochastic_return": -22.719667187037608
+        },
+        {
+          "update": 125,
+          "stochastic_return": -20.485400383323423
+        },
+        {
+          "update": 150,
+          "stochastic_return": -20.09709384413629
+        }
+      ]
+    },
+    "23": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -30.519095824836498
+        },
+        {
+          "update": 25,
+          "stochastic_return": -24.891359077110003
+        },
+        {
+          "update": 50,
+          "stochastic_return": -22.615835623120365
+        },
+        {
+          "update": 75,
+          "stochastic_return": -21.246004147718125
+        },
+        {
+          "update": 100,
+          "stochastic_return": -19.467301546174504
+        },
+        {
+          "update": 125,
+          "stochastic_return": -18.70355225568093
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.17329990651931
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -30.689952922798224
+        },
+        {
+          "update": 25,
+          "stochastic_return": -25.5324520136446
+        },
+        {
+          "update": 50,
+          "stochastic_return": -24.304552460452403
+        },
+        {
+          "update": 75,
+          "stochastic_return": -22.178457631762328
+        },
+        {
+          "update": 100,
+          "stochastic_return": -21.05298718849542
+        },
+        {
+          "update": 125,
+          "stochastic_return": -20.87242216776197
+        },
+        {
+          "update": 150,
+          "stochastic_return": -19.370408202230088
+        }
+      ]
+    },
+    "37": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -30.164681840784713
+        },
+        {
+          "update": 25,
+          "stochastic_return": -24.578224169944104
+        },
+        {
+          "update": 50,
+          "stochastic_return": -23.365947696297816
+        },
+        {
+          "update": 75,
+          "stochastic_return": -20.159648326247236
+        },
+        {
+          "update": 100,
+          "stochastic_return": -18.806560847417657
+        },
+        {
+          "update": 125,
+          "stochastic_return": -18.10086861868963
+        },
+        {
+          "update": 150,
+          "stochastic_return": -17.207614014737338
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -30.209141474602863
+        },
+        {
+          "update": 25,
+          "stochastic_return": -26.216936810747548
+        },
+        {
+          "update": 50,
+          "stochastic_return": -24.741438122482123
+        },
+        {
+          "update": 75,
+          "stochastic_return": -21.961894051626523
+        },
+        {
+          "update": 100,
+          "stochastic_return": -20.23679022629352
+        },
+        {
+          "update": 125,
+          "stochastic_return": -20.890809552225278
+        },
+        {
+          "update": 150,
+          "stochastic_return": -19.958212235681742
+        }
+      ]
+    }
+  },
+  "3": {
+    "11": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -41.54061782475498
+        },
+        {
+          "update": 25,
+          "stochastic_return": -34.77217377503165
+        },
+        {
+          "update": 50,
+          "stochastic_return": -30.356674225068
+        },
+        {
+          "update": 75,
+          "stochastic_return": -27.761743324811913
+        },
+        {
+          "update": 100,
+          "stochastic_return": -25.69243454531334
+        },
+        {
+          "update": 125,
+          "stochastic_return": -24.4334330661694
+        },
+        {
+          "update": 150,
+          "stochastic_return": -24.11619244990558
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -41.48826843029815
+        },
+        {
+          "update": 25,
+          "stochastic_return": -36.07074702305603
+        },
+        {
+          "update": 50,
+          "stochastic_return": -34.23781227986017
+        },
+        {
+          "update": 75,
+          "stochastic_return": -31.032826538418334
+        },
+        {
+          "update": 100,
+          "stochastic_return": -29.15513933388357
+        },
+        {
+          "update": 125,
+          "stochastic_return": -28.71178280600311
+        },
+        {
+          "update": 150,
+          "stochastic_return": -26.417568243609228
+        }
+      ]
+    },
+    "23": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -41.56140343501336
+        },
+        {
+          "update": 25,
+          "stochastic_return": -34.981058774399166
+        },
+        {
+          "update": 50,
+          "stochastic_return": -29.744374408131435
+        },
+        {
+          "update": 75,
+          "stochastic_return": -28.42052579901474
+        },
+        {
+          "update": 100,
+          "stochastic_return": -25.55676162754359
+        },
+        {
+          "update": 125,
+          "stochastic_return": -24.13874119334442
+        },
+        {
+          "update": 150,
+          "stochastic_return": -24.606187202647355
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -41.57042809630137
+        },
+        {
+          "update": 25,
+          "stochastic_return": -38.59657703349218
+        },
+        {
+          "update": 50,
+          "stochastic_return": -33.22663007219542
+        },
+        {
+          "update": 75,
+          "stochastic_return": -31.882228107869423
+        },
+        {
+          "update": 100,
+          "stochastic_return": -30.32119959207213
+        },
+        {
+          "update": 125,
+          "stochastic_return": -29.87908847110657
+        },
+        {
+          "update": 150,
+          "stochastic_return": -27.36756779399847
+        }
+      ]
+    },
+    "37": {
+      "rule": [],
+      "joint_matched": [
+        {
+          "update": 1,
+          "stochastic_return": -42.35227350221532
+        },
+        {
+          "update": 25,
+          "stochastic_return": -33.89821479643237
+        },
+        {
+          "update": 50,
+          "stochastic_return": -29.301728831619695
+        },
+        {
+          "update": 75,
+          "stochastic_return": -27.106442302934816
+        },
+        {
+          "update": 100,
+          "stochastic_return": -25.608404847755843
+        },
+        {
+          "update": 125,
+          "stochastic_return": -24.49410438538151
+        },
+        {
+          "update": 150,
+          "stochastic_return": -23.616790524494053
+        }
+      ],
+      "paired": [
+        {
+          "update": 1,
+          "stochastic_return": -41.32663110649308
+        },
+        {
+          "update": 25,
+          "stochastic_return": -35.87752501469225
+        },
+        {
+          "update": 50,
+          "stochastic_return": -34.026699867599
+        },
+        {
+          "update": 75,
+          "stochastic_return": -31.892693441098476
+        },
+        {
+          "update": 100,
+          "stochastic_return": -29.95172814539562
+        },
+        {
+          "update": 125,
+          "stochastic_return": -26.92106516859633
+        },
+        {
+          "update": 150,
+          "stochastic_return": -27.643235345591712
+        }
+      ]
+    }
+  }
+}
