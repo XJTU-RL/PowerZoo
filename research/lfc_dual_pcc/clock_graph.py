@@ -356,7 +356,8 @@ class Coordinator:
         return grouped
 
 
-def update(policy, grouped, lr):
+def update(policy, grouped, lr, *, conditional_advantages=None):
+    conditional_advantages = conditional_advantages or {}
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
     batches = {}
     for role, samples in grouped.items():
@@ -364,6 +365,8 @@ def update(policy, grouped, lr):
         for slot,elapsed,reward,record in reversed(samples):
             returns = reward+.95**elapsed*returns
             batches.setdefault(slot,[]).append((role,returns,record))
+    if set(conditional_advantages)-{(role,slot) for slot,batch in batches.items() for role,_,_ in batch}:
+        raise ValueError("conditional advantage does not match an optimizer sample")
     before = {k: p.detach().clone() for k,p in policy.named_parameters()}
     gradients, steps = {}, []
     for slot, batch in sorted(batches.items()):
@@ -371,7 +374,10 @@ def update(policy, grouped, lr):
         for role,target,r in batch:
             head = policy.heads[role]
             lp, value = head.evaluate_sample(r)
-            adv = target-r["old_value"]
+            supplied = conditional_advantages.get((role,slot))
+            adv = target-r["old_value"] if supplied is None else supplied
+            if supplied is not None and (lp is None or not math.isfinite(supplied)):
+                raise ValueError("invalid conditional advantage for a forced or missing policy sample")
             loss = .5*(value-target).square()
             ratio = None
             if lp is not None:
@@ -379,7 +385,8 @@ def update(policy, grouped, lr):
                 loss = loss-torch.minimum(ratio*adv,ratio.clamp(.8,1.2)*adv)
             terms.append(loss)
             evidence.append(dict(role=role,target=target,advantage=float(adv),
-                                 ratio=float(ratio.detach()) if ratio is not None else None))
+                                 ratio=float(ratio.detach()) if ratio is not None else None,
+                                 conditional_credit=supplied is not None))
         loss = torch.stack(terms).sum()
         opt.zero_grad(set_to_none=True)
         loss.backward()
